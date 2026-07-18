@@ -398,7 +398,6 @@ export default function Dashboard() {
 
   const declineCall = () => {
     socket.emit('end_call', { to: callerId });
-    logCallMessage(callerId, '📞 Missed Call');
     setReceivingCall(false);
     handleEndCallQuietly();
   };
