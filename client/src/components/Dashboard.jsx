@@ -63,6 +63,7 @@ export default function Dashboard() {
   const userVideoRef = useRef(null);
   const connectionRef = useRef(null);
   const localStreamRef = useRef(null);
+  const [remoteStreamState, setRemoteStreamState] = useState(null);
   const ringtoneOutRef = useRef(null);
   const ringtoneInRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -321,7 +322,10 @@ export default function Dashboard() {
     try {
       const stream = await requestMediaPermissions(isVideo);
       localStreamRef.current = stream;
-      if (myVideoRef.current) myVideoRef.current.srcObject = stream;
+      if (myVideoRef.current) {
+        myVideoRef.current.srcObject = stream;
+        myVideoRef.current.play().catch(e => console.error('Local video play error:', e));
+      }
 
       const peer = new Peer({ initiator: true, trickle: false, stream: stream });
 
@@ -337,7 +341,11 @@ export default function Dashboard() {
       });
 
       peer.on('stream', (remoteStream) => {
-        if (userVideoRef.current) userVideoRef.current.srcObject = remoteStream;
+        setRemoteStreamState(remoteStream);
+        if (userVideoRef.current) {
+          userVideoRef.current.srcObject = remoteStream;
+          userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
+        }
       });
 
       connectionRef.current = peer;
@@ -360,7 +368,10 @@ export default function Dashboard() {
     try {
       const stream = await requestMediaPermissions(isVideoCall);
       localStreamRef.current = stream;
-      if (myVideoRef.current) myVideoRef.current.srcObject = stream;
+      if (myVideoRef.current) {
+        myVideoRef.current.srcObject = stream;
+        myVideoRef.current.play().catch(e => console.error('Local video play error:', e));
+      }
 
       const peer = new Peer({ initiator: false, trickle: false, stream: stream });
 
@@ -369,7 +380,11 @@ export default function Dashboard() {
       });
 
       peer.on('stream', (remoteStream) => {
-        if (userVideoRef.current) userVideoRef.current.srcObject = remoteStream;
+        setRemoteStreamState(remoteStream);
+        if (userVideoRef.current) {
+          userVideoRef.current.srcObject = remoteStream;
+          userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
+        }
       });
 
       peer.signal(callerSignal);
@@ -399,6 +414,7 @@ export default function Dashboard() {
     setCalling(false);
     setReceivingCall(false);
     setCallAccepted(false);
+    setRemoteStreamState(null);
     if (ringtoneInRef.current) { ringtoneInRef.current.pause(); ringtoneInRef.current.currentTime = 0; }
     if (ringtoneOutRef.current) { ringtoneOutRef.current.pause(); ringtoneOutRef.current.currentTime = 0; }
     if (connectionRef.current) { connectionRef.current.destroy(); connectionRef.current = null; }
@@ -410,6 +426,19 @@ export default function Dashboard() {
       setUnreadNotifsCount(0);
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (callActive) {
+      if (myVideoRef.current && localStreamRef.current) {
+        myVideoRef.current.srcObject = localStreamRef.current;
+        myVideoRef.current.play().catch(e => {});
+      }
+      if (userVideoRef.current && remoteStreamState) {
+        userVideoRef.current.srcObject = remoteStreamState;
+        userVideoRef.current.play().catch(e => {});
+      }
+    }
+  }, [swapVideo, callActive, remoteStreamState]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -829,18 +858,18 @@ export default function Dashboard() {
                 {callAccepted ? (
                   <>
                     <div className={swapVideo ? "local-video-container clickable-video" : "remote-video-container"} onClick={() => swapVideo && setSwapVideo(false)}>
-                      <video playsInline ref={userVideoRef} autoPlay className="video-element" />
+                      <video playsInline webkit-playsinline="true" ref={userVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover' }} />
                       {!swapVideo && <div className="video-label">@{callerName}</div>}
                     </div>
                     <div className={!swapVideo ? "local-video-container clickable-video" : "remote-video-container"} onClick={() => !swapVideo && setSwapVideo(true)}>
-                      <video playsInline muted ref={myVideoRef} autoPlay className="video-element" />
+                      <video playsInline webkit-playsinline="true" muted ref={myVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover' }} />
                       {swapVideo && <div className="video-label">You</div>}
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="remote-video-container">
-                      <video playsInline muted ref={myVideoRef} autoPlay className="video-element" />
+                      <video playsInline webkit-playsinline="true" muted ref={myVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover' }} />
                       <div className="video-label">You</div>
                     </div>
                     <div className="local-video-container" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
