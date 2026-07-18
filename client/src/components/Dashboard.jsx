@@ -323,7 +323,7 @@ export default function Dashboard() {
       connectionRef.current = peer;
     } catch (error) {
       console.error(error);
-      alert('Media permission error. Call failed.');
+      alert('Call setup failed: ' + error.message);
       handleEndCallQuietly();
     }
   };
@@ -352,7 +352,7 @@ export default function Dashboard() {
       connectionRef.current = peer;
     } catch (error) {
       console.error(error);
-      alert('Media permission error. Cannot accept call.');
+      alert('Call accept failed: ' + error.message);
       declineCall();
     }
   };
