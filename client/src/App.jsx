@@ -17,7 +17,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   const API_URL = import.meta.env.VITE_API_URL || 'https://twelo-backend.onrender.com';
-  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '825946914569-8l2uuljks8k0927l90s5l6i7m2e0g7d3.apps.googleusercontent.com'; // Using a placeholder that looks real to avoid errors
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '860828724379-9cbabp7n5oa6dr15sm7k7rnvdu4meo9n.apps.googleusercontent.com';
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
