@@ -113,34 +113,43 @@ export default function Login() {
             {loading && <p style={{ textAlign: 'center', marginTop: '16px', color: '#a8a8a8' }}>Please wait...</p>}
           </>
         ) : (
-          <form onSubmit={handleCompleteProfile}>
-            <h2 style={{ textAlign: 'center', marginBottom: '16px', fontSize: '1.2rem', color: '#f5f5f5' }}>
-              Just one more step
-            </h2>
-            <p style={{ textAlign: 'center', color: '#a8a8a8', marginBottom: '24px', fontSize: '0.9rem' }}>
-              What should we call you?
-            </p>
+          <form onSubmit={handleCompleteProfile} className="onboarding-form">
+            <div className="onboarding-header">
+              <span className="step-badge">Final Step</span>
+              <h2 className="gradient-text" style={{ textAlign: 'center', marginBottom: '8px', fontSize: '1.5rem', fontWeight: '700' }}>
+                Welcome to Twelo
+              </h2>
+              <p style={{ textAlign: 'center', color: '#a8a8a8', marginBottom: '32px', fontSize: '0.95rem' }}>
+                Let's set up your profile. What should we call you?
+              </p>
+            </div>
             
-            <div className="form-group">
-              <label>Your Name</label>
+            <div className="form-group floating-group">
               <input
                 type="text"
-                className="auth-input"
-                placeholder="Enter your full name"
+                className="auth-input floating-input"
+                placeholder=" "
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
                 autoFocus
               />
+              <label className="floating-label">Your Full Name</label>
             </div>
             
             <button 
               type="submit" 
-              className="auth-button" 
+              className="auth-button glow-btn" 
               disabled={loading}
-              style={{ marginTop: '12px' }}
+              style={{ marginTop: '24px', position: 'relative', overflow: 'hidden' }}
             >
-              {loading ? 'Creating Account...' : 'Join Twelo'}
+              {loading ? (
+                <span className="spinner-text">Creating Account...</span>
+              ) : (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold', fontSize: '1rem' }}>
+                  Join Twelo 🚀
+                </span>
+              )}
             </button>
           </form>
         )}

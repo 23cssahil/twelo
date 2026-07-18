@@ -756,3 +756,116 @@ input, button, textarea {
 .accept-btn:hover {
   background-color: #22a944 !important;
 }
+
+/* ========================================================= */
+/* Onboarding UI Enhancements */
+/* ========================================================= */
+.onboarding-form {
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.step-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.onboarding-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #0095f6, #ff007a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.floating-group {
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.floating-input {
+  width: 100%;
+  padding: 16px 16px;
+  background: #111;
+  border: 2px solid #333;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.floating-input:focus {
+  border-color: #0095f6;
+  background: #000;
+  box-shadow: 0 0 0 4px rgba(0, 149, 246, 0.1);
+}
+
+.floating-label {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  background: transparent;
+}
+
+.floating-input:focus ~ .floating-label,
+.floating-input:not(:placeholder-shown) ~ .floating-label {
+  top: 0;
+  transform: translateY(-50%) scale(0.85);
+  background: #111;
+  padding: 0 4px;
+  color: #0095f6;
+}
+
+.glow-btn {
+  background: linear-gradient(135deg, #0095f6, #00d2ff);
+  color: #fff;
+  border: none;
+  padding: 16px;
+  border-radius: 12px;
+  width: 100%;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glow-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 149, 246, 0.4);
+}
+
+.glow-btn:active {
+  transform: translateY(0);
+}
+
+.spinner-text {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes slideUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
