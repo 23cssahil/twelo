@@ -67,6 +67,10 @@ export default function Dashboard() {
   const ringtoneOutRef = useRef(null);
   const ringtoneInRef = useRef(null);
   const messagesEndRef = useRef(null);
+  
+  const isCallerRef = useRef(false);
+  const callStartTimeRef = useRef(null);
+  const activeCallTargetRef = useRef(null);
 
   const fetchProfile = async () => {
     try {
@@ -137,6 +141,7 @@ export default function Dashboard() {
     socket.on('call_accepted', (signal) => {
       setCallAccepted(true);
       setCalling(false);
+      callStartTimeRef.current = Date.now();
       if (ringtoneOutRef.current) {
         ringtoneOutRef.current.pause();
         ringtoneOutRef.current.currentTime = 0;
@@ -144,7 +149,10 @@ export default function Dashboard() {
       if (connectionRef.current) connectionRef.current.signal(signal);
     });
 
-    socket.on('call_ended', () => handleEndCallQuietly());
+    socket.on('call_ended', () => {
+      finalizeCallLog();
+      handleEndCallQuietly();
+    });
 
     return () => {
       socket.off('online_users');
@@ -281,6 +289,29 @@ export default function Dashboard() {
     socket.emit('send_message', msgData);
   };
 
+  const finalizeCallLog = () => {
+    if (isCallerRef.current && activeCallTargetRef.current) {
+      if (callStartTimeRef.current) {
+        const dur = Math.floor((Date.now() - callStartTimeRef.current) / 1000);
+        const m = Math.floor(dur / 60);
+        const s = dur % 60;
+        const durStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
+        logCallMessage(activeCallTargetRef.current, `📞 Call Ended (${durStr})`);
+      } else {
+        logCallMessage(activeCallTargetRef.current, '📞 Call Ended');
+      }
+    }
+    isCallerRef.current = false;
+    callStartTimeRef.current = null;
+    activeCallTargetRef.current = null;
+  };
+
+  const formatTime = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+  };
+
   const startChatWithUser = (targetUser) => {
     setActiveChatUser(targetUser);
     setActiveTab('messages');
@@ -310,6 +341,8 @@ export default function Dashboard() {
     setCallActive(true);
     setCallerName(targetUsername);
     setCallerId(targetUserId);
+    isCallerRef.current = true;
+    activeCallTargetRef.current = targetUserId;
 
     if (ringtoneOutRef.current) {
       ringtoneOutRef.current.currentTime = 0;
@@ -358,6 +391,8 @@ export default function Dashboard() {
     setReceivingCall(false);
     setCallAccepted(true);
     setCallActive(true);
+    isCallerRef.current = false;
+    callStartTimeRef.current = Date.now();
     if (ringtoneInRef.current) {
       ringtoneInRef.current.pause();
       ringtoneInRef.current.currentTime = 0;
@@ -403,7 +438,7 @@ export default function Dashboard() {
   const endCall = () => {
     const targetId = activeChatUser ? activeChatUser._id : callerId;
     socket.emit('end_call', { to: targetId });
-    logCallMessage(targetId, '📞 Call Ended');
+    finalizeCallLog();
     handleEndCallQuietly();
   };
 
@@ -661,7 +696,10 @@ export default function Dashboard() {
                   <div className="chat-messages-area">
                     {messages.map((msg) => (
                       <div key={msg._id} className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`}>
-                        <div className="msg-bubble">{msg.message}</div>
+                        <div className="msg-bubble">
+                          <div>{msg.message}</div>
+                          <div className="msg-time">{formatTime(msg.createdAt)}</div>
+                        </div>
                       </div>
                     ))}
                     <div ref={messagesEndRef} />
