@@ -63,6 +63,8 @@ export default function Dashboard() {
   const userVideoRef = useRef(null);
   const connectionRef = useRef(null);
   const localStreamRef = useRef(null);
+  const ringtoneOutRef = useRef(null);
+  const ringtoneInRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const fetchProfile = async () => {
@@ -125,11 +127,19 @@ export default function Dashboard() {
       setCallerName(fromUsername);
       setCallerSignal(signal);
       setIsVideoCall(isVideo);
+      if (ringtoneInRef.current) {
+        ringtoneInRef.current.currentTime = 0;
+        ringtoneInRef.current.play().catch(e => console.log('Audio autoplay prevented'));
+      }
     });
 
     socket.on('call_accepted', (signal) => {
       setCallAccepted(true);
       setCalling(false);
+      if (ringtoneOutRef.current) {
+        ringtoneOutRef.current.pause();
+        ringtoneOutRef.current.currentTime = 0;
+      }
       if (connectionRef.current) connectionRef.current.signal(signal);
     });
 
@@ -261,6 +271,18 @@ export default function Dashboard() {
     setNewMessage('');
   };
 
+  const logCallMessage = (targetId, messageText) => {
+    const msgData = {
+      sender: user.id,
+      receiver: targetId,
+      text: messageText
+    };
+    socket.emit('send_message', msgData);
+    if (activeChatUser && activeChatUser._id === targetId) {
+      setMessages(prev => [...prev, { ...msgData, _id: Date.now().toString(), createdAt: new Date() }]);
+    }
+  };
+
   const startChatWithUser = (targetUser) => {
     setActiveChatUser(targetUser);
     setActiveTab('messages');
@@ -289,6 +311,12 @@ export default function Dashboard() {
     setCalling(true);
     setCallActive(true);
     setCallerName(targetUsername);
+    setCallerId(targetUserId);
+
+    if (ringtoneOutRef.current) {
+      ringtoneOutRef.current.currentTime = 0;
+      ringtoneOutRef.current.play().catch(e => console.log('Audio autoplay prevented'));
+    }
 
     try {
       const stream = await requestMediaPermissions(isVideo);
@@ -305,6 +333,7 @@ export default function Dashboard() {
           fromUsername: user.username,
           isVideo: isVideo
         });
+        logCallMessage(targetUserId, isVideo ? '📞 Started a Video Call' : '📞 Started a Voice Call');
       });
 
       peer.on('stream', (remoteStream) => {
@@ -323,6 +352,10 @@ export default function Dashboard() {
     setReceivingCall(false);
     setCallAccepted(true);
     setCallActive(true);
+    if (ringtoneInRef.current) {
+      ringtoneInRef.current.pause();
+      ringtoneInRef.current.currentTime = 0;
+    }
 
     try {
       const stream = await requestMediaPermissions(isVideoCall);
@@ -357,6 +390,7 @@ export default function Dashboard() {
   const endCall = () => {
     const targetId = activeChatUser ? activeChatUser._id : callerId;
     socket.emit('end_call', { to: targetId });
+    logCallMessage(targetId, '📞 Call Ended');
     handleEndCallQuietly();
   };
 
@@ -365,6 +399,8 @@ export default function Dashboard() {
     setCalling(false);
     setReceivingCall(false);
     setCallAccepted(false);
+    if (ringtoneInRef.current) { ringtoneInRef.current.pause(); ringtoneInRef.current.currentTime = 0; }
+    if (ringtoneOutRef.current) { ringtoneOutRef.current.pause(); ringtoneOutRef.current.currentTime = 0; }
     if (connectionRef.current) { connectionRef.current.destroy(); connectionRef.current = null; }
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
   };
@@ -810,7 +846,7 @@ export default function Dashboard() {
                     <div className="local-video-container" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <div style={{ textAlign: 'center' }}>
                         <div className="pulse-avatar" style={{ width: '40px', height: '40px', fontSize: '1.2rem', margin: '0 auto' }}>{callerName.charAt(0).toUpperCase()}</div>
-                        <p style={{ marginTop: '8px', color: '#fff', fontSize: '10px' }}>Calling...</p>
+                        <p style={{ marginTop: '8px', color: '#fff', fontSize: '10px' }}>Ringing...</p>
                       </div>
                     </div>
                   </>
@@ -820,7 +856,7 @@ export default function Dashboard() {
               <div className="audio-only-status" style={{ margin: 'auto' }}>
                 <div className="pulse-avatar">{callerName.charAt(0).toUpperCase()}</div>
                 <h2>@{callerName}</h2>
-                <p style={{ color: 'var(--text-secondary)' }}>{callAccepted ? 'Voice Call Connected' : 'Calling...'}</p>
+                <p style={{ color: 'var(--text-secondary)' }}>{callAccepted ? 'Voice Call Connected' : 'Ringing...'}</p>
                 <audio ref={userVideoRef} autoPlay style={{ display: 'none' }} />
                 <audio ref={myVideoRef} muted autoPlay style={{ display: 'none' }} />
               </div>
@@ -831,6 +867,10 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Ringtones */}
+      <audio ref={ringtoneOutRef} loop src="https://www.soundjay.com/phone/sounds/telephone-ring-04.mp3" style={{ display: 'none' }} />
+      <audio ref={ringtoneInRef} loop src="https://www.soundjay.com/phone/sounds/telephone-ring-03a.mp3" style={{ display: 'none' }} />
     </div>
   );
 }
