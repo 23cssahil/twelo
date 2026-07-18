@@ -280,15 +280,15 @@ export default function Dashboard() {
 
   const requestMediaPermissions = async (isVideo) => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert("Error: Browser does not support media devices. Make sure you are using HTTPS and your browser allows camera access.");
+      alert("Error: Browser does not support media devices. (Are you using HTTP instead of HTTPS?)");
       throw new Error("MediaDevices not supported");
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
       return stream;
     } catch (error) {
-      console.error('Permission denied or no devices found:', error);
-      alert('Error: Could not access camera or microphone. Please check browser Site Settings and hardware.');
+      console.error('Media permission error:', error);
+      alert(`Call Error: ${error.name} - ${error.message}. (Hardware missing, or blocked by OS/Browser)`);
       throw error;
     }
   };
