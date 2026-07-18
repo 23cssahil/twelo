@@ -8,7 +8,7 @@ const bcrypt = require('bcrypt');
 const socketIo = require('socket.io');
 const { OAuth2Client } = require('google-auth-library');
 
-const googleClient = new OAuth2Client('860828724379-9cbabp7n5oa6dr15sm7k7rnvdu4meo9n.apps.googleusercontent.com');
+const googleClient = new OAuth2Client('440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com');
 
 const User = require('./models/User');
 const Message = require('./models/Message');
@@ -60,7 +60,7 @@ app.post('/api/auth/google', async (req, res) => {
     const { token } = req.body;
     const ticket = await googleClient.verifyIdToken({
       idToken: token,
-      audience: '860828724379-9cbabp7n5oa6dr15sm7k7rnvdu4meo9n.apps.googleusercontent.com',
+      audience: '440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com',
     });
     const payload = ticket.getPayload();
     const { sub: googleId, email } = payload;
