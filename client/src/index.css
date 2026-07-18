@@ -638,6 +638,16 @@ input, button, textarea {
   overflow: hidden;
   border: 2px solid #fff;
   z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  transition: all 0.3s ease;
+}
+
+.clickable-video {
+  cursor: pointer;
+}
+
+.clickable-video:hover {
+  transform: scale(1.05);
 }
 
 .call-controls-bar {

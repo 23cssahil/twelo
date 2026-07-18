@@ -51,6 +51,7 @@ export default function Dashboard() {
   const [receivingCall, setReceivingCall] = useState(false);
   const [callAccepted, setCallAccepted] = useState(false);
   const [isVideoCall, setIsVideoCall] = useState(true);
+  const [swapVideo, setSwapVideo] = useState(false);
 
   // Call Details
   const [callerId, setCallerId] = useState('');
@@ -788,23 +789,31 @@ export default function Dashboard() {
         <div className="call-overlay">
           <div className="call-screen-active">
             {isVideoCall ? (
-              <div className={`video-grid ${callAccepted ? 'two-videos' : ''}`}>
-                <div className="video-container-box">
-                  <video playsInline muted ref={myVideoRef} autoPlay className="video-element" />
-                  <div className="video-label">You</div>
-                </div>
+              <div className="video-grid">
                 {callAccepted ? (
-                  <div className="video-container-box">
-                    <video playsInline ref={userVideoRef} autoPlay className="video-element" />
-                    <div className="video-label">@{callerName}</div>
-                  </div>
-                ) : (
-                  <div className="video-container-box">
-                    <div style={{ textAlign: 'center' }}>
-                      <div className="pulse-avatar" style={{ margin: '0 auto' }}>{callerName.charAt(0).toUpperCase()}</div>
-                      <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>Calling...</p>
+                  <>
+                    <div className={swapVideo ? "local-video-container clickable-video" : "remote-video-container"} onClick={() => swapVideo && setSwapVideo(false)}>
+                      <video playsInline ref={userVideoRef} autoPlay className="video-element" />
+                      {!swapVideo && <div className="video-label">@{callerName}</div>}
                     </div>
-                  </div>
+                    <div className={!swapVideo ? "local-video-container clickable-video" : "remote-video-container"} onClick={() => !swapVideo && setSwapVideo(true)}>
+                      <video playsInline muted ref={myVideoRef} autoPlay className="video-element" />
+                      {swapVideo && <div className="video-label">You</div>}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="remote-video-container">
+                      <video playsInline muted ref={myVideoRef} autoPlay className="video-element" />
+                      <div className="video-label">You</div>
+                    </div>
+                    <div className="local-video-container" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div className="pulse-avatar" style={{ width: '40px', height: '40px', fontSize: '1.2rem', margin: '0 auto' }}>{callerName.charAt(0).toUpperCase()}</div>
+                        <p style={{ marginTop: '8px', color: '#fff', fontSize: '10px' }}>Calling...</p>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             ) : (
