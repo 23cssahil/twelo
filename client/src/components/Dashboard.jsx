@@ -128,6 +128,7 @@ export default function Dashboard() {
 
     socket.on('call_accepted', (signal) => {
       setCallAccepted(true);
+      setCalling(false);
       if (connectionRef.current) connectionRef.current.signal(signal);
     });
 
@@ -302,12 +303,6 @@ export default function Dashboard() {
 
       peer.on('stream', (remoteStream) => {
         if (userVideoRef.current) userVideoRef.current.srcObject = remoteStream;
-      });
-
-      socket.on('call_accepted', (signal) => {
-        setCallAccepted(true);
-        setCalling(false);
-        peer.signal(signal);
       });
 
       connectionRef.current = peer;
