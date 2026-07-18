@@ -278,6 +278,21 @@ export default function Dashboard() {
     }
   };
 
+  const requestMediaPermissions = async (isVideo) => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Error: Browser does not support media devices. Make sure you are using HTTPS and your browser allows camera access.");
+      throw new Error("MediaDevices not supported");
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
+      return stream;
+    } catch (error) {
+      console.error('Permission denied or no devices found:', error);
+      alert('Error: Could not access camera or microphone. Please check browser Site Settings and hardware.');
+      throw error;
+    }
+  };
+
   const callUser = async (targetUserId, targetUsername, isVideo) => {
     setIsVideoCall(isVideo);
     setCalling(true);
@@ -285,7 +300,7 @@ export default function Dashboard() {
     setCallerName(targetUsername);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
+      const stream = await requestMediaPermissions(isVideo);
       localStreamRef.current = stream;
       if (myVideoRef.current) myVideoRef.current.srcObject = stream;
 
@@ -319,7 +334,7 @@ export default function Dashboard() {
     setCallActive(true);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: isVideoCall, audio: true });
+      const stream = await requestMediaPermissions(isVideoCall);
       localStreamRef.current = stream;
       if (myVideoRef.current) myVideoRef.current.srcObject = stream;
 
