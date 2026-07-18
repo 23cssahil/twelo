@@ -155,6 +155,17 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Get Public Profile
+app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests');
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching public profile' });
+  }
+});
+
 // Get Incoming Requests
 app.get('/api/users/requests', authenticateToken, async (req, res) => {
   try {
@@ -297,6 +308,21 @@ io.on('connection', (socket) => {
       }
     } catch (err) {
       console.error('Error saving/sending message:', err);
+    }
+  });
+
+  // --- Real-time Notifications ---
+  socket.on('send_friend_request', ({ targetUserId }) => {
+    const receiverSocketId = onlineUsers.get(targetUserId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('new_notification');
+    }
+  });
+
+  socket.on('accept_friend_request', ({ requesterId }) => {
+    const receiverSocketId = onlineUsers.get(requesterId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('request_accepted_alert');
     }
   });
 

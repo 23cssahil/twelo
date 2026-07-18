@@ -33,6 +33,7 @@ export default function Dashboard() {
   // Profile & Social State
   const [profileStats, setProfileStats] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [publicProfileData, setPublicProfileData] = useState(null);
 
   // Chat state
   const [recentChats, setRecentChats] = useState([]);
@@ -40,6 +41,7 @@ export default function Dashboard() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const [unreadMessages, setUnreadMessages] = useState({});
 
   // Calling States
   const [callActive, setCallActive] = useState(false);
@@ -86,12 +88,29 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!socket) return;
+    
     socket.on('online_users', (users) => setOnlineUsers(users));
+    
     socket.on('receive_message', (msg) => {
       if ((activeChatUser && msg.sender === activeChatUser._id) || msg.sender === user.id) {
         setMessages((prev) => [...prev, msg]);
+      } else {
+        if (msg.sender !== user.id) {
+          setUnreadMessages(prev => ({...prev, [msg.sender]: (prev[msg.sender] || 0) + 1}));
+        }
       }
       fetchRecentChats();
+    });
+
+    socket.on('new_notification', () => {
+      fetchNotifications();
+    });
+
+    socket.on('request_accepted_alert', () => {
+      fetchProfile();
+      if (activeTab === 'search') {
+        handleSearch({ target: { value: searchQuery } });
+      }
     });
 
     socket.on('incoming_call', ({ from, fromUsername, signal, isVideo }) => {
@@ -112,11 +131,13 @@ export default function Dashboard() {
     return () => {
       socket.off('online_users');
       socket.off('receive_message');
+      socket.off('new_notification');
+      socket.off('request_accepted_alert');
       socket.off('incoming_call');
       socket.off('call_accepted');
       socket.off('call_ended');
     };
-  }, [socket, activeChatUser, user]);
+  }, [socket, activeChatUser, user, activeTab, searchQuery]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -160,6 +181,17 @@ export default function Dashboard() {
     }
   };
 
+  const viewPublicProfile = async (targetUserId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/public_profile/${targetUserId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        setPublicProfileData(data);
+        setActiveTab('publicProfile');
+      }
+    } catch (err) { console.error(err); }
+  };
+
   const sendFollowRequest = async (targetUserId) => {
     try {
       const res = await fetch(`${API_URL}/api/users/follow/${targetUserId}`, {
@@ -167,7 +199,8 @@ export default function Dashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        // Refresh search results to update button state
+        socket.emit('send_friend_request', { targetUserId });
+        if (activeTab === 'publicProfile') viewPublicProfile(targetUserId);
         handleSearch({ target: { value: searchQuery } });
         fetchProfile();
       }
@@ -181,6 +214,7 @@ export default function Dashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
+        socket.emit('accept_friend_request', { requesterId });
         fetchNotifications();
         fetchProfile();
       }
@@ -197,6 +231,7 @@ export default function Dashboard() {
   const startChatWithUser = (targetUser) => {
     setActiveChatUser(targetUser);
     setActiveTab('messages');
+    setUnreadMessages(prev => ({...prev, [targetUser._id]: 0})); // Reset unread
   };
 
   // --- WebRTC System with Camera permission error handling ---
@@ -334,7 +369,7 @@ export default function Dashboard() {
               <div className="requests-list">
                 {notifications.map(req => (
                   <div className="user-card" key={req._id}>
-                    <div className="user-card-info">
+                    <div className="user-card-info" onClick={() => viewPublicProfile(req._id)} style={{ cursor: 'pointer' }}>
                       <div className="user-avatar-small">{req.username.charAt(0).toUpperCase()}</div>
                       <div className="user-names">
                         <span className="user-username">@{req.username}</span>
@@ -372,7 +407,7 @@ export default function Dashboard() {
                 const hasRequested = searchUser.friendRequests?.includes(user.id);
                 return (
                   <div className="user-card" key={searchUser._id}>
-                    <div className="user-card-info">
+                    <div className="user-card-info" onClick={() => viewPublicProfile(searchUser._id)} style={{ cursor: 'pointer' }}>
                       <div className="user-avatar-small">
                         {searchUser.username.charAt(0).toUpperCase()}
                       </div>
@@ -399,6 +434,44 @@ export default function Dashboard() {
           </div>
         );
 
+      case 'publicProfile':
+        if (!publicProfileData) return null;
+        const isFollowing = profileStats?.following?.includes(publicProfileData._id);
+        const hasRequested = publicProfileData.friendRequests?.includes(user.id);
+        
+        return (
+          <div className="profile-container">
+            <div className="profile-header" style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+              <button 
+                onClick={() => setActiveTab('search')} 
+                className="back-btn" 
+                style={{ position: 'absolute', top: 0, left: 0, border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', zIndex: 10 }}
+              >
+                ←
+              </button>
+              <div className="profile-avatar-large" style={{ margin: '0 auto' }}>
+                <div className="profile-avatar-inner">{publicProfileData.username.charAt(0).toUpperCase()}</div>
+              </div>
+              <div className="profile-info" style={{ marginTop: '16px' }}>
+                <span className="profile-username">@{publicProfileData.username}</span>
+                <div className="profile-stats" style={{ justifyContent: 'center', marginTop: '16px' }}>
+                  <span><strong>{publicProfileData.followers?.length || 0}</strong> followers</span>
+                  <span><strong>{publicProfileData.following?.length || 0}</strong> following</span>
+                </div>
+                <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
+                  {isFollowing ? (
+                    <button className="chat-now-btn" style={{ width: '100%' }} onClick={() => startChatWithUser(publicProfileData)}>Message</button>
+                  ) : hasRequested ? (
+                    <button className="chat-now-btn" disabled style={{ background: '#333', width: '100%' }}>Requested</button>
+                  ) : (
+                    <button className="chat-now-btn" style={{ width: '100%' }} onClick={() => sendFollowRequest(publicProfileData._id)}>Follow</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       case 'messages':
         return (
           <div className="chat-container">
@@ -409,11 +482,12 @@ export default function Dashboard() {
               <div className="chat-users-scroll">
                 {recentChats.map((chatUser) => {
                   const isOnline = onlineUsers.includes(chatUser._id);
+                  const unreadCount = unreadMessages[chatUser._id] || 0;
                   return (
                     <div 
                       key={chatUser._id} 
                       className={`chat-user-item ${activeChatUser?._id === chatUser._id ? 'active' : ''}`}
-                      onClick={() => setActiveChatUser(chatUser)}
+                      onClick={() => startChatWithUser(chatUser)}
                     >
                       <div className="user-avatar-small">
                         {chatUser.username.charAt(0).toUpperCase()}
@@ -424,7 +498,12 @@ export default function Dashboard() {
                           {isOnline ? 'online' : 'offline'}
                         </span>
                       </div>
-                      {isOnline && <div className="chat-user-status" />}
+                      {unreadCount > 0 && (
+                        <div style={{ marginLeft: 'auto', background: 'var(--brand-red)', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                          {unreadCount}
+                        </div>
+                      )}
+                      {isOnline && unreadCount === 0 && <div className="chat-user-status" />}
                     </div>
                   );
                 })}
@@ -448,10 +527,10 @@ export default function Dashboard() {
                       >
                         ←
                       </button>
-                      <div className="user-avatar-small">
+                      <div className="user-avatar-small" onClick={() => viewPublicProfile(activeChatUser._id)} style={{ cursor: 'pointer' }}>
                         {activeChatUser.username.charAt(0).toUpperCase()}
                       </div>
-                      <div className="user-names">
+                      <div className="user-names" onClick={() => viewPublicProfile(activeChatUser._id)} style={{ cursor: 'pointer' }}>
                         <span className="user-username">@{activeChatUser.username}</span>
                         <span style={{ fontSize: '0.75rem', color: onlineUsers.includes(activeChatUser._id) ? '#2bd856' : '#a8a8a8' }}>
                           {onlineUsers.includes(activeChatUser._id) ? 'Active now' : 'offline'}
@@ -545,6 +624,8 @@ export default function Dashboard() {
     }
   };
 
+  const totalUnread = Object.values(unreadMessages).reduce((a, b) => a + b, 0);
+
   return (
     <div className="dashboard-container">
       <aside className="sidebar">
@@ -563,6 +644,7 @@ export default function Dashboard() {
             </div>
             <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
               <MessageSquare size={24} /><span>Messages</span>
+              {totalUnread > 0 && <span className="sidebar-badge">{totalUnread}</span>}
             </div>
             <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
               <UserIcon size={24} /><span>Profile</span>
@@ -592,7 +674,10 @@ export default function Dashboard() {
       <nav className={`mobile-nav ${(activeChatUser && activeTab === 'messages') ? 'hide-on-mobile' : ''}`}>
         <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}><HomeIcon size={24} /></div>
         <div className={`nav-item ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}><SearchIcon size={24} /></div>
-        <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}><MessageSquare size={24} /></div>
+        <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')} style={{ position: 'relative' }}>
+          <MessageSquare size={24} />
+          {totalUnread > 0 && <span className="badge">{totalUnread}</span>}
+        </div>
         <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}><UserIcon size={24} /></div>
       </nav>
 
