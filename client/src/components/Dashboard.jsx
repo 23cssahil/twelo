@@ -274,13 +274,13 @@ export default function Dashboard() {
 
   const logCallMessage = (targetId, messageText) => {
     const msgData = {
-      sender: user.id,
-      receiver: targetId,
-      text: messageText
+      senderId: user.id,
+      receiverId: targetId,
+      messageText: messageText
     };
     socket.emit('send_message', msgData);
     if (activeChatUser && activeChatUser._id === targetId) {
-      setMessages(prev => [...prev, { ...msgData, _id: Date.now().toString(), createdAt: new Date() }]);
+      setMessages(prev => [...prev, { sender: user.id, receiver: targetId, message: messageText, _id: Date.now().toString(), createdAt: new Date() }]);
     }
   };
 
@@ -398,6 +398,7 @@ export default function Dashboard() {
 
   const declineCall = () => {
     socket.emit('end_call', { to: callerId });
+    logCallMessage(callerId, '📞 Missed Call');
     setReceivingCall(false);
     handleEndCallQuietly();
   };
@@ -898,8 +899,8 @@ export default function Dashboard() {
       )}
 
       {/* Ringtones */}
-      <audio ref={ringtoneOutRef} loop src="https://www.soundjay.com/phone/sounds/telephone-ring-04.mp3" style={{ display: 'none' }} />
-      <audio ref={ringtoneInRef} loop src="https://www.soundjay.com/phone/sounds/telephone-ring-03a.mp3" style={{ display: 'none' }} />
+      <audio ref={ringtoneOutRef} loop src="https://actions.google.com/sounds/v1/alarms/phone_ringing.ogg" style={{ display: 'none' }} />
+      <audio ref={ringtoneInRef} loop src="https://actions.google.com/sounds/v1/alarms/phone_ringing.ogg" style={{ display: 'none' }} />
     </div>
   );
 }
