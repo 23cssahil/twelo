@@ -279,9 +279,6 @@ export default function Dashboard() {
       messageText: messageText
     };
     socket.emit('send_message', msgData);
-    if (activeChatUser && activeChatUser._id === targetId) {
-      setMessages(prev => [...prev, { sender: user.id, receiver: targetId, message: messageText, _id: Date.now().toString(), createdAt: new Date() }]);
-    }
   };
 
   const startChatWithUser = (targetUser) => {
@@ -329,6 +326,8 @@ export default function Dashboard() {
 
       const peer = new Peer({ initiator: true, trickle: false, stream: stream });
 
+      logCallMessage(targetUserId, isVideo ? '📞 Started a Video Call' : '📞 Started a Voice Call');
+
       peer.on('signal', (data) => {
         socket.emit('call_user', {
           userToCall: targetUserId,
@@ -337,7 +336,6 @@ export default function Dashboard() {
           fromUsername: user.username,
           isVideo: isVideo
         });
-        logCallMessage(targetUserId, isVideo ? '📞 Started a Video Call' : '📞 Started a Voice Call');
       });
 
       peer.on('stream', (remoteStream) => {
@@ -898,8 +896,8 @@ export default function Dashboard() {
       )}
 
       {/* Ringtones */}
-      <audio ref={ringtoneOutRef} loop src="https://actions.google.com/sounds/v1/alarms/phone_ringing.ogg" style={{ display: 'none' }} />
-      <audio ref={ringtoneInRef} loop src="https://actions.google.com/sounds/v1/alarms/phone_ringing.ogg" style={{ display: 'none' }} />
+      <audio ref={ringtoneOutRef} loop src="/ringtone.wav" style={{ display: 'none' }} />
+      <audio ref={ringtoneInRef} loop src="/ringtone.wav" style={{ display: 'none' }} />
     </div>
   );
 }
