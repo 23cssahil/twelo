@@ -16,7 +16,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   // API base URL - Set VITE_API_URL in Render frontend environment variables!
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://twelo-backend.onrender.com';
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
