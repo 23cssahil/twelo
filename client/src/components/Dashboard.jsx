@@ -33,6 +33,7 @@ export default function Dashboard() {
   // Profile & Social State
   const [profileStats, setProfileStats] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [publicProfileData, setPublicProfileData] = useState(null);
   const [connectionsModal, setConnectionsModal] = useState({ isOpen: false, title: '', users: [] });
 
@@ -105,6 +106,9 @@ export default function Dashboard() {
 
     socket.on('new_notification', () => {
       fetchNotifications();
+      if (activeTab !== 'notifications') {
+        setUnreadNotifsCount(prev => prev + 1);
+      }
     });
 
     socket.on('request_accepted_alert', () => {
@@ -280,7 +284,7 @@ export default function Dashboard() {
     setCallerName(targetUsername);
 
     try {
-      const stream = await requestMediaPermissions(isVideo);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
       localStreamRef.current = stream;
       if (myVideoRef.current) myVideoRef.current.srcObject = stream;
 
@@ -308,6 +312,8 @@ export default function Dashboard() {
 
       connectionRef.current = peer;
     } catch (error) {
+      console.error(error);
+      alert('Media permission error. Call failed.');
       handleEndCallQuietly();
     }
   };
@@ -318,7 +324,7 @@ export default function Dashboard() {
     setCallActive(true);
 
     try {
-      const stream = await requestMediaPermissions(isVideoCall);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: isVideoCall, audio: true });
       localStreamRef.current = stream;
       if (myVideoRef.current) myVideoRef.current.srcObject = stream;
 
@@ -335,6 +341,8 @@ export default function Dashboard() {
       peer.signal(callerSignal);
       connectionRef.current = peer;
     } catch (error) {
+      console.error(error);
+      alert('Media permission error. Cannot accept call.');
       declineCall();
     }
   };
@@ -359,6 +367,12 @@ export default function Dashboard() {
     if (connectionRef.current) { connectionRef.current.destroy(); connectionRef.current = null; }
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
   };
+
+  useEffect(() => {
+    if (activeTab === 'notifications') {
+      setUnreadNotifsCount(0);
+    }
+  }, [activeTab]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -394,18 +408,25 @@ export default function Dashboard() {
               <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No new notifications.</div>
             ) : (
               <div className="requests-list">
-                {notifications.map(req => (
-                  <div className="user-card" key={req._id}>
-                    <div className="user-card-info" onClick={() => viewPublicProfile(req._id)} style={{ cursor: 'pointer' }}>
-                      <div className="user-avatar-small">{req.username.charAt(0).toUpperCase()}</div>
-                      <div className="user-names">
-                        <span className="user-username">@{req.username}</span>
-                        <span className="user-id">wants to follow you</span>
+                {notifications.map(req => {
+                  const isAccepted = profileStats?.followers?.includes(req._id);
+                  return (
+                    <div className="user-card" key={req._id}>
+                      <div className="user-card-info" onClick={() => viewPublicProfile(req._id)} style={{ cursor: 'pointer' }}>
+                        <div className="user-avatar-small">{req.username.charAt(0).toUpperCase()}</div>
+                        <div className="user-names">
+                          <span className="user-username">@{req.username}</span>
+                          <span className="user-id">wants to follow you</span>
+                        </div>
                       </div>
+                      {isAccepted ? (
+                        <button className="chat-now-btn" disabled style={{ background: '#333' }}>Accepted</button>
+                      ) : (
+                        <button className="chat-now-btn accept-btn" onClick={() => acceptRequest(req._id)}>Accept</button>
+                      )}
                     </div>
-                    <button className="chat-now-btn accept-btn" onClick={() => acceptRequest(req._id)}>Accept</button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -670,7 +691,7 @@ export default function Dashboard() {
             </div>
             <div className={`nav-item ${activeTab === 'notifications' ? 'active' : ''}`} onClick={() => setActiveTab('notifications')}>
               <Bell size={24} /><span>Notifications</span>
-              {notifications.length > 0 && <span className="sidebar-badge">{notifications.length}</span>}
+              {unreadNotifsCount > 0 && <span className="sidebar-badge">{unreadNotifsCount}</span>}
             </div>
             <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
               <MessageSquare size={24} /><span>Messages</span>
@@ -691,7 +712,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: '16px' }}>
           <button onClick={() => setActiveTab('notifications')} style={{ position: 'relative' }}>
             <Bell size={20} />
-            {notifications.length > 0 && <span className="badge">{notifications.length}</span>}
+            {unreadNotifsCount > 0 && <span className="badge">{unreadNotifsCount}</span>}
           </button>
           <button onClick={logout} style={{ color: 'var(--brand-red)' }}><LogOut size={20} /></button>
         </div>

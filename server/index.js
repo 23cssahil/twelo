@@ -213,8 +213,7 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
     const requesterId = req.params.id;
     const currentUser = await User.findById(req.user.userId);
     
-    // Remove from requests
-    currentUser.friendRequests = currentUser.friendRequests.filter(id => id.toString() !== requesterId);
+    // We NO LONGER remove from friendRequests so they stay as a history log
     
     // Add to followers
     if (!currentUser.followers.includes(requesterId)) {
