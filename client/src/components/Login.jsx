@@ -44,7 +44,7 @@ export default function Login() {
   return (
     <div className="auth-container">
       <div className="auth-box">
-        <h1 className="auth-logo">Instagram</h1>
+        <h1 className="auth-logo">Twelo</h1>
         
         {error && <div className="error-msg">{error}</div>}
         

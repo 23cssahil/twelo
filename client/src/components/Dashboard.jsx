@@ -336,7 +336,7 @@ export default function Dashboard() {
         return (
           <div className="feed-container">
             <div className="welcome-card">
-              <h2>Welcome to <span className="gradient-text">Instagram</span></h2>
+              <h2>Welcome to <span className="gradient-text">Twelo</span></h2>
               <p>Hi, <strong>@{user.username}</strong>! This is your world-class real-time MERN dashboard.</p>
               <p>Go to the <strong>Search</strong> tab to find other users, or click <strong>Messages</strong> to chat and call.</p>
               <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '16px' }}>
@@ -566,7 +566,7 @@ export default function Dashboard() {
       {/* Sidebar - Desktop Layout */}
       <aside className="sidebar">
         <div>
-          <h1 className="sidebar-logo" onClick={() => setActiveTab('home')}>Instagram</h1>
+          <h1 className="sidebar-logo" onClick={() => setActiveTab('home')}>Twelo</h1>
           <nav className="nav-links">
             <div 
               className={`nav-item ${activeTab === 'home' ? 'active' : ''}`}
@@ -612,7 +612,7 @@ export default function Dashboard() {
 
       {/* Header - Mobile Layout */}
       <header className="mobile-header">
-        <h1 className="mobile-logo">Instagram</h1>
+        <h1 className="mobile-logo">Twelo</h1>
         <button 
           onClick={logout} 
           style={{ color: 'var(--brand-red)', display: 'flex', alignItems: 'center' }}

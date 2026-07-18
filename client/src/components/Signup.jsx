@@ -48,7 +48,7 @@ export default function Signup() {
   return (
     <div className="auth-container">
       <div className="auth-box">
-        <h1 className="auth-logo">Instagram</h1>
+        <h1 className="auth-logo">Twelo</h1>
         
         {error && <div className="error-msg">{error}</div>}
         {success && <div style={{ color: '#2bd856', fontSize: '0.9rem', textAlign: 'center', fontWeight: '500' }}>{success}</div>}
