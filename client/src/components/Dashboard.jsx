@@ -897,7 +897,7 @@ export default function Dashboard() {
 
       {/* Ringtones */}
       <audio ref={ringtoneOutRef} loop src="/ringtone.wav" style={{ display: 'none' }} />
-      <audio ref={ringtoneInRef} loop src="/ringtone.wav" style={{ display: 'none' }} />
+      <audio ref={ringtoneInRef} loop src="/incoming.wav" style={{ display: 'none' }} />
     </div>
   );
 }
