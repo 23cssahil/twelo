@@ -911,7 +911,7 @@ export default function Dashboard() {
                     <div className="local-video-container" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <div style={{ textAlign: 'center' }}>
                         <div className="pulse-avatar" style={{ width: '40px', height: '40px', fontSize: '1.2rem', margin: '0 auto' }}>{callerName.charAt(0).toUpperCase()}</div>
-                        <p style={{ marginTop: '8px', color: '#fff', fontSize: '10px' }}>Ringing...</p>
+                        <p style={{ marginTop: '8px', color: '#fff', fontSize: '10px' }}>{onlineUsers.includes(callerId) ? 'Ringing...' : 'Calling...'}</p>
                       </div>
                     </div>
                   </>
@@ -921,7 +921,7 @@ export default function Dashboard() {
               <div className="audio-only-status" style={{ margin: 'auto' }}>
                 <div className="pulse-avatar">{callerName.charAt(0).toUpperCase()}</div>
                 <h2>@{callerName}</h2>
-                <p style={{ color: 'var(--text-secondary)' }}>{callAccepted ? 'Voice Call Connected' : 'Ringing...'}</p>
+                <p style={{ color: 'var(--text-secondary)' }}>{callAccepted ? 'Voice Call Connected' : (onlineUsers.includes(callerId) ? 'Ringing...' : 'Calling...')}</p>
                 <audio ref={userVideoRef} autoPlay style={{ display: 'none' }} />
                 <audio ref={myVideoRef} muted autoPlay style={{ display: 'none' }} />
               </div>
