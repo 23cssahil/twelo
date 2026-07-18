@@ -6,6 +6,9 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const socketIo = require('socket.io');
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '123456789-placeholder.apps.googleusercontent.com');
 
 const User = require('./models/User');
 const Message = require('./models/Message');
@@ -52,67 +55,29 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Auth Routes
-app.post('/api/auth/signup', async (req, res) => {
+app.post('/api/auth/google', async (req, res) => {
   try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ message: 'Username and password are required' });
-    }
-
-    const existingUser = await User.findOne({ username });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Username already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    let uniqueId = generateUniqueId();
-    let idExists = await User.findOne({ uniqueId });
-    while (idExists) {
-      uniqueId = generateUniqueId();
-      idExists = await User.findOne({ uniqueId });
-    }
-
-    const newUser = new User({
-      username,
-      password: hashedPassword,
-      uniqueId,
+    const { token } = req.body;
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID || '123456789-placeholder.apps.googleusercontent.com',
     });
+    const payload = ticket.getPayload();
+    const { sub: googleId, email } = payload;
 
-    await newUser.save();
-    res.status(201).json({ message: 'User created successfully', uniqueId });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error during signup', error: error.message });
-  }
-});
-
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ message: 'Username and password are required' });
-    }
-
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ googleId });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.json({ isNewUser: true, email, googleId });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    const token = jwt.sign(
+    const jwtToken = jwt.sign(
       { userId: user._id, username: user.username, uniqueId: user.uniqueId },
       process.env.JWT_SECRET || 'insta_jwt_secret_key_12345',
       { expiresIn: '7d' }
     );
 
     res.json({
-      token,
+      token: jwtToken,
       user: {
         id: user._id,
         username: user.username,
@@ -120,7 +85,52 @@ app.post('/api/auth/login', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error during login', error: error.message });
+    res.status(500).json({ message: 'Server error during Google login', error: error.message });
+  }
+});
+
+app.post('/api/auth/complete_profile', async (req, res) => {
+  try {
+    const { name, email, googleId } = req.body;
+    if (!name || !email || !googleId) return res.status(400).json({ message: 'All fields required' });
+
+    const existingUser = await User.findOne({ googleId });
+    if (existingUser) return res.status(400).json({ message: 'User already exists' });
+
+    let uniqueId = generateUniqueId();
+    let idExists = await User.findOne({ uniqueId });
+    while (idExists) {
+      uniqueId = generateUniqueId();
+      idExists = await User.findOne({ uniqueId });
+    }
+
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    let username = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + randomNum;
+    let userExists = await User.findOne({ username });
+    while (userExists) {
+      username = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + Math.floor(1000 + Math.random() * 9000);
+      userExists = await User.findOne({ username });
+    }
+
+    const newUser = new User({ username, name, email, googleId, uniqueId });
+    await newUser.save();
+
+    const jwtToken = jwt.sign(
+      { userId: newUser._id, username: newUser.username, uniqueId: newUser.uniqueId },
+      process.env.JWT_SECRET || 'insta_jwt_secret_key_12345',
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      token: jwtToken,
+      user: {
+        id: newUser._id,
+        username: newUser.username,
+        uniqueId: newUser.uniqueId
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error completing profile', error: error.message });
   }
 });
 
@@ -222,6 +232,50 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
     res.json({ message: "Request accepted" });
   } catch (error) {
     res.status(500).json({ message: 'Error accepting request' });
+  }
+});
+
+// Unfollow User
+app.post('/api/users/unfollow/:id', authenticateToken, async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    const currentUserId = req.user.userId;
+
+    const currentUser = await User.findById(currentUserId);
+    const targetUser = await User.findById(targetUserId);
+
+    if (currentUser && targetUser) {
+      currentUser.following = currentUser.following.filter(id => id.toString() !== targetUserId);
+      targetUser.followers = targetUser.followers.filter(id => id.toString() !== currentUserId);
+      await currentUser.save();
+      await targetUser.save();
+    }
+
+    res.json({ message: "Unfollowed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: 'Error unfollowing user' });
+  }
+});
+
+// Get User Connections (Followers & Following)
+app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+      .populate('followers', 'username uniqueId')
+      .populate('following', 'username uniqueId');
+    if (!user) return res.status(404).json({ message: "User not found" });
+    
+    // Privacy check: only allow viewing if mutually connected or viewing own profile
+    const isOwnProfile = req.params.id === req.user.userId;
+    const isFollowing = user.followers.some(f => f._id.toString() === req.user.userId);
+    
+    if (!isOwnProfile && !isFollowing) {
+      return res.status(403).json({ message: "Not authorized to view connections" });
+    }
+
+    res.json({ followers: user.followers, following: user.following });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching connections' });
   }
 });
 

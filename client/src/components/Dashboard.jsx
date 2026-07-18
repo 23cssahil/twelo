@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [profileStats, setProfileStats] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [publicProfileData, setPublicProfileData] = useState(null);
+  const [connectionsModal, setConnectionsModal] = useState({ isOpen: false, title: '', users: [] });
 
   // Chat state
   const [recentChats, setRecentChats] = useState([]);
@@ -207,6 +208,20 @@ export default function Dashboard() {
     } catch (err) { console.error(err); }
   };
 
+  const unfollowUser = async (targetUserId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/unfollow/${targetUserId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchProfile();
+        if (activeTab === 'publicProfile') viewPublicProfile(targetUserId);
+        handleSearch({ target: { value: searchQuery } });
+      }
+    } catch (err) { console.error(err); }
+  };
+
   const acceptRequest = async (requesterId) => {
     try {
       const res = await fetch(`${API_URL}/api/users/accept/${requesterId}`, {
@@ -217,6 +232,18 @@ export default function Dashboard() {
         socket.emit('accept_friend_request', { requesterId });
         fetchNotifications();
         fetchProfile();
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleConnectionsClick = async (type, userId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/connections/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        setConnectionsModal({ isOpen: true, title: type.charAt(0).toUpperCase() + type.slice(1), users: data[type] });
+      } else {
+        alert(data.message || "Not authorized to view connections. You must follow this user first.");
       }
     } catch (err) { console.error(err); }
   };
@@ -454,13 +481,16 @@ export default function Dashboard() {
               </div>
               <div className="profile-info" style={{ marginTop: '16px' }}>
                 <span className="profile-username">@{publicProfileData.username}</span>
-                <div className="profile-stats" style={{ justifyContent: 'center', marginTop: '16px' }}>
-                  <span><strong>{publicProfileData.followers?.length || 0}</strong> followers</span>
-                  <span><strong>{publicProfileData.following?.length || 0}</strong> following</span>
+                <div className="profile-stats" style={{ justifyContent: 'center', marginTop: '16px', gap: '24px' }}>
+                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('followers', publicProfileData._id)}><strong>{publicProfileData.followers?.length || 0}</strong> followers</span>
+                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('following', publicProfileData._id)}><strong>{publicProfileData.following?.length || 0}</strong> following</span>
                 </div>
-                <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
+                <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
                   {isFollowing ? (
-                    <button className="chat-now-btn" style={{ width: '100%' }} onClick={() => startChatWithUser(publicProfileData)}>Message</button>
+                    <>
+                      <button className="chat-now-btn" style={{ flex: 1 }} onClick={() => startChatWithUser(publicProfileData)}>Message</button>
+                      <button className="chat-now-btn" style={{ flex: 1, background: '#333' }} onClick={() => unfollowUser(publicProfileData._id)}>Unfollow</button>
+                    </>
                   ) : hasRequested ? (
                     <button className="chat-now-btn" disabled style={{ background: '#333', width: '100%' }}>Requested</button>
                   ) : (
@@ -599,13 +629,13 @@ export default function Dashboard() {
                   </button>
                 </div>
                 
-                <div className="profile-stats">
-                  <span><strong>{profileStats?.followers?.length || 0}</strong> followers</span>
-                  <span><strong>{profileStats?.following?.length || 0}</strong> following</span>
+                <div className="profile-stats" style={{ gap: '24px' }}>
+                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('followers', user.id)}><strong>{profileStats?.followers?.length || 0}</strong> followers</span>
+                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('following', user.id)}><strong>{profileStats?.following?.length || 0}</strong> following</span>
                 </div>
 
                 <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>{user.username}</h3>
+                  <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>{user.name}</h3>
                   <div className="profile-id-box">
                     <label>Unique Profile ID</label>
                     <div className="profile-id-value">
@@ -680,6 +710,41 @@ export default function Dashboard() {
         </div>
         <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}><UserIcon size={24} /></div>
       </nav>
+
+      {/* CONNECTIONS MODAL */}
+      {connectionsModal.isOpen && (
+        <div className="call-overlay" style={{ zIndex: 100 }}>
+          <div className="auth-card" style={{ maxWidth: '400px', width: '90%', background: '#121212', padding: '24px', borderRadius: '12px', position: 'relative' }}>
+            <button 
+              className="back-btn" 
+              style={{ position: 'absolute', top: '16px', right: '16px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#f5f5f5' }} 
+              onClick={() => setConnectionsModal({ isOpen: false, title: '', users: [] })}
+            >
+              <X size={24} />
+            </button>
+            <h2 style={{ marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '12px', color: '#f5f5f5' }}>{connectionsModal.title}</h2>
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              {connectionsModal.users.map(u => (
+                <div 
+                  className="user-card-info" 
+                  key={u._id} 
+                  style={{ padding: '8px 0', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} 
+                  onClick={() => {
+                    setConnectionsModal({ isOpen: false, title: '', users: [] });
+                    viewPublicProfile(u._id);
+                  }}
+                >
+                  <div className="user-avatar-small">{u.username.charAt(0).toUpperCase()}</div>
+                  <div className="user-names">
+                    <span className="user-username">@{u.username}</span>
+                  </div>
+                </div>
+              ))}
+              {connectionsModal.users.length === 0 && <p style={{ color: '#a8a8a8', textAlign: 'center' }}>No {connectionsModal.title.toLowerCase()} yet.</p>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CALLING OVERLAYS */}
       {receivingCall && (

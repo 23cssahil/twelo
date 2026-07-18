@@ -1,35 +1,77 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from 'jwt-decode';
 import { AuthContext } from '../App';
+import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const { login, API_URL } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  // Onboarding state
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [googleData, setGoogleData] = useState(null);
+  const [name, setName] = useState('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!username || !password) {
-      setError('Please fill in all fields');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
+  const handleGoogleSuccess = async (credentialResponse) => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
+      setLoading(true);
+      setError('');
+      const decoded = jwtDecode(credentialResponse.credential);
+      
+      const res = await fetch(`${API_URL}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ token: credentialResponse.credential })
       });
-
+      
       const data = await res.json();
+      
       if (!res.ok) {
-        throw new Error(data.message || 'Login failed');
+        throw new Error(data.message || 'Failed to authenticate');
+      }
+
+      if (data.isNewUser) {
+        setGoogleData({ email: data.email, googleId: data.googleId });
+        setName(decoded.name || '');
+        setIsNewUser(true);
+      } else {
+        login(data.user, data.token);
+        navigate('/');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google Login Failed. Please try again.');
+  };
+
+  const handleCompleteProfile = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError("Please enter your name");
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError('');
+      const res = await fetch(`${API_URL}/api/auth/complete_profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email: googleData.email, googleId: googleData.googleId })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to create profile');
       }
 
       login(data.user, data.token);
@@ -43,45 +85,65 @@ export default function Login() {
 
   return (
     <div className="auth-container">
-      <div className="auth-box">
+      <div className="auth-card">
         <h1 className="auth-logo">Twelo</h1>
         
-        {error && <div className="error-msg">{error}</div>}
+        {error && <div className="auth-error">{error}</div>}
         
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <div className="input-group">
-            <input
-              type="text"
-              placeholder="Username"
-              className="input-field"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
-          </div>
-          
-          <div className="input-group">
-            <input
-              type="password"
-              placeholder="Password"
-              className="input-field"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? 'Logging in...' : 'Log In'}
-          </button>
-        </form>
-        
-        <div className="auth-switch">
-          Don't have an account?{' '}
-          <Link to="/signup" className="auth-link">
-            Sign up
-          </Link>
-        </div>
+        {!isNewUser ? (
+          <>
+            <h2 style={{ textAlign: 'center', marginBottom: '24px', fontSize: '1.2rem', color: '#f5f5f5' }}>
+              Welcome back
+            </h2>
+            <p style={{ textAlign: 'center', color: '#a8a8a8', marginBottom: '32px', fontSize: '0.9rem' }}>
+              Log in with Google to continue to Twelo.
+            </p>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                theme="filled_black"
+                shape="pill"
+                size="large"
+                text="continue_with"
+                width="280"
+              />
+            </div>
+            {loading && <p style={{ textAlign: 'center', marginTop: '16px', color: '#a8a8a8' }}>Please wait...</p>}
+          </>
+        ) : (
+          <form onSubmit={handleCompleteProfile}>
+            <h2 style={{ textAlign: 'center', marginBottom: '16px', fontSize: '1.2rem', color: '#f5f5f5' }}>
+              Just one more step
+            </h2>
+            <p style={{ textAlign: 'center', color: '#a8a8a8', marginBottom: '24px', fontSize: '0.9rem' }}>
+              What should we call you?
+            </p>
+            
+            <div className="form-group">
+              <label>Your Name</label>
+              <input
+                type="text"
+                className="auth-input"
+                placeholder="Enter your full name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            
+            <button 
+              type="submit" 
+              className="auth-button" 
+              disabled={loading}
+              style={{ marginTop: '12px' }}
+            >
+              {loading ? 'Creating Account...' : 'Join Twelo'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

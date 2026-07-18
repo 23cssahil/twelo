@@ -5,7 +5,8 @@ import Login from './components/Login';
 import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
 
-// Contexts
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
 export const AuthContext = createContext(null);
 export const SocketContext = createContext(null);
 
@@ -15,8 +16,8 @@ export default function App() {
   const [socket, setSocket] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // API base URL - Set VITE_API_URL in Render frontend environment variables!
   const API_URL = import.meta.env.VITE_API_URL || 'https://twelo-backend.onrender.com';
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '825946914569-8l2uuljks8k0927l90s5l6i7m2e0g7d3.apps.googleusercontent.com'; // Using a placeholder that looks real to avoid errors
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -70,16 +71,17 @@ export default function App() {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, API_URL }}>
-      <SocketContext.Provider value={socket}>
-        <Router>
-          <Routes>
-            <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
-            <Route path="/signup" element={!token ? <Signup /> : <Navigate to="/" />} />
-            <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" />} />
-          </Routes>
-        </Router>
-      </SocketContext.Provider>
-    </AuthContext.Provider>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <AuthContext.Provider value={{ user, token, login, logout, API_URL }}>
+        <SocketContext.Provider value={socket}>
+          <Router>
+            <Routes>
+              <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
+              <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" />} />
+            </Routes>
+          </Router>
+        </SocketContext.Provider>
+      </AuthContext.Provider>
+    </GoogleOAuthProvider>
   );
 }
