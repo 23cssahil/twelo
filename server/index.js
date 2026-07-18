@@ -145,6 +145,75 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
   }
 });
 
+// Get My Profile (with stats)
+app.get('/api/users/profile', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('-password');
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching profile' });
+  }
+});
+
+// Get Incoming Requests
+app.get('/api/users/requests', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).populate('friendRequests', 'username uniqueId');
+    res.json(user.friendRequests);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching requests' });
+  }
+});
+
+// Send Follow/Friend Request
+app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    if (targetUserId === req.user.userId) return res.status(400).json({ message: "Cannot follow yourself" });
+
+    const targetUser = await User.findById(targetUserId);
+    if (!targetUser) return res.status(404).json({ message: "User not found" });
+
+    // Check if already following or request already sent
+    if (targetUser.followers.includes(req.user.userId)) return res.status(400).json({ message: "Already following" });
+    if (targetUser.friendRequests.includes(req.user.userId)) return res.status(400).json({ message: "Request already sent" });
+
+    targetUser.friendRequests.push(req.user.userId);
+    await targetUser.save();
+    res.json({ message: "Request sent successfully" });
+  } catch (error) {
+    res.status(500).json({ message: 'Error sending request' });
+  }
+});
+
+// Accept Friend Request
+app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
+  try {
+    const requesterId = req.params.id;
+    const currentUser = await User.findById(req.user.userId);
+    
+    // Remove from requests
+    currentUser.friendRequests = currentUser.friendRequests.filter(id => id.toString() !== requesterId);
+    
+    // Add to followers
+    if (!currentUser.followers.includes(requesterId)) {
+      currentUser.followers.push(requesterId);
+    }
+    await currentUser.save();
+
+    // Add current user to requester's following
+    const requester = await User.findById(requesterId);
+    if (requester && !requester.following.includes(req.user.userId)) {
+      requester.following.push(req.user.userId);
+      await requester.save();
+    }
+
+    res.json({ message: "Request accepted" });
+  } catch (error) {
+    res.status(500).json({ message: 'Error accepting request' });
+  }
+});
+
 // Get Messages Route
 app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
   try {

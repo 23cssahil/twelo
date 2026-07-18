@@ -680,6 +680,7 @@ input, button, textarea {
   }
   .nav-item {
     padding: 16px;
+    position: relative;
   }
   .nav-item:hover {
     background-color: var(--panel-hover);
@@ -694,12 +695,54 @@ input, button, textarea {
   .chat-list {
     width: 350px;
     border-right: 1px solid var(--border-color);
+    display: flex !important; /* Override hide-on-mobile for desktop */
   }
   .chat-area {
     position: static;
     flex: 1;
+    display: flex !important; /* Override hide-on-mobile for desktop */
   }
   .mobile-header {
     display: none;
   }
+}
+
+/* Badge Styles */
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: var(--brand-red);
+  color: white;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  font-weight: bold;
+}
+
+.sidebar-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: var(--brand-red);
+  color: white;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  font-weight: bold;
+}
+
+/* Mobile Visibility Utilities */
+@media (max-width: 767px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+.accept-btn {
+  background-color: #2bd856 !important;
+}
+
+.accept-btn:hover {
+  background-color: #22a944 !important;
 }

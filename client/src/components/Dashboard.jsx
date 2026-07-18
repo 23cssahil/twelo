@@ -11,7 +11,10 @@ import {
   Send,
   VideoOff,
   PhoneOff,
-  UserCheck
+  UserCheck,
+  Bell,
+  Check,
+  X
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import { AuthContext, SocketContext } from '../App';
@@ -26,6 +29,10 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  // Profile & Social State
+  const [profileStats, setProfileStats] = useState(null);
+  const [notifications, setNotifications] = useState([]);
 
   // Chat state
   const [recentChats, setRecentChats] = useState([]);
@@ -53,35 +60,40 @@ export default function Dashboard() {
   const localStreamRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // Fetch recent chats when tab is messages
+  const fetchProfile = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/profile`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) setProfileStats(data);
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/requests`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) setNotifications(data);
+    } catch (e) { console.error(e); }
+  };
+
   useEffect(() => {
     if (token) {
       fetchRecentChats();
+      fetchProfile();
+      fetchNotifications();
     }
   }, [activeTab, token]);
 
-  // Handle socket events for message and calls
   useEffect(() => {
     if (!socket) return;
-
-    socket.on('online_users', (users) => {
-      setOnlineUsers(users);
-    });
-
+    socket.on('online_users', (users) => setOnlineUsers(users));
     socket.on('receive_message', (msg) => {
-      // If we are currently chatting with the sender or receiver
-      if (
-        (activeChatUser && msg.sender === activeChatUser._id) || 
-        msg.sender === user.id
-      ) {
+      if ((activeChatUser && msg.sender === activeChatUser._id) || msg.sender === user.id) {
         setMessages((prev) => [...prev, msg]);
       }
-      
-      // Refresh recent list to update positions
       fetchRecentChats();
     });
 
-    // WebRTC call signaling events
     socket.on('incoming_call', ({ from, fromUsername, signal, isVideo }) => {
       setReceivingCall(true);
       setCallerId(from);
@@ -92,14 +104,10 @@ export default function Dashboard() {
 
     socket.on('call_accepted', (signal) => {
       setCallAccepted(true);
-      if (connectionRef.current) {
-        connectionRef.current.signal(signal);
-      }
+      if (connectionRef.current) connectionRef.current.signal(signal);
     });
 
-    socket.on('call_ended', () => {
-      handleEndCallQuietly();
-    });
+    socket.on('call_ended', () => handleEndCallQuietly());
 
     return () => {
       socket.off('online_users');
@@ -110,47 +118,30 @@ export default function Dashboard() {
     };
   }, [socket, activeChatUser, user]);
 
-  // Scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Fetch messages for selected user
   useEffect(() => {
-    if (activeChatUser) {
-      fetchMessages(activeChatUser._id);
-    }
+    if (activeChatUser) fetchMessages(activeChatUser._id);
   }, [activeChatUser]);
 
   const fetchRecentChats = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/chats/recent`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(`${API_URL}/api/chats/recent`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (res.ok) {
-        setRecentChats(data);
-      }
-    } catch (err) {
-      console.error('Error fetching chats', err);
-    }
+      if (res.ok) setRecentChats(data);
+    } catch (err) { console.error(err); }
   };
 
   const fetchMessages = async (otherId) => {
     try {
-      const res = await fetch(`${API_URL}/api/messages/${otherId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(`${API_URL}/api/messages/${otherId}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (res.ok) {
-        setMessages(data);
-      }
-    } catch (err) {
-      console.error('Error fetching messages', err);
-    }
+      if (res.ok) setMessages(data);
+    } catch (err) { console.error(err); }
   };
 
-  // Search API Call
   const handleSearch = async (e) => {
     const value = e.target.value;
     setSearchQuery(value);
@@ -159,32 +150,47 @@ export default function Dashboard() {
       setSearchResults([]);
       return;
     }
-
     setSearchLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/users/search?query=${value}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(`${API_URL}/api/users/search?query=${value}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (res.ok) {
-        setSearchResults(data);
-      }
-    } catch (err) {
-      console.error('Search error', err);
-    } finally {
+      if (res.ok) setSearchResults(data);
+    } catch (err) { console.error(err); } finally {
       setSearchLoading(false);
     }
+  };
+
+  const sendFollowRequest = async (targetUserId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/follow/${targetUserId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        // Refresh search results to update button state
+        handleSearch({ target: { value: searchQuery } });
+        fetchProfile();
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const acceptRequest = async (requesterId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/accept/${requesterId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchNotifications();
+        fetchProfile();
+      }
+    } catch (err) { console.error(err); }
   };
 
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeChatUser || !socket) return;
-
-    socket.emit('send_message', {
-      senderId: user.id,
-      receiverId: activeChatUser._id,
-      messageText: newMessage
-    });
+    socket.emit('send_message', { senderId: user.id, receiverId: activeChatUser._id, messageText: newMessage });
     setNewMessage('');
   };
 
@@ -193,9 +199,18 @@ export default function Dashboard() {
     setActiveTab('messages');
   };
 
-  // --- WebRTC Video & Audio Call System ---
+  // --- WebRTC System with Camera permission error handling ---
+  const requestMediaPermissions = async (isVideo) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
+      return stream;
+    } catch (error) {
+      console.error('Permission denied or no devices found:', error);
+      alert('Error: Could not access camera or microphone. Please allow permissions in your browser settings (Site Settings > Camera/Mic) and try again.');
+      throw error;
+    }
+  };
 
-  // Initiate call
   const callUser = async (targetUserId, targetUsername, isVideo) => {
     setIsVideoCall(isVideo);
     setCalling(true);
@@ -203,24 +218,11 @@ export default function Dashboard() {
     setCallerName(targetUsername);
 
     try {
-      // Get audio/video streams
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: isVideo,
-        audio: true
-      });
+      const stream = await requestMediaPermissions(isVideo);
       localStreamRef.current = stream;
+      if (myVideoRef.current) myVideoRef.current.srcObject = stream;
 
-      // Assign to local video element
-      if (myVideoRef.current) {
-        myVideoRef.current.srcObject = stream;
-      }
-
-      // Initialize peer connection
-      const peer = new Peer({
-        initiator: true,
-        trickle: false,
-        stream: stream
-      });
+      const peer = new Peer({ initiator: true, trickle: false, stream: stream });
 
       peer.on('signal', (data) => {
         socket.emit('call_user', {
@@ -233,9 +235,7 @@ export default function Dashboard() {
       });
 
       peer.on('stream', (remoteStream) => {
-        if (userVideoRef.current) {
-          userVideoRef.current.srcObject = remoteStream;
-        }
+        if (userVideoRef.current) userVideoRef.current.srcObject = remoteStream;
       });
 
       socket.on('call_accepted', (signal) => {
@@ -246,96 +246,73 @@ export default function Dashboard() {
 
       connectionRef.current = peer;
     } catch (error) {
-      console.error('Failed to get media devices or start peer:', error);
-      alert('Error: Could not access camera or microphone.');
       handleEndCallQuietly();
     }
   };
 
-  // Accept incoming call
   const acceptCall = async () => {
     setReceivingCall(false);
     setCallAccepted(true);
     setCallActive(true);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: isVideoCall,
-        audio: true
-      });
+      const stream = await requestMediaPermissions(isVideoCall);
       localStreamRef.current = stream;
+      if (myVideoRef.current) myVideoRef.current.srcObject = stream;
 
-      if (myVideoRef.current) {
-        myVideoRef.current.srcObject = stream;
-      }
-
-      const peer = new Peer({
-        initiator: false,
-        trickle: false,
-        stream: stream
-      });
+      const peer = new Peer({ initiator: false, trickle: false, stream: stream });
 
       peer.on('signal', (data) => {
-        socket.emit('answer_call', {
-          to: callerId,
-          signal: data
-        });
+        socket.emit('answer_call', { to: callerId, signal: data });
       });
 
       peer.on('stream', (remoteStream) => {
-        if (userVideoRef.current) {
-          userVideoRef.current.srcObject = remoteStream;
-        }
+        if (userVideoRef.current) userVideoRef.current.srcObject = remoteStream;
       });
 
       peer.signal(callerSignal);
       connectionRef.current = peer;
     } catch (error) {
-      console.error('Failed to get media devices or accept call:', error);
-      alert('Error: Could not access camera or microphone.');
       declineCall();
     }
   };
 
-  // Decline incoming call
   const declineCall = () => {
     socket.emit('end_call', { to: callerId });
     setReceivingCall(false);
     handleEndCallQuietly();
   };
 
-  // End an active call
   const endCall = () => {
     const targetId = activeChatUser ? activeChatUser._id : callerId;
     socket.emit('end_call', { to: targetId });
     handleEndCallQuietly();
   };
 
-  // Release media resources and reset UI state
   const handleEndCallQuietly = () => {
     setCallActive(false);
     setCalling(false);
     setReceivingCall(false);
     setCallAccepted(false);
-
-    if (connectionRef.current) {
-      connectionRef.current.destroy();
-      connectionRef.current = null;
-    }
-
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-      localStreamRef.current = null;
-    }
+    if (connectionRef.current) { connectionRef.current.destroy(); connectionRef.current = null; }
+    if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
   };
 
-  // Render components based on active tab
   const renderTabContent = () => {
     switch (activeTab) {
       case 'home':
         return (
           <div className="feed-container">
-            <div className="welcome-card">
+            <div className="welcome-card" style={{ position: 'relative' }}>
+              <div 
+                className="notification-icon"
+                onClick={() => setActiveTab('notifications')}
+                style={{ position: 'absolute', top: '16px', left: '16px', cursor: 'pointer' }}
+              >
+                <Bell size={24} />
+                {notifications.length > 0 && <span className="badge">{notifications.length}</span>}
+              </div>
+              
               <h2>Welcome to <span className="gradient-text">Twelo</span></h2>
               <p>Hi, <strong>@{user.username}</strong>! This is your world-class real-time MERN dashboard.</p>
               <p>Go to the <strong>Search</strong> tab to find other users, or click <strong>Messages</strong> to chat and call.</p>
@@ -344,6 +321,31 @@ export default function Dashboard() {
                 <button className="logout-btn" onClick={() => setActiveTab('messages')}>Inbox</button>
               </div>
             </div>
+          </div>
+        );
+
+      case 'notifications':
+        return (
+          <div className="notifications-container" style={{ padding: '16px' }}>
+            <h2 className="search-header-text">Notifications</h2>
+            {notifications.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No new notifications.</div>
+            ) : (
+              <div className="requests-list">
+                {notifications.map(req => (
+                  <div className="user-card" key={req._id}>
+                    <div className="user-card-info">
+                      <div className="user-avatar-small">{req.username.charAt(0).toUpperCase()}</div>
+                      <div className="user-names">
+                        <span className="user-username">@{req.username}</span>
+                        <span className="user-id">wants to follow you</span>
+                      </div>
+                    </div>
+                    <button className="chat-now-btn accept-btn" onClick={() => acceptRequest(req._id)}>Accept</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
@@ -365,25 +367,31 @@ export default function Dashboard() {
             {searchLoading && <div style={{ textAlign: 'center', color: '#a8a8a8' }}>Searching...</div>}
             
             <div className="search-results">
-              {searchResults.map((searchUser) => (
-                <div className="user-card" key={searchUser._id}>
-                  <div className="user-card-info">
-                    <div className="user-avatar-small">
-                      {searchUser.username.charAt(0).toUpperCase()}
+              {searchResults.map((searchUser) => {
+                const isFollowing = profileStats?.following?.includes(searchUser._id);
+                const hasRequested = searchUser.friendRequests?.includes(user.id);
+                return (
+                  <div className="user-card" key={searchUser._id}>
+                    <div className="user-card-info">
+                      <div className="user-avatar-small">
+                        {searchUser.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="user-names">
+                        <span className="user-username">@{searchUser.username}</span>
+                        <span className="user-id">ID: {searchUser.uniqueId}</span>
+                      </div>
                     </div>
-                    <div className="user-names">
-                      <span className="user-username">@{searchUser.username}</span>
-                      <span className="user-id">ID: {searchUser.uniqueId}</span>
-                    </div>
+                    
+                    {isFollowing ? (
+                      <button className="chat-now-btn" onClick={() => startChatWithUser(searchUser)}>Message</button>
+                    ) : hasRequested ? (
+                      <button className="chat-now-btn" disabled style={{ background: '#333' }}>Requested</button>
+                    ) : (
+                      <button className="chat-now-btn" onClick={() => sendFollowRequest(searchUser._id)}>Follow</button>
+                    )}
                   </div>
-                  <button 
-                    className="chat-now-btn"
-                    onClick={() => startChatWithUser(searchUser)}
-                  >
-                    Message
-                  </button>
-                </div>
-              ))}
+                );
+              })}
               {!searchLoading && searchQuery && searchResults.length === 0 && (
                 <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No users found</div>
               )}
@@ -394,8 +402,7 @@ export default function Dashboard() {
       case 'messages':
         return (
           <div className="chat-container">
-            {/* Sidebar list of recent chats */}
-            <div className="chat-list">
+            <div className={`chat-list ${activeChatUser ? 'hide-on-mobile' : ''}`}>
               <div className="chat-list-header">
                 <h2>Chats</h2>
               </div>
@@ -423,14 +430,13 @@ export default function Dashboard() {
                 })}
                 {recentChats.length === 0 && (
                   <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', fontSize: '0.9rem' }}>
-                    No recent chats. Search for users to start chatting!
+                    No recent chats. Search and follow users to start chatting!
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Active chat window */}
-            <div className="chat-area">
+            <div className={`chat-area ${!activeChatUser ? 'hide-on-mobile' : ''}`}>
               {activeChatUser ? (
                 <>
                   <div className="chat-room-header">
@@ -453,32 +459,15 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="chat-actions">
-                      <button 
-                        className="action-icon-btn call-audio" 
-                        title="Voice Call"
-                        onClick={() => callUser(activeChatUser._id, activeChatUser.username, false)}
-                      >
-                        <Phone size={22} />
-                      </button>
-                      <button 
-                        className="action-icon-btn call-video" 
-                        title="Video Call"
-                        onClick={() => callUser(activeChatUser._id, activeChatUser.username, true)}
-                      >
-                        <Video size={22} />
-                      </button>
+                      <button className="action-icon-btn call-audio" onClick={() => callUser(activeChatUser._id, activeChatUser.username, false)}><Phone size={22} /></button>
+                      <button className="action-icon-btn call-video" onClick={() => callUser(activeChatUser._id, activeChatUser.username, true)}><Video size={22} /></button>
                     </div>
                   </div>
 
                   <div className="chat-messages-area">
                     {messages.map((msg) => (
-                      <div 
-                        key={msg._id} 
-                        className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`}
-                      >
-                        <div className="msg-bubble">
-                          {msg.message}
-                        </div>
+                      <div key={msg._id} className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`}>
+                        <div className="msg-bubble">{msg.message}</div>
                       </div>
                     ))}
                     <div ref={messagesEndRef} />
@@ -495,21 +484,16 @@ export default function Dashboard() {
                         required
                       />
                       {newMessage.trim() && (
-                        <button type="submit" className="chat-send-btn">
-                          <Send size={18} />
-                        </button>
+                        <button type="submit" className="chat-send-btn"><Send size={18} /></button>
                       )}
                     </div>
                   </form>
                 </>
               ) : (
                 <div className="no-chat-selected">
-                  <div className="no-chat-circle">
-                    <MessageSquare size={44} />
-                  </div>
+                  <div className="no-chat-circle"><MessageSquare size={44} /></div>
                   <h3>Your Messages</h3>
-                  <p>Send private photos, videos and messages to a friend.</p>
-                  <button className="chat-now-btn" onClick={() => setActiveTab('search')}>Send message</button>
+                  <p>Send private messages to your friends.</p>
                 </div>
               )}
             </div>
@@ -537,8 +521,8 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="profile-stats">
-                  <span><strong>0</strong> posts</span>
-                  <span><strong>1</strong> profile ID</span>
+                  <span><strong>{profileStats?.followers?.length || 0}</strong> followers</span>
+                  <span><strong>{profileStats?.following?.length || 0}</strong> following</span>
                 </div>
 
                 <div>
@@ -563,170 +547,106 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      {/* Sidebar - Desktop Layout */}
       <aside className="sidebar">
         <div>
           <h1 className="sidebar-logo" onClick={() => setActiveTab('home')}>Twelo</h1>
           <nav className="nav-links">
-            <div 
-              className={`nav-item ${activeTab === 'home' ? 'active' : ''}`}
-              onClick={() => setActiveTab('home')}
-            >
-              <HomeIcon size={24} />
-              <span>Home</span>
+            <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>
+              <HomeIcon size={24} /><span>Home</span>
             </div>
-            
-            <div 
-              className={`nav-item ${activeTab === 'search' ? 'active' : ''}`}
-              onClick={() => setActiveTab('search')}
-            >
-              <SearchIcon size={24} />
-              <span>Search</span>
+            <div className={`nav-item ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}>
+              <SearchIcon size={24} /><span>Search</span>
             </div>
-
-            <div 
-              className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`}
-              onClick={() => setActiveTab('messages')}
-            >
-              <MessageSquare size={24} />
-              <span>Messages</span>
+            <div className={`nav-item ${activeTab === 'notifications' ? 'active' : ''}`} onClick={() => setActiveTab('notifications')}>
+              <Bell size={24} /><span>Notifications</span>
+              {notifications.length > 0 && <span className="sidebar-badge">{notifications.length}</span>}
             </div>
-
-            <div 
-              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-              onClick={() => setActiveTab('profile')}
-            >
-              <UserIcon size={24} />
-              <span>Profile</span>
+            <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
+              <MessageSquare size={24} /><span>Messages</span>
+            </div>
+            <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
+              <UserIcon size={24} /><span>Profile</span>
             </div>
           </nav>
         </div>
-
         <div className="sidebar-footer">
-          <div className="nav-item" onClick={logout} style={{ color: 'var(--brand-red)' }}>
-            <LogOut size={24} />
-            <span>Logout</span>
-          </div>
+          <div className="nav-item" onClick={logout} style={{ color: 'var(--brand-red)' }}><LogOut size={24} /><span>Logout</span></div>
         </div>
       </aside>
 
-      {/* Header - Mobile Layout */}
       <header className="mobile-header">
         <h1 className="mobile-logo">Twelo</h1>
-        <button 
-          onClick={logout} 
-          style={{ color: 'var(--brand-red)', display: 'flex', alignItems: 'center' }}
-        >
-          <LogOut size={20} />
-        </button>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <button onClick={() => setActiveTab('notifications')} style={{ position: 'relative' }}>
+            <Bell size={20} />
+            {notifications.length > 0 && <span className="badge">{notifications.length}</span>}
+          </button>
+          <button onClick={logout} style={{ color: 'var(--brand-red)' }}><LogOut size={20} /></button>
+        </div>
       </header>
 
-      {/* Main Panel Content */}
       <main className="main-content">
         {renderTabContent()}
       </main>
 
-      {/* Navigation - Bottom Mobile Layout */}
       <nav className="mobile-nav">
-        <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>
-          <HomeIcon size={24} />
-        </div>
-        <div className={`nav-item ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}>
-          <SearchIcon size={24} />
-        </div>
-        <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
-          <MessageSquare size={24} />
-        </div>
-        <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
-          <UserIcon size={24} />
-        </div>
+        <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}><HomeIcon size={24} /></div>
+        <div className={`nav-item ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}><SearchIcon size={24} /></div>
+        <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}><MessageSquare size={24} /></div>
+        <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}><UserIcon size={24} /></div>
       </nav>
 
-      {/* INCOMING CALL OVERLAY MODAL */}
+      {/* CALLING OVERLAYS */}
       {receivingCall && (
         <div className="call-overlay">
           <div className="incoming-call-box">
-            <div className="pulse-avatar">
-              {callerName.charAt(0).toUpperCase()}
-            </div>
+            <div className="pulse-avatar">{callerName.charAt(0).toUpperCase()}</div>
             <div>
               <h3>@{callerName}</h3>
-              <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>
-                Incoming {isVideoCall ? 'Video' : 'Audio'} Call...
-              </p>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Incoming {isVideoCall ? 'Video' : 'Audio'} Call...</p>
             </div>
             <div className="call-btn-group">
-              <button className="call-action-btn accept" onClick={acceptCall} title="Accept">
-                {isVideoCall ? <Video size={28} /> : <Phone size={28} />}
-              </button>
-              <button className="call-action-btn decline" onClick={declineCall} title="Decline">
-                <PhoneOff size={28} />
-              </button>
+              <button className="call-action-btn accept" onClick={acceptCall} title="Accept">{isVideoCall ? <Video size={28} /> : <Phone size={28} />}</button>
+              <button className="call-action-btn decline" onClick={declineCall} title="Decline"><PhoneOff size={28} /></button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ACTIVE CALL SCREEN OVERLAY */}
       {callActive && (
         <div className="call-overlay">
           <div className="call-screen-active">
             {isVideoCall ? (
               <div className={`video-grid ${callAccepted ? 'two-videos' : ''}`}>
-                {/* Local Video Stream */}
                 <div className="video-container-box">
-                  <video 
-                    playsInline 
-                    muted 
-                    ref={myVideoRef} 
-                    autoPlay 
-                    className="video-element" 
-                  />
+                  <video playsInline muted ref={myVideoRef} autoPlay className="video-element" />
                   <div className="video-label">You</div>
                 </div>
-
-                {/* Remote Video Stream */}
                 {callAccepted ? (
                   <div className="video-container-box">
-                    <video 
-                      playsInline 
-                      ref={userVideoRef} 
-                      autoPlay 
-                      className="video-element" 
-                    />
+                    <video playsInline ref={userVideoRef} autoPlay className="video-element" />
                     <div className="video-label">@{callerName}</div>
                   </div>
                 ) : (
                   <div className="video-container-box">
                     <div style={{ textAlign: 'center' }}>
-                      <div className="pulse-avatar" style={{ margin: '0 auto' }}>
-                        {callerName.charAt(0).toUpperCase()}
-                      </div>
+                      <div className="pulse-avatar" style={{ margin: '0 auto' }}>{callerName.charAt(0).toUpperCase()}</div>
                       <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>Calling...</p>
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-              // Audio Call View
               <div className="audio-only-status" style={{ margin: 'auto' }}>
-                <div className="pulse-avatar">
-                  {callerName.charAt(0).toUpperCase()}
-                </div>
+                <div className="pulse-avatar">{callerName.charAt(0).toUpperCase()}</div>
                 <h2>@{callerName}</h2>
-                <p style={{ color: 'var(--text-secondary)' }}>
-                  {callAccepted ? 'Voice Call Connected' : 'Calling...'}
-                </p>
+                <p style={{ color: 'var(--text-secondary)' }}>{callAccepted ? 'Voice Call Connected' : 'Calling...'}</p>
                 <audio ref={userVideoRef} autoPlay style={{ display: 'none' }} />
                 <audio ref={myVideoRef} muted autoPlay style={{ display: 'none' }} />
               </div>
             )}
-
-            {/* End Call button controls */}
             <div className="call-controls-bar">
-              <button className="call-action-btn decline" onClick={endCall} title="End Call">
-                <PhoneOff size={28} />
-              </button>
+              <button className="call-action-btn decline" onClick={endCall} title="End Call"><PhoneOff size={28} /></button>
             </div>
           </div>
         </div>
