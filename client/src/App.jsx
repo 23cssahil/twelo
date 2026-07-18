@@ -15,6 +15,8 @@ export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [socket, setSocket] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'https://twelo-backend.onrender.com';
   const GOOGLE_CLIENT_ID = '440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com';
@@ -25,6 +27,18 @@ export default function App() {
       setUser(JSON.parse(savedUser));
     }
     setLoading(false);
+
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallPrompt(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, [token]);
 
   // Handle socket connection
@@ -70,6 +84,17 @@ export default function App() {
     );
   }
 
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setShowInstallPrompt(false);
+      }
+      setDeferredPrompt(null);
+    }
+  };
+
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <AuthContext.Provider value={{ user, token, login, logout, API_URL }}>
@@ -82,6 +107,46 @@ export default function App() {
           </Router>
         </SocketContext.Provider>
       </AuthContext.Provider>
+
+      {showInstallPrompt && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#111',
+          border: '1px solid #333',
+          borderRadius: '12px',
+          padding: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '12px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          zIndex: 9999,
+          width: '90%',
+          maxWidth: '350px'
+        }}>
+          <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Install Twelo App</h3>
+          <p style={{ margin: 0, color: '#a8a8a8', fontSize: '0.9rem', textAlign: 'center' }}>
+            Add Twelo to your home screen for a better experience!
+          </p>
+          <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+            <button 
+              onClick={() => setShowInstallPrompt(false)}
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: '#333', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              Later
+            </button>
+            <button 
+              onClick={handleInstallClick}
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: '#0095f6', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              Download Now
+            </button>
+          </div>
+        </div>
+      )}
     </GoogleOAuthProvider>
   );
 }
