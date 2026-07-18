@@ -15,8 +15,8 @@ export default function App() {
   const [socket, setSocket] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // API base URL
-  const API_URL = 'http://localhost:5000';
+  // API base URL - Set VITE_API_URL in Render frontend environment variables!
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
