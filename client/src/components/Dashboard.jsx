@@ -267,16 +267,6 @@ export default function Dashboard() {
   };
 
   // --- WebRTC System with Camera permission error handling ---
-  const requestMediaPermissions = async (isVideo) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
-      return stream;
-    } catch (error) {
-      console.error('Permission denied or no devices found:', error);
-      alert('Error: Could not access camera or microphone. Please allow permissions in your browser settings (Site Settings > Camera/Mic) and try again.');
-      throw error;
-    }
-  };
 
   const requestMediaPermissions = async (isVideo) => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
