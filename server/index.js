@@ -1045,12 +1045,19 @@ io.on('connection', (socket) => {
     }
 
     if (isBotEligible) {
-      setTimeout(() => {
+      setTimeout(async () => {
         // After 4 seconds, check if user is STILL in queue
         const userIndex = randomChatQueue.findIndex(u => u.userId === userId);
         if (userIndex !== -1) {
           // Remove from queue
           randomChatQueue.splice(userIndex, 1);
+          
+          let userGender = 'male';
+          try {
+             const u = await User.findById(userId).select('gender').lean();
+             if (u && u.gender) userGender = u.gender.toLowerCase();
+          } catch(e) {}
+          const botGender = userGender === 'female' ? 'male' : 'female';
           
           // Match with Bot!
           const roomId = `bot_room_${Date.now()}_${userId}`;
@@ -1069,7 +1076,7 @@ io.on('connection', (socket) => {
           io.to(socket.id).emit('match_found', {
              roomId,
              partnerId: 'twelo-bot',
-             partnerAvatar: generateAvatarUrl('female'), // Random bot avatar
+             partnerAvatar: generateAvatarUrl(botGender),
              partnerCountry: 'India',
              partnerUsername: 'Stranger'
           });
