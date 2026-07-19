@@ -37,7 +37,8 @@ import { AuthContext, SocketContext } from '../App';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('home');
-  const { user, token, logout, API_URL } = useContext(AuthContext);
+  const { user, token, logout } = useContext(AuthContext);
+  const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : '');
   const socket = useContext(SocketContext);
   const navigate = useNavigate();
 
@@ -706,24 +707,80 @@ export default function Dashboard() {
     }
   };
 
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      // Don't compress small files or non-images (like gifs if they somehow bypass accept)
+      if (file.size < 500000 || !file.type.startsWith('image/') || file.type === 'image/gif') {
+        return resolve(file);
+      }
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = event => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1280;
+          const MAX_HEIGHT = 1280;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob(blob => {
+            if (!blob) return reject(new Error('Canvas is empty'));
+            const newFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+            resolve(newFile);
+          }, 'image/jpeg', 0.7);
+        };
+        img.onerror = error => reject(error);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const confirmSendImage = async () => {
     if (previewImage) {
       setIsUploading(true);
-      const url = await uploadFile(previewImage);
-      setIsUploading(false);
-      setPreviewImage(null);
-      if (url) {
-        socket.emit('send_message', { 
-          senderId: user.id, 
-          receiverId: activeChatUser._id, 
-          messageText: '', 
-          messageType: 'image', 
-          fileUrl: url, 
-          replyTo: replyToMessage?._id || null,
-          isViewOnce: isViewOnce
-        });
-        setReplyToMessage(null);
-        fetchRecentChats();
+      try {
+        const compressedImage = await compressImage(previewImage);
+        const url = await uploadFile(compressedImage);
+        setIsUploading(false);
+        setPreviewImage(null);
+        if (url) {
+          socket.emit('send_message', { 
+            senderId: user.id, 
+            receiverId: activeChatUser._id, 
+            messageText: '', 
+            messageType: 'image', 
+            fileUrl: url, 
+            replyTo: replyToMessage?._id || null,
+            isViewOnce: isViewOnce
+          });
+          setReplyToMessage(null);
+          fetchRecentChats();
+        }
+      } catch (error) {
+        console.error('Error sending image:', error);
+        setIsUploading(false);
+        setPreviewImage(null);
       }
     }
   };
