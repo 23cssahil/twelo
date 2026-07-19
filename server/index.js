@@ -35,6 +35,7 @@ function generateAvatarUrl(gender) {
 const User = require('./models/User');
 const DeletedUser = require('./models/DeletedUser');
 const Message = require('./models/Message');
+const Report = require('./models/Report');
 
 const app = express();
 const server = http.createServer(app);
@@ -681,6 +682,32 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
 // Socket.io Real-time Setup
 const onlineUsers = new Map();
 // ==========================================
+// REPORTS ROUTES (USER)
+// ==========================================
+app.post('/api/reports/create', authenticateToken, async (req, res) => {
+  try {
+    const { reportedUserId, reportedUsername, reason, chatContext } = req.body;
+    const reporterId = req.user.userId;
+    const reporter = await User.findById(reporterId);
+
+    const newReport = new Report({
+      reporterId,
+      reporterUsername: reporter.username,
+      reportedUserId,
+      reportedUsername,
+      reason,
+      chatContext
+    });
+
+    await newReport.save();
+    res.json({ success: true, message: 'Report submitted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error submitting report' });
+  }
+});
+
+// ==========================================
 // ADMIN ROUTES
 // ==========================================
 const adminAuth = (req, res, next) => {
@@ -808,6 +835,24 @@ app.post('/api/admin/delete-user', adminAuth, async (req, res) => {
 app.post('/api/admin/clear-queue', adminAuth, (req, res) => {
   randomChatQueue = [];
   res.json({ success: true, queuedRandom: 0 });
+});
+
+app.get('/api/admin/reports', adminAuth, async (req, res) => {
+  try {
+    const reports = await Report.find({ status: 'pending' }).sort({ createdAt: -1 }).lean();
+    res.json(reports);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching reports' });
+  }
+});
+
+app.post('/api/admin/reports/:id/resolve', adminAuth, async (req, res) => {
+  try {
+    await Report.findByIdAndUpdate(req.params.id, { status: 'resolved' });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error resolving report' });
+  }
 });
 
 // Random Chat Queue

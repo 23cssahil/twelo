@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../App';
 import { useNavigate } from 'react-router-dom';
-import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw } from 'lucide-react';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle } from 'lucide-react';
 import './DeveloperAdmin.css';
 
 export default function DeveloperAdmin() {
@@ -16,6 +16,10 @@ export default function DeveloperAdmin() {
   const [users, setUsers] = useState([]);
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [showBlockedOnly, setShowBlockedOnly] = useState(false);
+
+  const [activeTab, setActiveTab] = useState('users');
+  const [reports, setReports] = useState([]);
+  const [selectedReport, setSelectedReport] = useState(null);
 
   // Focus input on load
   useEffect(() => {
@@ -73,6 +77,20 @@ export default function DeveloperAdmin() {
       if (res.ok) {
         const data = await res.json();
         setUsers(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchReports = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/reports`, {
+        headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReports(data);
       }
     } catch (err) {
       console.error(err);
@@ -219,6 +237,21 @@ export default function DeveloperAdmin() {
     );
   }
 
+  const handleResolveReport = async (reportId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/reports/${reportId}/resolve`, {
+        method: 'POST',
+        headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) {
+        setReports(reports.filter(r => r._id !== reportId));
+        setSelectedReport(null);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="dev-dashboard">
       <div className="dev-header">
@@ -286,76 +319,170 @@ export default function DeveloperAdmin() {
           <div className="dev-panel" style={{ gridColumn: '1 / -1' }}>
             <h3><Search size={18} style={{ marginRight: '8px' }}/> User Database Management</h3>
             <p className="panel-desc">Search by name, username, email, or Google ID</p>
-            
-            <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginTop: '15px', marginBottom: '20px' }}>
-              <input 
-                type="text" 
-                placeholder="Search database..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="dev-input"
-                style={{ flex: 1 }}
-              />
-              <button type="submit" className="dev-btn-primary">Search</button>
-              <button type="button" onClick={handleLoadAll} className="dev-btn-secondary" style={{ backgroundColor: '#222' }}>Load All Users</button>
-              <button 
-                type="button" 
-                onClick={() => setShowBlockedOnly(!showBlockedOnly)} 
-                className="dev-btn-secondary" 
-                style={{ backgroundColor: showBlockedOnly ? 'rgba(255, 75, 75, 0.2)' : 'transparent', border: showBlockedOnly ? '1px solid rgba(255, 75, 75, 0.5)' : '' }}
-              >
-                <Filter size={16} style={{ marginRight: '5px' }} />
-                Blocked Only
-              </button>
-            </form>
+            <div className="dev-main">
+              <div className="dev-tabs" style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                <button 
+                  onClick={() => setActiveTab('users')} 
+                  className={`dev-btn-${activeTab === 'users' ? 'primary' : 'secondary'}`}
+                >
+                  <Users size={16} style={{ marginRight: '8px' }} />
+                  User Database
+                </button>
+                <button 
+                  onClick={() => { setActiveTab('reports'); fetchReports(); }} 
+                  className={`dev-btn-${activeTab === 'reports' ? 'primary' : 'secondary'}`}
+                  style={{ position: 'relative' }}
+                >
+                  <Flag size={16} style={{ marginRight: '8px' }} />
+                  User Reports
+                  {reports.length > 0 && <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ff4b4b', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{reports.length}</span>}
+                </button>
+              </div>
 
-            <div className="dev-user-list">
-              {users.filter(u => showBlockedOnly ? u.isBlocked : true).map(u => (
-                <div key={u._id} className="dev-user-card">
-                  <div className="user-details">
-                    <img src={u.avatarUrl} alt="avatar" className="dev-avatar" />
-                    <div>
-                      <div className="dev-username">{u.name} <span style={{ color: '#888', fontWeight: 'normal' }}>@{u.username}</span></div>
-                      <div className="dev-user-meta"><strong>ID:</strong> {u.uniqueId} | <strong>Email:</strong> {u.email}</div>
-                      <div className="dev-user-meta"><strong>Google ID:</strong> {u.googleId}</div>
-                      <div className="dev-user-meta"><strong>Gender:</strong> {u.gender} | <strong>Age:</strong> {u.age} | <strong>Country:</strong> {u.country}</div>
-                      <div className="dev-user-meta"><strong>Coins:</strong> {u.coins} | <strong>Status:</strong> {u.isBlocked ? <span style={{color: '#ff4b4b'}}>Blocked</span> : <span style={{color: '#10b981'}}>Active</span>}</div>
-                    </div>
+              {activeTab === 'users' ? (
+                <>
+                  <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                    <input 
+                      type="text" 
+                      placeholder="Search database..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="dev-input"
+                      style={{ flex: 1 }}
+                    />
+                    <button type="submit" className="dev-btn-primary">Search</button>
+                    <button type="button" onClick={handleLoadAll} className="dev-btn-secondary" style={{ backgroundColor: '#222' }}>Load All Users</button>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowBlockedOnly(!showBlockedOnly)} 
+                      className="dev-btn-secondary" 
+                      style={{ backgroundColor: showBlockedOnly ? 'rgba(255, 75, 75, 0.2)' : 'transparent', border: showBlockedOnly ? '1px solid rgba(255, 75, 75, 0.5)' : '' }}
+                    >
+                      <Filter size={16} style={{ marginRight: '5px' }} />
+                      Blocked Only
+                    </button>
+                  </form>
+
+                  <div className="dev-user-list">
+                    {users.filter(u => showBlockedOnly ? u.isBlocked : true).map(u => (
+                      <div key={u._id} className="dev-user-card">
+                        <div className="user-details">
+                          <img src={u.avatarUrl} alt="avatar" className="dev-avatar" />
+                          <div>
+                            <div className="dev-username">{u.name} <span style={{ color: '#888', fontWeight: 'normal' }}>@{u.username}</span></div>
+                            <div className="dev-user-meta"><strong>ID:</strong> {u.uniqueId} | <strong>Email:</strong> {u.email}</div>
+                            <div className="dev-user-meta"><strong>Google ID:</strong> {u.googleId}</div>
+                            <div className="dev-user-meta"><strong>Gender:</strong> {u.gender} | <strong>Age:</strong> {u.age} | <strong>Country:</strong> {u.country}</div>
+                            <div className="dev-user-meta"><strong>Coins:</strong> {u.coins} | <strong>Status:</strong> {u.isBlocked ? <span style={{color: '#ff4b4b'}}>Blocked</span> : <span style={{color: '#10b981'}}>Active</span>}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <button 
+                            onClick={() => handlePersonalNotification(u._id, u.username)}
+                            className="dev-btn-secondary"
+                            style={{ background: '#222', color: '#fff', border: '1px solid #333' }}
+                          >
+                            <Send size={16} style={{ marginRight: '5px' }} />
+                            Send Alert
+                          </button>
+                          <button 
+                            onClick={() => handleBlockUser(u._id, u.isBlocked)}
+                            className={`dev-btn-${u.isBlocked ? 'secondary' : 'danger'}`}
+                          >
+                            <Ban size={16} style={{ marginRight: '5px' }} />
+                            {u.isBlocked ? 'Unblock' : 'Block User'}
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteUser(u._id, u.username)}
+                            className="dev-btn-danger"
+                            style={{ background: '#ff4b4b', color: '#fff', padding: '8px 12px' }}
+                            title="Permanently Delete User"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {users.length === 0 && searchQuery && (
+                      <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No users found for "{searchQuery}"</div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button 
-                      onClick={() => handlePersonalNotification(u._id, u.username)}
-                      className="dev-btn-secondary"
-                      style={{ background: '#222', color: '#fff', border: '1px solid #333' }}
-                    >
-                      <Send size={16} style={{ marginRight: '5px' }} />
-                      Send Alert
-                    </button>
-                    <button 
-                      onClick={() => handleBlockUser(u._id, u.isBlocked)}
-                      className={`dev-btn-${u.isBlocked ? 'secondary' : 'danger'}`}
-                    >
-                      <Ban size={16} style={{ marginRight: '5px' }} />
-                      {u.isBlocked ? 'Unblock' : 'Block User'}
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteUser(u._id, u.username)}
-                      className="dev-btn-danger"
-                      style={{ background: '#ff4b4b', color: '#fff', padding: '8px 12px' }}
-                      title="Permanently Delete User"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                </>
+              ) : (
+                <div className="dev-reports-list" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  {reports.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No pending reports. Great job!</div>
+                  ) : (
+                    reports.map(report => (
+                      <div key={report._id} className="dev-user-card" style={{ borderLeft: '4px solid #ff4b4b' }}>
+                        <div className="user-details" style={{ flex: 1 }}>
+                          <div className="dev-user-info">
+                            <h3>Reported User: @{report.reportedUsername}</h3>
+                            <div className="dev-user-meta" style={{ color: '#ff4b4b', fontWeight: 'bold' }}>Reason: {report.reason}</div>
+                            <div className="dev-user-meta" style={{ fontSize: '0.8rem' }}>Reported by: @{report.reporterUsername} | {new Date(report.createdAt).toLocaleString()}</div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => setSelectedReport(report)}
+                          className="dev-btn-primary"
+                        >
+                          <Search size={16} style={{ marginRight: '5px' }} />
+                          Investigate
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))}
-              {users.length === 0 && searchQuery && (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>No users found matching "{searchQuery}"</div>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {selectedReport && (
+        <div className="modal-overlay" onClick={() => setSelectedReport(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h2>Investigation: @{selectedReport.reportedUsername}</h2>
+              <button className="icon-btn" onClick={() => setSelectedReport(null)}><X size={24} /></button>
+            </div>
+            <div style={{ padding: '20px 0' }}>
+              <h3 style={{ color: '#f59e0b', marginBottom: '10px' }}>Reason: {selectedReport.reason}</h3>
+              <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginBottom: '10px' }}>Reporter: @{selectedReport.reporterUsername}</p>
+              
+              <div style={{ background: '#111', padding: '15px', borderRadius: '8px', maxHeight: '300px', overflowY: 'auto', border: '1px solid #333', marginBottom: '20px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', color: '#ccc' }}>
+                {selectedReport.chatContext || "No chat context provided."}
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={() => handlePersonalNotification(selectedReport.reportedUserId, selectedReport.reportedUsername)}
+                  className="dev-btn-secondary"
+                  style={{ background: '#222' }}
+                >
+                  <AlertTriangle size={16} style={{ marginRight: '5px' }} />
+                  Send Warning
+                </button>
+                <button 
+                  onClick={() => handleBlockUser(selectedReport.reportedUserId, false)}
+                  className="dev-btn-danger"
+                >
+                  <Ban size={16} style={{ marginRight: '5px' }} />
+                  Block User
+                </button>
+                <button 
+                  onClick={() => handleResolveReport(selectedReport._id)}
+                  className="dev-btn-primary"
+                  style={{ background: '#10b981' }}
+                >
+                  <CheckCircle size={16} style={{ marginRight: '5px' }} />
+                  Mark as Resolved
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

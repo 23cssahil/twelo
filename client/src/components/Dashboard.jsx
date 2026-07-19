@@ -28,7 +28,8 @@ import {
   Trash2,
   Play,
   Square,
-  Pause
+  Pause,
+  Flag
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -96,6 +97,12 @@ export default function Dashboard() {
   const [newMessage, setNewMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState({});
+
+  // Report States
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('Spam');
+  const [reportTarget, setReportTarget] = useState(null); // { id, username, isAnonymous }
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   // Calling States
   const [callActive, setCallActive] = useState(false);
@@ -887,6 +894,42 @@ export default function Dashboard() {
     }
   };
 
+  const handleReportSubmit = async () => {
+    if (!reportTarget) return;
+    setIsSubmittingReport(true);
+    
+    // Capture exactly what is on the screen right now
+    const chatContextData = reportTarget.isAnonymous ? anonymousMessages : messages;
+    // Format to a readable string or keep as JSON. Let's just stringify a simplified version
+    const simplifiedContext = chatContextData.map(m => `[${new Date(m.createdAt || Date.now()).toLocaleTimeString()}] ${m.sender === user.id ? 'Me' : reportTarget.username}: ${m.message || '(Media)'}`).join('\n');
+
+    try {
+      const res = await fetch(`${API_URL}/api/reports/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          reportedUserId: reportTarget.id,
+          reportedUsername: reportTarget.username,
+          reason: reportReason,
+          chatContext: simplifiedContext
+        })
+      });
+      if (res.ok) {
+        alert("Report submitted successfully. Our team will review this chat.");
+        setShowReportModal(false);
+        setReportTarget(null);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to submit report.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeChatUser || !socket) return;
@@ -1424,6 +1467,17 @@ export default function Dashboard() {
                 </div>
                 <div className="chat-actions">
                   <button 
+                    className="action-icon-btn" 
+                    onClick={() => {
+                      setReportTarget({ id: anonymousPartnerId, username: 'Anonymous User', isAnonymous: true });
+                      setShowReportModal(true);
+                    }} 
+                    title="Report User"
+                    style={{ color: '#ff4b4b' }}
+                  >
+                    <Flag size={20} />
+                  </button>
+                  <button 
                     className="premium-btn primary" 
                     style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center' }}
                     onClick={handleSendAnonymousFriendRequest}
@@ -1712,6 +1766,17 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="chat-actions">
+                      <button 
+                        className="action-icon-btn" 
+                        onClick={() => {
+                          setReportTarget({ id: activeChatUser._id, username: activeChatUser.username, isAnonymous: false });
+                          setShowReportModal(true);
+                        }} 
+                        title="Report User"
+                        style={{ color: '#ff4b4b' }}
+                      >
+                        <Flag size={20} />
+                      </button>
                       <button className="action-icon-btn call-audio" onClick={() => callUser(activeChatUser._id, activeChatUser.username, false)}><Phone size={22} /></button>
                       <button className="action-icon-btn call-video" onClick={() => callUser(activeChatUser._id, activeChatUser.username, true)}><Video size={22} /></button>
                     </div>
@@ -2279,6 +2344,47 @@ export default function Dashboard() {
             <button onClick={confirmSendImage} disabled={isUploading} style={{ background: 'var(--brand-blue)', color: '#fff', padding: '15px 40px', borderRadius: '30px', border: 'none', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
               {isUploading ? 'Sending...' : <><Send size={20} /> Send Photo</>}
             </button>
+          </div>
+        </div>
+      )}
+
+      {showReportModal && (
+        <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Report {reportTarget?.username}</h2>
+              <button className="icon-btn" onClick={() => setShowReportModal(false)}><X size={24} /></button>
+            </div>
+            <div style={{ padding: '20px 0' }}>
+              <p style={{ color: '#a8a8a8', marginBottom: '15px', fontSize: '0.9rem' }}>
+                Please select a reason for reporting. A snapshot of your current chat will be securely sent to our admin team for review.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {['Sexual Harassment', 'Spam / Scams', 'Abuse / Insult', 'Other Inappropriate Behavior'].map(reason => (
+                  <label key={reason} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1a1a1a', padding: '12px', borderRadius: '8px', cursor: 'pointer', border: reportReason === reason ? '1px solid var(--brand-blue)' : '1px solid #333' }}>
+                    <input 
+                      type="radio" 
+                      name="reportReason" 
+                      value={reason} 
+                      checked={reportReason === reason} 
+                      onChange={() => setReportReason(reason)}
+                      style={{ accentColor: 'var(--brand-blue)', width: '18px', height: '18px' }}
+                    />
+                    <span style={{ color: '#fff' }}>{reason}</span>
+                  </label>
+                ))}
+              </div>
+              
+              <button 
+                onClick={handleReportSubmit} 
+                disabled={isSubmittingReport}
+                className="btn-primary" 
+                style={{ width: '100%', marginTop: '20px', background: '#ff4b4b', color: 'white' }}
+              >
+                {isSubmittingReport ? <Loader2 className="spin" size={20} /> : 'Submit Report'}
+              </button>
+            </div>
           </div>
         </div>
       )}
