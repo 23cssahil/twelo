@@ -115,6 +115,12 @@ export default function Dashboard() {
   const ringtoneInRef = useRef(null);
   const messagesEndRef = useRef(null);
   const globeEl = useRef(null);
+
+  // Swipe to reply state
+  const [replyingTo, setReplyingTo] = useState(null);
+  const swipeStartX = useRef(null);
+  const swipeCurrentX = useRef(null);
+  const [swipeMsgId, setSwipeMsgId] = useState(null);
   
   const isCallerRef = useRef(false);
   const callStartTimeRef = useRef(null);
@@ -640,7 +646,14 @@ export default function Dashboard() {
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeChatUser || !socket) return;
-    const msgData = { senderId: user.id, receiverId: activeChatUser._id, messageText: newMessage };
+    
+    const replyToObj = replyingTo ? {
+      messageId: replyingTo._id,
+      messageText: replyingTo.message,
+      senderName: replyingTo.sender === user.id ? 'You' : activeChatUser.username
+    } : null;
+
+    const msgData = { senderId: user.id, receiverId: activeChatUser._id, messageText: newMessage, replyTo: replyToObj };
     socket.emit('send_message', msgData);
     
     // Optimistic UI update
@@ -649,10 +662,50 @@ export default function Dashboard() {
       sender: user.id, 
       receiver: activeChatUser._id, 
       message: newMessage, 
+      replyTo: replyToObj,
       createdAt: new Date().toISOString() 
     }]);
 
     setNewMessage('');
+    setReplyingTo(null);
+  };
+
+  const handleTouchStart = (e, msgId) => {
+    swipeStartX.current = e.touches[0].clientX;
+    setSwipeMsgId(msgId);
+  };
+
+  const handleTouchMove = (e, msg, isSent) => {
+    if (!swipeStartX.current) return;
+    const currentX = e.touches[0].clientX;
+    const diff = currentX - swipeStartX.current;
+    
+    // Swipe direction logic: Sent messages swipe left (-), Received messages swipe right (+)
+    if ((isSent && diff < 0 && diff > -100) || (!isSent && diff > 0 && diff < 100)) {
+      swipeCurrentX.current = diff;
+      const el = document.getElementById(`msg-bubble-${msg._id}`);
+      if (el) el.style.transform = `translateX(${diff}px)`;
+    }
+  };
+
+  const handleTouchEnd = (e, msg, isSent) => {
+    if (swipeCurrentX.current !== null) {
+      const diff = swipeCurrentX.current;
+      // Threshold 50px
+      if (Math.abs(diff) > 50) {
+        setReplyingTo(msg);
+        if (navigator.vibrate) navigator.vibrate(50);
+      }
+      const el = document.getElementById(`msg-bubble-${msg._id}`);
+      if (el) {
+        el.style.transition = 'transform 0.2s';
+        el.style.transform = `translateX(0px)`;
+        setTimeout(() => { if (el) el.style.transition = ''; }, 200);
+      }
+    }
+    swipeStartX.current = null;
+    swipeCurrentX.current = null;
+    setSwipeMsgId(null);
   };
 
   const logCallMessage = (targetId, messageText) => {
@@ -1347,17 +1400,44 @@ export default function Dashboard() {
 
                   <div className="chat-messages-area">
                     {messages.map((msg) => (
-                      <div key={msg._id} className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`}>
-                        <div className="msg-bubble">
+                      <div key={msg._id} className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`} 
+                        onTouchStart={(e) => handleTouchStart(e, msg._id)}
+                        onTouchMove={(e) => handleTouchMove(e, msg, msg.sender === user.id)}
+                        onTouchEnd={(e) => handleTouchEnd(e, msg, msg.sender === user.id)}
+                      >
+                        <div id={`msg-bubble-${msg._id}`} className="msg-bubble">
+                          {msg.replyTo && (
+                            <div className="msg-reply-box" onClick={() => {
+                               const el = document.getElementById(`msg-bubble-${msg.replyTo.messageId}`);
+                               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }}>
+                              <div className="msg-reply-sender">{msg.replyTo.senderName}</div>
+                              <div className="msg-reply-text">{msg.replyTo.messageText}</div>
+                            </div>
+                          )}
                           <div>{msg.message}</div>
                           <div className="msg-time">{formatTime(msg.createdAt)}</div>
                         </div>
+                        {swipeMsgId === msg._id && (
+                          <div className={`swipe-reply-icon ${msg.sender === user.id ? 'sent-icon' : 'received-icon'}`}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
+                          </div>
+                        )}
                       </div>
                     ))}
                     <div ref={messagesEndRef} />
                   </div>
 
                   <form className="chat-input-area" onSubmit={handleSendMessage}>
+                    {replyingTo && (
+                      <div className="replying-to-banner">
+                        <div className="reply-content">
+                          <div className="reply-sender">{replyingTo.sender === user.id ? 'You' : activeChatUser.username}</div>
+                          <div className="reply-text">{replyingTo.message}</div>
+                        </div>
+                        <button type="button" className="close-reply-btn" onClick={() => setReplyingTo(null)}><X size={20} /></button>
+                      </div>
+                    )}
                     <div className="chat-input-wrapper">
                       <input
                         type="text"
