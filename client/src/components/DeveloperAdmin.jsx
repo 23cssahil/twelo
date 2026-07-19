@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../App';
 import { useNavigate } from 'react-router-dom';
-import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw } from 'lucide-react';
 import './DeveloperAdmin.css';
 
 export default function DeveloperAdmin() {
@@ -15,6 +15,7 @@ export default function DeveloperAdmin() {
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState([]);
   const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [showBlockedOnly, setShowBlockedOnly] = useState(false);
 
   // Focus input on load
   useEffect(() => {
@@ -132,6 +133,45 @@ export default function DeveloperAdmin() {
     }
   };
 
+  const handleFlushQueue = async () => {
+    if (!window.confirm("Are you sure you want to flush the random chat queue? This will drop everyone waiting.")) return;
+    try {
+      const res = await fetch(`${API_URL}/api/admin/clear-queue`, {
+        method: 'POST',
+        headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) {
+        alert('Queue flushed successfully!');
+        fetchStats();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteUser = async (userId, username) => {
+    if (!window.confirm(`DANGER: Are you absolutely sure you want to PERMANENTLY DELETE @${username}? This action cannot be undone.`)) return;
+    try {
+      const res = await fetch(`${API_URL}/api/admin/delete-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-pass': password
+        },
+        body: JSON.stringify({ userId })
+      });
+      
+      if (res.ok) {
+        setUsers(users.filter(u => u._id !== userId));
+        alert('User account permanently deleted.');
+        fetchStats();
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete user');
+    }
+  };
+
   const handlePersonalNotification = async (userId, username) => {
     const msg = window.prompt(`Enter message to send directly to @${username}'s notifications:`);
     if (!msg || !msg.trim()) return;
@@ -212,6 +252,14 @@ export default function DeveloperAdmin() {
               <h3>{stats.queuedRandom}</h3>
               <p>Users in Queue</p>
             </div>
+            <button 
+              onClick={handleFlushQueue} 
+              className="dev-btn-secondary" 
+              style={{ marginLeft: 'auto', padding: '5px 10px', fontSize: '0.8rem' }}
+              title="Clear entire queue"
+            >
+              <RefreshCcw size={14} />
+            </button>
           </div>
         </div>
 
@@ -250,10 +298,19 @@ export default function DeveloperAdmin() {
               />
               <button type="submit" className="dev-btn-primary">Search</button>
               <button type="button" onClick={handleLoadAll} className="dev-btn-secondary" style={{ backgroundColor: '#222' }}>Load All Users</button>
+              <button 
+                type="button" 
+                onClick={() => setShowBlockedOnly(!showBlockedOnly)} 
+                className="dev-btn-secondary" 
+                style={{ backgroundColor: showBlockedOnly ? 'rgba(255, 75, 75, 0.2)' : 'transparent', border: showBlockedOnly ? '1px solid rgba(255, 75, 75, 0.5)' : '' }}
+              >
+                <Filter size={16} style={{ marginRight: '5px' }} />
+                Blocked Only
+              </button>
             </form>
 
             <div className="dev-user-list">
-              {users.map(u => (
+              {users.filter(u => showBlockedOnly ? u.isBlocked : true).map(u => (
                 <div key={u._id} className="dev-user-card">
                   <div className="user-details">
                     <img src={u.avatarUrl} alt="avatar" className="dev-avatar" />
@@ -280,6 +337,14 @@ export default function DeveloperAdmin() {
                     >
                       <Ban size={16} style={{ marginRight: '5px' }} />
                       {u.isBlocked ? 'Unblock' : 'Block User'}
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteUser(u._id, u.username)}
+                      className="dev-btn-danger"
+                      style={{ background: '#ff4b4b', color: '#fff', padding: '8px 12px' }}
+                      title="Permanently Delete User"
+                    >
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>

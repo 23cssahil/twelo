@@ -1322,3 +1322,6 @@ input, button, textarea {
   background: var(--hover-bg);
 }
 
+
+.requests-list { display: flex; flex-direction: column; gap: 15px; max-height: calc(100vh - 200px); overflow-y: auto; padding-right: 5px; }
+

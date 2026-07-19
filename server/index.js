@@ -773,6 +773,43 @@ app.post('/api/admin/notify-user', adminAuth, async (req, res) => {
     res.status(500).json({ message: 'Error sending personal notification' });
   }
 });
+
+app.post('/api/admin/delete-user', adminAuth, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Move to DeletedUser (or simply delete for admin wipe)
+    const deletedUserData = user.toObject();
+    delete deletedUserData._id;
+    const archivedUser = new DeletedUser(deletedUserData);
+    await archivedUser.save();
+
+    // Clean up references in other users
+    await User.updateMany(
+      { $or: [{ followers: userId }, { following: userId }, { friendRequests: userId }] },
+      { $pull: { followers: userId, following: userId, friendRequests: userId } }
+    );
+
+    await User.findByIdAndDelete(userId);
+
+    const socketId = onlineUsers.get(userId);
+    if (socketId) {
+      io.to(socketId).emit('force_logout', { message: 'Your account has been permanently deleted by the admin.' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting user' });
+  }
+});
+
+app.post('/api/admin/clear-queue', adminAuth, (req, res) => {
+  randomChatQueue = [];
+  res.json({ success: true, queuedRandom: 0 });
+});
+
 // Random Chat Queue
 let randomChatQueue = []; // [{ userId, socketId }]
 const activeRandomChats = new Map(); // roomId -> { user1, user2 }
