@@ -15,20 +15,12 @@ const googleClient = new OAuth2Client('440916901093-30lfk61qkml9b9bd6jb00bcot13c
 
 
 function generateAvatarUrl(gender) {
-  const seed = Math.random().toString(36).substring(7);
   const g = (gender || 'male').toLowerCase();
+  const index = Math.floor(Math.random() * 99) + 1; // 1 to 99
   if (g === 'female') {
-     const femaleTops = ['longHair', 'longHairCurly', 'longHairStraight', 'longHairMiaWallace', 'longHairBob', 'hijab', 'longHairBigHair', 'longHairBun', 'longHairFro', 'longHairFroBand', 'longHairNotTooLong', 'longHairShavedSides', 'longHairStraight2', 'longHairStraightStrand'];
-     const femaleClothes = ['blazerAndSweater', 'collarAndSweater', 'graphicShirt', 'shirtCrewNeck', 'shirtScoopNeck', 'shirtVNeck'];
-     const top = femaleTops[Math.floor(Math.random() * femaleTops.length)];
-     const clothes = femaleClothes[Math.floor(Math.random() * femaleClothes.length)];
-     return `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
+    return `https://randomuser.me/api/portraits/women/${index}.jpg`;
   } else {
-     const maleTops = ['shortHair', 'hat', 'turban', 'winterHat1', 'winterHat2', 'shortHairDreads01', 'shortHairShortFlat', 'shortHairShortRound', 'shortHairSides', 'shortHairTheCaesar', 'shortHairTheCaesarSidePart'];
-     const maleClothes = ['hoodie', 'blazerAndShirt', 'shirtCrewNeck', 'shirtVNeck', 'collarAndSweater'];
-     const top = maleTops[Math.floor(Math.random() * maleTops.length)];
-     const clothes = maleClothes[Math.floor(Math.random() * maleClothes.length)];
-     return `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
+    return `https://randomuser.me/api/portraits/men/${index}.jpg`;
   }
 }
 
@@ -250,7 +242,7 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
     const user = await User.findById(req.user.userId).select('-password').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
     
-    if (!user.avatarUrl || user.avatarUrl.includes('iran.liara.run')) {
+    if (!user.avatarUrl || user.avatarUrl.includes('api.dicebear.com') || user.avatarUrl.includes('iran.liara.run')) {
       user.avatarUrl = generateAvatarUrl(user.gender);
       User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } }).catch(console.error);
     }
@@ -325,7 +317,7 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
         isDeleted: true
       });
     }
-    if (!user.avatarUrl || user.avatarUrl.includes('iran.liara.run')) {
+    if (!user.avatarUrl || user.avatarUrl.includes('api.dicebear.com') || user.avatarUrl.includes('iran.liara.run')) {
       user.avatarUrl = generateAvatarUrl(user.gender);
       User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } }).catch(console.error);
     }
@@ -340,7 +332,7 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
   try {
     let user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests avatarUrl country age gender').lean();
     if (!user) return res.status(404).json({ message: "User not found" });
-    if (!user.avatarUrl || user.avatarUrl.includes('iran.liara.run')) {
+    if (!user.avatarUrl || user.avatarUrl.includes('api.dicebear.com') || user.avatarUrl.includes('iran.liara.run')) {
       user.avatarUrl = generateAvatarUrl(user.gender);
       await User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } });
     }
@@ -637,7 +629,7 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
     const foundUserIds = users.map(u => u._id.toString());
     
     users.forEach(u => {
-      if (!u.avatarUrl || u.avatarUrl.includes('iran.liara.run')) {
+      if (!u.avatarUrl || u.avatarUrl.includes('api.dicebear.com') || u.avatarUrl.includes('iran.liara.run')) {
         u.avatarUrl = generateAvatarUrl(u.gender);
         User.updateOne({ _id: u._id }, { $set: { avatarUrl: u.avatarUrl } }).catch(console.error);
       }
