@@ -400,6 +400,24 @@ app.get('/api/users/notifications', authenticateToken, async (req, res) => {
   }
 });
 
+// Mark all notifications as read
+app.post('/api/users/notifications/read', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    let modified = false;
+    user.notifications.forEach(n => {
+      if (!n.read) {
+        n.read = true;
+        modified = true;
+      }
+    });
+    if (modified) await user.save();
+    res.json({ message: 'Marked as read' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking notifications as read' });
+  }
+});
+
 // Send Follow/Friend Request
 app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
   try {

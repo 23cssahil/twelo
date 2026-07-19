@@ -207,7 +207,13 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${API_URL}/api/users/notifications`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (res.ok) setNotifications(data);
+      if (res.ok) {
+        setNotifications(data);
+        const unreadCount = data.filter(n => !n.read).length;
+        if (activeTab !== 'notifications') {
+          setUnreadNotifsCount(unreadCount);
+        }
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -828,6 +834,11 @@ export default function Dashboard() {
   useEffect(() => {
     if (activeTab === 'notifications') {
       setUnreadNotifsCount(0);
+      // Mark as read in backend
+      fetch(`${API_URL}/api/users/notifications/read`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(e => console.error(e));
     }
   }, [activeTab]);
 
