@@ -754,6 +754,25 @@ app.post('/api/admin/broadcast', adminAuth, async (req, res) => {
     res.status(500).json({ message: 'Error sending broadcast' });
   }
 });
+
+app.post('/api/admin/notify-user', adminAuth, async (req, res) => {
+  try {
+    const { userId, message } = req.body;
+    
+    const newNotif = { type: 'system_alert', message, read: false };
+    await User.findByIdAndUpdate(userId, { $push: { notifications: newNotif } });
+
+    const socketId = onlineUsers.get(userId);
+    if (socketId) {
+      io.to(socketId).emit('new_notification');
+      io.to(socketId).emit('system_alert_toast', { message, type: 'personal' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error sending personal notification' });
+  }
+});
 // Random Chat Queue
 let randomChatQueue = []; // [{ userId, socketId }]
 const activeRandomChats = new Map(); // roomId -> { user1, user2 }

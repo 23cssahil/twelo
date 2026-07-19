@@ -132,6 +132,29 @@ export default function DeveloperAdmin() {
     }
   };
 
+  const handlePersonalNotification = async (userId, username) => {
+    const msg = window.prompt(`Enter message to send directly to @${username}'s notifications:`);
+    if (!msg || !msg.trim()) return;
+    
+    try {
+      const res = await fetch(`${API_URL}/api/admin/notify-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-pass': password
+        },
+        body: JSON.stringify({ userId, message: msg.trim() })
+      });
+      
+      if (res.ok) {
+        alert('Personal notification sent successfully!');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to send personal notification');
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="dev-auth-container">
@@ -242,13 +265,23 @@ export default function DeveloperAdmin() {
                       <div className="dev-user-meta"><strong>Coins:</strong> {u.coins} | <strong>Status:</strong> {u.isBlocked ? <span style={{color: '#ff4b4b'}}>Blocked</span> : <span style={{color: '#10b981'}}>Active</span>}</div>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => handleBlockUser(u._id, u.isBlocked)}
-                    className={`dev-btn-${u.isBlocked ? 'secondary' : 'danger'}`}
-                  >
-                    <Ban size={16} style={{ marginRight: '5px' }} />
-                    {u.isBlocked ? 'Unblock' : 'Block User'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                      onClick={() => handlePersonalNotification(u._id, u.username)}
+                      className="dev-btn-secondary"
+                      style={{ background: '#222', color: '#fff', border: '1px solid #333' }}
+                    >
+                      <Send size={16} style={{ marginRight: '5px' }} />
+                      Send Alert
+                    </button>
+                    <button 
+                      onClick={() => handleBlockUser(u._id, u.isBlocked)}
+                      className={`dev-btn-${u.isBlocked ? 'secondary' : 'danger'}`}
+                    >
+                      <Ban size={16} style={{ marginRight: '5px' }} />
+                      {u.isBlocked ? 'Unblock' : 'Block User'}
+                    </button>
+                  </div>
                 </div>
               ))}
               {users.length === 0 && searchQuery && (
