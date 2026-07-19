@@ -199,11 +199,20 @@ export default function Dashboard() {
       if (activeTab === 'search') {
         handleSearch({ target: { value: searchQuery } });
       }
+      if (activeTab === 'publicProfile' && publicProfileData) {
+        viewPublicProfile(publicProfileData._id);
+      }
     });
 
     socket.on('request_rejected_alert', () => {
       alert("Your follow request was rejected.");
       fetchProfile();
+      if (activeTab === 'search') {
+        handleSearch({ target: { value: searchQuery } });
+      }
+      if (activeTab === 'publicProfile' && publicProfileData) {
+        viewPublicProfile(publicProfileData._id);
+      }
     });
 
     socket.on('incoming_call', ({ from, fromUsername, signal, isVideo }) => {
