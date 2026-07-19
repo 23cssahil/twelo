@@ -11,6 +11,7 @@ const { OAuth2Client } = require('google-auth-library');
 const googleClient = new OAuth2Client('440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com');
 
 const User = require('./models/User');
+const DeletedUser = require('./models/DeletedUser');
 const Message = require('./models/Message');
 
 const app = express();
@@ -65,6 +66,12 @@ app.post('/api/auth/google', async (req, res) => {
     const payload = ticket.getPayload();
     const { sub: googleId, email } = payload;
 
+    // Check if account was deleted
+    const deletedUser = await DeletedUser.findOne({ googleId });
+    if (deletedUser) {
+      return res.status(403).json({ message: "This account has been permanently deleted." });
+    }
+
     const user = await User.findOne({ googleId });
     if (!user) {
       return res.json({ isNewUser: true, email, googleId });
@@ -93,6 +100,9 @@ app.post('/api/auth/google', async (req, res) => {
   try {
     const { name, email, googleId, age, country, gender } = req.body;
     if (!name || !email || !googleId || !age || !country || !gender) return res.status(400).json({ message: 'All fields required' });
+
+    const deletedUser = await DeletedUser.findOne({ googleId });
+    if (deletedUser) return res.status(403).json({ message: 'This account has been permanently deleted.' });
 
     const existingUser = await User.findOne({ googleId });
     if (existingUser) return res.status(400).json({ message: 'User already exists' });
@@ -372,6 +382,42 @@ app.post('/api/users/unfollow/:id', authenticateToken, async (req, res) => {
     res.json({ message: "Unfollowed successfully" });
   } catch (error) {
     res.status(500).json({ message: 'Error unfollowing user' });
+  }
+});
+
+// Delete Account
+app.post('/api/users/delete_account', authenticateToken, async (req, res) => {
+  try {
+    const { username } = req.body;
+    const currentUserId = req.user.userId;
+
+    const user = await User.findById(currentUserId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (user.username !== username) {
+      return res.status(400).json({ message: 'Username does not match. Deletion failed.' });
+    }
+
+    // Move to DeletedUser
+    const deletedUserData = user.toObject();
+    delete deletedUserData._id; // Let mongoose generate a new ID or keep it? We can keep it or not. We'll drop it so it creates a new one.
+    
+    const archivedUser = new DeletedUser(deletedUserData);
+    await archivedUser.save();
+
+    // Clean up references in other users
+    await User.updateMany(
+      { $or: [{ followers: currentUserId }, { following: currentUserId }, { friendRequests: currentUserId }] },
+      { $pull: { followers: currentUserId, following: currentUserId, friendRequests: currentUserId } }
+    );
+
+    // Delete actual user
+    await User.findByIdAndDelete(currentUserId);
+
+    res.json({ message: 'Account permanently deleted' });
+  } catch (error) {
+    console.error("Error deleting account:", error);
+    res.status(500).json({ message: 'Error deleting account' });
   }
 });
 

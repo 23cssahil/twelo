@@ -99,6 +99,10 @@ export default function Dashboard() {
 
   const [gyro, setGyro] = useState({ x: 0, y: 0 });
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteUsernameInput, setDeleteUsernameInput] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+
   useEffect(() => {
     const handleOrientation = (e) => {
       let x = e.gamma || 0; // -90 to 90 (left-right)
@@ -141,6 +145,33 @@ export default function Dashboard() {
       }
     } catch (err) {
       setUsernameError('An error occurred');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError('');
+    if (deleteUsernameInput !== user.username) {
+      setDeleteError('Username does not match.');
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/api/users/delete_account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ username: deleteUsernameInput }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert("Account permanently deleted.");
+        logout();
+      } else {
+        setDeleteError(data.message || 'Error deleting account');
+      }
+    } catch (err) {
+      setDeleteError('Network error');
     }
   };
 
@@ -1332,6 +1363,29 @@ export default function Dashboard() {
               <button className="settings-item-btn logout-danger" onClick={logout}>
                 Log Out
               </button>
+
+              {showDeleteConfirm ? (
+                <div className="settings-edit-username" style={{ marginTop: '24px', borderTop: '1px solid rgba(255,0,0,0.3)', paddingTop: '16px' }}>
+                  <p style={{ color: 'var(--brand-red)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>Warning: This action is permanent.</p>
+                  <p style={{ color: '#a8a8a8', marginBottom: '12px', fontSize: '0.8rem' }}>Please type your username to confirm.</p>
+                  <input 
+                    type="text" 
+                    value={deleteUsernameInput} 
+                    onChange={(e) => setDeleteUsernameInput(e.target.value)} 
+                    placeholder={`Type '${user.username}'`}
+                    className="premium-input"
+                  />
+                  {deleteError && <p className="error-text" style={{fontSize: '0.85rem', marginTop: '6px', color: 'var(--brand-red)'}}>{deleteError}</p>}
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                    <button className="premium-btn primary" style={{ background: 'var(--brand-red)' }} onClick={handleDeleteAccount}>Confirm Delete</button>
+                    <button className="premium-btn secondary" onClick={() => { setShowDeleteConfirm(false); setDeleteError(''); setDeleteUsernameInput(''); }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button className="settings-item-btn logout-danger" onClick={() => setShowDeleteConfirm(true)} style={{ marginTop: '24px' }}>
+                  Delete My Account
+                </button>
+              )}
             </div>
           </div>
         </div>
