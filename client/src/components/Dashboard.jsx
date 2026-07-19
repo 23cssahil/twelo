@@ -366,6 +366,16 @@ export default function Dashboard() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen]);
 
+  // Lock body scroll when chat is active to prevent keyboard from pushing header out of view
+  useEffect(() => {
+    if (activeChatUser || isAnonymousChatActive) {
+      document.body.classList.add('body-lock');
+    } else {
+      document.body.classList.remove('body-lock');
+    }
+    return () => document.body.classList.remove('body-lock');
+  }, [activeChatUser, isAnonymousChatActive]);
+
   // Matchmaking Timer and Globe auto-rotate
   useEffect(() => {
     if (globeEl.current) {
