@@ -1284,52 +1284,19 @@ export default function Dashboard() {
 
               {isAnonymousChatActive ? (
                 <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
-                  {isRecording && (
-                    <div className="recording-indicator" style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ff4b4b', padding: '0 10px' }}>
-                      <div className="recording-dot" style={{ width: '10px', height: '10px', background: '#ff4b4b', borderRadius: '50%', animation: 'pulse 1s infinite' }} />
-                      {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
-                    </div>
-                  )}
-                  
-                  {!isRecording && (
-                    <input 
-                      type="text" 
-                      placeholder="Message..." 
-                      className="msg-input-field" 
+                  <div className="chat-input-wrapper">
+                    <input
+                      type="text"
+                      placeholder="Type a message..."
+                      className="chat-text-input"
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
+                      required
                     />
-                  )}
-
-                  {!newMessage.trim() && !isRecording && (
-                    <div className="media-actions" style={{ display: 'flex', gap: '10px', paddingRight: '10px' }}>
-                      <button type="button" className="media-btn" onClick={() => fileInputRef.current.click()}>
-                        <ImageIcon size={20} color="#a8a8a8" />
-                      </button>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        ref={fileInputRef} 
-                        style={{ display: 'none' }} 
-                        onChange={handleImageSelect} 
-                      />
-                      <button type="button" className="media-btn" onClick={startRecording}>
-                        <Mic size={20} color="#a8a8a8" />
-                      </button>
-                    </div>
-                  )}
-
-                  {isRecording && (
-                    <button type="button" className="send-msg-btn" onClick={stopRecording} style={{ background: '#ff4b4b', color: 'white', marginRight: '5px' }}>
-                      <Square size={20} />
-                    </button>
-                  )}
-
-                  {newMessage.trim() && !isRecording && (
-                    <button type="submit" className="send-msg-btn" disabled={isUploading}>
-                      {isUploading ? <span style={{ fontSize: '12px' }}>...</span> : <Send size={20} />}
-                    </button>
-                  )}
+                    {newMessage.trim() && (
+                      <button type="submit" className="chat-send-btn"><Send size={18} /></button>
+                    )}
+                  </div>
                 </form>
               ) : (
                 <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)' }}>
@@ -1625,25 +1592,60 @@ export default function Dashboard() {
                       </div>
                     )}
                     <div className="chat-input-wrapper">
-                      <input
-                        type="text"
-                        placeholder="Message..."
-                        className="chat-text-input"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onFocus={() => {
-                          setTimeout(() => {
-                            window.scrollTo({ top: 0, behavior: 'instant' });
-                            document.body.scrollTop = 0;
-                          }, 100);
-                          setTimeout(() => {
-                            window.scrollTo({ top: 0, behavior: 'instant' });
-                          }, 300);
-                        }}
-                        required
-                      />
-                      {newMessage.trim() && (
-                        <button type="submit" className="chat-send-btn"><Send size={18} /></button>
+                      {isRecording && (
+                        <div className="recording-indicator" style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ff4b4b', padding: '0 10px', flex: 1 }}>
+                          <div className="recording-dot" style={{ width: '10px', height: '10px', background: '#ff4b4b', borderRadius: '50%', animation: 'pulse 1s infinite' }} />
+                          {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                        </div>
+                      )}
+                      
+                      {!isRecording && (
+                        <input
+                          type="text"
+                          placeholder="Message..."
+                          className="chat-text-input"
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onFocus={() => {
+                            setTimeout(() => {
+                              window.scrollTo({ top: 0, behavior: 'instant' });
+                              document.body.scrollTop = 0;
+                            }, 100);
+                            setTimeout(() => {
+                              window.scrollTo({ top: 0, behavior: 'instant' });
+                            }, 300);
+                          }}
+                        />
+                      )}
+
+                      {!newMessage.trim() && !isRecording && (
+                        <div className="media-actions" style={{ display: 'flex', gap: '10px', paddingRight: '10px', alignItems: 'center' }}>
+                          <button type="button" className="media-btn" onClick={() => fileInputRef.current.click()} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                            <ImageIcon size={20} color="#a8a8a8" />
+                          </button>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            ref={fileInputRef} 
+                            style={{ display: 'none' }} 
+                            onChange={handleImageSelect} 
+                          />
+                          <button type="button" className="media-btn" onClick={startRecording} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                            <Mic size={20} color="#a8a8a8" />
+                          </button>
+                        </div>
+                      )}
+
+                      {isRecording && (
+                        <button type="button" className="chat-send-btn" onClick={stopRecording} style={{ background: '#ff4b4b', color: 'white' }}>
+                          <Square size={18} />
+                        </button>
+                      )}
+
+                      {newMessage.trim() && !isRecording && (
+                        <button type="submit" className="chat-send-btn" disabled={isUploading}>
+                          {isUploading ? <span style={{ fontSize: '12px' }}>...</span> : <Send size={18} />}
+                        </button>
                       )}
                     </div>
                   </form>
