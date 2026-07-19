@@ -737,31 +737,18 @@ export default function Dashboard() {
               style={{
                 position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
-                zIndex: 5
+                zIndex: 5,
+                paddingTop: '15vh'
               }}
             >
-              <div 
-                style={{ 
-                  marginTop: '58vh',
-                  cursor: 'pointer',
-                  pointerEvents: 'auto',
-                  filter: isSearchingRandom ? 'drop-shadow(0 0 40px rgba(0,191,255,1))' : 'drop-shadow(0 0 20px rgba(0,191,255,0.4))',
-                  transition: 'filter 0.3s',
-                  width: '300px', height: '300px',
-                  borderRadius: '50%'
-                }}
-                onClick={handleGlobeClick}
-              >
-              </div>
-              
               {isSearchingRandom && (
-                <div style={{ pointerEvents: 'auto', textAlign: 'center', marginTop: '-180px', zIndex: 10 }}>
+                <div style={{ pointerEvents: 'auto', textAlign: 'center' }}>
                   <div className="match-timer">{randomSearchTimer}s</div>
                   <div className="search-text">Looking for someone in the universe...</div>
                 </div>
               )}
               {!isSearchingRandom && (
-                <div className="search-text" style={{ pointerEvents: 'auto', marginTop: '-40px', zIndex: 10 }}>
+                <div className="search-text" style={{ pointerEvents: 'auto' }}>
                   Tap the globe to find a random chat!
                 </div>
               )}
