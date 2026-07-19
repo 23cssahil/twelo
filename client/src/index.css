@@ -1327,6 +1327,6 @@ input, button, textarea {
 
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 99999; } 
-.modal-content { background: #111; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; border: 1px solid #333; } 
+.modal-content { background: #111; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; border: 1px solid #333; max-height: 85vh; overflow-y: auto; } 
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; } 
 
