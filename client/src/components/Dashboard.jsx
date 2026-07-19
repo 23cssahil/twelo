@@ -138,6 +138,7 @@ export default function Dashboard() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef(null);
+  const isRecordingCancelledRef = useRef(false);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
 
@@ -703,12 +704,14 @@ export default function Dashboard() {
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
+      isRecordingCancelledRef.current = false;
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
 
       mediaRecorder.onstop = async () => {
+        if (isRecordingCancelledRef.current) return;
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const file = new File([audioBlob], 'audio.webm', { type: 'audio/webm' });
         setIsUploading(true);
@@ -729,6 +732,16 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error starting recording', error);
       alert('Microphone access is required for voice notes.');
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      isRecordingCancelledRef.current = true;
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      clearInterval(timerRef.current);
+      setIsRecording(false);
     }
   };
 
@@ -1637,9 +1650,14 @@ export default function Dashboard() {
                       )}
 
                       {isRecording && (
-                        <button type="button" className="chat-send-btn" onClick={stopRecording} style={{ background: '#ff4b4b', color: 'white' }}>
-                          <Square size={18} />
-                        </button>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          <button type="button" className="chat-send-btn" onClick={cancelRecording} style={{ background: 'transparent', color: '#ff4b4b' }}>
+                            <Trash2 size={20} />
+                          </button>
+                          <button type="button" className="chat-send-btn" onClick={stopRecording} style={{ background: '#2bd856', color: 'white' }}>
+                            <Send size={18} />
+                          </button>
+                        </div>
                       )}
 
                       {newMessage.trim() && !isRecording && (
