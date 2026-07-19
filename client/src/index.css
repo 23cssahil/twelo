@@ -1060,7 +1060,7 @@ input, button, textarea {
  
 /* --- 3D Globe & Space Matchmaking --- */
 .space-container {
-  background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
+  background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
   position: relative;
   overflow: hidden;
   height: 100%;
@@ -1069,6 +1069,8 @@ input, button, textarea {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  box-shadow: inset 0 0 150px #000;
+  perspective: 1000px;
 }
 
 .stars {
@@ -1079,15 +1081,22 @@ input, button, textarea {
 }
 .twinkling {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: -50px; left: -50px; right: -50px; bottom: -50px;
   background: transparent url('https://s3-us-west-2.amazonaws.com/s.cdpn.io/1231630/twinkling.png') repeat top center;
   z-index: 1;
-  animation: move-twink-back 200s linear infinite;
+  animation: move-twink-back 200s linear infinite, star-twinkle 4s ease-in-out infinite alternate;
+  transform: translateZ(-100px);
 }
 
 @keyframes move-twink-back {
   from {background-position: 0 0;}
   to {background-position: -10000px 5000px;}
+}
+
+@keyframes star-twinkle {
+  0% { opacity: 0.2; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.3; }
 }
 
 .globe-wrapper {
