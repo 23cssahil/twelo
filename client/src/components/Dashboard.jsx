@@ -710,7 +710,8 @@ export default function Dashboard() {
               className="globe-wrapper"
               style={{
                 transform: `translate(${gyro.x}px, ${gyro.y}px)`,
-                transition: 'transform 0.1s ease-out'
+                transition: 'transform 0.1s ease-out',
+                marginTop: '10vh'
               }}
             >
               <div 
@@ -728,6 +729,7 @@ export default function Dashboard() {
                   globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
                   bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
                   backgroundColor="rgba(0,0,0,0)"
+                  showAtmosphere={false}
                   onGlobeClick={handleGlobeClick}
                 />
               </div>
