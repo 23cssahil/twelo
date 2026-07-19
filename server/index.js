@@ -1053,15 +1053,30 @@ io.on('connection', (socket) => {
           const roomId = `bot_room_${Date.now()}_${userId}`;
           const botUser = { userId: 'twelo-bot', socketId: 'bot-socket' };
           
-          activeRandomChats.set(roomId, { user1: { userId, socketId: socket.id }, user2: botUser });
+          activeRandomChats.set(roomId, { user1: { userId, socketId: socket.id }, user2: botUser, botState: 'waiting_for_hi' });
 
           io.to(socket.id).emit('match_found', {
              roomId,
              partnerId: 'twelo-bot',
-             partnerAvatar: 'https://randomuser.me/api/portraits/women/44.jpg', // Priya look
+             partnerAvatar: generateAvatarUrl('female'), // Random bot avatar
              partnerCountry: 'India',
-             partnerUsername: 'Priya'
+             partnerUsername: 'Stranger'
           });
+
+          // Bot sends first message "hi" after delay
+          setTimeout(() => {
+             io.to(socket.id).emit('receive_anonymous_typing', { isTyping: true });
+             setTimeout(() => {
+                io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
+                io.to(socket.id).emit('receive_anonymous_message', {
+                  _id: `anon-bot-${Date.now()}`,
+                  message: `hi`,
+                  senderSocket: 'bot-socket',
+                  createdAt: new Date().toISOString()
+                });
+             }, 2500); // typing for 2.5s
+          }, 1500); // wait 1.5s before starting to type
+
         }
       }, 4000); // exactly 4 seconds
     }
@@ -1076,15 +1091,31 @@ io.on('connection', (socket) => {
     if (!chat) return;
 
     if (roomId.startsWith('bot_room_')) {
+      const msgLower = messageText.toLowerCase().trim();
+      
       // Simulate bot typing and replying
       setTimeout(() => {
-        io.to(socket.id).emit('receive_anonymous_message', {
-          _id: `anon-bot-${Date.now()}`,
-          message: `Main abhi thodi busy hoon, ek minute me reply karti hoon... (Bot received: ${messageText})`,
-          senderSocket: 'bot-socket',
-          createdAt: new Date().toISOString()
-        });
-      }, 1500); // 1.5s delay to feel real
+        io.to(socket.id).emit('receive_anonymous_typing', { isTyping: true });
+        
+        setTimeout(() => {
+          io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
+          
+          if (chat.botState === 'waiting_for_hi') {
+            chat.botState = 'waiting_for_gender';
+            io.to(socket.id).emit('receive_anonymous_message', {
+              _id: `anon-bot-${Date.now()}`,
+              message: `M or F`,
+              senderSocket: 'bot-socket',
+              createdAt: new Date().toISOString()
+            });
+          } else if (chat.botState === 'waiting_for_gender') {
+            // Bot leaves regardless of what they reply at this stage
+            io.to(socket.id).emit('anonymous_chat_ended');
+            activeRandomChats.delete(roomId);
+          }
+        }, 2000); // 2s typing time
+      }, 1000); // 1s wait before starting to type
+      
       return;
     }
 
@@ -1097,6 +1128,15 @@ io.on('connection', (socket) => {
       senderSocket: senderSocketId,
       createdAt: new Date().toISOString()
     });
+  });
+
+  socket.on('send_anonymous_typing', ({ roomId, isTyping }) => {
+    const chat = activeRandomChats.get(roomId);
+    if (!chat) return;
+    if (roomId.startsWith('bot_room_')) return; // Bot doesn't care if user is typing
+
+    const receiverSocketId = chat.user1.socketId === socket.id ? chat.user2.socketId : chat.user1.socketId;
+    io.to(receiverSocketId).emit('receive_anonymous_typing', { isTyping });
   });
 
   socket.on('leave_anonymous_chat', ({ roomId }) => {

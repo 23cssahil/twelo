@@ -91,6 +91,8 @@ export default function Dashboard() {
   const [isAnonymousChatActive, setIsAnonymousChatActive] = useState(false);
   const [anonymousPartnerAvatar, setAnonymousPartnerAvatar] = useState('');
   const [anonymousPartnerCountry, setAnonymousPartnerCountry] = useState('');
+  const [anonymousPartnerTyping, setAnonymousPartnerTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
 
   // Chat state
   const [recentChats, setRecentChats] = useState([]);
@@ -386,7 +388,12 @@ export default function Dashboard() {
         setAnonymousMessages([]);
         setIsAnonymousChatActive(true);
         setActiveTab('anonymousChat');
+        setAnonymousPartnerTyping(false);
       });
+
+    socket.on('receive_anonymous_typing', ({ isTyping }) => {
+      setAnonymousPartnerTyping(isTyping);
+    });
 
     socket.on('receive_anonymous_message', (msg) => {
       setAnonymousMessages(prev => [...prev, msg]);
@@ -1351,6 +1358,9 @@ export default function Dashboard() {
     };
     
     socket.emit('send_anonymous_message', { roomId: anonymousRoomId, messageText: newMessage });
+    socket.emit('send_anonymous_typing', { roomId: anonymousRoomId, isTyping: false });
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
     setAnonymousMessages(prev => [...prev, msg]);
     setNewMessage('');
   };
@@ -1511,7 +1521,11 @@ export default function Dashboard() {
                 ))}
                 <div ref={messagesEndRef} />
               </div>
-
+                {anonymousPartnerTyping && (
+                  <div style={{ padding: '0 20px', fontSize: '0.85rem', color: '#a8a8a8', fontStyle: 'italic', marginBottom: '10px' }}>
+                    Stranger is typing...
+                  </div>
+                )}
               {isAnonymousChatActive ? (
                 <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
                   <div className="chat-input-wrapper">
@@ -1520,7 +1534,16 @@ export default function Dashboard() {
                       placeholder="Type a message..."
                       className="chat-text-input"
                       value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
+                      onChange={(e) => {
+                        setNewMessage(e.target.value);
+                        if (socket && anonymousRoomId && isAnonymousChatActive) {
+                          socket.emit('send_anonymous_typing', { roomId: anonymousRoomId, isTyping: true });
+                          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                          typingTimeoutRef.current = setTimeout(() => {
+                            socket.emit('send_anonymous_typing', { roomId: anonymousRoomId, isTyping: false });
+                          }, 2000);
+                        }
+                      }}
                       required
                     />
                     {newMessage.trim() && (
