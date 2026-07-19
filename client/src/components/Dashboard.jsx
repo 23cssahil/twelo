@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
+import * as THREE from 'three';
 import { AuthContext, SocketContext } from '../App';
 
 export default function Dashboard() {
@@ -257,6 +258,13 @@ export default function Dashboard() {
       globeEl.current.controls().autoRotate = true;
       globeEl.current.controls().autoRotateSpeed = isSearchingRandom ? 6.0 : 1.5;
       globeEl.current.controls().enableZoom = false;
+
+      const scene = globeEl.current.scene();
+      if (scene && !scene.userData.ambientAdded) {
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); // Bright ambient light removes all shadows
+        scene.add(ambientLight);
+        scene.userData.ambientAdded = true;
+      }
     }
 
     let interval;
@@ -698,50 +706,53 @@ export default function Dashboard() {
       case 'home':
         return (
           <div className="space-container">
-            <div className="stars"></div>
-            <div className="twinkling"></div>
-            
-            <div className="coin-display">
-              <Coins size={18} />
-              <span>{coins}</span>
-            </div>
-
-            <div 
-              className="globe-wrapper"
-              style={{
-                transform: `translate(${gyro.x}px, ${gyro.y}px)`,
-                transition: 'transform 0.1s ease-out',
-                marginTop: '10vh'
-              }}
-            >
-              <div 
-                style={{ 
-                  cursor: 'pointer',
-                  filter: isSearchingRandom ? 'drop-shadow(0 0 40px rgba(0,191,255,1))' : 'drop-shadow(0 0 20px rgba(0,191,255,0.4))',
-                  transition: 'filter 0.3s'
-                }}
-                onClick={handleGlobeClick}
-              >
-                <Globe
+            <div style={{ position: 'absolute', top: '-15vh', left: '-10vw', width: '120vw', height: '140vh', zIndex: 0 }}>
+               <Globe
                   ref={globeEl}
-                  width={320}
-                  height={320}
                   globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+                  backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
                   bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
                   backgroundColor="rgba(0,0,0,0)"
                   showAtmosphere={false}
                   onGlobeClick={handleGlobeClick}
                 />
+            </div>
+            
+            <div className="coin-display" style={{ zIndex: 10 }}>
+              <Coins size={18} />
+              <span>{coins}</span>
+            </div>
+
+            <div 
+              className="space-ui-layer"
+              style={{
+                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
+                zIndex: 5
+              }}
+            >
+              <div 
+                style={{ 
+                  marginTop: '55vh',
+                  cursor: 'pointer',
+                  pointerEvents: 'auto',
+                  filter: isSearchingRandom ? 'drop-shadow(0 0 40px rgba(0,191,255,1))' : 'drop-shadow(0 0 20px rgba(0,191,255,0.4))',
+                  transition: 'filter 0.3s',
+                  width: '320px', height: '320px',
+                  borderRadius: '50%'
+                }}
+                onClick={handleGlobeClick}
+              >
               </div>
               
               {isSearchingRandom && (
-                <>
+                <div style={{ pointerEvents: 'auto', textAlign: 'center', marginTop: '-200px', zIndex: 10 }}>
                   <div className="match-timer">{randomSearchTimer}s</div>
                   <div className="search-text">Looking for someone in the universe...</div>
-                </>
+                </div>
               )}
               {!isSearchingRandom && (
-                <div className="search-text" style={{ marginTop: '20px' }}>
+                <div className="search-text" style={{ pointerEvents: 'auto', marginTop: '-40px', zIndex: 10 }}>
                   Tap the globe to find a random chat!
                 </div>
               )}
