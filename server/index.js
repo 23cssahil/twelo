@@ -166,14 +166,7 @@ app.post('/api/auth/google', async (req, res) => {
       userExists = await User.findOne({ username });
     }
 
-    let avatarUrl = "";
-    avatarUrl = generateAvatarUrl(gender); else {
-       const femaleTops = ['longHair', 'longHairCurly', 'longHairStraight', 'longHairMiaWallace', 'longHairBob', 'hijab'];
-       const femaleClothes = ['blazerAndSweater', 'collarAndSweater', 'graphicShirt'];
-       const top = femaleTops[Math.floor(Math.random() * femaleTops.length)];
-       const clothes = femaleClothes[Math.floor(Math.random() * femaleClothes.length)];
-       avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
-    }
+    let avatarUrl = generateAvatarUrl(gender);
 
     const newUser = new User({ username, name, email, googleId, uniqueId, age: Number(age), country, gender: gender.toLowerCase(), avatarUrl });
     await newUser.save();
