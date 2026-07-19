@@ -1482,6 +1482,23 @@ export default function Dashboard() {
             ) : (
               <div className="requests-list">
                 {notifications.map(notif => {
+                  if (notif.type === 'system_alert') {
+                    return (
+                      <div className="user-card" key={notif._id} style={{ borderLeft: '4px solid #f59e0b', background: '#1a1a1a' }}>
+                        <div className="user-card-info" style={{ cursor: 'default' }}>
+                          <div className="user-avatar-small" style={{ background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                             <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                          </div>
+                          <div className="user-names">
+                            <span className="user-username" style={{ color: '#f59e0b' }}>Twelo Team</span>
+                            <span className="user-id" style={{ fontSize: '0.9rem', color: '#eee', marginTop: '4px' }}>{notif.message}</span>
+                            <span style={{ fontSize: '0.7rem', color: '#888', marginTop: '4px' }}>{new Date(notif.createdAt).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   const reqUser = notif.user;
                   if (!reqUser) return null;
                   const isAccepted = profileStats?.followers?.includes(reqUser._id);

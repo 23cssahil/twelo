@@ -740,7 +740,15 @@ app.post('/api/admin/block', adminAuth, async (req, res) => {
 app.post('/api/admin/broadcast', adminAuth, async (req, res) => {
   try {
     const { message } = req.body;
-    io.emit('system_alert', { message, type: 'broadcast' });
+    
+    // Save to all users' notifications
+    const newNotif = { type: 'system_alert', message, read: false };
+    await User.updateMany({}, { $push: { notifications: newNotif } });
+
+    // Emit to online users
+    io.emit('new_notification');
+    io.emit('system_alert_toast', { message, type: 'broadcast' });
+    
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: 'Error sending broadcast' });
