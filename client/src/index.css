@@ -440,6 +440,8 @@ input, button, textarea {
 .msg-wrapper {
   display: flex;
   width: 100%;
+  position: relative;
+  touch-action: pan-y;
 }
 
 .msg-wrapper.sent {
@@ -1282,7 +1284,7 @@ input, button, textarea {
 .swipe-reply-icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: #333; color: #fff; position: absolute; top: 50%; transform: translateY(-50%); opacity: 0.8; }
 .sent-icon { right: -50px; }
 .received-icon { left: -50px; }
-.msg-wrapper { position: relative; }
+/* Removed redundant .msg-wrapper */
 .replying-to-banner { display: flex; align-items: center; justify-content: space-between; background-color: #222; border-left: 4px solid var(--brand-blue); padding: 10px 14px; border-radius: 8px 8px 0 0; margin-bottom: 8px; }
 .reply-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .reply-sender { color: var(--brand-blue); font-weight: 600; font-size: 0.85rem; margin-bottom: 2px; }

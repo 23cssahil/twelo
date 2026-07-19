@@ -760,10 +760,17 @@ export default function Dashboard() {
     if (previewImage) {
       setIsUploading(true);
       try {
-        const compressedImage = await compressImage(previewImage);
-        const url = await uploadFile(compressedImage);
+        let fileToUpload = previewImage;
+        try {
+          fileToUpload = await compressImage(previewImage);
+        } catch (err) {
+          console.warn('Compression failed, falling back to original:', err);
+        }
+
+        const url = await uploadFile(fileToUpload);
         setIsUploading(false);
         setPreviewImage(null);
+        
         if (url) {
           socket.emit('send_message', { 
             senderId: user.id, 
