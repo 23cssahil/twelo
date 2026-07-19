@@ -119,11 +119,9 @@ app.post('/api/auth/google', async (req, res) => {
 
     let avatarUrl = "";
     if (gender.toLowerCase() === 'male') {
-       const rand = Math.floor(Math.random() * 5) + 1;
-       avatarUrl = `https://randomuser.me/api/portraits/men/${rand}.jpg`;
+       avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${username}`;
     } else {
-       const rand = Math.floor(Math.random() * 5) + 1;
-       avatarUrl = `https://randomuser.me/api/portraits/women/${rand}.jpg`;
+       avatarUrl = `https://avatar.iran.liara.run/public/girl?username=${username}`;
     }
 
     const newUser = new User({ username, name, email, googleId, uniqueId, age: Number(age), country, gender: gender.toLowerCase(), avatarUrl });
