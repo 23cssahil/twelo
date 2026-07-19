@@ -171,6 +171,10 @@ input, button, textarea {
   position: relative;
 }
 
+.main-content.no-scroll {
+  overflow: hidden !important;
+}
+
 /* Mobile Bottom Navigation */
 .mobile-nav {
   display: flex;

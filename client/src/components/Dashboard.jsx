@@ -260,7 +260,7 @@ export default function Dashboard() {
       globeEl.current.controls().enableZoom = false;
 
       // Set camera distance to make the globe smaller
-      globeEl.current.pointOfView({ altitude: 3.5 });
+      globeEl.current.pointOfView({ altitude: 5.5 });
 
       const scene = globeEl.current.scene();
       if (scene && !scene.userData.ambientAdded) {
@@ -1191,7 +1191,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="main-content">
+      <main className={`main-content ${activeTab === 'home' ? 'no-scroll' : ''}`}>
         {renderTabContent()}
       </main>
 
