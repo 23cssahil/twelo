@@ -155,10 +155,28 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
   }
 });
 
-// Get My Profile (with stats)
+// Get My Profile (with stats and coin logic)
 app.get('/api/users/profile', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Daily Coin Replenishment Logic
+    const now = new Date();
+    const lastRefill = new Date(user.lastCoinReplenishDate || Date.now());
+    const hoursSinceRefill = Math.abs(now - lastRefill) / 36e5;
+
+    if (hoursSinceRefill >= 24) {
+      if (user.coins < 10) {
+        user.coins = 10;
+        user.lastCoinReplenishDate = now;
+        await user.save();
+      } else {
+        user.lastCoinReplenishDate = now; // Just update the timer
+        await user.save();
+      }
+    }
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching profile' });
@@ -247,6 +265,36 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
     res.json({ message: "Request sent successfully" });
   } catch (error) {
     res.status(500).json({ message: 'Error sending request' });
+  }
+});
+
+// Send Anonymous Follow Request (costs 5 coins)
+app.post('/api/users/anonymous_follow/:id', authenticateToken, async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    if (targetUserId === req.user.userId) return res.status(400).json({ message: "Cannot follow yourself" });
+
+    const currentUser = await User.findById(req.user.userId);
+    if (!currentUser || currentUser.coins < 5) {
+      return res.status(400).json({ message: "Not enough coins. You need 5 coins to send a request." });
+    }
+
+    const targetUser = await User.findById(targetUserId);
+    if (!targetUser) return res.status(404).json({ message: "User not found" });
+
+    if (targetUser.followers.includes(req.user.userId)) return res.status(400).json({ message: "Already following" });
+    if (targetUser.friendRequests.includes(req.user.userId)) return res.status(400).json({ message: "Request already sent" });
+
+    // Deduct 5 coins
+    currentUser.coins -= 5;
+    await currentUser.save();
+
+    targetUser.friendRequests.push(req.user.userId);
+    await targetUser.save();
+
+    res.json({ message: "Request sent successfully", coinsLeft: currentUser.coins });
+  } catch (error) {
+    res.status(500).json({ message: 'Error sending anonymous request' });
   }
 });
 
@@ -362,8 +410,11 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
 });
 
 // Socket.io Real-time Setup
-// Store mapping of userId -> socketId
 const onlineUsers = new Map();
+
+// Random Chat Queue
+let randomChatQueue = []; // [{ userId, socketId }]
+const activeRandomChats = new Map(); // roomId -> { user1, user2 }
 
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
@@ -454,8 +505,64 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- Anonymous Random Chat Events ---
+  socket.on('search_random', (userId) => {
+    if (!randomChatQueue.some(u => u.userId === userId)) {
+      randomChatQueue.push({ userId, socketId: socket.id });
+    }
+
+    if (randomChatQueue.length >= 2) {
+      const user1 = randomChatQueue.shift();
+      const user2 = randomChatQueue.shift();
+      
+      const roomId = `random_${Date.now()}_${Math.random().toString(36).substring(2,8)}`;
+      activeRandomChats.set(roomId, { user1, user2 });
+
+      io.to(user1.socketId).emit('match_found', { roomId, partnerId: user2.userId });
+      io.to(user2.socketId).emit('match_found', { roomId, partnerId: user1.userId });
+    }
+  });
+
+  socket.on('cancel_search', (userId) => {
+    randomChatQueue = randomChatQueue.filter(u => u.userId !== userId);
+  });
+
+  socket.on('send_anonymous_message', ({ roomId, messageText }) => {
+    const chat = activeRandomChats.get(roomId);
+    if (!chat) return;
+
+    const senderSocketId = socket.id;
+    const receiverSocketId = chat.user1.socketId === socket.id ? chat.user2.socketId : chat.user1.socketId;
+    
+    io.to(receiverSocketId).emit('receive_anonymous_message', { 
+      _id: `anon-${Date.now()}`,
+      message: messageText, 
+      senderSocket: senderSocketId,
+      createdAt: new Date().toISOString()
+    });
+  });
+
+  socket.on('leave_anonymous_chat', ({ roomId }) => {
+    const chat = activeRandomChats.get(roomId);
+    if (chat) {
+      const receiverSocketId = chat.user1.socketId === socket.id ? chat.user2.socketId : chat.user1.socketId;
+      io.to(receiverSocketId).emit('anonymous_chat_ended');
+      activeRandomChats.delete(roomId);
+    }
+  });
+
   // Handle user disconnect
   socket.on('disconnect', () => {
+    randomChatQueue = randomChatQueue.filter(u => u.socketId !== socket.id);
+    
+    for (const [roomId, chat] of activeRandomChats.entries()) {
+      if (chat.user1.socketId === socket.id || chat.user2.socketId === socket.id) {
+        const receiverSocketId = chat.user1.socketId === socket.id ? chat.user2.socketId : chat.user1.socketId;
+        io.to(receiverSocketId).emit('anonymous_chat_ended');
+        activeRandomChats.delete(roomId);
+      }
+    }
+
     for (let [userId, socketId] of onlineUsers.entries()) {
       if (socketId === socket.id) {
         onlineUsers.delete(userId);

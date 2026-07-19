@@ -12,10 +12,12 @@ import {
   VideoOff,
   PhoneOff,
   UserCheck,
-  Bell,
   Check,
   X,
-  Menu
+  Menu,
+  Coins,
+  ArrowLeft,
+  UserPlus
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import { AuthContext, SocketContext } from '../App';
@@ -43,6 +45,15 @@ export default function Dashboard() {
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [publicProfileData, setPublicProfileData] = useState(null);
   const [connectionsModal, setConnectionsModal] = useState({ isOpen: false, title: '', users: [] });
+
+  // Anonymous Matchmaking & Economy State
+  const [coins, setCoins] = useState(0);
+  const [isSearchingRandom, setIsSearchingRandom] = useState(false);
+  const [randomSearchTimer, setRandomSearchTimer] = useState(5);
+  const [anonymousRoomId, setAnonymousRoomId] = useState(null);
+  const [anonymousPartnerId, setAnonymousPartnerId] = useState(null);
+  const [anonymousMessages, setAnonymousMessages] = useState([]);
+  const [isAnonymousChatActive, setIsAnonymousChatActive] = useState(false);
 
   // Chat state
   const [recentChats, setRecentChats] = useState([]);
@@ -107,7 +118,10 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${API_URL}/api/users/profile`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (res.ok) setProfileStats(data);
+      if (res.ok) {
+        setProfileStats(data);
+        setCoins(data.coins || 0);
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -185,6 +199,24 @@ export default function Dashboard() {
       handleEndCallQuietly();
     });
 
+    socket.on('match_found', ({ roomId, partnerId }) => {
+      setIsSearchingRandom(false);
+      setAnonymousRoomId(roomId);
+      setAnonymousPartnerId(partnerId);
+      setAnonymousMessages([]);
+      setIsAnonymousChatActive(true);
+      setActiveTab('anonymousChat');
+    });
+
+    socket.on('receive_anonymous_message', (msg) => {
+      setAnonymousMessages(prev => [...prev, msg]);
+    });
+
+    socket.on('anonymous_chat_ended', () => {
+      setIsAnonymousChatActive(false);
+      setAnonymousMessages(prev => [...prev, { _id: `sys-${Date.now()}`, message: 'Stranger has disconnected.', isSystem: true }]);
+    });
+
     return () => {
       socket.off('online_users');
       socket.off('receive_message');
@@ -193,8 +225,22 @@ export default function Dashboard() {
       socket.off('incoming_call');
       socket.off('call_accepted');
       socket.off('call_ended');
+      socket.off('match_found');
+      socket.off('receive_anonymous_message');
+      socket.off('anonymous_chat_ended');
     };
   }, [socket, activeChatUser, user, activeTab, searchQuery]);
+  // Matchmaking Timer
+  useEffect(() => {
+    let interval;
+    if (isSearchingRandom && randomSearchTimer > 0) {
+      interval = setInterval(() => setRandomSearchTimer(prev => prev - 1), 1000);
+    } else if (isSearchingRandom && randomSearchTimer === 0) {
+      setIsSearchingRandom(false);
+      if (socket) socket.emit('cancel_search', user.id);
+    }
+    return () => clearInterval(interval);
+  }, [isSearchingRandom, randomSearchTimer, socket, user]);
 
   // Handle hardware back button
   useEffect(() => {
@@ -562,29 +608,157 @@ export default function Dashboard() {
     }
   }, [swapVideo, callActive, remoteStreamState]);
 
+  const handleGlobeClick = () => {
+    if (!isSearchingRandom) {
+      setIsSearchingRandom(true);
+      setRandomSearchTimer(5);
+      if (socket) socket.emit('search_random', user.id);
+    } else {
+      setIsSearchingRandom(false);
+      if (socket) socket.emit('cancel_search', user.id);
+    }
+  };
+
+  const handleSendAnonymousMessage = (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !anonymousRoomId || !socket || !isAnonymousChatActive) return;
+    
+    const msg = {
+      _id: `temp-${Date.now()}`,
+      message: newMessage,
+      senderSocket: socket.id,
+      createdAt: new Date().toISOString()
+    };
+    
+    socket.emit('send_anonymous_message', { roomId: anonymousRoomId, messageText: newMessage });
+    setAnonymousMessages(prev => [...prev, msg]);
+    setNewMessage('');
+  };
+
+  const handleSendAnonymousFriendRequest = async () => {
+    if (coins < 5) {
+      alert("Not enough coins! You need 5 coins.");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/users/anonymous_follow/${anonymousPartnerId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCoins(data.coinsLeft);
+        if (socket) socket.emit('send_friend_request', { targetUserId: anonymousPartnerId });
+        alert("Friend request sent!");
+      } else {
+        alert(data.message || "Could not send request.");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleLeaveAnonymousChat = () => {
+    if (socket && anonymousRoomId) {
+      socket.emit('leave_anonymous_chat', { roomId: anonymousRoomId });
+    }
+    setAnonymousRoomId(null);
+    setAnonymousPartnerId(null);
+    setIsAnonymousChatActive(false);
+    setActiveTab('home');
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'home':
         return (
-          <div className="feed-container">
-            <div className="welcome-card" style={{ position: 'relative' }}>
-              <div 
-                className="notification-icon"
-                onClick={() => setActiveTab('notifications')}
-                style={{ position: 'absolute', top: '16px', left: '16px', cursor: 'pointer' }}
-              >
-                <Bell size={24} />
-                {notifications.length > 0 && <span className="badge">{notifications.length}</span>}
-              </div>
-              
-              <h2>Welcome to <span className="gradient-text">Twelo</span></h2>
-              <p>Hi, <strong>@{user.username}</strong>! This is your world-class real-time MERN dashboard.</p>
-              <p>Go to the <strong>Search</strong> tab to find other users, or click <strong>Messages</strong> to chat and call.</p>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '16px' }}>
-                <button className="chat-now-btn" onClick={() => setActiveTab('search')}>Find Friends</button>
-                <button className="logout-btn" onClick={() => setActiveTab('messages')}>Inbox</button>
-              </div>
+          <div className="space-container">
+            <div className="stars"></div>
+            <div className="twinkling"></div>
+            
+            <div className="coin-display">
+              <Coins size={18} />
+              <span>{coins}</span>
             </div>
+
+            <div className="globe-wrapper">
+              <div 
+                className={`globe ${isSearchingRandom ? 'searching' : ''}`} 
+                onClick={handleGlobeClick}
+              ></div>
+              
+              {isSearchingRandom && (
+                <>
+                  <div className="match-timer">{randomSearchTimer}s</div>
+                  <div className="search-text">Looking for someone in the universe...</div>
+                </>
+              )}
+              {!isSearchingRandom && (
+                <div className="search-text" style={{ marginTop: '20px' }}>
+                  Tap the globe to find a random chat!
+                </div>
+              )}
+            </div>
+            
+            <div 
+              className="icon-btn" 
+              style={{ position: 'absolute', top: '16px', left: '16px', cursor: 'pointer', zIndex: 10, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)' }}
+              onClick={() => setActiveTab('notifications')}
+            >
+              <Bell size={24} color="#fff" />
+              {notifications.length > 0 && <span className="badge">{notifications.length}</span>}
+            </div>
+          </div>
+        );
+
+      case 'anonymousChat':
+        return (
+          <div className="messages-container" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="anonymous-chat-header">
+              <button className="icon-btn" onClick={handleLeaveAnonymousChat}>
+                <ArrowLeft size={24} />
+              </button>
+              <h3 style={{ margin: 0, color: '#fff' }}>Stranger</h3>
+              <button 
+                className="friend-req-btn" 
+                onClick={handleSendAnonymousFriendRequest}
+                disabled={!isAnonymousChatActive || coins < 5}
+                title="Send Friend Request (Costs 5 Coins)"
+              >
+                <UserPlus size={18} /> Add Friend
+              </button>
+            </div>
+            
+            <div className="chat-messages-area" style={{ flex: 1, background: '#0a0a0a' }}>
+              {anonymousMessages.map((msg) => (
+                <div key={msg._id} className={`msg-wrapper ${msg.isSystem ? 'system' : (msg.senderSocket === socket?.id ? 'sent' : 'received')}`}>
+                  <div className={`msg-bubble ${msg.isSystem ? 'system-bubble' : ''}`} style={msg.isSystem ? { background: 'transparent', color: '#888', textAlign: 'center', width: '100%', fontStyle: 'italic' } : {}}>
+                    <div>{msg.message}</div>
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {isAnonymousChatActive ? (
+              <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
+                <div className="chat-input-wrapper">
+                  <input
+                    type="text"
+                    placeholder="Type a message..."
+                    className="chat-text-input"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    required
+                  />
+                  {newMessage.trim() && (
+                    <button type="submit" className="chat-send-btn"><Send size={18} /></button>
+                  )}
+                </div>
+              </form>
+            ) : (
+              <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', background: '#111' }}>
+                Chat has ended. <button onClick={handleLeaveAnonymousChat} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', cursor: 'pointer', fontWeight: 'bold' }}>Return Home</button>
+              </div>
+            )}
           </div>
         );
 

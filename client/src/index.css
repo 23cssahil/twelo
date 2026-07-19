@@ -1056,3 +1056,140 @@ input, button, textarea {
   color: #fff;
   border: 1px solid rgba(255,255,255,0.1);
 }
+ 
+ 
+/* --- 3D Globe & Space Matchmaking --- */
+.space-container {
+  background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.stars {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: transparent url('https://s3-us-west-2.amazonaws.com/s.cdpn.io/1231630/stars.png') repeat top center;
+  z-index: 0;
+}
+.twinkling {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: transparent url('https://s3-us-west-2.amazonaws.com/s.cdpn.io/1231630/twinkling.png') repeat top center;
+  z-index: 1;
+  animation: move-twink-back 200s linear infinite;
+}
+
+@keyframes move-twink-back {
+  from {background-position: 0 0;}
+  to {background-position: -10000px 5000px;}
+}
+
+.globe-wrapper {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.globe {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Solarsystemscope_texture_2k_earth_daymap.jpg/1024px-Solarsystemscope_texture_2k_earth_daymap.jpg') repeat-x;
+  background-size: auto 100%;
+  box-shadow: inset -20px -20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(0,191,255,0.4);
+  animation: spin 10s linear infinite;
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.globe:hover {
+  transform: scale(1.05);
+  box-shadow: inset -20px -20px 40px rgba(0,0,0,0.8), 0 0 40px rgba(0,191,255,0.8);
+}
+
+.globe.searching {
+  animation: spin 2s linear infinite, pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes spin {
+  0% { background-position: 0 0; }
+  100% { background-position: -426px 0; }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: inset -20px -20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(0,191,255,0.4); }
+  100% { transform: scale(1.1); box-shadow: inset -20px -20px 40px rgba(0,0,0,0.8), 0 0 60px rgba(0,191,255,1); }
+}
+
+.match-timer {
+  margin-top: 30px;
+  font-size: 3rem;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(0,191,255,0.8);
+  z-index: 2;
+}
+
+.search-text {
+  margin-top: 10px;
+  font-size: 1.2rem;
+  color: #aaa;
+  z-index: 2;
+}
+
+.coin-display {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 215, 0, 0.5);
+  color: gold;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+  backdrop-filter: blur(5px);
+}
+
+.anonymous-chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #111;
+  border-bottom: 1px solid #333;
+}
+
+.friend-req-btn {
+  background: linear-gradient(135deg, #ffd700, #daa520);
+  color: #000;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.2s;
+}
+.friend-req-btn:hover {
+  transform: scale(1.05);
+}
+.friend-req-btn:disabled {
+  background: #555;
+  color: #aaa;
+  cursor: not-allowed;
+  transform: none;
+}
+

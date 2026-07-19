@@ -29,6 +29,8 @@ const UserSchema = new mongoose.Schema({
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  coins: { type: Number, default: 10 },
+  lastCoinReplenishDate: { type: Date, default: Date.now },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);
