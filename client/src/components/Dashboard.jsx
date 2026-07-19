@@ -57,6 +57,7 @@ export default function Dashboard() {
   const [anonymousPartnerId, setAnonymousPartnerId] = useState(null);
   const [anonymousMessages, setAnonymousMessages] = useState([]);
   const [isAnonymousChatActive, setIsAnonymousChatActive] = useState(false);
+  const [matchFailed, setMatchFailed] = useState(false);
 
   // Chat state
   const [recentChats, setRecentChats] = useState([]);
@@ -275,7 +276,9 @@ export default function Dashboard() {
       interval = setInterval(() => setRandomSearchTimer(prev => prev - 1), 1000);
     } else if (isSearchingRandom && randomSearchTimer === 0) {
       setIsSearchingRandom(false);
+      setMatchFailed(true);
       if (socket) socket.emit('cancel_search', user.id);
+      setTimeout(() => setMatchFailed(false), 3000);
     }
     return () => clearInterval(interval);
   }, [isSearchingRandom, randomSearchTimer, socket, user, activeTab]);
@@ -747,7 +750,12 @@ export default function Dashboard() {
                   <div className="search-text">Looking for someone in the universe...</div>
                 </div>
               )}
-              {!isSearchingRandom && (
+              {matchFailed && (
+                <div className="search-text" style={{ pointerEvents: 'auto', color: 'var(--brand-red)' }}>
+                  No match found
+                </div>
+              )}
+              {!isSearchingRandom && !matchFailed && (
                 <div className="search-text" style={{ pointerEvents: 'auto' }}>
                   Tap the globe to find a random chat!
                 </div>
