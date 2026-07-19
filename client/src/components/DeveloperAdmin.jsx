@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../App';
 import { useNavigate } from 'react-router-dom';
-import { Users, Search, ShieldBan, Send, Lock, Globe, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle } from 'lucide-react';
 import './DeveloperAdmin.css';
 
 export default function DeveloperAdmin() {
@@ -231,7 +231,7 @@ export default function DeveloperAdmin() {
                     onClick={() => handleBlockUser(u._id, u.isBlocked)}
                     className={`dev-btn-${u.isBlocked ? 'secondary' : 'danger'}`}
                   >
-                    <ShieldBan size={16} style={{ marginRight: '5px' }} />
+                    <Ban size={16} style={{ marginRight: '5px' }} />
                     {u.isBlocked ? 'Unblock' : 'Block User'}
                   </button>
                 </div>
