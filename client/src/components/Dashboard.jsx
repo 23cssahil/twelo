@@ -35,6 +35,23 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  
+  const getFlagEmoji = (countryName) => {
+    if (!countryName) return '🌍';
+    const flags = {
+      'India': '🇮🇳',
+      'USA': '🇺🇸',
+      'UK': '🇬🇧',
+      'Canada': '🇨🇦',
+      'Australia': '🇦🇺',
+      'Germany': '🇩🇪',
+      'France': '🇫🇷',
+      'Japan': '🇯🇵',
+      'Brazil': '🇧🇷',
+    };
+    return flags[countryName] || '🌍';
+  };
 
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -1041,8 +1058,13 @@ export default function Dashboard() {
               >
                 ←
               </button>
-              <div className="profile-avatar-large" style={{ margin: '0 auto' }}>
+              <div className="profile-avatar-large" style={{ margin: '0 auto', position: 'relative' }}>
                 <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
+                {publicProfileData.country && (
+                  <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
+                    {getFlagEmoji(publicProfileData.country)}
+                  </div>
+                )}
               </div>
               <div className="profile-info" style={{ marginTop: '16px' }}>
                 <span className="profile-username">@{publicProfileData.username}</span>
@@ -1062,6 +1084,19 @@ export default function Dashboard() {
                     <button className="chat-now-btn" style={{ width: '100%' }} onClick={() => sendFollowRequest(publicProfileData._id)}>Follow</button>
                   )}
                 </div>
+                {publicProfileData.age && publicProfileData.gender && (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '24px', color: '#a8a8a8', fontSize: '0.9rem', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
+                      <span>{publicProfileData.age} Yrs</span>
+                    </div>
+                    <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textTransform: 'capitalize' }}>
+                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{publicProfileData.gender === 'male' ? '👨' : '👩'}</span>
+                      <span>{publicProfileData.gender}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1192,10 +1227,15 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="profile-header">
-              <div className="profile-avatar-large">
+              <div className="profile-avatar-large" style={{ position: 'relative' }}>
                 <div className="profile-avatar-inner">
                   {user.avatarUrl ? <img src={user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
                 </div>
+                {user.country && (
+                  <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
+                    {getFlagEmoji(user.country)}
+                  </div>
+                )}
               </div>
               
               <div className="profile-info">
@@ -1213,6 +1253,20 @@ export default function Dashboard() {
                     <span className="stat-label">Following</span>
                   </div>
                 </div>
+
+                {user.age && user.gender && (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', margin: '20px 0', color: '#a8a8a8', fontSize: '0.9rem', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
+                      <span>{user.age} Yrs</span>
+                    </div>
+                    <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textTransform: 'capitalize' }}>
+                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{user.gender === 'male' ? '👨' : '👩'}</span>
+                      <span>{user.gender}</span>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>{user.name}</h3>
