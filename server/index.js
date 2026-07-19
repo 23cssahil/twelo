@@ -230,7 +230,17 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
 app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests');
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) {
+      return res.json({
+        _id: req.params.id,
+        username: "Deleted Account",
+        uniqueId: "none",
+        followers: [],
+        following: [],
+        friendRequests: [],
+        isDeleted: true
+      });
+    }
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching public profile' });
@@ -465,7 +475,18 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
     // Combine unique user IDs
     const chattedUserIds = [...new Set([...sentMessages, ...receivedMessages])];
     
-    const users = await User.find({ _id: { $in: chattedUserIds } }).select('username uniqueId');
+    const users = await User.find({ _id: { $in: chattedUserIds } }).select('username uniqueId').lean();
+    const foundUserIds = users.map(u => u._id.toString());
+
+    const missingUserIds = chattedUserIds.filter(id => !foundUserIds.includes(id.toString()));
+    missingUserIds.forEach(id => {
+      users.push({
+        _id: id,
+        username: "Deleted Account",
+        uniqueId: "none",
+        isDeleted: true
+      });
+    });
     
     // Add latest message summary if needed, but we'll fetch details for simplicity
     res.json(users);
