@@ -145,7 +145,7 @@ app.post('/api/auth/google', async (req, res) => {
 
   app.post('/api/auth/complete_profile', async (req, res) => {
   try {
-    const { name, email, googleId, age, country, gender } = req.body;
+    const { name, email, googleId, age, country, gender, referredBy } = req.body;
     if (!name || !email || !googleId || !age || !country || !gender) return res.status(400).json({ message: 'All fields required' });
 
     const existingUser = await User.findOne({ googleId });
@@ -170,6 +170,24 @@ app.post('/api/auth/google', async (req, res) => {
 
     const newUser = new User({ username, name, email, googleId, uniqueId, age: Number(age), country, gender: gender.toLowerCase(), avatarUrl });
     await newUser.save();
+
+    if (referredBy) {
+      try {
+        const referrer = await User.findById(referredBy);
+        if (referrer) {
+          referrer.coins = (referrer.coins || 0) + 20; // Reward 20 coins for referral
+          referrer.notifications.push({
+            type: 'system',
+            user: referrer._id,
+            message: `Someone joined using your referral link! You earned 20 Coins.`,
+            createdAt: new Date()
+          });
+          await referrer.save();
+        }
+      } catch(err) {
+        console.error("Referral Error:", err);
+      }
+    }
 
     const jwtToken = jwt.sign(
       { userId: newUser._id, username: newUser.username, uniqueId: newUser.uniqueId },
@@ -508,6 +526,35 @@ app.post('/api/users/reject/:id', authenticateToken, async (req, res) => {
     res.json({ message: "Request rejected" });
   } catch (error) {
     res.status(500).json({ message: 'Error rejecting request' });
+  }
+});
+
+// Earn Coins Endpoints
+app.post('/api/users/earn/ad', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    
+    user.coins += 5; // Reward 5 coins for watching ad
+    await user.save();
+    
+    res.json({ message: "Earned 5 coins for watching ad!", balance: user.coins });
+  } catch(e) {
+    res.status(500).json({ message: 'Error rewarding coins' });
+  }
+});
+
+app.post('/api/users/earn/app', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    
+    user.coins += 50; // Reward 50 coins for downloading app
+    await user.save();
+    
+    res.json({ message: "Earned 50 coins for playing a game!", balance: user.coins });
+  } catch(e) {
+    res.status(500).json({ message: 'Error rewarding coins' });
   }
 });
 

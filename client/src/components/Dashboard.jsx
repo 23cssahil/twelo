@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   UserPlus,
   Bell,
+  Gift,
   Mic,
   MicOff,
   SwitchCamera,
@@ -83,6 +84,41 @@ export default function Dashboard() {
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
+  const [earningState, setEarningState] = useState({ ad: false, app: false });
+
+  const handleWatchAd = async () => {
+    setEarningState(prev => ({ ...prev, ad: true }));
+    setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/users/earn/ad`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        if (res.ok) {
+          setCoins(data.balance);
+          alert(data.message);
+        } else {
+          alert('Failed to earn coins');
+        }
+      } catch (err) { console.error(err); }
+      setEarningState(prev => ({ ...prev, ad: false }));
+    }, 5000); // 5 sec simulated ad
+  };
+
+  const handleDownloadApp = async () => {
+    setEarningState(prev => ({ ...prev, app: true }));
+    setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/users/earn/app`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        if (res.ok) {
+          setCoins(data.balance);
+          alert(data.message);
+        } else {
+          alert('Failed to earn coins');
+        }
+      } catch (err) { console.error(err); }
+      setEarningState(prev => ({ ...prev, app: false }));
+    }, 5000); // 5 sec simulated download
+  };
   
   const getFlagEmoji = (countryName) => {
     if (!countryName) return '🌍';
@@ -1442,6 +1478,45 @@ export default function Dashboard() {
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'earn':
+        return (
+          <div className="earn-container" style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', color: '#fff', paddingBottom: '100px' }}>
+            <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '2rem', background: 'linear-gradient(45deg, #FFD700, #FFA500)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              Earn Free Coins
+            </h2>
+            
+            <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Watch Video Ad</h3>
+                <p style={{ margin: 0, color: '#aaa', fontSize: '0.9rem' }}>Watch a short video to earn 5 coins instantly.</p>
+              </div>
+              <button onClick={handleWatchAd} disabled={earningState.ad} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #00c6ff, #0072ff)', border: 'none', borderRadius: '20px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', opacity: earningState.ad ? 0.7 : 1, minWidth: '110px' }}>
+                {earningState.ad ? 'Watching...' : 'Watch (+5)'}
+              </button>
+            </div>
+
+            <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginBottom: '20px' }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Invite Friends</h3>
+              <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Share your unique link. You earn 20 coins for every friend who signs up!</p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input type="text" readOnly value={`${window.location.origin}/login?ref=${user?.id}`} style={{ flex: 1, padding: '10px', background: 'rgba(0,0,0,0.5)', border: '1px solid #333', borderRadius: '8px', color: '#fff' }} />
+                <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/login?ref=${user?.id}`); alert('Link Copied!'); }} style={{ padding: '10px 20px', background: '#333', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Play & Earn</h3>
+                <p style={{ margin: 0, color: '#aaa', fontSize: '0.9rem' }}>Download and play a game to earn massive coins!</p>
+              </div>
+              <button onClick={handleDownloadApp} disabled={earningState.app} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #fc4a1a, #f7b733)', border: 'none', borderRadius: '20px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', opacity: earningState.app ? 0.7 : 1, minWidth: '110px' }}>
+                {earningState.app ? 'Loading...' : 'Play (+50)'}
+              </button>
+            </div>
+          </div>
+        );
       case 'home':
         return (
           <div className="space-container" style={{ overflow: 'hidden' }}>
@@ -2180,6 +2255,9 @@ export default function Dashboard() {
               <MessageSquare size={24} /><span>Messages</span>
               {totalUnread > 0 && <span className="sidebar-badge">{totalUnread}</span>}
             </div>
+            <div className={`nav-item ${activeTab === 'earn' ? 'active' : ''}`} onClick={() => setActiveTab('earn')}>
+              <Gift size={24} color="#FFD700" /><span>Earn Coins</span>
+            </div>
             <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
               <UserIcon size={24} /><span>Profile</span>
             </div>
@@ -2208,6 +2286,7 @@ export default function Dashboard() {
       <nav className={`mobile-nav ${(activeChatUser && activeTab === 'messages') ? 'hide-on-mobile' : ''}`}>
         <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}><HomeIcon size={24} /></div>
         <div className={`nav-item ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}><SearchIcon size={24} /></div>
+        <div className={`nav-item ${activeTab === 'earn' ? 'active' : ''}`} onClick={() => setActiveTab('earn')}><Gift size={24} color={activeTab === 'earn' ? '#fff' : '#FFD700'} /></div>
         <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')} style={{ position: 'relative' }}>
           <MessageSquare size={24} />
           {totalUnread > 0 && <span className="badge">{totalUnread}</span>}

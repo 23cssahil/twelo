@@ -10,6 +10,10 @@ export default function Login() {
   const location = useLocation();
   const from = location.state?.from || '/';
   
+  // Extract referral ID
+  const queryParams = new URLSearchParams(location.search);
+  const referredBy = queryParams.get('ref') || null;
+  
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -71,7 +75,7 @@ export default function Login() {
       const res = await fetch(`${API_URL}/api/auth/complete_profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email: googleData.email, googleId: googleData.googleId, age, country, gender })
+        body: JSON.stringify({ name, email: googleData.email, googleId: googleData.googleId, age, country, gender, referredBy })
       });
       
       const data = await res.json();
