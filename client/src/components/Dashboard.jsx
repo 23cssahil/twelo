@@ -18,7 +18,10 @@ import {
   Coins,
   ArrowLeft,
   UserPlus,
-  Bell
+  Bell,
+  Mic,
+  MicOff,
+  SwitchCamera
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -93,6 +96,8 @@ export default function Dashboard() {
   const [callAccepted, setCallAccepted] = useState(false);
   const [isVideoCall, setIsVideoCall] = useState(true);
   const [swapVideo, setSwapVideo] = useState(false);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [currentFacingMode, setCurrentFacingMode] = useState('user');
 
   // Call Details
   const [callerId, setCallerId] = useState('');
@@ -104,6 +109,7 @@ export default function Dashboard() {
   const userVideoRef = useRef(null);
   const connectionRef = useRef(null);
   const localStreamRef = useRef(null);
+  const callTimeoutRef = useRef(null);
   const [remoteStreamState, setRemoteStreamState] = useState(null);
   const ringtoneOutRef = useRef(null);
   const ringtoneInRef = useRef(null);
@@ -303,6 +309,10 @@ export default function Dashboard() {
       setCallAccepted(true);
       setCalling(false);
       callStartTimeRef.current = Date.now();
+      if (callTimeoutRef.current) {
+        clearTimeout(callTimeoutRef.current);
+        callTimeoutRef.current = null;
+      }
       if (ringtoneOutRef.current) {
         ringtoneOutRef.current.pause();
         ringtoneOutRef.current.currentTime = 0;
@@ -697,13 +707,17 @@ export default function Dashboard() {
 
   // --- WebRTC System with Camera permission error handling ---
 
-  const requestMediaPermissions = async (isVideo) => {
+  const requestMediaPermissions = async (isVideo, facingMode = currentFacingMode) => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       alert("Error: Browser does not support media devices. (Are you using HTTP instead of HTTPS?)");
       throw new Error("MediaDevices not supported");
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
+      const constraints = {
+        audio: true,
+        video: isVideo ? { facingMode: { ideal: facingMode } } : false
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       return stream;
     } catch (error) {
       console.error('Media permission error:', error);
@@ -757,6 +771,10 @@ export default function Dashboard() {
       });
 
       connectionRef.current = peer;
+      
+      callTimeoutRef.current = setTimeout(() => {
+        endCall();
+      }, 60000);
     } catch (error) {
       console.error(error);
       alert('Call setup failed: ' + error.message);
@@ -820,15 +838,64 @@ export default function Dashboard() {
   };
 
   const handleEndCallQuietly = () => {
+    if (callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current);
+      callTimeoutRef.current = null;
+    }
     setCallActive(false);
     setCalling(false);
     setReceivingCall(false);
     setCallAccepted(false);
     setRemoteStreamState(null);
-    if (ringtoneInRef.current) { ringtoneInRef.current.pause(); ringtoneInRef.current.currentTime = 0; }
-    if (ringtoneOutRef.current) { ringtoneOutRef.current.pause(); ringtoneOutRef.current.currentTime = 0; }
+    if (ringtoneInRef.current) { 
+      ringtoneInRef.current.pause(); 
+      ringtoneInRef.current.currentTime = 0; 
+      ringtoneInRef.current.src = '';
+      setTimeout(() => { if (ringtoneInRef.current) ringtoneInRef.current.src = '/ringtone.mp3'; }, 500);
+    }
+    if (ringtoneOutRef.current) { 
+      ringtoneOutRef.current.pause(); 
+      ringtoneOutRef.current.currentTime = 0; 
+      ringtoneOutRef.current.src = '';
+      setTimeout(() => { if (ringtoneOutRef.current) ringtoneOutRef.current.src = '/ringtone.mp3'; }, 500);
+    }
     if (connectionRef.current) { connectionRef.current.destroy(); connectionRef.current = null; }
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
+  };
+
+  const toggleAudio = () => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsAudioMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
+  const switchCamera = async () => {
+    if (!isVideoCall || !localStreamRef.current || !connectionRef.current) return;
+    try {
+      const newMode = currentFacingMode === 'user' ? 'environment' : 'user';
+      const newStream = await requestMediaPermissions(true, newMode);
+      
+      const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      
+      if (oldVideoTrack && newVideoTrack) {
+        connectionRef.current.replaceTrack(oldVideoTrack, newVideoTrack, localStreamRef.current);
+        oldVideoTrack.stop();
+        localStreamRef.current.removeTrack(oldVideoTrack);
+        localStreamRef.current.addTrack(newVideoTrack);
+        
+        if (myVideoRef.current) {
+          myVideoRef.current.srcObject = localStreamRef.current;
+        }
+        setCurrentFacingMode(newMode);
+      }
+    } catch (e) {
+      console.error('Failed to switch camera', e);
+    }
   };
 
   useEffect(() => {
@@ -1641,6 +1708,14 @@ export default function Dashboard() {
               </div>
             )}
             <div className="call-controls-bar">
+              <button className="call-action-btn" style={{ background: isAudioMuted ? '#ff4b4b' : 'rgba(255,255,255,0.2)' }} onClick={toggleAudio} title={isAudioMuted ? "Unmute" : "Mute"}>
+                {isAudioMuted ? <MicOff size={24} /> : <Mic size={24} />}
+              </button>
+              {isVideoCall && (
+                <button className="call-action-btn" style={{ background: 'rgba(255,255,255,0.2)' }} onClick={switchCamera} title="Switch Camera">
+                  <SwitchCamera size={24} />
+                </button>
+              )}
               <button className="call-action-btn decline" onClick={endCall} title="End Call"><PhoneOff size={28} /></button>
             </div>
           </div>
