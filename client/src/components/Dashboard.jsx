@@ -196,6 +196,17 @@ export default function Dashboard() {
     };
   }, [socket, activeChatUser, user, activeTab, searchQuery]);
 
+  // Handle hardware back button
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (activeChatUser) {
+        setActiveChatUser(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeChatUser]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -347,6 +358,8 @@ export default function Dashboard() {
     setActiveChatUser(targetUser);
     setActiveTab('messages');
     setUnreadMessages(prev => ({...prev, [targetUser._id]: 0})); // Reset unread
+    fetchMessages(targetUser._id);
+    window.history.pushState({ view: 'chat' }, '', '');
   };
 
   // --- WebRTC System with Camera permission error handling ---
@@ -703,7 +716,13 @@ export default function Dashboard() {
                     <div className="chat-header-info">
                       <button 
                         className="back-btn" 
-                        onClick={() => setActiveChatUser(null)}
+                        onClick={() => {
+                          if (window.history.state && window.history.state.view === 'chat') {
+                            window.history.back();
+                          } else {
+                            setActiveChatUser(null);
+                          }
+                        }}
                         style={{ border: 'none', background: 'transparent', fontSize: '1.2rem', cursor: 'pointer', marginRight: '8px' }}
                       >
                         ←
