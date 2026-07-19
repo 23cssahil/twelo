@@ -21,6 +21,10 @@ export default function DeveloperAdmin() {
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
 
+  const [chatViewTarget, setChatViewTarget] = useState(null);
+  const [selectedUserChats, setSelectedUserChats] = useState(null);
+  const [isFetchingChats, setIsFetchingChats] = useState(false);
+
   // Focus input on load
   useEffect(() => {
     if (isAuthenticated) {
@@ -187,6 +191,25 @@ export default function DeveloperAdmin() {
     } catch (err) {
       console.error(err);
       alert('Failed to delete user');
+    }
+  };
+
+  const handleViewChats = async (user) => {
+    setChatViewTarget(user);
+    setIsFetchingChats(true);
+    setSelectedUserChats(null);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/users/${user._id}/chats`, {
+        headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedUserChats(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsFetchingChats(false);
     }
   };
 
@@ -401,6 +424,14 @@ export default function DeveloperAdmin() {
                             <Trash2 size={16} />
                           </button>
                         </div>
+                        <button 
+                          onClick={() => handleViewChats(u)}
+                          className="dev-btn-secondary"
+                          style={{ marginTop: '10px', width: '100%', display: 'flex', justifyContent: 'center' }}
+                        >
+                          <MessageSquare size={16} style={{ marginRight: '5px' }} />
+                          View All Chats
+                        </button>
                       </div>
                     ))}
                     {users.length === 0 && searchQuery && (
@@ -479,6 +510,51 @@ export default function DeveloperAdmin() {
                   Mark as Resolved
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {chatViewTarget && (
+        <div className="modal-overlay" onClick={() => setChatViewTarget(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <h2>Chat History: @{chatViewTarget.username}</h2>
+              <button className="icon-btn" onClick={() => setChatViewTarget(null)}><X size={24} /></button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '15px', color: '#ccc' }}>
+              {isFetchingChats ? (
+                <div style={{ textAlign: 'center', marginTop: '50px', color: '#a8a8a8' }}>Fetching chats...</div>
+              ) : selectedUserChats === null ? (
+                <div style={{ textAlign: 'center', marginTop: '50px', color: '#a8a8a8' }}>Loading...</div>
+              ) : selectedUserChats.length === 0 ? (
+                <div style={{ textAlign: 'center', marginTop: '50px', color: '#a8a8a8' }}>No chat history found for this user.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {selectedUserChats.map((msg, i) => {
+                    const isSender = msg.sender?._id === chatViewTarget._id;
+                    const otherUser = isSender ? msg.receiver : msg.sender;
+                    return (
+                      <div key={msg._id || i} style={{ 
+                        background: '#1a1a1a', 
+                        padding: '10px', 
+                        borderRadius: '8px', 
+                        borderLeft: isSender ? '4px solid var(--brand-blue)' : '4px solid #666'
+                      }}>
+                        <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: '5px', display: 'flex', justifyContent: 'space-between' }}>
+                          <span>
+                            {isSender ? 'Sent to' : 'Received from'}: <strong>@{otherUser?.username || 'Unknown'}</strong>
+                          </span>
+                          <span>{new Date(msg.createdAt).toLocaleString()}</span>
+                        </div>
+                        <div style={{ wordBreak: 'break-word', color: '#fff' }}>
+                          {msg.message || (msg.fileUrl ? `[Media: ${msg.messageType}]` : '[Empty Message]')}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -832,6 +832,24 @@ app.post('/api/admin/delete-user', adminAuth, async (req, res) => {
   }
 });
 
+// Admin Route to fetch all chats for a specific user
+app.get('/api/admin/users/:id/chats', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const messages = await Message.find({
+      $or: [{ sender: id }, { receiver: id }]
+    })
+      .populate('sender', 'username')
+      .populate('receiver', 'username')
+      .sort({ createdAt: -1 })
+      .limit(500); // limit to last 500 messages to prevent overload
+    res.json(messages);
+  } catch (error) {
+    console.error("Error fetching user chats:", error);
+    res.status(500).json({ message: 'Error fetching user chats' });
+  }
+});
+
 app.post('/api/admin/clear-queue', adminAuth, (req, res) => {
   randomChatQueue = [];
   res.json({ success: true, queuedRandom: 0 });
