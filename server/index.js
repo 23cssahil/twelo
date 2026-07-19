@@ -1104,6 +1104,14 @@ io.on('connection', (socket) => {
           io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
           
           if (chat.botState === 'waiting_for_hi') {
+            chat.botState = 'waiting_for_how_are_you_reply';
+            io.to(socket.id).emit('receive_anonymous_message', {
+              _id: `anon-bot-${Date.now()}`,
+              message: `how are you`,
+              senderSocket: 'bot-socket',
+              createdAt: new Date().toISOString()
+            });
+          } else if (chat.botState === 'waiting_for_how_are_you_reply') {
             chat.botState = 'waiting_for_gender';
             io.to(socket.id).emit('receive_anonymous_message', {
               _id: `anon-bot-${Date.now()}`,
