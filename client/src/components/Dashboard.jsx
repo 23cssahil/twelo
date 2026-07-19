@@ -974,7 +974,7 @@ export default function Dashboard() {
               onClick={() => setActiveTab('notifications')}
             >
               <Bell size={24} color="#fff" />
-              {notifications.length > 0 && <span className="badge">{notifications.length}</span>}
+              {unreadNotifsCount > 0 && <span className="badge">{unreadNotifsCount}</span>}
             </div>
           </div>
         );
@@ -1075,7 +1075,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                       {notif.type === 'request_accepted' ? (
-                        <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWith(reqUser)}>Chat</button>
+                        <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWithUser(reqUser)}>Chat</button>
                       ) : isAccepted ? (
                         <button className="chat-now-btn" disabled style={{ background: '#333' }}>Accepted</button>
                       ) : (
