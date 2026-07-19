@@ -343,6 +343,29 @@ export default function Dashboard() {
       socket.off('anonymous_chat_ended');
     };
   }, [socket, activeChatUser, user, activeTab, searchQuery, publicProfileData]);
+
+  // SPA Back Button Handling for Overlays & Chats
+  useEffect(() => {
+    const isOverlayOpen = showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen;
+    
+    if (isOverlayOpen) {
+      window.history.pushState({ overlayOpen: true }, '');
+    }
+
+    const handlePopState = (e) => {
+      if (showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen) {
+        setShowSettingsModal(false);
+        setPublicProfileData(null);
+        setActiveChatUser(null);
+        setIsAnonymousChatActive(false);
+        setConnectionsModal({ isOpen: false, title: '', users: [] });
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen]);
+
   // Matchmaking Timer and Globe auto-rotate
   useEffect(() => {
     if (globeEl.current) {
