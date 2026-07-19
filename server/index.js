@@ -1003,7 +1003,11 @@ io.on('connection', (socket) => {
   });
 
   // --- Anonymous Random Chat Events ---
-  socket.on('search_random', async (userId) => {
+  socket.on('search_random', async (payload) => {
+    // Handle both old string payload and new object payload from updated clients
+    const userId = typeof payload === 'string' ? payload : payload.userId;
+    const isBotEligible = typeof payload === 'object' ? payload.isBotEligible : false;
+
     if (!randomChatQueue.some(u => u.userId === userId)) {
       randomChatQueue.push({ userId, socketId: socket.id });
     }
@@ -1034,6 +1038,32 @@ io.on('connection', (socket) => {
       } catch (err) {
         console.error("Error fetching random chat users", err);
       }
+      return;
+    }
+
+    if (isBotEligible) {
+      setTimeout(() => {
+        // After 4 seconds, check if user is STILL in queue
+        const userIndex = randomChatQueue.findIndex(u => u.userId === userId);
+        if (userIndex !== -1) {
+          // Remove from queue
+          randomChatQueue.splice(userIndex, 1);
+          
+          // Match with Bot!
+          const roomId = `bot_room_${Date.now()}_${userId}`;
+          const botUser = { userId: 'twelo-bot', socketId: 'bot-socket' };
+          
+          activeRandomChats.set(roomId, { user1: { userId, socketId: socket.id }, user2: botUser });
+
+          io.to(socket.id).emit('match_found', {
+             roomId,
+             partnerId: 'twelo-bot',
+             partnerAvatar: 'https://randomuser.me/api/portraits/women/44.jpg', // Priya look
+             partnerCountry: 'India',
+             partnerUsername: 'Priya'
+          });
+        }
+      }, 4000); // exactly 4 seconds
     }
   });
 
@@ -1044,6 +1074,19 @@ io.on('connection', (socket) => {
   socket.on('send_anonymous_message', ({ roomId, messageText }) => {
     const chat = activeRandomChats.get(roomId);
     if (!chat) return;
+
+    if (roomId.startsWith('bot_room_')) {
+      // Simulate bot typing and replying
+      setTimeout(() => {
+        io.to(socket.id).emit('receive_anonymous_message', {
+          _id: `anon-bot-${Date.now()}`,
+          message: `Main abhi thodi busy hoon, ek minute me reply karti hoon... (Bot received: ${messageText})`,
+          senderSocket: 'bot-socket',
+          createdAt: new Date().toISOString()
+        });
+      }, 1500); // 1.5s delay to feel real
+      return;
+    }
 
     const senderSocketId = socket.id;
     const receiverSocketId = chat.user1.socketId === socket.id ? chat.user2.socketId : chat.user1.socketId;
@@ -1059,6 +1102,10 @@ io.on('connection', (socket) => {
   socket.on('leave_anonymous_chat', ({ roomId }) => {
     const chat = activeRandomChats.get(roomId);
     if (chat) {
+      if (roomId.startsWith('bot_room_')) {
+         activeRandomChats.delete(roomId);
+         return;
+      }
       const receiverSocketId = chat.user1.socketId === socket.id ? chat.user2.socketId : chat.user1.socketId;
       io.to(receiverSocketId).emit('anonymous_chat_ended');
       activeRandomChats.delete(roomId);

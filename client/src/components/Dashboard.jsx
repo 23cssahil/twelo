@@ -82,12 +82,13 @@ export default function Dashboard() {
   // Anonymous Matchmaking & Economy State
   const [coins, setCoins] = useState(0);
   const [isSearchingRandom, setIsSearchingRandom] = useState(false);
-  const [randomSearchTimer, setRandomSearchTimer] = useState(5);
+  const [randomSearchTimer, setRandomSearchTimer] = useState(0);
+  const [matchFailed, setMatchFailed] = useState(false);
+  const [globeSearchFails, setGlobeSearchFails] = useState(0);
   const [anonymousRoomId, setAnonymousRoomId] = useState(null);
   const [anonymousPartnerId, setAnonymousPartnerId] = useState(null);
   const [anonymousMessages, setAnonymousMessages] = useState([]);
   const [isAnonymousChatActive, setIsAnonymousChatActive] = useState(false);
-  const [matchFailed, setMatchFailed] = useState(false);
   const [anonymousPartnerAvatar, setAnonymousPartnerAvatar] = useState('');
   const [anonymousPartnerCountry, setAnonymousPartnerCountry] = useState('');
 
@@ -377,6 +378,7 @@ export default function Dashboard() {
 
     socket.on('match_found', ({ roomId, partnerId, partnerAvatar, partnerCountry }) => {
         setIsSearchingRandom(false);
+        setGlobeSearchFails(0); // Reset failure count on successful match (real or bot)
         setAnonymousRoomId(roomId);
         setAnonymousPartnerId(partnerId);
         setAnonymousPartnerAvatar(partnerAvatar || '');
@@ -473,6 +475,7 @@ export default function Dashboard() {
     } else if (isSearchingRandom && randomSearchTimer === 0) {
       setIsSearchingRandom(false);
       setMatchFailed(true);
+      setGlobeSearchFails(prev => prev + 1);
       if (socket) socket.emit('cancel_search', user.id);
       setTimeout(() => setMatchFailed(false), 3000);
     }
@@ -1327,8 +1330,9 @@ export default function Dashboard() {
   const handleGlobeClick = () => {
     if (!isSearchingRandom) {
       setIsSearchingRandom(true);
-      setRandomSearchTimer(5);
-      if (socket) socket.emit('search_random', user.id);
+      const isBotEligible = globeSearchFails >= 2;
+      setRandomSearchTimer(isBotEligible ? 4 : 5);
+      if (socket) socket.emit('search_random', { userId: user.id, isBotEligible });
     } else {
       setIsSearchingRandom(false);
       if (socket) socket.emit('cancel_search', user.id);
