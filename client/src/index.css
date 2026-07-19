@@ -1269,3 +1269,20 @@ input, button, textarea {
   font-size: 1.25rem;
   margin: 0;
 }
+
+/* Swipe to Reply Styles */
+.msg-reply-box { background-color: rgba(0, 0, 0, 0.15); border-left: 3px solid rgba(255, 255, 255, 0.7); padding: 6px 10px; border-radius: 4px; margin-bottom: 6px; font-size: 0.85rem; cursor: pointer; }
+.msg-wrapper.received .msg-reply-box { background-color: rgba(255, 255, 255, 0.05); border-left-color: var(--brand-blue); }
+.msg-reply-sender { font-weight: 600; color: #fff; margin-bottom: 2px; font-size: 0.8rem; }
+.msg-wrapper.received .msg-reply-sender { color: var(--brand-blue); }
+.msg-reply-text { color: rgba(255, 255, 255, 0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.swipe-reply-icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: #333; color: #fff; position: absolute; top: 50%; transform: translateY(-50%); opacity: 0.8; }
+.sent-icon { right: -50px; }
+.received-icon { left: -50px; }
+.msg-wrapper { position: relative; }
+.replying-to-banner { display: flex; align-items: center; justify-content: space-between; background-color: #222; border-left: 4px solid var(--brand-blue); padding: 10px 14px; border-radius: 8px 8px 0 0; margin-bottom: 8px; }
+.reply-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.reply-sender { color: var(--brand-blue); font-weight: 600; font-size: 0.85rem; margin-bottom: 2px; }
+.reply-text { color: #aaa; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.close-reply-btn { background: none; border: none; color: #aaa; cursor: pointer; padding: 4px; display: flex; }
+.close-reply-btn:hover { color: #fff; }

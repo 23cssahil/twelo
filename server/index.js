@@ -703,12 +703,13 @@ io.on('connection', (socket) => {
   });
 
   // Handle incoming private message
-  socket.on('send_message', async ({ senderId, receiverId, messageText }) => {
+  socket.on('send_message', async ({ senderId, receiverId, messageText, replyTo }) => {
     try {
       const message = new Message({
         sender: senderId,
         receiver: receiverId,
-        message: messageText
+        message: messageText,
+        replyTo: replyTo
       });
       await message.save();
 
@@ -720,6 +721,7 @@ io.on('connection', (socket) => {
         sender: senderId,
         receiver: receiverId,
         message: messageText,
+        replyTo: replyTo,
         createdAt: message.createdAt
       };
 
