@@ -831,8 +831,10 @@ export default function Dashboard() {
 
       mediaRecorder.onstop = async () => {
         if (isRecordingCancelledRef.current) return;
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const file = new File([audioBlob], 'audio.webm', { type: 'audio/webm' });
+        const mimeType = mediaRecorderRef.current.mimeType || 'audio/webm';
+        const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        const file = new File([audioBlob], `audio.${extension}`, { type: mimeType });
         setIsUploading(true);
         const url = await uploadFile(file);
         setIsUploading(false);
@@ -1747,9 +1749,7 @@ export default function Dashboard() {
 
                           {msg.messageType === 'audio' && (
                             <div className="msg-audio-container" style={{ marginTop: '5px', marginBottom: '5px' }}>
-                              <audio controls style={{ width: '200px', height: '40px' }}>
-                                <source src={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`} type="audio/webm" />
-                              </audio>
+                              <audio controls src={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`} style={{ width: '200px', height: '40px' }} />
                             </div>
                           )}
                           
@@ -1802,7 +1802,7 @@ export default function Dashboard() {
                           </button>
                           <input 
                             type="file" 
-                            accept="image/*" 
+                            accept="image/jpeg, image/png, image/webp" 
                             capture="environment"
                             ref={cameraInputRef} 
                             style={{ display: 'none' }} 
@@ -1835,7 +1835,7 @@ export default function Dashboard() {
                           </button>
                           <input 
                             type="file" 
-                            accept="image/*" 
+                            accept="image/jpeg, image/png, image/webp" 
                             ref={fileInputRef} 
                             style={{ display: 'none' }} 
                             onChange={handleImageSelect} 
