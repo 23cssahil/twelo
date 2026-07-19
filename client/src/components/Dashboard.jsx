@@ -201,6 +201,11 @@ export default function Dashboard() {
       }
     });
 
+    socket.on('request_rejected_alert', () => {
+      alert("Your follow request was rejected.");
+      fetchProfile();
+    });
+
     socket.on('incoming_call', ({ from, fromUsername, signal, isVideo }) => {
       setReceivingCall(true);
       setCallerId(from);
@@ -381,6 +386,12 @@ export default function Dashboard() {
   };
 
   const sendFollowRequest = async (targetUserId) => {
+    // Optimistic UI
+    setSearchResults(prev => prev.map(u => u._id === targetUserId ? { ...u, friendRequests: [...(u.friendRequests || []), user.id] } : u));
+    if (publicProfileData && publicProfileData._id === targetUserId) {
+      setPublicProfileData(prev => ({ ...prev, friendRequests: [...(prev.friendRequests || []), user.id] }));
+    }
+    
     try {
       const res = await fetch(`${API_URL}/api/users/follow/${targetUserId}`, {
         method: 'POST',
@@ -388,14 +399,30 @@ export default function Dashboard() {
       });
       if (res.ok) {
         socket.emit('send_friend_request', { targetUserId });
-        if (activeTab === 'publicProfile') viewPublicProfile(targetUserId);
-        handleSearch({ target: { value: searchQuery } });
         fetchProfile();
       }
     } catch (err) { console.error(err); }
   };
 
   const unfollowUser = async (targetUserId) => {
+    // Optimistic UI
+    setSearchResults(prev => prev.map(u => u._id === targetUserId ? { 
+      ...u, 
+      friendRequests: (u.friendRequests || []).filter(id => id !== user.id),
+      followers: (u.followers || []).filter(id => id !== user.id)
+    } : u));
+    if (publicProfileData && publicProfileData._id === targetUserId) {
+      setPublicProfileData(prev => ({ 
+        ...prev, 
+        friendRequests: (prev.friendRequests || []).filter(id => id !== user.id),
+        followers: (prev.followers || []).filter(id => id !== user.id)
+      }));
+    }
+    setProfileStats(prev => ({
+      ...prev,
+      following: (prev.following || []).filter(id => id !== targetUserId)
+    }));
+
     try {
       const res = await fetch(`${API_URL}/api/users/unfollow/${targetUserId}`, {
         method: 'POST',
@@ -403,13 +430,18 @@ export default function Dashboard() {
       });
       if (res.ok) {
         fetchProfile();
-        if (activeTab === 'publicProfile') viewPublicProfile(targetUserId);
-        handleSearch({ target: { value: searchQuery } });
       }
     } catch (err) { console.error(err); }
   };
 
   const acceptRequest = async (requesterId) => {
+    // Optimistic UI
+    setNotifications(prev => prev.filter(req => req._id !== requesterId));
+    setProfileStats(prev => ({
+      ...prev,
+      followers: [...(prev.followers || []), requesterId]
+    }));
+
     try {
       const res = await fetch(`${API_URL}/api/users/accept/${requesterId}`, {
         method: 'POST',
@@ -417,8 +449,22 @@ export default function Dashboard() {
       });
       if (res.ok) {
         socket.emit('accept_friend_request', { requesterId });
-        fetchNotifications();
         fetchProfile();
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const rejectRequest = async (requesterId) => {
+    // Optimistic UI
+    setNotifications(prev => prev.filter(req => req._id !== requesterId));
+
+    try {
+      const res = await fetch(`${API_URL}/api/users/reject/${requesterId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        socket.emit('reject_friend_request', { requesterId });
       }
     } catch (err) { console.error(err); }
   };
@@ -880,7 +926,10 @@ export default function Dashboard() {
                       {isAccepted ? (
                         <button className="chat-now-btn" disabled style={{ background: '#333' }}>Accepted</button>
                       ) : (
-                        <button className="chat-now-btn accept-btn" onClick={() => acceptRequest(req._id)}>Accept</button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="chat-now-btn accept-btn" style={{ flex: 1 }} onClick={() => acceptRequest(req._id)}>Accept</button>
+                          <button className="chat-now-btn" style={{ flex: 1, background: '#333' }} onClick={() => rejectRequest(req._id)}>Reject</button>
+                        </div>
                       )}
                     </div>
                   );

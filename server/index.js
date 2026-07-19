@@ -336,6 +336,22 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Reject Friend Request
+app.post('/api/users/reject/:id', authenticateToken, async (req, res) => {
+  try {
+    const requesterId = req.params.id;
+    const currentUser = await User.findById(req.user.userId);
+    
+    // Remove from friendRequests
+    currentUser.friendRequests = currentUser.friendRequests.filter(id => id.toString() !== requesterId);
+    await currentUser.save();
+
+    res.json({ message: "Request rejected" });
+  } catch (error) {
+    res.status(500).json({ message: 'Error rejecting request' });
+  }
+});
+
 // Unfollow User
 app.post('/api/users/unfollow/:id', authenticateToken, async (req, res) => {
   try {
@@ -483,6 +499,13 @@ io.on('connection', (socket) => {
     const receiverSocketId = onlineUsers.get(requesterId);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('request_accepted_alert');
+    }
+  });
+
+  socket.on('reject_friend_request', ({ requesterId }) => {
+    const receiverSocketId = onlineUsers.get(requesterId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('request_rejected_alert');
     }
   });
 
