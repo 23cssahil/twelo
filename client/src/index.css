@@ -391,10 +391,11 @@ input, button, textarea {
   z-index: 40;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .chat-room-header {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
