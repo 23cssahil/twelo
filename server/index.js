@@ -113,15 +113,14 @@ app.post('/api/auth/google', async (req, res) => {
       userExists = await User.findOne({ username });
     }
 
-    let avatarSeed = "";
+    let avatarUrl = "";
     if (gender.toLowerCase() === 'male') {
        const rand = Math.floor(Math.random() * 5) + 1;
-       avatarSeed = `male${rand}`;
+       avatarUrl = `https://randomuser.me/api/portraits/men/${rand}.jpg`;
     } else {
-       const rand = Math.floor(Math.random() * 2) + 1;
-       avatarSeed = `female${rand}`;
+       const rand = Math.floor(Math.random() * 5) + 1;
+       avatarUrl = `https://randomuser.me/api/portraits/women/${rand}.jpg`;
     }
-    const avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${avatarSeed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 
     const newUser = new User({ username, name, email, googleId, uniqueId, age: Number(age), country, gender: gender.toLowerCase(), avatarUrl });
     await newUser.save();
@@ -229,7 +228,7 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
 // Get Public Profile
 app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests');
+    const user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests avatarUrl');
     if (!user) {
       return res.json({
         _id: req.params.id,
@@ -238,6 +237,7 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
         followers: [],
         following: [],
         friendRequests: [],
+        avatarUrl: '',
         isDeleted: true
       });
     }
@@ -250,7 +250,7 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
 // Get Public Profile by Unique ID
 app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests');
+    const user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests avatarUrl');
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   } catch (error) {
@@ -475,7 +475,7 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
     // Combine unique user IDs
     const chattedUserIds = [...new Set([...sentMessages, ...receivedMessages])];
     
-    const users = await User.find({ _id: { $in: chattedUserIds } }).select('username uniqueId').lean();
+    const users = await User.find({ _id: { $in: chattedUserIds } }).select('username uniqueId avatarUrl').lean();
     const foundUserIds = users.map(u => u._id.toString());
 
     const missingUserIds = chattedUserIds.filter(id => !foundUserIds.includes(id.toString()));
@@ -484,6 +484,7 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
         _id: id,
         username: "Deleted Account",
         uniqueId: "none",
+        avatarUrl: '',
         isDeleted: true
       });
     });

@@ -884,11 +884,7 @@ export default function Dashboard() {
                   </button>
                   <div className="user-names">
                     <span className="user-username" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {anonymousPartnerAvatar ? (
-                        <img src={anonymousPartnerAvatar} alt="Avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#222' }} />
-                      ) : (
-                        <div className="user-avatar-small" style={{ width: '28px', height: '28px', fontSize: '12px' }}>?</div>
-                      )}
+                      {anonymousPartnerAvatar ? <div className='user-avatar-small' style={{ width: '28px', height: '28px', fontSize: '12px' }}><img src={anonymousPartnerAvatar} alt='avatar' /></div> : <div className='user-avatar-small' style={{ width: '28px', height: '28px', fontSize: '12px' }}>?</div>}
                       Stranger
                     </span>
                     <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>
@@ -958,7 +954,7 @@ export default function Dashboard() {
                   return (
                     <div className="user-card" key={req._id}>
                       <div className="user-card-info" onClick={() => viewPublicProfile(req._id)} style={{ cursor: 'pointer' }}>
-                        <div className="user-avatar-small">{req.username.charAt(0).toUpperCase()}</div>
+                        <div className="user-avatar-small">{req.avatarUrl ? <img src={req.avatarUrl} alt='avatar' /> : req.username.charAt(0).toUpperCase()}</div>
                         <div className="user-names">
                           <span className="user-username">@{req.username}</span>
                           <span className="user-id">wants to follow you</span>
@@ -1005,7 +1001,7 @@ export default function Dashboard() {
                   <div className="user-card" key={searchUser._id}>
                     <div className="user-card-info" onClick={() => viewPublicProfile(searchUser._id)} style={{ cursor: 'pointer' }}>
                       <div className="user-avatar-small">
-                        {searchUser.username.charAt(0).toUpperCase()}
+                        {searchUser.avatarUrl ? <img src={searchUser.avatarUrl} alt='avatar' /> : searchUser.username.charAt(0).toUpperCase()}
                       </div>
                       <div className="user-names">
                         <span className="user-username">@{searchUser.username}</span>
@@ -1046,7 +1042,7 @@ export default function Dashboard() {
                 ←
               </button>
               <div className="profile-avatar-large" style={{ margin: '0 auto' }}>
-                <div className="profile-avatar-inner">{publicProfileData.username.charAt(0).toUpperCase()}</div>
+                <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
               </div>
               <div className="profile-info" style={{ marginTop: '16px' }}>
                 <span className="profile-username">@{publicProfileData.username}</span>
@@ -1089,7 +1085,7 @@ export default function Dashboard() {
                       onClick={() => startChatWithUser(chatUser)}
                     >
                       <div className="user-avatar-small">
-                        {chatUser.username.charAt(0).toUpperCase()}
+                        {chatUser.avatarUrl ? <img src={chatUser.avatarUrl} alt='avatar' /> : chatUser.username.charAt(0).toUpperCase()}
                       </div>
                       <div className="user-names">
                         <span className="user-username">@{chatUser.username}</span>
@@ -1133,7 +1129,7 @@ export default function Dashboard() {
                         ←
                       </button>
                       <div className="user-avatar-small" onClick={() => viewPublicProfile(activeChatUser._id)} style={{ cursor: 'pointer' }}>
-                        {activeChatUser.username.charAt(0).toUpperCase()}
+                        {activeChatUser.avatarUrl ? <img src={activeChatUser.avatarUrl} alt='avatar' /> : activeChatUser.username.charAt(0).toUpperCase()}
                       </div>
                       <div className="user-names" onClick={() => viewPublicProfile(activeChatUser._id)} style={{ cursor: 'pointer' }}>
                         <span className="user-username">@{activeChatUser.username}</span>
@@ -1198,7 +1194,7 @@ export default function Dashboard() {
             <div className="profile-header">
               <div className="profile-avatar-large">
                 <div className="profile-avatar-inner">
-                  {user.username.charAt(0).toUpperCase()}
+                  {user.avatarUrl ? <img src={user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
                 </div>
               </div>
               
@@ -1413,7 +1409,7 @@ export default function Dashboard() {
                     viewPublicProfile(u._id);
                   }}
                 >
-                  <div className="user-avatar-small">{u.username.charAt(0).toUpperCase()}</div>
+                  <div className="user-avatar-small">{u.avatarUrl ? <img src={u.avatarUrl} alt='avatar' /> : u.username.charAt(0).toUpperCase()}</div>
                   <div className="user-names">
                     <span className="user-username">@{u.username}</span>
                   </div>
