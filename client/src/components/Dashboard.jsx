@@ -418,8 +418,13 @@ export default function Dashboard() {
   }, [activeChatUser]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (messagesEndRef.current) {
+      const parent = messagesEndRef.current.parentElement;
+      if (parent) {
+        parent.scrollTop = parent.scrollHeight;
+      }
+    }
+  }, [messages, anonymousMessages]);
 
   // Deep Link check on load
   useEffect(() => {
