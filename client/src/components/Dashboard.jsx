@@ -926,7 +926,7 @@ export default function Dashboard() {
                     {isFollowing ? (
                       <button className="chat-now-btn" onClick={() => startChatWithUser(searchUser)}>Message</button>
                     ) : hasRequested ? (
-                      <button className="chat-now-btn" disabled style={{ background: '#333' }}>Requested</button>
+                      <button className="chat-now-btn" style={{ background: '#333' }} onClick={(e) => { e.stopPropagation(); unfollowUser(searchUser._id); }}>Cancel Request</button>
                     ) : (
                       <button className="chat-now-btn" onClick={() => sendFollowRequest(searchUser._id)}>Follow</button>
                     )}
@@ -971,7 +971,7 @@ export default function Dashboard() {
                       <button className="chat-now-btn" style={{ flex: 1, background: '#333' }} onClick={() => unfollowUser(publicProfileData._id)}>Unfollow</button>
                     </>
                   ) : hasRequested ? (
-                    <button className="chat-now-btn" disabled style={{ background: '#333', width: '100%' }}>Requested</button>
+                    <button className="chat-now-btn" style={{ background: '#333', width: '100%' }} onClick={() => unfollowUser(publicProfileData._id)}>Cancel Request</button>
                   ) : (
                     <button className="chat-now-btn" style={{ width: '100%' }} onClick={() => sendFollowRequest(publicProfileData._id)}>Follow</button>
                   )}
