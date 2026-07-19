@@ -84,40 +84,40 @@ export default function Dashboard() {
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
-  const [earningState, setEarningState] = useState({ ad: false, app: false });
+  
+  // Ad System State
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [adTimeLeft, setAdTimeLeft] = useState(15);
+  const [adCompleted, setAdCompleted] = useState(false);
+  const videoRef = React.useRef(null);
 
-  const handleWatchAd = async () => {
-    setEarningState(prev => ({ ...prev, ad: true }));
-    setTimeout(async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/users/earn/ad`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-        const data = await res.json();
-        if (res.ok) {
-          setCoins(data.balance);
-          alert(data.message);
-        } else {
-          alert('Failed to earn coins');
-        }
-      } catch (err) { console.error(err); }
-      setEarningState(prev => ({ ...prev, ad: false }));
-    }, 5000); // 5 sec simulated ad
+  useEffect(() => {
+    let timer;
+    if (showAdModal && !adCompleted && adTimeLeft > 0) {
+      timer = setTimeout(() => {
+        setAdTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else if (showAdModal && adTimeLeft === 0 && !adCompleted) {
+      setAdCompleted(true);
+      rewardUserForAd();
+    }
+    return () => clearTimeout(timer);
+  }, [showAdModal, adTimeLeft, adCompleted]);
+
+  const handleWatchAd = () => {
+    setShowAdModal(true);
+    setAdTimeLeft(15);
+    setAdCompleted(false);
   };
 
-  const handleDownloadApp = async () => {
-    setEarningState(prev => ({ ...prev, app: true }));
-    setTimeout(async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/users/earn/app`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-        const data = await res.json();
-        if (res.ok) {
-          setCoins(data.balance);
-          alert(data.message);
-        } else {
-          alert('Failed to earn coins');
-        }
-      } catch (err) { console.error(err); }
-      setEarningState(prev => ({ ...prev, app: false }));
-    }, 5000); // 5 sec simulated download
+  const rewardUserForAd = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/earn/ad`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        setCoins(data.balance);
+      }
+    } catch (err) { console.error(err); }
   };
   
   const getFlagEmoji = (countryName) => {
@@ -1488,10 +1488,10 @@ export default function Dashboard() {
             <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
               <div style={{ flex: 1 }}>
                 <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Watch Video Ad</h3>
-                <p style={{ margin: 0, color: '#aaa', fontSize: '0.9rem' }}>Watch a short video to earn 5 coins instantly.</p>
+                <p style={{ margin: 0, color: '#aaa', fontSize: '0.9rem' }}>Watch a 15-second video to earn 5 coins instantly.</p>
               </div>
-              <button onClick={handleWatchAd} disabled={earningState.ad} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #00c6ff, #0072ff)', border: 'none', borderRadius: '20px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', opacity: earningState.ad ? 0.7 : 1, minWidth: '110px' }}>
-                {earningState.ad ? 'Watching...' : 'Watch (+5)'}
+              <button onClick={handleWatchAd} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #00c6ff, #0072ff)', border: 'none', borderRadius: '20px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', minWidth: '110px' }}>
+                Watch (+5)
               </button>
             </div>
 
@@ -1504,16 +1504,6 @@ export default function Dashboard() {
                   Copy
                 </button>
               </div>
-            </div>
-
-            <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <div style={{ flex: 1 }}>
-                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Play & Earn</h3>
-                <p style={{ margin: 0, color: '#aaa', fontSize: '0.9rem' }}>Download and play a game to earn massive coins!</p>
-              </div>
-              <button onClick={handleDownloadApp} disabled={earningState.app} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #fc4a1a, #f7b733)', border: 'none', borderRadius: '20px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', opacity: earningState.app ? 0.7 : 1, minWidth: '110px' }}>
-                {earningState.app ? 'Loading...' : 'Play (+50)'}
-              </button>
             </div>
           </div>
         );
@@ -2574,6 +2564,58 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Ad Modal */}
+      {showAdModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: '#000', zIndex: 10000, display: 'flex', flexDirection: 'column'
+        }}>
+          {/* Top Bar for Ad */}
+          <div style={{ padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.5)', position: 'absolute', top: 0, width: '100%', zIndex: 10 }}>
+            <div style={{ color: '#fff', fontSize: '1rem', fontWeight: 'bold' }}>
+              Reward in {adTimeLeft}s
+            </div>
+            {adCompleted ? (
+              <button onClick={() => setShowAdModal(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            ) : (
+              <div style={{ width: '40px', height: '40px' }} /> /* Placeholder to keep alignment */
+            )}
+          </div>
+          
+          {/* Ad Video */}
+          <video 
+            ref={videoRef}
+            src="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" 
+            autoPlay 
+            muted 
+            playsInline
+            loop
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+
+          {/* Reward Screen Overlay */}
+          {adCompleted && (
+            <div style={{
+              position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+              background: 'rgba(0,0,0,0.8)', zIndex: 5, display: 'flex', flexDirection: 'column',
+              justifyContent: 'center', alignItems: 'center', color: '#fff'
+            }}>
+              <CoinSVG size={80} />
+              <h2 style={{ marginTop: '20px', fontSize: '2rem', color: '#FFD700' }}>Reward Granted!</h2>
+              <p style={{ fontSize: '1.2rem' }}>You earned 5 coins.</p>
+              <button 
+                onClick={() => setShowAdModal(false)}
+                style={{ marginTop: '30px', padding: '15px 40px', fontSize: '1.2rem', fontWeight: 'bold', background: 'linear-gradient(45deg, #00c6ff, #0072ff)', border: 'none', borderRadius: '30px', color: '#fff', cursor: 'pointer' }}
+              >
+                Close Ad
+              </button>
+            </div>
+          )}
         </div>
       )}
 
