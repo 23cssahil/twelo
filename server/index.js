@@ -1010,14 +1010,79 @@ io.on('connection', (socket) => {
     // Handle both old string payload and new object payload from updated clients
     const userId = typeof payload === 'string' ? payload : payload.userId;
     const isBotEligible = typeof payload === 'object' ? payload.isBotEligible : false;
+    const genderFilter = typeof payload === 'object' ? (payload.genderFilter || 'any') : 'any';
 
-    if (!randomChatQueue.some(u => u.userId === userId)) {
-      randomChatQueue.push({ userId, socketId: socket.id });
+    let userGender = 'male';
+    let userCoins = 0;
+    try {
+        const u = await User.findById(userId).select('gender coins').lean();
+        if (u) {
+            userGender = (u.gender || 'male').toLowerCase();
+            userCoins = u.coins || 0;
+        }
+    } catch(e) {}
+
+    // Reject if filter used but not enough coins
+    if (genderFilter !== 'any' && userCoins < 1) {
+        io.to(socket.id).emit('cancel_search');
+        return;
     }
 
-    if (randomChatQueue.length >= 2) {
-      const user1 = randomChatQueue.shift();
-      const user2 = randomChatQueue.shift();
+    if (!randomChatQueue.some(u => u.userId === userId)) {
+      randomChatQueue.push({ userId, socketId: socket.id, genderFilter, userGender });
+    }
+
+    // Try to find a match in the queue
+    let matchedIndex = -1;
+    const myIndex = randomChatQueue.findIndex(u => u.userId === userId);
+    
+    if (myIndex !== -1) {
+      for (let i = 0; i < randomChatQueue.length; i++) {
+         if (i === myIndex) continue;
+         const potentialPartner = randomChatQueue[i];
+         
+         const myFilterMatches = genderFilter === 'any' || genderFilter === potentialPartner.userGender;
+         const theirFilterMatches = potentialPartner.genderFilter === 'any' || potentialPartner.genderFilter === userGender;
+         
+         if (myFilterMatches && theirFilterMatches) {
+             matchedIndex = i;
+             break;
+         }
+      }
+    }
+
+    if (matchedIndex !== -1) {
+      const user2 = randomChatQueue[matchedIndex];
+      // Splice higher index first to avoid shifting issues
+      if (myIndex > matchedIndex) {
+         randomChatQueue.splice(myIndex, 1);
+         randomChatQueue.splice(matchedIndex, 1);
+      } else {
+         randomChatQueue.splice(matchedIndex, 1);
+         randomChatQueue.splice(myIndex, 1);
+      }
+      
+      const user1 = { userId, socketId: socket.id, genderFilter, userGender };
+      
+      // Deduct coins if filters were used
+      try {
+          if (user1.genderFilter !== 'any') {
+              const dbU1 = await User.findById(user1.userId);
+              if (dbU1 && dbU1.coins >= 1) {
+                  dbU1.coins -= 1;
+                  await dbU1.save();
+                  io.to(user1.socketId).emit('coins_deducted', { amount: 1, balance: dbU1.coins });
+              }
+          }
+          if (user2.genderFilter !== 'any') {
+              const dbU2 = await User.findById(user2.userId);
+              if (dbU2 && dbU2.coins >= 1) {
+                  dbU2.coins -= 1;
+                  await dbU2.save();
+                  io.to(user2.socketId).emit('coins_deducted', { amount: 1, balance: dbU2.coins });
+              }
+          }
+      } catch(e) { console.error("Coin deduction error", e); }
       
       const roomId = `random_${Date.now()}_${Math.random().toString(36).substring(2,8)}`;
       activeRandomChats.set(roomId, { user1, user2 });
@@ -1050,14 +1115,24 @@ io.on('connection', (socket) => {
         const userIndex = randomChatQueue.findIndex(u => u.userId === userId);
         if (userIndex !== -1) {
           // Remove from queue
+          const meInQueue = randomChatQueue[userIndex];
           randomChatQueue.splice(userIndex, 1);
           
-          let userGender = 'male';
-          try {
-             const u = await User.findById(userId).select('gender').lean();
-             if (u && u.gender) userGender = u.gender.toLowerCase();
-          } catch(e) {}
-          const botGender = userGender === 'female' ? 'male' : 'female';
+          let botGender = meInQueue.userGender === 'female' ? 'male' : 'female';
+          
+          if (meInQueue.genderFilter !== 'any') {
+              botGender = meInQueue.genderFilter; // Force bot to be the requested gender
+              
+              // Deduct coin
+              try {
+                  const dbU1 = await User.findById(userId);
+                  if (dbU1 && dbU1.coins >= 1) {
+                      dbU1.coins -= 1;
+                      await dbU1.save();
+                      io.to(socket.id).emit('coins_deducted', { amount: 1, balance: dbU1.coins });
+                  }
+              } catch(e) {}
+          }
           
           // Match with Bot!
           const roomId = `bot_room_${Date.now()}_${userId}`;

@@ -85,6 +85,7 @@ export default function Dashboard() {
   const [randomSearchTimer, setRandomSearchTimer] = useState(0);
   const [matchFailed, setMatchFailed] = useState(false);
   const [globeSearchFails, setGlobeSearchFails] = useState(0);
+  const [genderFilter, setGenderFilter] = useState('any');
   const [anonymousRoomId, setAnonymousRoomId] = useState(null);
   const [anonymousPartnerId, setAnonymousPartnerId] = useState(null);
   const [anonymousMessages, setAnonymousMessages] = useState([]);
@@ -402,6 +403,10 @@ export default function Dashboard() {
     socket.on('anonymous_chat_ended', () => {
       setIsAnonymousChatActive(false);
       setAnonymousMessages(prev => [...prev, { _id: `sys-${Date.now()}`, message: 'Stranger has disconnected.', isSystem: true }]);
+    });
+
+    socket.on('coins_deducted', ({ amount, balance }) => {
+      setCoins(balance);
     });
 
     socket.on('message_viewed', ({ messageId }) => {
@@ -1336,10 +1341,14 @@ export default function Dashboard() {
 
   const handleGlobeClick = () => {
     if (!isSearchingRandom) {
+      if (genderFilter !== 'any' && coins < 1) {
+        alert("Not enough coins! You need 1 coin to use the gender filter.");
+        return;
+      }
       setIsSearchingRandom(true);
       const isBotEligible = globeSearchFails >= 2;
       setRandomSearchTimer(isBotEligible ? 4 : 5);
-      if (socket) socket.emit('search_random', { userId: user.id, isBotEligible });
+      if (socket) socket.emit('search_random', { userId: user.id, isBotEligible, genderFilter });
     } else {
       setIsSearchingRandom(false);
       if (socket) socket.emit('cancel_search', user.id);
@@ -1446,8 +1455,30 @@ export default function Dashboard() {
                 </div>
               )}
               {!isSearchingRandom && !matchFailed && (
-                <div className="search-text" style={{ pointerEvents: 'auto' }}>
-                  Tap the globe to find a random chat!
+                <div className="search-text" style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                  <span>Tap the globe to find a random chat!</span>
+                  <div style={{ display: 'flex', gap: '10px', background: 'rgba(0,0,0,0.5)', padding: '10px', borderRadius: '15px', backdropFilter: 'blur(5px)', fontSize: '0.9rem' }}>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setGenderFilter('any'); }} 
+                      style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', background: genderFilter === 'any' ? 'var(--brand-blue)' : 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', transition: '0.3s' }}
+                    >
+                      Any (Free)
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setGenderFilter('male'); }} 
+                      style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', background: genderFilter === 'male' ? 'var(--brand-blue)' : 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.3s' }}
+                    >
+                      <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Felix" alt="Male" style={{width:'20px', height:'20px', borderRadius:'50%', background:'#fff'}} />
+                      Male (1 🪙)
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setGenderFilter('female'); }} 
+                      style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', background: genderFilter === 'female' ? 'var(--brand-blue)' : 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.3s' }}
+                    >
+                      <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Anita" alt="Female" style={{width:'20px', height:'20px', borderRadius:'50%', background:'#fff'}} />
+                      Female (1 🪙)
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
