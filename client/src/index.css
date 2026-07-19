@@ -377,8 +377,7 @@ input, button, textarea {
   top: 0;
   left: 0;
   width: 100%;
-  height: 100vh;
-  height: 100dvh;
+  height: var(--vvp-height, 100dvh);
   background: var(--bg-color);
   z-index: 40;
   display: flex;

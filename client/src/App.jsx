@@ -4,6 +4,7 @@ import io from 'socket.io-client';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
+import PrivacyPolicy from './components/PrivacyPolicy';
 
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
@@ -102,6 +103,7 @@ export default function App() {
           <Router>
             <Routes>
               <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" state={{ from: window.location.pathname }} />} />
             </Routes>
           </Router>

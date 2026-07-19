@@ -220,6 +220,24 @@ export default function Dashboard() {
   }, [activeTab, token]);
 
   useEffect(() => {
+    const handleResize = () => {
+      if (window.visualViewport) {
+        document.documentElement.style.setProperty('--vvp-height', `${window.visualViewport.height}px`);
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+          window.scrollTo(0, 0);
+        }
+      }
+    };
+    window.visualViewport?.addEventListener('resize', handleResize);
+    window.visualViewport?.addEventListener('scroll', handleResize);
+    handleResize();
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('scroll', handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!socket) return;
     
     socket.on('online_users', (users) => setOnlineUsers(users));
@@ -1415,7 +1433,7 @@ export default function Dashboard() {
                 </button>
               )}
               
-              <button className="settings-item-btn" onClick={() => alert("Privacy Policy: Your data is secure with Twelo.")}>
+              <button className="settings-item-btn" onClick={() => navigate('/privacy-policy')}>
                 Privacy Policy
               </button>
               
