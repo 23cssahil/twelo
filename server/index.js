@@ -714,7 +714,7 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
         ]
       };
     }
-    const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).limit(50);
+    const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).limit(query ? 50 : 5000);
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching users' });

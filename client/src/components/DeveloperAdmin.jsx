@@ -64,6 +64,20 @@ export default function DeveloperAdmin() {
     }
   };
 
+  const handleLoadAll = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/users`, {
+        headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleBlockUser = async (userId, isCurrentlyBlocked) => {
     const confirmMessage = isCurrentlyBlocked 
       ? "Are you sure you want to unblock this user?" 
@@ -212,6 +226,7 @@ export default function DeveloperAdmin() {
                 style={{ flex: 1 }}
               />
               <button type="submit" className="dev-btn-primary">Search</button>
+              <button type="button" onClick={handleLoadAll} className="dev-btn-secondary" style={{ backgroundColor: '#222' }}>Load All Users</button>
             </form>
 
             <div className="dev-user-list">

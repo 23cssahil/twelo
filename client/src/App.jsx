@@ -53,7 +53,18 @@ export default function App() {
         newSocket.emit('register', user.id);
       });
 
+      newSocket.on('system_alert', (data) => {
+        alert(`[System Broadcast]: ${data.message}`);
+      });
+
+      newSocket.on('force_logout', (data) => {
+        alert(data.message);
+        logout();
+      });
+
       return () => {
+        newSocket.off('system_alert');
+        newSocket.off('force_logout');
         newSocket.disconnect();
       };
     } else {
