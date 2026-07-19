@@ -692,7 +692,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle incoming private message
-  socket.on('send_message', async ({ senderId, receiverId, messageText, replyTo, messageType = 'text', fileUrl = null }) => {
+  socket.on('send_message', async ({ senderId, receiverId, messageText, replyTo, messageType = 'text', fileUrl = null, isViewOnce = false }) => {
     try {
       const message = new Message({
         sender: senderId,
@@ -700,7 +700,8 @@ io.on('connection', (socket) => {
         message: messageText,
         replyTo: replyTo,
         messageType: messageType,
-        fileUrl: fileUrl
+        fileUrl: fileUrl,
+        isViewOnce: isViewOnce
       });
       await message.save();
 
@@ -715,6 +716,8 @@ io.on('connection', (socket) => {
         replyTo: replyTo,
         messageType: messageType,
         fileUrl: fileUrl,
+        isViewOnce: isViewOnce,
+        isViewed: false,
         createdAt: message.createdAt
       };
 
@@ -875,6 +878,22 @@ io.on('connection', (socket) => {
   });
 
   // Handle user disconnect
+  socket.on('mark_viewed', async ({ messageId, receiverId, senderId }) => {
+    try {
+      await Message.findByIdAndUpdate(messageId, { isViewed: true });
+      const senderSocketId = onlineUsers.get(senderId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit('message_viewed', { messageId, receiverId });
+      }
+      const receiverSocketId = onlineUsers.get(receiverId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('message_viewed', { messageId, receiverId });
+      }
+    } catch (error) {
+      console.error('Error marking viewed:', error);
+    }
+  });
+
   socket.on('disconnect', () => {
     randomChatQueue = randomChatQueue.filter(u => u.socketId !== socket.id);
     

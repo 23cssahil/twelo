@@ -29,6 +29,14 @@ const MessageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   }],
+  isViewOnce: {
+    type: Boolean,
+    default: false,
+  },
+  isViewed: {
+    type: Boolean,
+    default: false,
+  },
   replyTo: {
     messageId: { type: String },
     messageText: { type: String },

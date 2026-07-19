@@ -147,6 +147,9 @@ export default function Dashboard() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+  
+  const [previewImage, setPreviewImage] = useState(null);
+  const [isViewOnce, setIsViewOnce] = useState(false);
 
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, msgId: null, isSender: false });
   const pressTimerRef = useRef(null);
@@ -380,6 +383,11 @@ export default function Dashboard() {
     socket.on('anonymous_chat_ended', () => {
       setIsAnonymousChatActive(false);
       setAnonymousMessages(prev => [...prev, { _id: `sys-${Date.now()}`, message: 'Stranger has disconnected.', isSystem: true }]);
+    });
+
+    socket.on('message_viewed', ({ messageId }) => {
+      setMessages(prev => prev.map(msg => msg._id === messageId ? { ...msg, isViewed: true } : msg));
+      fetchRecentChats();
     });
 
     return () => {
@@ -690,17 +698,41 @@ export default function Dashboard() {
     }
   };
 
-  const handleImageSelect = async (e) => {
+  const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setPreviewImage(file);
+      setIsViewOnce(false);
+    }
+  };
+
+  const confirmSendImage = async () => {
+    if (previewImage) {
       setIsUploading(true);
-      const url = await uploadFile(file);
+      const url = await uploadFile(previewImage);
       setIsUploading(false);
+      setPreviewImage(null);
       if (url) {
-        socket.emit('send_message', { senderId: user.id, receiverId: activeChatUser._id, messageText: '', messageType: 'image', fileUrl: url, replyTo: null });
+        socket.emit('send_message', { 
+          senderId: user.id, 
+          receiverId: activeChatUser._id, 
+          messageText: '', 
+          messageType: 'image', 
+          fileUrl: url, 
+          replyTo: replyToMessage?._id || null,
+          isViewOnce: isViewOnce
+        });
+        setReplyToMessage(null);
         fetchRecentChats();
       }
     }
+  };
+
+  const cancelImageSend = () => {
+    setPreviewImage(null);
+    setIsViewOnce(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
   const startRecording = async () => {
@@ -1602,12 +1634,30 @@ export default function Dashboard() {
 
                           {msg.messageType === 'image' && (
                             <div className="msg-image-container" style={{ marginTop: '5px', marginBottom: '5px' }}>
-                              <img 
-                                src={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`} 
-                                alt="Sent Photo" 
-                                style={{ maxWidth: '100%', borderRadius: '10px', cursor: 'pointer' }} 
-                                onClick={() => setFullScreenMedia(msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`)}
-                              />
+                              {msg.isViewOnce ? (
+                                msg.isViewed ? (
+                                  <div style={{ padding: '10px 20px', background: 'rgba(255,255,255,0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', color: '#a8a8a8' }}>
+                                    <ImageIcon size={18} /> Opened
+                                  </div>
+                                ) : (
+                                  <button onClick={() => {
+                                    if (msg.sender !== user.id) {
+                                      socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id, senderId: msg.sender });
+                                      msg.isViewed = true; // Optimistic update
+                                    }
+                                    setFullScreenMedia(msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`);
+                                  }} style={{ padding: '10px 20px', background: 'var(--brand-blue)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                                    <ImageIcon size={18} /> View Photo
+                                  </button>
+                                )
+                              ) : (
+                                <img 
+                                  src={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`} 
+                                  alt="Sent Photo" 
+                                  style={{ maxWidth: '100%', borderRadius: '10px', cursor: 'pointer' }} 
+                                  onClick={() => setFullScreenMedia(msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`)}
+                                />
+                              )}
                             </div>
                           )}
 
@@ -2086,6 +2136,36 @@ export default function Dashboard() {
             </button>
           </div>
           <img src={fullScreenMedia} alt="Full Screen" style={{ maxWidth: '95%', maxHeight: '90%', objectFit: 'contain' }} />
+        </div>
+      )}
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          background: 'rgba(0,0,0,0.95)', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
+            <button onClick={cancelImageSend} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
+              <X size={28} />
+            </button>
+          </div>
+          <img src={URL.createObjectURL(previewImage)} alt="Preview" style={{ maxWidth: '90%', maxHeight: '70%', borderRadius: '10px', objectFit: 'contain' }} />
+          
+          <div style={{ marginTop: '30px', display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#fff', cursor: 'pointer', fontSize: '1.1rem' }}>
+              <input 
+                type="checkbox" 
+                checked={isViewOnce} 
+                onChange={(e) => setIsViewOnce(e.target.checked)} 
+                style={{ width: '20px', height: '20px' }}
+              />
+              Send as View Once (Disappears after opening)
+            </label>
+            <button onClick={confirmSendImage} disabled={isUploading} style={{ background: 'var(--brand-blue)', color: '#fff', padding: '15px 40px', borderRadius: '30px', border: 'none', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {isUploading ? 'Sending...' : <><Send size={20} /> Send Photo</>}
+            </button>
+          </div>
         </div>
       )}
 
