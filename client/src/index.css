@@ -903,8 +903,10 @@ input, button, textarea {
 }
 
 .premium-stat-box {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(145deg, rgba(30, 30, 30, 0.6), rgba(15, 15, 15, 0.8));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   padding: 16px 24px;
   display: flex;
@@ -912,14 +914,16 @@ input, button, textarea {
   align-items: center;
   min-width: 110px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 2px rgba(255,255,255,0.1);
 }
 
 .premium-stat-box:hover {
-  background: rgba(255, 255, 255, 0.08);
-  transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(145deg, rgba(40, 40, 40, 0.7), rgba(20, 20, 20, 0.9));
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255,255,255,0.15);
 }
 
 .stat-number {
@@ -950,9 +954,14 @@ input, button, textarea {
 
 .settings-modal {
   max-width: 350px !important;
-  background: #1a1a1a !important;
+  background: linear-gradient(145deg, #1f1f1f, #121212) !important;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-top: 1px solid rgba(255,255,255,0.15);
+  border-left: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 16px 64px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.05);
   padding: 0 !important;
   overflow: hidden;
+  border-radius: 20px !important;
 }
 
 .settings-modal .modal-header {
@@ -1026,20 +1035,24 @@ input, button, textarea {
   font-weight: 600;
   cursor: pointer;
   flex: 1;
-  border: none;
-  transition: opacity 0.2s;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 .premium-btn:hover {
-  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
 }
 
 .premium-btn.primary {
-  background: var(--brand-blue);
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-hover));
   color: #fff;
+  border-top: 1px solid rgba(255,255,255,0.2);
 }
 
 .premium-btn.secondary {
-  background: #333;
+  background: linear-gradient(135deg, #333, #222);
   color: #fff;
+  border: 1px solid rgba(255,255,255,0.1);
 }

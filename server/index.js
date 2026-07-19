@@ -208,6 +208,17 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
   }
 });
 
+// Get Public Profile by Unique ID
+app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests');
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching public profile' });
+  }
+});
+
 // Get Incoming Requests
 app.get('/api/users/requests', authenticateToken, async (req, res) => {
   try {
@@ -388,7 +399,8 @@ io.on('connection', (socket) => {
       if (receiverSocketId) {
         io.to(receiverSocketId).emit('receive_message', payload);
       }
-      if (senderSocketId) {
+      // Only echo to sender if they are on a different device/tab
+      if (senderSocketId && senderSocketId !== socket.id) {
         io.to(senderSocketId).emit('receive_message', payload);
       }
     } catch (err) {

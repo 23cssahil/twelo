@@ -2,11 +2,14 @@ import React, { useState, useContext } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { AuthContext } from '../App';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function Login() {
   const { login, API_URL } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from || '/';
+  
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -39,7 +42,7 @@ export default function Login() {
         setIsNewUser(true);
       } else {
         login(data.user, data.token);
-        navigate('/');
+        navigate(from);
       }
     } catch (err) {
       setError(err.message);
@@ -70,12 +73,12 @@ export default function Login() {
       
       const data = await res.json();
       
-      if (!res.ok) {
-        throw new Error(data.message || 'Failed to create profile');
+      if (res.ok) {
+        login(data.user, data.token);
+        navigate(from);
+      } else {
+        setError(data.message || 'Failed to complete profile');
       }
-
-      login(data.user, data.token);
-      navigate('/');
     } catch (err) {
       setError(err.message);
     } finally {

@@ -211,6 +211,30 @@ export default function Dashboard() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Deep Link check on load
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/u/')) {
+      const uId = path.split('/')[2];
+      if (uId) {
+        const viewSharedProfile = async () => {
+          try {
+            const res = await fetch(`${API_URL}/api/users/public_profile_by_uid/${uId}`, { headers: { Authorization: `Bearer ${token}` } });
+            const data = await res.json();
+            if (res.ok) {
+              setPublicProfileData(data);
+              setActiveTab('publicProfile');
+            }
+          } catch (error) {
+            console.error(error);
+          }
+          window.history.replaceState({}, '', '/');
+        };
+        viewSharedProfile();
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (activeChatUser) fetchMessages(activeChatUser._id);
   }, [activeChatUser]);
@@ -318,7 +342,18 @@ export default function Dashboard() {
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeChatUser || !socket) return;
-    socket.emit('send_message', { senderId: user.id, receiverId: activeChatUser._id, messageText: newMessage });
+    const msgData = { senderId: user.id, receiverId: activeChatUser._id, messageText: newMessage };
+    socket.emit('send_message', msgData);
+    
+    // Optimistic UI update
+    setMessages(prev => [...prev, { 
+      _id: `temp-${Date.now()}`,
+      sender: user.id, 
+      receiver: activeChatUser._id, 
+      message: newMessage, 
+      createdAt: new Date().toISOString() 
+    }]);
+
     setNewMessage('');
   };
 
@@ -329,6 +364,16 @@ export default function Dashboard() {
       messageText: messageText
     };
     socket.emit('send_message', msgData);
+    
+    if (activeChatUser && activeChatUser._id === targetId) {
+      setMessages(prev => [...prev, {
+        _id: `temp-call-${Date.now()}`,
+        sender: user.id,
+        receiver: targetId,
+        message: messageText,
+        createdAt: new Date().toISOString()
+      }]);
+    }
   };
 
   const finalizeCallLog = () => {
@@ -785,7 +830,7 @@ export default function Dashboard() {
       case 'profile':
         return (
           <div className="profile-container" style={{ position: 'relative' }}>
-            <div className="profile-header-actions" style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10 }}>
+            <div className="profile-header-actions" style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}>
               <button className="icon-btn settings-btn" onClick={() => { setEditUsernameMode(false); setShowSettingsModal(true); }}>
                 <Menu size={24} />
               </button>
@@ -820,6 +865,33 @@ export default function Dashboard() {
                     <div className="profile-id-value">
                       <span>{user.uniqueId}</span>
                       <UserCheck size={20} style={{ color: 'var(--brand-blue)' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button 
+                        className="premium-btn secondary" 
+                        style={{ fontSize: '0.8rem', padding: '8px' }}
+                        onClick={() => {
+                          navigator.clipboard.writeText(user.uniqueId);
+                          alert('ID Copied!');
+                        }}
+                      >
+                        Copy ID
+                      </button>
+                      <button 
+                        className="premium-btn primary" 
+                        style={{ fontSize: '0.8rem', padding: '8px' }}
+                        onClick={() => {
+                          const url = `${window.location.origin}/u/${user.uniqueId}`;
+                          if (navigator.share) {
+                            navigator.share({ title: 'Twelo Profile', url });
+                          } else {
+                            navigator.clipboard.writeText(url);
+                            alert('Profile Link Copied!');
+                          }
+                        }}
+                      >
+                        Share Profile
+                      </button>
                     </div>
                   </div>
                 </div>

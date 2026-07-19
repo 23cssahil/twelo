@@ -102,7 +102,7 @@ export default function App() {
           <Router>
             <Routes>
               <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
-              <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" />} />
+              <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" state={{ from: window.location.pathname }} />} />
             </Routes>
           </Router>
         </SocketContext.Provider>
