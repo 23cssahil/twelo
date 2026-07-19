@@ -21,6 +21,7 @@ import {
   Bell
 } from 'lucide-react';
 import Peer from 'simple-peer';
+import Globe from 'react-globe.gl';
 import { AuthContext, SocketContext } from '../App';
 
 export default function Dashboard() {
@@ -86,10 +87,29 @@ export default function Dashboard() {
   const ringtoneOutRef = useRef(null);
   const ringtoneInRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const globeEl = useRef(null);
   
   const isCallerRef = useRef(false);
   const callStartTimeRef = useRef(null);
   const activeCallTargetRef = useRef(null);
+
+  const [gyro, setGyro] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleOrientation = (e) => {
+      let x = e.gamma || 0; // -90 to 90 (left-right)
+      let y = e.beta || 0;  // -180 to 180 (front-back)
+      // Restrict movement range for subtle parallax
+      x = Math.max(-25, Math.min(25, x));
+      y = Math.max(-25, Math.min(25, y));
+      setGyro({ x, y });
+    };
+    
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener('deviceorientation', handleOrientation);
+    }
+    return () => window.removeEventListener('deviceorientation', handleOrientation);
+  }, []);
 
   const handleUpdateUsername = async () => {
     setUsernameError('');
@@ -231,8 +251,14 @@ export default function Dashboard() {
       socket.off('anonymous_chat_ended');
     };
   }, [socket, activeChatUser, user, activeTab, searchQuery]);
-  // Matchmaking Timer
+  // Matchmaking Timer and Globe auto-rotate
   useEffect(() => {
+    if (globeEl.current) {
+      globeEl.current.controls().autoRotate = true;
+      globeEl.current.controls().autoRotateSpeed = isSearchingRandom ? 6.0 : 1.5;
+      globeEl.current.controls().enableZoom = false;
+    }
+
     let interval;
     if (isSearchingRandom && randomSearchTimer > 0) {
       interval = setInterval(() => setRandomSearchTimer(prev => prev - 1), 1000);
@@ -241,7 +267,7 @@ export default function Dashboard() {
       if (socket) socket.emit('cancel_search', user.id);
     }
     return () => clearInterval(interval);
-  }, [isSearchingRandom, randomSearchTimer, socket, user]);
+  }, [isSearchingRandom, randomSearchTimer, socket, user, activeTab]);
 
   // Handle hardware back button
   useEffect(() => {
@@ -680,11 +706,31 @@ export default function Dashboard() {
               <span>{coins}</span>
             </div>
 
-            <div className="globe-wrapper">
+            <div 
+              className="globe-wrapper"
+              style={{
+                transform: `translate(${gyro.x}px, ${gyro.y}px)`,
+                transition: 'transform 0.1s ease-out'
+              }}
+            >
               <div 
-                className={`globe ${isSearchingRandom ? 'searching' : ''}`} 
+                style={{ 
+                  cursor: 'pointer',
+                  filter: isSearchingRandom ? 'drop-shadow(0 0 40px rgba(0,191,255,1))' : 'drop-shadow(0 0 20px rgba(0,191,255,0.4))',
+                  transition: 'filter 0.3s'
+                }}
                 onClick={handleGlobeClick}
-              ></div>
+              >
+                <Globe
+                  ref={globeEl}
+                  width={320}
+                  height={320}
+                  globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+                  bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+                  backgroundColor="rgba(0,0,0,0)"
+                  onGlobeClick={handleGlobeClick}
+                />
+              </div>
               
               {isSearchingRandom && (
                 <>
