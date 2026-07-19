@@ -29,7 +29,8 @@ import {
   Play,
   Square,
   Pause,
-  Flag
+  Flag,
+  Loader2
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -103,6 +104,7 @@ export default function Dashboard() {
   const [reportReason, setReportReason] = useState('Spam');
   const [reportTarget, setReportTarget] = useState(null); // { id, username, isAnonymous }
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   // Calling States
   const [callActive, setCallActive] = useState(false);
@@ -918,14 +920,18 @@ export default function Dashboard() {
         })
       });
       if (res.ok) {
-        alert("Report submitted successfully. Our team will review this chat.");
-        setShowReportModal(false);
-        setReportTarget(null);
+        setReportSuccess(true);
+        setTimeout(() => {
+          setShowReportModal(false);
+          setReportTarget(null);
+          setReportSuccess(false);
+        }, 2000);
+      } else {
+        console.error("Failed to submit report");
+        setIsSubmittingReport(false);
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to submit report.");
-    } finally {
       setIsSubmittingReport(false);
     }
   };
@@ -2349,42 +2355,50 @@ export default function Dashboard() {
       )}
 
       {showReportModal && (
-        <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
+        <div className="modal-overlay" onClick={() => !isSubmittingReport && !reportSuccess && setShowReportModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Report {reportTarget?.username}</h2>
-              <button className="icon-btn" onClick={() => setShowReportModal(false)}><X size={24} /></button>
+              <button className="icon-btn" onClick={() => !isSubmittingReport && !reportSuccess && setShowReportModal(false)}><X size={24} /></button>
             </div>
-            <div style={{ padding: '20px 0' }}>
-              <p style={{ color: '#a8a8a8', marginBottom: '15px', fontSize: '0.9rem' }}>
-                Please select a reason for reporting. A snapshot of your current chat will be securely sent to our admin team for review.
-              </p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {['Sexual Harassment', 'Spam / Scams', 'Abuse / Insult', 'Other Inappropriate Behavior'].map(reason => (
-                  <label key={reason} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1a1a1a', padding: '12px', borderRadius: '8px', cursor: 'pointer', border: reportReason === reason ? '1px solid var(--brand-blue)' : '1px solid #333' }}>
-                    <input 
-                      type="radio" 
-                      name="reportReason" 
-                      value={reason} 
-                      checked={reportReason === reason} 
-                      onChange={() => setReportReason(reason)}
-                      style={{ accentColor: 'var(--brand-blue)', width: '18px', height: '18px' }}
-                    />
-                    <span style={{ color: '#fff' }}>{reason}</span>
-                  </label>
-                ))}
+            {reportSuccess ? (
+              <div style={{ padding: '30px 0', textAlign: 'center' }}>
+                <Check size={48} color="#10b981" style={{ marginBottom: '15px' }} />
+                <h3 style={{ color: '#10b981' }}>Report Submitted</h3>
+                <p style={{ color: '#a8a8a8', marginTop: '10px' }}>Our team will review this chat shortly.</p>
               </div>
-              
-              <button 
-                onClick={handleReportSubmit} 
-                disabled={isSubmittingReport}
-                className="btn-primary" 
-                style={{ width: '100%', marginTop: '20px', background: '#ff4b4b', color: 'white' }}
-              >
-                {isSubmittingReport ? <Loader2 className="spin" size={20} /> : 'Submit Report'}
-              </button>
-            </div>
+            ) : (
+              <div style={{ padding: '20px 0' }}>
+                <p style={{ color: '#a8a8a8', marginBottom: '15px', fontSize: '0.9rem' }}>
+                  Please select a reason for reporting. A snapshot of your current chat will be securely sent to our admin team for review.
+                </p>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {['Sexual Harassment', 'Spam / Scams', 'Abuse / Insult', 'Other Inappropriate Behavior'].map(reason => (
+                    <label key={reason} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1a1a1a', padding: '12px', borderRadius: '8px', cursor: 'pointer', border: reportReason === reason ? '1px solid var(--brand-blue)' : '1px solid #333' }}>
+                      <input 
+                        type="radio" 
+                        name="reportReason" 
+                        value={reason} 
+                        checked={reportReason === reason} 
+                        onChange={() => setReportReason(reason)}
+                        style={{ accentColor: 'var(--brand-blue)', width: '18px', height: '18px' }}
+                      />
+                      <span style={{ color: '#fff' }}>{reason}</span>
+                    </label>
+                  ))}
+                </div>
+                
+                <button 
+                  onClick={handleReportSubmit} 
+                  disabled={isSubmittingReport}
+                  className="btn-primary" 
+                  style={{ width: '100%', marginTop: '20px', background: '#ff4b4b', color: 'white' }}
+                >
+                  {isSubmittingReport ? <Loader2 className="spin" size={20} /> : 'Submit Report'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
