@@ -21,7 +21,13 @@ import {
   Bell,
   Mic,
   MicOff,
-  SwitchCamera
+  SwitchCamera,
+  Image as ImageIcon,
+  MoreVertical,
+  Trash2,
+  Play,
+  Square,
+  Pause
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -127,6 +133,20 @@ export default function Dashboard() {
   const activeCallTargetRef = useRef(null);
 
   const [gyro, setGyro] = useState({ x: 0, y: 0 });
+
+  // Media & Context Menu State
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const timerRef = useRef(null);
+
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, msgId: null, isSender: false });
+  const pressTimerRef = useRef(null);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteUsernameInput, setDeleteUsernameInput] = useState('');
@@ -268,6 +288,11 @@ export default function Dashboard() {
           setUnreadMessages(prev => ({...prev, [msg.sender]: (prev[msg.sender] || 0) + 1}));
         }
       }
+      fetchRecentChats();
+    });
+
+    socket.on('message_deleted', ({ messageId, type }) => {
+      setMessages(prev => prev.filter(m => m._id !== messageId));
       fetchRecentChats();
     });
 
@@ -643,6 +668,79 @@ export default function Dashboard() {
     } catch (err) { console.error(err); }
   };
 
+  const uploadFile = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`${API_URL}/api/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      return data.url;
+    } catch (err) {
+      console.error('Upload failed', err);
+      return null;
+    }
+  };
+
+  const handleImageSelect = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setIsUploading(true);
+      const url = await uploadFile(file);
+      setIsUploading(false);
+      if (url) {
+        socket.emit('send_message', { senderId: user.id, receiverId: activeChatUser._id, messageText: '', messageType: 'image', fileUrl: url, replyTo: null });
+        fetchRecentChats();
+      }
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const file = new File([audioBlob], 'audio.webm', { type: 'audio/webm' });
+        setIsUploading(true);
+        const url = await uploadFile(file);
+        setIsUploading(false);
+        if (url) {
+          socket.emit('send_message', { senderId: user.id, receiverId: activeChatUser._id, messageText: '', messageType: 'audio', fileUrl: url, replyTo: null });
+          fetchRecentChats();
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error('Error starting recording', error);
+      alert('Microphone access is required for voice notes.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      clearInterval(timerRef.current);
+      setIsRecording(false);
+    }
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeChatUser || !socket) return;
@@ -653,7 +751,7 @@ export default function Dashboard() {
       senderName: replyingTo.sender === user.id ? 'You' : activeChatUser.username
     } : null;
 
-    const msgData = { senderId: user.id, receiverId: activeChatUser._id, messageText: newMessage, replyTo: replyToObj };
+    const msgData = { senderId: user.id, receiverId: activeChatUser._id, messageText: newMessage, messageType: 'text', fileUrl: null, replyTo: replyToObj };
     socket.emit('send_message', msgData);
     
     // Optimistic UI update
@@ -670,12 +768,36 @@ export default function Dashboard() {
     setReplyingTo(null);
   };
 
-  const handleTouchStart = (e, msgId) => {
+  const handleLongPress = (msg) => {
+    setContextMenu({
+      visible: true,
+      msgId: msg._id,
+      isSender: msg.sender === user.id
+    });
+  };
+
+  const deleteMessage = (type) => {
+    if (contextMenu.msgId && socket) {
+      socket.emit('delete_message', { messageId: contextMenu.msgId, type, userId: user.id });
+    }
+    setContextMenu({ visible: false, msgId: null, isSender: false });
+  };
+
+  const handleTouchStart = (e, msg) => {
     swipeStartX.current = e.touches[0].clientX;
-    setSwipeMsgId(msgId);
+    setSwipeMsgId(msg._id);
+    pressTimerRef.current = setTimeout(() => {
+      handleLongPress(msg);
+      swipeStartX.current = null;
+      setSwipeMsgId(null);
+    }, 600); // 600ms for long press
   };
 
   const handleTouchMove = (e, msg, isSent) => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
     if (!swipeStartX.current) return;
     const currentX = e.touches[0].clientX;
     const diff = currentX - swipeStartX.current;
@@ -689,6 +811,10 @@ export default function Dashboard() {
   };
 
   const handleTouchEnd = (e, msg, isSent) => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
     if (swipeCurrentX.current !== null) {
       const diff = swipeCurrentX.current;
       // Threshold 50px
@@ -1141,6 +1267,16 @@ export default function Dashboard() {
                     <div className={`msg-bubble ${msg.isSystem ? 'system-bubble' : ''}`} style={msg.isSystem ? { background: 'transparent', color: '#888', textAlign: 'center', width: '100%', fontStyle: 'italic' } : {}}>
                       <div>{msg.message}</div>
                     </div>
+                    
+                    {/* Context Menu for Delete */}
+                    {contextMenu.visible && contextMenu.msgId === msg._id && (
+                      <div className="msg-context-menu">
+                        <button onClick={() => deleteMessage('me')} className="context-btn"><Trash2 size={14} /> Delete for me</button>
+                        {contextMenu.isSender && (
+                          <button onClick={() => deleteMessage('everyone')} className="context-btn" style={{ color: '#ff4b4b' }}><Trash2 size={14} /> Delete for everyone</button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
                 <div ref={messagesEndRef} />
@@ -1148,19 +1284,52 @@ export default function Dashboard() {
 
               {isAnonymousChatActive ? (
                 <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
-                  <div className="chat-input-wrapper">
-                    <input
-                      type="text"
-                      placeholder="Type a message..."
-                      className="chat-text-input"
+                  {isRecording && (
+                    <div className="recording-indicator" style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ff4b4b', padding: '0 10px' }}>
+                      <div className="recording-dot" style={{ width: '10px', height: '10px', background: '#ff4b4b', borderRadius: '50%', animation: 'pulse 1s infinite' }} />
+                      {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                    </div>
+                  )}
+                  
+                  {!isRecording && (
+                    <input 
+                      type="text" 
+                      placeholder="Message..." 
+                      className="msg-input-field" 
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      required
                     />
-                    {newMessage.trim() && (
-                      <button type="submit" className="chat-send-btn"><Send size={18} /></button>
-                    )}
-                  </div>
+                  )}
+
+                  {!newMessage.trim() && !isRecording && (
+                    <div className="media-actions" style={{ display: 'flex', gap: '10px', paddingRight: '10px' }}>
+                      <button type="button" className="media-btn" onClick={() => fileInputRef.current.click()}>
+                        <ImageIcon size={20} color="#a8a8a8" />
+                      </button>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        onChange={handleImageSelect} 
+                      />
+                      <button type="button" className="media-btn" onClick={startRecording}>
+                        <Mic size={20} color="#a8a8a8" />
+                      </button>
+                    </div>
+                  )}
+
+                  {isRecording && (
+                    <button type="button" className="send-msg-btn" onClick={stopRecording} style={{ background: '#ff4b4b', color: 'white', marginRight: '5px' }}>
+                      <Square size={20} />
+                    </button>
+                  )}
+
+                  {newMessage.trim() && !isRecording && (
+                    <button type="submit" className="send-msg-btn" disabled={isUploading}>
+                      {isUploading ? <span style={{ fontSize: '12px' }}>...</span> : <Send size={20} />}
+                    </button>
+                  )}
                 </form>
               ) : (
                 <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)' }}>
@@ -1401,7 +1570,7 @@ export default function Dashboard() {
                   <div className="chat-messages-area">
                     {messages.map((msg) => (
                       <div key={msg._id} className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`} 
-                        onTouchStart={(e) => handleTouchStart(e, msg._id)}
+                        onTouchStart={(e) => handleTouchStart(e, msg)}
                         onTouchMove={(e) => handleTouchMove(e, msg, msg.sender === user.id)}
                         onTouchEnd={(e) => handleTouchEnd(e, msg, msg.sender === user.id)}
                       >
@@ -1411,11 +1580,28 @@ export default function Dashboard() {
                                const el = document.getElementById(`msg-bubble-${msg.replyTo.messageId}`);
                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             }}>
-                              <div className="msg-reply-sender">{msg.replyTo.senderName}</div>
-                              <div className="msg-reply-text">{msg.replyTo.messageText}</div>
+                              <div className="reply-preview">
+                                <span className="reply-sender">{msg.replyTo.senderName}</span>
+                                <p>{msg.replyTo.messageText || (msg.replyTo.messageType === 'image' ? '📷 Photo' : '🎤 Voice Note')}</p>
+                              </div>
                             </div>
                           )}
-                          <div>{msg.message}</div>
+
+                          {msg.messageType === 'image' && (
+                            <div className="msg-image-container" style={{ marginTop: '5px', marginBottom: '5px' }}>
+                              <img src={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`} alt="Sent Photo" style={{ maxWidth: '100%', borderRadius: '10px' }} />
+                            </div>
+                          )}
+
+                          {msg.messageType === 'audio' && (
+                            <div className="msg-audio-container" style={{ marginTop: '5px', marginBottom: '5px' }}>
+                              <audio controls style={{ width: '200px', height: '40px' }}>
+                                <source src={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`} type="audio/webm" />
+                              </audio>
+                            </div>
+                          )}
+                          
+                          <p className="msg-text">{msg.message}</p>
                           <div className="msg-time">{formatTime(msg.createdAt)}</div>
                         </div>
                         {swipeMsgId === msg._id && (

@@ -7,6 +7,9 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const socketIo = require('socket.io');
 const { OAuth2Client } = require('google-auth-library');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const googleClient = new OAuth2Client('440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com');
 
@@ -44,6 +47,33 @@ const io = socketIo(server, {
 
 app.use(cors());
 app.use(express.json());
+
+// Setup Uploads directory
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+app.use('/uploads', express.static(uploadsDir));
+
+// Configure multer storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/')
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname))
+  }
+});
+const upload = multer({ storage: storage });
+
+// Upload Endpoint
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded' });
+  }
+  const fileUrl = `/uploads/${req.file.filename}`;
+  res.json({ url: fileUrl });
+});
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://23cssahil_db_user:xsBXlihiFfWrsEZY@cluster0.pmn7via.mongodb.net/twelo_db?retryWrites=true&w=majority&appName=Cluster0')
@@ -576,9 +606,14 @@ app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
     const currentUserId = req.user.userId;
 
     const messages = await Message.find({
-      $or: [
-        { sender: currentUserId, receiver: otherUserId },
-        { sender: otherUserId, receiver: currentUserId }
+      $and: [
+        {
+          $or: [
+            { sender: currentUserId, receiver: otherUserId },
+            { sender: otherUserId, receiver: currentUserId }
+          ]
+        },
+        { deletedBy: { $ne: currentUserId } }
       ]
     }).sort({ createdAt: 1 });
 
@@ -624,9 +659,14 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
     // Fetch last message for each user to sort them
     for (let i = 0; i < users.length; i++) {
       const lastMsg = await Message.findOne({
-        $or: [
-          { sender: currentUserId, receiver: users[i]._id },
-          { sender: users[i]._id, receiver: currentUserId }
+        $and: [
+          {
+            $or: [
+              { sender: currentUserId, receiver: users[i]._id },
+              { sender: users[i]._id, receiver: currentUserId }
+            ]
+          },
+          { deletedBy: { $ne: currentUserId } }
         ]
       }).sort({ createdAt: -1 }).select('createdAt');
       users[i].lastMessageAt = lastMsg ? lastMsg.createdAt : new Date(0);
@@ -659,13 +699,15 @@ io.on('connection', (socket) => {
   });
 
   // Handle incoming private message
-  socket.on('send_message', async ({ senderId, receiverId, messageText, replyTo }) => {
+  socket.on('send_message', async ({ senderId, receiverId, messageText, replyTo, messageType = 'text', fileUrl = null }) => {
     try {
       const message = new Message({
         sender: senderId,
         receiver: receiverId,
         message: messageText,
-        replyTo: replyTo
+        replyTo: replyTo,
+        messageType: messageType,
+        fileUrl: fileUrl
       });
       await message.save();
 
@@ -678,6 +720,8 @@ io.on('connection', (socket) => {
         receiver: receiverId,
         message: messageText,
         replyTo: replyTo,
+        messageType: messageType,
+        fileUrl: fileUrl,
         createdAt: message.createdAt
       };
 
@@ -685,11 +729,39 @@ io.on('connection', (socket) => {
         io.to(receiverSocketId).emit('receive_message', payload);
       }
       // Only echo to sender if they are on a different device/tab
-      if (senderSocketId && senderSocketId !== socket.id) {
+      if (senderSocketId) {
         io.to(senderSocketId).emit('receive_message', payload);
       }
-    } catch (err) {
-      console.error('Error saving/sending message:', err);
+    } catch (error) {
+      console.error(error);
+    }
+  });
+
+  // Handle message deletion
+  socket.on('delete_message', async ({ messageId, type, userId }) => {
+    try {
+      const message = await Message.findById(messageId);
+      if (!message) return;
+
+      if (type === 'everyone') {
+        // Only sender can delete for everyone
+        if (message.sender.toString() === userId) {
+          await Message.findByIdAndDelete(messageId);
+          const receiverSocketId = onlineUsers.get(message.receiver.toString());
+          const senderSocketId = onlineUsers.get(message.sender.toString());
+          const payload = { messageId, type: 'everyone' };
+          
+          if (receiverSocketId) io.to(receiverSocketId).emit('message_deleted', payload);
+          if (senderSocketId) io.to(senderSocketId).emit('message_deleted', payload);
+        }
+      } else if (type === 'me') {
+        // Add to deletedBy array
+        await Message.findByIdAndUpdate(messageId, { $addToSet: { deletedBy: userId } });
+        const socketId = onlineUsers.get(userId);
+        if (socketId) io.to(socketId).emit('message_deleted', { messageId, type: 'me' });
+      }
+    } catch (error) {
+      console.error(error);
     }
   });
 

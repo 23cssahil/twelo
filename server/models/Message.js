@@ -13,8 +13,22 @@ const MessageSchema = new mongoose.Schema({
   },
   message: {
     type: String,
-    required: true,
+    required: false,
+    default: '',
   },
+  messageType: {
+    type: String,
+    enum: ['text', 'image', 'audio'],
+    default: 'text',
+  },
+  fileUrl: {
+    type: String,
+    default: null,
+  },
+  deletedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  }],
   replyTo: {
     messageId: { type: String },
     messageText: { type: String },
