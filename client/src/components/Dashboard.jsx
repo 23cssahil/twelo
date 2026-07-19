@@ -259,6 +259,9 @@ export default function Dashboard() {
       globeEl.current.controls().autoRotateSpeed = isSearchingRandom ? 6.0 : 1.5;
       globeEl.current.controls().enableZoom = false;
 
+      // Set camera distance to make the globe smaller
+      globeEl.current.pointOfView({ altitude: 3.5 });
+
       const scene = globeEl.current.scene();
       if (scene && !scene.userData.ambientAdded) {
         const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); // Bright ambient light removes all shadows
@@ -705,9 +708,24 @@ export default function Dashboard() {
     switch (activeTab) {
       case 'home':
         return (
-          <div className="space-container">
-            <div className="stars"></div>
-            <div className="twinkling"></div>
+          <div className="space-container" style={{ overflow: 'hidden' }}>
+            <div 
+              style={{ 
+                position: 'absolute', top: '-15vh', left: '0', width: '100%', height: '130vh', zIndex: 0,
+                transform: `translate(${gyro.x}px, ${gyro.y}px) scale(1.1)`,
+                transition: 'transform 0.1s ease-out'
+              }}
+            >
+               <Globe
+                  ref={globeEl}
+                  globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+                  backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+                  bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+                  backgroundColor="rgba(0,0,0,0)"
+                  showAtmosphere={false}
+                  onGlobeClick={handleGlobeClick}
+                />
+            </div>
             
             <div className="coin-display" style={{ zIndex: 10 }}>
               <Coins size={18} />
@@ -715,42 +733,35 @@ export default function Dashboard() {
             </div>
 
             <div 
-              className="globe-wrapper"
+              className="space-ui-layer"
               style={{
-                transform: `translate(${gyro.x}px, ${gyro.y}px)`,
-                transition: 'transform 0.1s ease-out',
-                marginTop: '15vh',
-                filter: isSearchingRandom ? 'drop-shadow(0 0 40px rgba(0,191,255,1))' : 'drop-shadow(0 0 20px rgba(0,191,255,0.4))',
+                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
                 zIndex: 5
               }}
             >
-              <Globe
-                ref={globeEl}
-                width={380}
-                height={380}
-                globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-                bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-                backgroundColor="rgba(0,0,0,0)"
-                showAtmosphere={false}
-                onGlobeClick={handleGlobeClick}
-              />
-            </div>
-            
-            <div 
-              className="space-ui-layer"
-              style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
-                zIndex: 10, marginTop: '20px'
-              }}
-            >
+              <div 
+                style={{ 
+                  marginTop: '58vh',
+                  cursor: 'pointer',
+                  pointerEvents: 'auto',
+                  filter: isSearchingRandom ? 'drop-shadow(0 0 40px rgba(0,191,255,1))' : 'drop-shadow(0 0 20px rgba(0,191,255,0.4))',
+                  transition: 'filter 0.3s',
+                  width: '300px', height: '300px',
+                  borderRadius: '50%'
+                }}
+                onClick={handleGlobeClick}
+              >
+              </div>
+              
               {isSearchingRandom && (
-                <div style={{ pointerEvents: 'auto', textAlign: 'center' }}>
+                <div style={{ pointerEvents: 'auto', textAlign: 'center', marginTop: '-180px', zIndex: 10 }}>
                   <div className="match-timer">{randomSearchTimer}s</div>
                   <div className="search-text">Looking for someone in the universe...</div>
                 </div>
               )}
               {!isSearchingRandom && (
-                <div className="search-text" style={{ pointerEvents: 'auto' }}>
+                <div className="search-text" style={{ pointerEvents: 'auto', marginTop: '-40px', zIndex: 10 }}>
                   Tap the globe to find a random chat!
                 </div>
               )}
