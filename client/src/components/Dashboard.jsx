@@ -37,6 +37,21 @@ import Globe from 'react-globe.gl';
 import * as THREE from 'three';
 import { AuthContext, SocketContext } from '../App';
 
+const CoinSVG = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="url(#goldGradient)" stroke="#B8860B" strokeWidth="1.5">
+    <defs>
+      <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#FFDF00" />
+        <stop offset="50%" stopColor="#D4AF37" />
+        <stop offset="100%" stopColor="#996515" />
+      </linearGradient>
+    </defs>
+    <circle cx="12" cy="12" r="10"></circle>
+    <circle cx="12" cy="12" r="7" fill="none" stroke="#D4AF37" strokeWidth="1"></circle>
+    <text x="12" y="16.5" fontSize="13" fontFamily="Arial, sans-serif" fontWeight="bold" fill="#FFF" textAnchor="middle" style={{textShadow: "1px 1px 2px #996515"}}>T</text>
+  </svg>
+);
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('home');
   const { user, token, logout } = useContext(AuthContext);
@@ -1430,7 +1445,7 @@ export default function Dashboard() {
             </div>
             
             <div className="coin-display" style={{ zIndex: 10 }}>
-              <Coins size={18} />
+              <CoinSVG size={18} />
               <span>{coins}</span>
             </div>
 
@@ -1468,15 +1483,15 @@ export default function Dashboard() {
                       onClick={(e) => { e.stopPropagation(); setGenderFilter('male'); }} 
                       style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', background: genderFilter === 'male' ? 'var(--brand-blue)' : 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.3s' }}
                     >
-                      <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Felix" alt="Male" style={{width:'20px', height:'20px', borderRadius:'50%', background:'#fff'}} />
-                      Male (1 🪙)
+                      <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Leo" alt="Male" style={{width:'20px', height:'20px', borderRadius:'50%', background:'#fff'}} />
+                      Male (1 <CoinSVG size={14} />)
                     </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); setGenderFilter('female'); }} 
                       style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', background: genderFilter === 'female' ? 'var(--brand-blue)' : 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.3s' }}
                     >
                       <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Anita" alt="Female" style={{width:'20px', height:'20px', borderRadius:'50%', background:'#fff'}} />
-                      Female (1 🪙)
+                      Female (1 <CoinSVG size={14} />)
                     </button>
                   </div>
                 </div>
