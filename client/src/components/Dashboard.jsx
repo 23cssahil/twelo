@@ -268,6 +268,7 @@ export default function Dashboard() {
       socket.off('receive_message');
       socket.off('new_notification');
       socket.off('request_accepted_alert');
+      socket.off('request_rejected_alert');
       socket.off('incoming_call');
       socket.off('call_accepted');
       socket.off('call_ended');
@@ -275,7 +276,7 @@ export default function Dashboard() {
       socket.off('receive_anonymous_message');
       socket.off('anonymous_chat_ended');
     };
-  }, [socket, activeChatUser, user, activeTab, searchQuery]);
+  }, [socket, activeChatUser, user, activeTab, searchQuery, publicProfileData]);
   // Matchmaking Timer and Globe auto-rotate
   useEffect(() => {
     if (globeEl.current) {
