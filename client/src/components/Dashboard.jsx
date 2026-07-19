@@ -781,6 +781,24 @@ export default function Dashboard() {
             replyTo: replyToMessage?._id || null,
             isViewOnce: isViewOnce
           });
+          
+          setMessages(prev => [...prev, { 
+            _id: `temp-${Date.now()}`,
+            sender: user.id, 
+            receiver: activeChatUser._id, 
+            message: '', 
+            messageType: 'image',
+            fileUrl: url,
+            replyTo: replyToMessage ? {
+              messageId: replyToMessage._id,
+              messageText: replyToMessage.message,
+              senderName: replyToMessage.sender === user.id ? 'You' : activeChatUser.username
+            } : null,
+            isViewOnce: isViewOnce,
+            isViewed: false,
+            createdAt: new Date().toISOString() 
+          }]);
+          
           setReplyToMessage(null);
           fetchRecentChats();
         }
@@ -820,6 +838,16 @@ export default function Dashboard() {
         setIsUploading(false);
         if (url) {
           socket.emit('send_message', { senderId: user.id, receiverId: activeChatUser._id, messageText: '', messageType: 'audio', fileUrl: url, replyTo: null });
+          setMessages(prev => [...prev, { 
+            _id: `temp-${Date.now()}`,
+            sender: user.id, 
+            receiver: activeChatUser._id, 
+            message: '', 
+            messageType: 'audio',
+            fileUrl: url,
+            replyTo: null,
+            createdAt: new Date().toISOString() 
+          }]);
           fetchRecentChats();
         }
       };
@@ -1410,15 +1438,7 @@ export default function Dashboard() {
                       <div>{msg.message}</div>
                     </div>
                     
-                    {/* Context Menu for Delete */}
-                    {contextMenu.visible && contextMenu.msgId === msg._id && (
-                      <div className="msg-context-menu">
-                        <button onClick={() => deleteMessage('me')} className="context-btn"><Trash2 size={14} /> Delete for me</button>
-                        {contextMenu.isSender && (
-                          <button onClick={() => deleteMessage('everyone')} className="context-btn" style={{ color: '#ff4b4b' }}><Trash2 size={14} /> Delete for everyone</button>
-                        )}
-                      </div>
-                    )}
+                    {/* Context Menu for Delete removed from anonymous chats (not supported) */}
                   </div>
                 ))}
                 <div ref={messagesEndRef} />
@@ -1739,6 +1759,17 @@ export default function Dashboard() {
                         {swipeMsgId === msg._id && (
                           <div className={`swipe-reply-icon ${msg.sender === user.id ? 'sent-icon' : 'received-icon'}`}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
+                          </div>
+                        )}
+                        
+                        {/* Context Menu for Delete */}
+                        {contextMenu.visible && contextMenu.msgId === msg._id && (
+                          <div className="msg-context-menu">
+                            <button onClick={() => deleteMessage('me')} className="context-btn"><Trash2 size={14} /> Delete for me</button>
+                            {contextMenu.isSender && (
+                              <button onClick={() => deleteMessage('everyone')} className="context-btn" style={{ color: '#ff4b4b' }}><Trash2 size={14} /> Delete for everyone</button>
+                            )}
+                            <button onClick={() => setContextMenu({ visible: false, msgId: null, isSender: false })} className="context-btn"><X size={14} /> Cancel</button>
                           </div>
                         )}
                       </div>
