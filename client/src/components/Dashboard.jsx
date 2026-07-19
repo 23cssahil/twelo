@@ -775,54 +775,67 @@ export default function Dashboard() {
 
       case 'anonymousChat':
         return (
-          <div className="messages-container" style={{ display: 'flex', flexDirection: 'column' }}>
-            <div className="anonymous-chat-header">
-              <button className="icon-btn" onClick={handleLeaveAnonymousChat}>
-                <ArrowLeft size={24} />
-              </button>
-              <h3 style={{ margin: 0, color: '#fff' }}>Stranger</h3>
-              <button 
-                className="friend-req-btn" 
-                onClick={handleSendAnonymousFriendRequest}
-                disabled={!isAnonymousChatActive || coins < 5}
-                title="Send Friend Request (Costs 5 Coins)"
-              >
-                <UserPlus size={18} /> Add Friend
-              </button>
-            </div>
-            
-            <div className="chat-messages-area" style={{ flex: 1, background: '#0a0a0a' }}>
-              {anonymousMessages.map((msg) => (
-                <div key={msg._id} className={`msg-wrapper ${msg.isSystem ? 'system' : (msg.senderSocket === socket?.id ? 'sent' : 'received')}`}>
-                  <div className={`msg-bubble ${msg.isSystem ? 'system-bubble' : ''}`} style={msg.isSystem ? { background: 'transparent', color: '#888', textAlign: 'center', width: '100%', fontStyle: 'italic' } : {}}>
-                    <div>{msg.message}</div>
+          <div className="chat-container">
+            <div className="chat-area" style={{ position: 'relative' }}>
+              <div className="chat-room-header">
+                <div className="chat-header-info">
+                  <button 
+                    className="back-btn" 
+                    onClick={handleLeaveAnonymousChat}
+                    style={{ border: 'none', background: 'transparent', fontSize: '1.2rem', cursor: 'pointer', marginRight: '8px' }}
+                  >
+                    ←
+                  </button>
+                  <div className="user-names">
+                    <span className="user-username">Stranger</span>
                   </div>
                 </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {isAnonymousChatActive ? (
-              <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
-                <div className="chat-input-wrapper">
-                  <input
-                    type="text"
-                    placeholder="Type a message..."
-                    className="chat-text-input"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    required
-                  />
-                  {newMessage.trim() && (
-                    <button type="submit" className="chat-send-btn"><Send size={18} /></button>
-                  )}
+                <div className="chat-actions">
+                  <button 
+                    className="premium-btn primary" 
+                    style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center' }}
+                    onClick={handleSendAnonymousFriendRequest}
+                    disabled={!isAnonymousChatActive || coins < 5}
+                    title="Send Friend Request (Costs 5 Coins)"
+                  >
+                    <UserPlus size={16} style={{ marginRight: '6px' }} /> Add Friend
+                  </button>
                 </div>
-              </form>
-            ) : (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', background: '#111' }}>
-                Chat has ended. <button onClick={handleLeaveAnonymousChat} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', cursor: 'pointer', fontWeight: 'bold' }}>Return Home</button>
               </div>
-            )}
+              
+              <div className="chat-messages-area" style={{ flex: 1, background: 'var(--bg-color)' }}>
+                {anonymousMessages.map((msg) => (
+                  <div key={msg._id} className={`msg-wrapper ${msg.isSystem ? 'system' : (msg.senderSocket === socket?.id ? 'sent' : 'received')}`}>
+                    <div className={`msg-bubble ${msg.isSystem ? 'system-bubble' : ''}`} style={msg.isSystem ? { background: 'transparent', color: '#888', textAlign: 'center', width: '100%', fontStyle: 'italic' } : {}}>
+                      <div>{msg.message}</div>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {isAnonymousChatActive ? (
+                <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
+                  <div className="chat-input-wrapper">
+                    <input
+                      type="text"
+                      placeholder="Type a message..."
+                      className="chat-text-input"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      required
+                    />
+                    {newMessage.trim() && (
+                      <button type="submit" className="chat-send-btn"><Send size={18} /></button>
+                    )}
+                  </div>
+                </form>
+              ) : (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)' }}>
+                  Chat has ended. <button onClick={handleLeaveAnonymousChat} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', cursor: 'pointer', fontWeight: 'bold' }}>Return Home</button>
+                </div>
+              )}
+            </div>
           </div>
         );
 
