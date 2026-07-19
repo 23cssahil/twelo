@@ -1229,11 +1229,11 @@ export default function Dashboard() {
             <div className="profile-header">
               <div className="profile-avatar-large" style={{ position: 'relative' }}>
                 <div className="profile-avatar-inner">
-                  {user.avatarUrl ? <img src={user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
+                  {(profileStats?.avatarUrl || user.avatarUrl) ? <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
                 </div>
-                {user.country && (
+                {(profileStats?.country || user.country) && (
                   <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
-                    {getFlagEmoji(user.country)}
+                    {getFlagEmoji(profileStats?.country || user.country)}
                   </div>
                 )}
               </div>
@@ -1254,16 +1254,16 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {user.age && user.gender && (
+                {(profileStats?.age || user.age) && (profileStats?.gender || user.gender) && (
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', margin: '20px 0', color: '#a8a8a8', fontSize: '0.9rem', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
-                      <span>{user.age} Yrs</span>
+                      <span>{profileStats?.age || user.age} Yrs</span>
                     </div>
                     <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textTransform: 'capitalize' }}>
-                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{user.gender === 'male' ? '👨' : '👩'}</span>
-                      <span>{user.gender}</span>
+                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{(profileStats?.gender || user.gender) === 'male' ? '👨' : '👩'}</span>
+                      <span>{profileStats?.gender || user.gender}</span>
                     </div>
                   </div>
                 )}

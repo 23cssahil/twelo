@@ -174,8 +174,13 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
 // Get My Profile (with stats and coin logic)
 app.get('/api/users/profile', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-password');
+    const user = await User.findById(req.user.userId).select('-password').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    if (!user.avatarUrl) {
+      const g = (user.gender || 'male').toLowerCase();
+      user.avatarUrl = g === 'male' ? `https://avatar.iran.liara.run/public/boy?username=${user.username}` : `https://avatar.iran.liara.run/public/girl?username=${user.username}`;
+    }
 
     // Daily Coin Replenishment Logic
     const now = new Date();
@@ -234,7 +239,7 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
 // Get Public Profile
 app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests avatarUrl country age gender');
+    let user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests avatarUrl country age gender').lean();
     if (!user) {
       return res.json({
         _id: req.params.id,
@@ -247,6 +252,10 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
         isDeleted: true
       });
     }
+    if (!user.avatarUrl) {
+      const g = (user.gender || 'male').toLowerCase();
+      user.avatarUrl = g === 'male' ? `https://avatar.iran.liara.run/public/boy?username=${user.username}` : `https://avatar.iran.liara.run/public/girl?username=${user.username}`;
+    }
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching public profile' });
@@ -256,8 +265,12 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
 // Get Public Profile by Unique ID
 app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests avatarUrl country age gender');
+    let user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests avatarUrl country age gender').lean();
     if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.avatarUrl) {
+      const g = (user.gender || 'male').toLowerCase();
+      user.avatarUrl = g === 'male' ? `https://avatar.iran.liara.run/public/boy?username=${user.username}` : `https://avatar.iran.liara.run/public/girl?username=${user.username}`;
+    }
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching public profile' });
@@ -481,8 +494,15 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
     // Combine unique user IDs
     const chattedUserIds = [...new Set([...sentMessages, ...receivedMessages])];
     
-    const users = await User.find({ _id: { $in: chattedUserIds } }).select('username uniqueId avatarUrl').lean();
+    const users = await User.find({ _id: { $in: chattedUserIds } }).select('username uniqueId avatarUrl gender').lean();
     const foundUserIds = users.map(u => u._id.toString());
+    
+    users.forEach(u => {
+      if (!u.avatarUrl) {
+        const g = (u.gender || 'male').toLowerCase();
+        u.avatarUrl = g === 'male' ? `https://avatar.iran.liara.run/public/boy?username=${u.username}` : `https://avatar.iran.liara.run/public/girl?username=${u.username}`;
+      }
+    });
 
     const missingUserIds = chattedUserIds.filter(id => !foundUserIds.includes(id.toString()));
     missingUserIds.forEach(id => {
