@@ -66,12 +66,6 @@ app.post('/api/auth/google', async (req, res) => {
     const payload = ticket.getPayload();
     const { sub: googleId, email } = payload;
 
-    // Check if account was deleted
-    const deletedUser = await DeletedUser.findOne({ googleId });
-    if (deletedUser) {
-      return res.status(403).json({ message: "This account has been permanently deleted." });
-    }
-
     const user = await User.findOne({ googleId });
     if (!user) {
       return res.json({ isNewUser: true, email, googleId });
@@ -100,9 +94,6 @@ app.post('/api/auth/google', async (req, res) => {
   try {
     const { name, email, googleId, age, country, gender } = req.body;
     if (!name || !email || !googleId || !age || !country || !gender) return res.status(400).json({ message: 'All fields required' });
-
-    const deletedUser = await DeletedUser.findOne({ googleId });
-    if (deletedUser) return res.status(403).json({ message: 'This account has been permanently deleted.' });
 
     const existingUser = await User.findOne({ googleId });
     if (existingUser) return res.status(400).json({ message: 'User already exists' });
