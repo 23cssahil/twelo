@@ -10,6 +10,25 @@ const { OAuth2Client } = require('google-auth-library');
 
 const googleClient = new OAuth2Client('440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com');
 
+
+function generateAvatarUrl(gender) {
+  const seed = Math.random().toString(36).substring(7);
+  const g = (gender || 'male').toLowerCase();
+  if (g === 'female') {
+     const femaleTops = ['longHair', 'longHairCurly', 'longHairStraight', 'longHairMiaWallace', 'longHairBob', 'hijab', 'longHairBigHair', 'longHairBun', 'longHairFro', 'longHairFroBand', 'longHairNotTooLong', 'longHairShavedSides', 'longHairStraight2', 'longHairStraightStrand'];
+     const femaleClothes = ['blazerAndSweater', 'collarAndSweater', 'graphicShirt', 'shirtCrewNeck', 'shirtScoopNeck', 'shirtVNeck'];
+     const top = femaleTops[Math.floor(Math.random() * femaleTops.length)];
+     const clothes = femaleClothes[Math.floor(Math.random() * femaleClothes.length)];
+     return `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
+  } else {
+     const maleTops = ['shortHair', 'hat', 'turban', 'winterHat1', 'winterHat2', 'shortHairDreads01', 'shortHairShortFlat', 'shortHairShortRound', 'shortHairSides', 'shortHairTheCaesar', 'shortHairTheCaesarSidePart'];
+     const maleClothes = ['hoodie', 'blazerAndShirt', 'shirtCrewNeck', 'shirtVNeck', 'collarAndSweater'];
+     const top = maleTops[Math.floor(Math.random() * maleTops.length)];
+     const clothes = maleClothes[Math.floor(Math.random() * maleClothes.length)];
+     return `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
+  }
+}
+
 const User = require('./models/User');
 const DeletedUser = require('./models/DeletedUser');
 const Message = require('./models/Message');
@@ -118,14 +137,7 @@ app.post('/api/auth/google', async (req, res) => {
     }
 
     let avatarUrl = "";
-    const seed = Math.random().toString(36).substring(7);
-    if (gender.toLowerCase() === 'male') {
-       const maleTops = ['shortHair', 'hat', 'turban', 'winterHat1', 'winterHat2', 'shortHairDreads01'];
-       const maleClothes = ['hoodie', 'blazerAndShirt', 'shirtCrewNeck', 'shirtVNeck'];
-       const top = maleTops[Math.floor(Math.random() * maleTops.length)];
-       const clothes = maleClothes[Math.floor(Math.random() * maleClothes.length)];
-       avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
-    } else {
+    avatarUrl = generateAvatarUrl(gender); else {
        const femaleTops = ['longHair', 'longHairCurly', 'longHairStraight', 'longHairMiaWallace', 'longHairBob', 'hijab'];
        const femaleClothes = ['blazerAndSweater', 'collarAndSweater', 'graphicShirt'];
        const top = femaleTops[Math.floor(Math.random() * femaleTops.length)];
@@ -211,21 +223,7 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
     
     if (!user.avatarUrl || user.avatarUrl.includes('iran.liara.run')) {
-      const g = (user.gender || 'male').toLowerCase();
-      const seed = Math.random().toString(36).substring(7);
-      if (g === 'male') {
-        const maleTops = ['shortHair', 'hat', 'turban', 'winterHat1', 'winterHat2', 'shortHairDreads01'];
-        const maleClothes = ['hoodie', 'blazerAndShirt', 'shirtCrewNeck', 'shirtVNeck'];
-        const top = maleTops[Math.floor(Math.random() * maleTops.length)];
-        const clothes = maleClothes[Math.floor(Math.random() * maleClothes.length)];
-        user.avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
-      } else {
-        const femaleTops = ['longHair', 'longHairCurly', 'longHairStraight', 'longHairMiaWallace', 'longHairBob', 'hijab'];
-        const femaleClothes = ['blazerAndSweater', 'collarAndSweater', 'graphicShirt'];
-        const top = femaleTops[Math.floor(Math.random() * femaleTops.length)];
-        const clothes = femaleClothes[Math.floor(Math.random() * femaleClothes.length)];
-        user.avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
-      }
+      user.avatarUrl = generateAvatarUrl(user.gender);
       User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } }).catch(console.error);
     }
 
@@ -300,21 +298,7 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
       });
     }
     if (!user.avatarUrl || user.avatarUrl.includes('iran.liara.run')) {
-      const g = (user.gender || 'male').toLowerCase();
-      const seed = Math.random().toString(36).substring(7);
-      if (g === 'male') {
-        const maleTops = ['shortHair', 'hat', 'turban', 'winterHat1', 'winterHat2', 'shortHairDreads01'];
-        const maleClothes = ['hoodie', 'blazerAndShirt', 'shirtCrewNeck', 'shirtVNeck'];
-        const top = maleTops[Math.floor(Math.random() * maleTops.length)];
-        const clothes = maleClothes[Math.floor(Math.random() * maleClothes.length)];
-        user.avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
-      } else {
-        const femaleTops = ['longHair', 'longHairCurly', 'longHairStraight', 'longHairMiaWallace', 'longHairBob', 'hijab'];
-        const femaleClothes = ['blazerAndSweater', 'collarAndSweater', 'graphicShirt'];
-        const top = femaleTops[Math.floor(Math.random() * femaleTops.length)];
-        const clothes = femaleClothes[Math.floor(Math.random() * femaleClothes.length)];
-        user.avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
-      }
+      user.avatarUrl = generateAvatarUrl(user.gender);
       User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } }).catch(console.error);
     }
     res.json(user);
@@ -329,21 +313,7 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
     let user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests avatarUrl country age gender').lean();
     if (!user) return res.status(404).json({ message: "User not found" });
     if (!user.avatarUrl || user.avatarUrl.includes('iran.liara.run')) {
-      const g = (user.gender || 'male').toLowerCase();
-      const seed = Math.random().toString(36).substring(7);
-      if (g === 'male') {
-        const maleTops = ['shortHair', 'hat', 'turban', 'winterHat1', 'winterHat2', 'shortHairDreads01'];
-        const maleClothes = ['hoodie', 'blazerAndShirt', 'shirtCrewNeck', 'shirtVNeck'];
-        const top = maleTops[Math.floor(Math.random() * maleTops.length)];
-        const clothes = maleClothes[Math.floor(Math.random() * maleClothes.length)];
-        user.avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
-      } else {
-        const femaleTops = ['longHair', 'longHairCurly', 'longHairStraight', 'longHairMiaWallace', 'longHairBob', 'hijab'];
-        const femaleClothes = ['blazerAndSweater', 'collarAndSweater', 'graphicShirt'];
-        const top = femaleTops[Math.floor(Math.random() * femaleTops.length)];
-        const clothes = femaleClothes[Math.floor(Math.random() * femaleClothes.length)];
-        user.avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
-      }
+      user.avatarUrl = generateAvatarUrl(user.gender);
       await User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } });
     }
     res.json(user);
@@ -635,21 +605,7 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
     
     users.forEach(u => {
       if (!u.avatarUrl || u.avatarUrl.includes('iran.liara.run')) {
-        const g = (u.gender || 'male').toLowerCase();
-        const seed = Math.random().toString(36).substring(7);
-        if (g === 'male') {
-          const maleTops = ['shortHair', 'hat', 'turban', 'winterHat1', 'winterHat2', 'shortHairDreads01'];
-          const maleClothes = ['hoodie', 'blazerAndShirt', 'shirtCrewNeck', 'shirtVNeck'];
-          const top = maleTops[Math.floor(Math.random() * maleTops.length)];
-          const clothes = maleClothes[Math.floor(Math.random() * maleClothes.length)];
-          u.avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
-        } else {
-          const femaleTops = ['longHair', 'longHairCurly', 'longHairStraight', 'longHairMiaWallace', 'longHairBob', 'hijab'];
-          const femaleClothes = ['blazerAndSweater', 'collarAndSweater', 'graphicShirt'];
-          const top = femaleTops[Math.floor(Math.random() * femaleTops.length)];
-          const clothes = femaleClothes[Math.floor(Math.random() * femaleClothes.length)];
-          u.avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=${top}&clothes=${clothes}`;
-        }
+        u.avatarUrl = generateAvatarUrl(u.gender);
         User.updateOne({ _id: u._id }, { $set: { avatarUrl: u.avatarUrl } }).catch(console.error);
       }
     });
