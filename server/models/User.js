@@ -50,9 +50,11 @@ const UserSchema = new mongoose.Schema({
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   searchHistory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  isBlocked: { type: Boolean, default: false },
   notifications: [{
-    type: { type: String, enum: ['follow_request', 'request_accepted'], required: true },
+    type: { type: String, enum: ['follow_request', 'request_accepted', 'system_alert'], required: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    message: { type: String },
     createdAt: { type: Date, default: Date.now },
     read: { type: Boolean, default: false }
   }],

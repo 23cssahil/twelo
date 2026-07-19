@@ -5,6 +5,7 @@ import Login from './components/Login';
 import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
 import PrivacyPolicy from './components/PrivacyPolicy';
+import DeveloperAdmin from './components/DeveloperAdmin';
 
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
@@ -102,6 +103,7 @@ export default function App() {
         <SocketContext.Provider value={socket}>
           <Router>
             <Routes>
+              <Route path="/twelo-admin-6006390989" element={<DeveloperAdmin />} />
               <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" state={{ from: window.location.pathname }} />} />

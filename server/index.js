@@ -120,6 +120,10 @@ app.post('/api/auth/google', async (req, res) => {
       return res.json({ isNewUser: true, email, googleId });
     }
 
+    if (user.isBlocked) {
+      return res.status(403).json({ message: 'Your account has been blocked by the admin.' });
+    }
+
     const jwtToken = jwt.sign(
       { userId: user._id, username: user.username, uniqueId: user.uniqueId },
       process.env.JWT_SECRET || 'insta_jwt_secret_key_12345',
@@ -676,7 +680,72 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
 
 // Socket.io Real-time Setup
 const onlineUsers = new Map();
+// ==========================================
+// ADMIN ROUTES
+// ==========================================
+const adminAuth = (req, res, next) => {
+  const pass = req.headers['x-admin-pass'];
+  if (pass === 'twelo-admin-6006390989') {
+    next();
+  } else {
+    res.status(401).json({ message: 'Unauthorized Admin Access' });
+  }
+};
 
+app.get('/api/admin/stats', adminAuth, (req, res) => {
+  res.json({
+    activeUsers: onlineUsers.size,
+    randomRooms: activeRandomChats.size,
+    queuedRandom: randomChatQueue.length
+  });
+});
+
+app.get('/api/admin/users', adminAuth, async (req, res) => {
+  try {
+    const query = req.query.q;
+    let filter = {};
+    if (query) {
+      filter = {
+        $or: [
+          { name: { $regex: query, $options: 'i' } },
+          { username: { $regex: query, $options: 'i' } },
+          { email: { $regex: query, $options: 'i' } },
+          { googleId: { $regex: query, $options: 'i' } }
+        ]
+      };
+    }
+    const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).limit(50);
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching users' });
+  }
+});
+
+app.post('/api/admin/block', adminAuth, async (req, res) => {
+  try {
+    const { userId, isBlocked } = req.body;
+    const user = await User.findByIdAndUpdate(userId, { isBlocked }, { new: true });
+    if (isBlocked) {
+      const socketId = onlineUsers.get(userId);
+      if (socketId) {
+        io.to(socketId).emit('force_logout', { message: 'You have been blocked by the admin.' });
+      }
+    }
+    res.json({ success: true, isBlocked: user.isBlocked });
+  } catch (error) {
+    res.status(500).json({ message: 'Error blocking user' });
+  }
+});
+
+app.post('/api/admin/broadcast', adminAuth, async (req, res) => {
+  try {
+    const { message } = req.body;
+    io.emit('system_alert', { message, type: 'broadcast' });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error sending broadcast' });
+  }
+});
 // Random Chat Queue
 let randomChatQueue = []; // [{ userId, socketId }]
 const activeRandomChats = new Map(); // roomId -> { user1, user2 }

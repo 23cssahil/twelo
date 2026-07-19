@@ -391,6 +391,15 @@ export default function Dashboard() {
       fetchRecentChats();
     });
 
+    socket.on('system_alert', (data) => {
+      alert(`[System Broadcast]: ${data.message}`);
+    });
+
+    socket.on('force_logout', (data) => {
+      alert(data.message);
+      logout();
+    });
+
     return () => {
       socket.off('online_users');
       socket.off('receive_message');
