@@ -149,6 +149,9 @@ export default function Dashboard() {
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, msgId: null, isSender: false });
   const pressTimerRef = useRef(null);
 
+  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [fullScreenMedia, setFullScreenMedia] = useState(null);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteUsernameInput, setDeleteUsernameInput] = useState('');
   const [deleteError, setDeleteError] = useState('');
@@ -807,13 +810,14 @@ export default function Dashboard() {
   };
 
   const handleTouchMove = (e, msg, isSent) => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
     if (!swipeStartX.current) return;
     const currentX = e.touches[0].clientX;
     const diff = currentX - swipeStartX.current;
+
+    if (pressTimerRef.current && Math.abs(diff) > 10) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
     
     // Swipe direction logic: Sent messages swipe left (-), Received messages swipe right (+)
     if ((isSent && diff < 0 && diff > -100) || (!isSent && diff > 0 && diff < 100)) {
@@ -1087,6 +1091,33 @@ export default function Dashboard() {
       }
     } catch (e) {
       console.error('Failed to switch camera', e);
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStreamRef.current) {
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoOff(!videoTrack.enabled);
+      }
+    }
+  };
+
+  const downloadMedia = async (url) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = url.split('/').pop() || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
     }
   };
 
@@ -1569,7 +1600,12 @@ export default function Dashboard() {
 
                           {msg.messageType === 'image' && (
                             <div className="msg-image-container" style={{ marginTop: '5px', marginBottom: '5px' }}>
-                              <img src={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`} alt="Sent Photo" style={{ maxWidth: '100%', borderRadius: '10px' }} />
+                              <img 
+                                src={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`} 
+                                alt="Sent Photo" 
+                                style={{ maxWidth: '100%', borderRadius: '10px', cursor: 'pointer' }} 
+                                onClick={() => setFullScreenMedia(msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`)}
+                              />
                             </div>
                           )}
 
@@ -1993,14 +2029,22 @@ export default function Dashboard() {
                 <audio ref={myVideoRef} muted autoPlay style={{ display: 'none' }} />
               </div>
             )}
-            <div className="call-controls-bar">
-              <button className="call-action-btn" style={{ background: isAudioMuted ? '#ff4b4b' : 'rgba(255,255,255,0.2)' }} onClick={toggleAudio} title={isAudioMuted ? "Unmute" : "Mute"}>
-                {isAudioMuted ? <MicOff size={24} /> : <Mic size={24} />}
+            <div className="video-call-controls" style={{
+              position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
+              display: 'flex', gap: '20px', background: 'rgba(0,0,0,0.5)', padding: '15px 30px', borderRadius: '40px', backdropFilter: 'blur(10px)'
+            }}>
+              <button className="call-action-btn" style={{ background: 'rgba(255,255,255,0.2)' }} onClick={toggleAudio} title="Toggle Audio">
+                {isAudioMuted ? <MicOff size={24} color="#ff4b4b" /> : <Mic size={24} />}
               </button>
               {isVideoCall && (
-                <button className="call-action-btn" style={{ background: 'rgba(255,255,255,0.2)' }} onClick={switchCamera} title="Switch Camera">
-                  <SwitchCamera size={24} />
-                </button>
+                <>
+                  <button className="call-action-btn" style={{ background: 'rgba(255,255,255,0.2)' }} onClick={toggleVideo} title="Toggle Video">
+                    {isVideoOff ? <VideoOff size={24} color="#ff4b4b" /> : <Video size={24} />}
+                  </button>
+                  <button className="call-action-btn" style={{ background: 'rgba(255,255,255,0.2)' }} onClick={switchCamera} title="Switch Camera">
+                    <SwitchCamera size={24} />
+                  </button>
+                </>
               )}
               <button className="call-action-btn decline" onClick={endCall} title="End Call"><PhoneOff size={28} /></button>
             </div>
@@ -2011,6 +2055,24 @@ export default function Dashboard() {
       {/* Ringtones */}
       <audio ref={ringtoneOutRef} loop src="/ringtone.wav" style={{ display: 'none' }} />
       <audio ref={ringtoneInRef} loop src="/incoming.wav" style={{ display: 'none' }} />
+      {/* Full Screen Media Viewer */}
+      {fullScreenMedia && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          background: 'rgba(0,0,0,0.9)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '15px' }}>
+            <button onClick={() => downloadMedia(fullScreenMedia)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </button>
+            <button onClick={() => setFullScreenMedia(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
+              <X size={28} />
+            </button>
+          </div>
+          <img src={fullScreenMedia} alt="Full Screen" style={{ maxWidth: '95%', maxHeight: '90%', objectFit: 'contain' }} />
+        </div>
+      )}
+
     </div>
   );
 }
