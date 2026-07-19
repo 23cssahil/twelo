@@ -359,13 +359,32 @@ app.get('/api/users/notifications', authenticateToken, async (req, res) => {
     
     // Auto-migrate old friendRequests to notifications
     let migrated = false;
-    for (let reqId of user.friendRequests) {
+    for (let reqId of (user.friendRequests || [])) {
       const exists = user.notifications.some(n => n.user && n.user._id && n.user._id.toString() === reqId.toString());
       if (!exists) {
-        user.notifications.push({ type: 'follow_request', user: reqId });
+        user.notifications.push({ type: 'follow_request', user: reqId, createdAt: new Date(Date.now() - 10000) });
         migrated = true;
       }
     }
+    
+    // Auto-migrate existing followers into notifications as accepted requests
+    for (let followerId of (user.followers || [])) {
+      const exists = user.notifications.some(n => n.user && n.user._id && n.user._id.toString() === followerId.toString());
+      if (!exists) {
+        user.notifications.push({ type: 'follow_request', user: followerId, createdAt: new Date(Date.now() - 86400000) });
+        migrated = true;
+      }
+    }
+
+    // Auto-migrate existing following into notifications as accepted requests (for the user)
+    for (let followingId of (user.following || [])) {
+      const exists = user.notifications.some(n => n.user && n.user._id && n.user._id.toString() === followingId.toString() && n.type === 'request_accepted');
+      if (!exists) {
+        user.notifications.push({ type: 'request_accepted', user: followingId, createdAt: new Date(Date.now() - 86400000) });
+        migrated = true;
+      }
+    }
+
     if (migrated) {
       await user.save();
       const populatedUser = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl');
