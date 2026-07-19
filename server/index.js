@@ -82,7 +82,11 @@ app.post('/api/auth/google', async (req, res) => {
       user: {
         id: user._id,
         username: user.username,
-        uniqueId: user.uniqueId
+        uniqueId: user.uniqueId,
+        avatarUrl: user.avatarUrl,
+        country: user.country,
+        age: user.age,
+        gender: user.gender
       }
     });
   } catch (error) {
@@ -136,7 +140,11 @@ app.post('/api/auth/google', async (req, res) => {
       user: {
         id: newUser._id,
         username: newUser.username,
-        uniqueId: newUser.uniqueId
+        uniqueId: newUser.uniqueId,
+        avatarUrl: newUser.avatarUrl,
+        country: newUser.country,
+        age: newUser.age,
+        gender: newUser.gender
       }
     });
   } catch (error) {
@@ -228,7 +236,7 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
 // Get Public Profile
 app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests avatarUrl');
+    const user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests avatarUrl country age gender');
     if (!user) {
       return res.json({
         _id: req.params.id,
@@ -250,7 +258,7 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
 // Get Public Profile by Unique ID
 app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests avatarUrl');
+    const user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests avatarUrl country age gender');
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   } catch (error) {

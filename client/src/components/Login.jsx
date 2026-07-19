@@ -159,14 +159,25 @@ export default function Login() {
               </div>
 
               <div className="form-group floating-group" style={{ flex: 2 }}>
-                <input
-                  type="text"
+                <select
                   className="auth-input floating-input"
-                  placeholder=" "
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
                   required
-                />
+                  style={{ appearance: 'none', background: 'transparent' }}
+                >
+                  <option value="" disabled hidden></option>
+                  <option value="India">🇮🇳 India</option>
+                  <option value="USA">🇺🇸 USA</option>
+                  <option value="UK">🇬🇧 UK</option>
+                  <option value="Canada">🇨🇦 Canada</option>
+                  <option value="Australia">🇦🇺 Australia</option>
+                  <option value="Germany">🇩🇪 Germany</option>
+                  <option value="France">🇫🇷 France</option>
+                  <option value="Japan">🇯🇵 Japan</option>
+                  <option value="Brazil">🇧🇷 Brazil</option>
+                  <option value="Other">🌍 Other</option>
+                </select>
                 <label className="floating-label">Country</label>
               </div>
             </div>
