@@ -101,9 +101,14 @@ export default function Dashboard() {
     const handleOrientation = (e) => {
       let x = e.gamma || 0; // -90 to 90 (left-right)
       let y = e.beta || 0;  // -180 to 180 (front-back)
-      // Restrict movement range for subtle parallax
-      x = Math.max(-25, Math.min(25, x));
-      y = Math.max(-25, Math.min(25, y));
+      
+      // Reduce sensitivity for a very subtle effect
+      x = x / 3;
+      y = y / 3;
+
+      // Restrict max pixel movement to a small range (10px)
+      x = Math.max(-10, Math.min(10, x));
+      y = Math.max(-10, Math.min(10, y));
       setGyro({ x, y });
     };
     
