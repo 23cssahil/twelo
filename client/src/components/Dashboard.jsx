@@ -17,7 +17,8 @@ import {
   Menu,
   Coins,
   ArrowLeft,
-  UserPlus
+  UserPlus,
+  Bell
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import { AuthContext, SocketContext } from '../App';
