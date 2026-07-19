@@ -49,6 +49,13 @@ const UserSchema = new mongoose.Schema({
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  searchHistory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  notifications: [{
+    type: { type: String, enum: ['follow_request', 'request_accepted'], required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    createdAt: { type: Date, default: Date.now },
+    read: { type: Boolean, default: false }
+  }],
   coins: { type: Number, default: 10 },
   lastCoinReplenishDate: { type: Date, default: Date.now },
 }, { timestamps: true });

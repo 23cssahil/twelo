@@ -205,7 +205,7 @@ export default function Dashboard() {
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/users/requests`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/users/notifications`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) setNotifications(data);
     } catch (e) { console.error(e); }
@@ -470,12 +470,25 @@ export default function Dashboard() {
     } catch (err) { console.error(err); }
   };
 
+  const fetchSearchHistory = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/search-history`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) setSearchResults(data);
+    } catch (e) { console.error("Search history error", e); }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'search' && !searchQuery.trim()) {
+      fetchSearchHistory();
+    }
+  }, [activeTab, searchQuery]);
+
   const handleSearch = async (e) => {
     const value = e.target.value;
     setSearchQuery(value);
-    
-    if (value.trim().length === 0) {
-      setSearchResults([]);
+    if (!value.trim()) {
+      fetchSearchHistory();
       return;
     }
     setSearchLoading(true);
@@ -488,15 +501,29 @@ export default function Dashboard() {
     }
   };
 
-  const viewPublicProfile = async (targetUserId) => {
+  const viewPublicProfile = async (targetId) => {
+    if (!targetId || targetId === user.id) return;
     try {
-      const res = await fetch(`${API_URL}/api/users/public_profile/${targetUserId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/users/public_profile/${targetId}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
         setPublicProfileData(data);
         setActiveTab('publicProfile');
+        
+        // Record search history if viewing from search
+        if (activeTab === 'search') {
+          fetch(`${API_URL}/api/users/search-history/${targetId}`, { 
+            method: 'POST', 
+            headers: { Authorization: `Bearer ${token}` } 
+          }).catch(e => console.error("History error", e));
+        }
+      } else {
+        alert(data.message || "Failed to load profile");
       }
-    } catch (err) { console.error(err); }
+    } catch (e) {
+      console.error(e);
+      alert("Error loading profile");
+    }
   };
 
   const sendFollowRequest = async (targetUserId) => {
@@ -550,7 +577,6 @@ export default function Dashboard() {
 
   const acceptRequest = async (requesterId) => {
     // Optimistic UI
-    setNotifications(prev => prev.filter(req => req._id !== requesterId));
     setProfileStats(prev => ({
       ...prev,
       followers: [...(prev.followers || []), requesterId]
@@ -570,7 +596,7 @@ export default function Dashboard() {
 
   const rejectRequest = async (requesterId) => {
     // Optimistic UI
-    setNotifications(prev => prev.filter(req => req._id !== requesterId));
+    setNotifications(prev => prev.filter(notif => notif.user?._id !== requesterId));
 
     try {
       const res = await fetch(`${API_URL}/api/users/reject/${requesterId}`, {
@@ -1019,26 +1045,32 @@ export default function Dashboard() {
           <div className="notifications-container" style={{ padding: '16px' }}>
             <h2 className="search-header-text">Notifications</h2>
             {notifications.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No new notifications.</div>
+              <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No notifications yet.</div>
             ) : (
               <div className="requests-list">
-                {notifications.map(req => {
-                  const isAccepted = profileStats?.followers?.includes(req._id);
+                {notifications.map(notif => {
+                  const reqUser = notif.user;
+                  if (!reqUser) return null;
+                  const isAccepted = profileStats?.followers?.includes(reqUser._id);
+                  const text = notif.type === 'request_accepted' ? 'accepted your follow request' : 'wants to follow you';
+                  
                   return (
-                    <div className="user-card" key={req._id}>
-                      <div className="user-card-info" onClick={() => viewPublicProfile(req._id)} style={{ cursor: 'pointer' }}>
-                        <div className="user-avatar-small">{req.avatarUrl ? <img src={req.avatarUrl} alt='avatar' /> : req.username.charAt(0).toUpperCase()}</div>
+                    <div className="user-card" key={notif._id}>
+                      <div className="user-card-info" onClick={() => viewPublicProfile(reqUser._id)} style={{ cursor: 'pointer' }}>
+                        <div className="user-avatar-small">{reqUser.avatarUrl ? <img src={reqUser.avatarUrl} alt='avatar' /> : reqUser.username.charAt(0).toUpperCase()}</div>
                         <div className="user-names">
-                          <span className="user-username">@{req.username}</span>
-                          <span className="user-id">wants to follow you</span>
+                          <span className="user-username">@{reqUser.username}</span>
+                          <span className="user-id" style={{ fontSize: '0.8rem' }}>{text}</span>
                         </div>
                       </div>
-                      {isAccepted ? (
+                      {notif.type === 'request_accepted' ? (
+                        <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWith(reqUser)}>Chat</button>
+                      ) : isAccepted ? (
                         <button className="chat-now-btn" disabled style={{ background: '#333' }}>Accepted</button>
                       ) : (
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="chat-now-btn accept-btn" style={{ flex: 1 }} onClick={() => acceptRequest(req._id)}>Accept</button>
-                          <button className="chat-now-btn" style={{ flex: 1, background: '#333' }} onClick={() => rejectRequest(req._id)}>Reject</button>
+                          <button className="chat-now-btn accept-btn" style={{ flex: 1 }} onClick={() => acceptRequest(reqUser._id)}>Accept</button>
+                          <button className="chat-now-btn" style={{ flex: 1, background: '#333' }} onClick={() => rejectRequest(reqUser._id)}>Reject</button>
                         </div>
                       )}
                     </div>

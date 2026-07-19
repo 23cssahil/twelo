@@ -159,24 +159,48 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-// User Search Route
 app.get('/api/users/search', authenticateToken, async (req, res) => {
   try {
-    const { query } = req.query;
+    const query = req.query.q;
     if (!query) return res.json([]);
-
-    // Search by exact unique ID or matching username (case insensitive)
     const users = await User.find({
       $or: [
-        { uniqueId: query.trim() },
-        { username: { $regex: query.trim(), $options: 'i' } }
-      ],
-      _id: { $ne: req.user.userId } // Exclude self
-    }).select('-password');
-
+        { username: { $regex: query, $options: 'i' } },
+        { uniqueId: { $regex: query, $options: 'i' } }
+      ]
+    }).limit(10).select('username uniqueId avatarUrl friendRequests followers');
     res.json(users);
   } catch (error) {
-    res.status(500).json({ message: 'Search error', error: error.message });
+    res.status(500).json({ message: 'Search error' });
+  }
+});
+
+// Search History
+app.post('/api/users/search-history/:id', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    const targetId = req.params.id;
+    if (targetId === req.user.userId) return res.json({ message: 'Self ignored' });
+    
+    // Remove if already exists so we can move it to top
+    user.searchHistory = user.searchHistory.filter(id => id.toString() !== targetId);
+    user.searchHistory.unshift(targetId); // Add to beginning
+    // Keep only last 20
+    if (user.searchHistory.length > 20) user.searchHistory = user.searchHistory.slice(0, 20);
+    
+    await user.save();
+    res.json({ message: 'Added to search history' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error saving search history' });
+  }
+});
+
+app.get('/api/users/search-history', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).populate('searchHistory', 'username uniqueId avatarUrl friendRequests followers');
+    res.json(user.searchHistory);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching search history' });
   }
 });
 
@@ -328,13 +352,32 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
   }
 });
 
-// Get Incoming Requests
-app.get('/api/users/requests', authenticateToken, async (req, res) => {
+// Get Notifications (auto-migrates old friendRequests)
+app.get('/api/users/notifications', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).populate('friendRequests', 'username uniqueId');
-    res.json(user.friendRequests);
+    const user = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl');
+    
+    // Auto-migrate old friendRequests to notifications
+    let migrated = false;
+    for (let reqId of user.friendRequests) {
+      const exists = user.notifications.some(n => n.user && n.user._id && n.user._id.toString() === reqId.toString());
+      if (!exists) {
+        user.notifications.push({ type: 'follow_request', user: reqId });
+        migrated = true;
+      }
+    }
+    if (migrated) {
+      await user.save();
+      const populatedUser = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl');
+      const sorted = populatedUser.notifications.sort((a, b) => b.createdAt - a.createdAt);
+      return res.json(sorted);
+    }
+    
+    const sorted = user.notifications.sort((a, b) => b.createdAt - a.createdAt);
+    res.json(sorted);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching requests' });
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching notifications' });
   }
 });
 
@@ -352,6 +395,7 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
     if (targetUser.friendRequests.includes(req.user.userId)) return res.status(400).json({ message: "Request already sent" });
 
     targetUser.friendRequests.push(req.user.userId);
+    targetUser.notifications.push({ type: 'follow_request', user: req.user.userId });
     await targetUser.save();
     res.json({ message: "Request sent successfully" });
   } catch (error) {
@@ -381,6 +425,7 @@ app.post('/api/users/anonymous_follow/:id', authenticateToken, async (req, res) 
     await currentUser.save();
 
     targetUser.friendRequests.push(req.user.userId);
+    targetUser.notifications.push({ type: 'follow_request', user: req.user.userId });
     await targetUser.save();
 
     res.json({ message: "Request sent successfully", coinsLeft: currentUser.coins });
@@ -406,8 +451,11 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
 
     // Add current user to requester's following
     const requester = await User.findById(requesterId);
-    if (requester && !requester.following.includes(req.user.userId)) {
-      requester.following.push(req.user.userId);
+    if (requester) {
+      if (!requester.following.includes(req.user.userId)) {
+        requester.following.push(req.user.userId);
+      }
+      requester.notifications.push({ type: 'request_accepted', user: req.user.userId });
       await requester.save();
     }
 
