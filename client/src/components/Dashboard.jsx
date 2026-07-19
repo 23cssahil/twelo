@@ -1354,6 +1354,7 @@ export default function Dashboard() {
       _id: `temp-${Date.now()}`,
       message: newMessage,
       senderSocket: socket.id,
+      isMine: true,
       createdAt: new Date().toISOString()
     };
     
@@ -1511,7 +1512,7 @@ export default function Dashboard() {
               
               <div className="chat-messages-area" style={{ flex: 1, background: 'var(--bg-color)' }}>
                 {anonymousMessages.map((msg) => (
-                  <div key={msg._id} className={`msg-wrapper ${msg.isSystem ? 'system' : (msg.senderSocket === socket?.id ? 'sent' : 'received')}`}>
+                  <div key={msg._id} className={`msg-wrapper ${msg.isSystem ? 'system' : (msg.isMine ? 'sent' : 'received')}`}>
                     <div className={`msg-bubble ${msg.isSystem ? 'system-bubble' : ''}`} style={msg.isSystem ? { background: 'transparent', color: '#888', textAlign: 'center', width: '100%', fontStyle: 'italic' } : {}}>
                       <div>{msg.message}</div>
                     </div>
