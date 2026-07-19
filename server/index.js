@@ -722,7 +722,7 @@ io.on('connection', (socket) => {
         io.to(receiverSocketId).emit('receive_message', payload);
       }
       // Only echo to sender if they are on a different device/tab
-      if (senderSocketId) {
+      if (senderSocketId && senderSocketId !== socket.id) {
         io.to(senderSocketId).emit('receive_message', payload);
       }
     } catch (error) {
