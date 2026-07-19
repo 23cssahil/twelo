@@ -1284,8 +1284,8 @@ export default function Dashboard() {
       {/* CONNECTIONS MODAL */}
       {/* Modals and Overlays */}
       {showSettingsModal && (
-        <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
-          <div className="modal-content settings-modal" onClick={e => e.stopPropagation()}>
+        <div className="settings-drawer-overlay" onClick={() => setShowSettingsModal(false)}>
+          <div className="settings-drawer" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Settings</h2>
               <button onClick={() => setShowSettingsModal(false)} className="close-btn"><X size={24} /></button>
