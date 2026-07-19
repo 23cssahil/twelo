@@ -28,7 +28,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-body.body-lock {
+html.body-lock, html.body-lock body {
   position: fixed;
   top: 0;
   left: 0;
