@@ -14,7 +14,8 @@ import {
   UserCheck,
   Bell,
   Check,
-  X
+  X,
+  Menu
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import { AuthContext, SocketContext } from '../App';
@@ -29,6 +30,12 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  // Settings & Profile Edit State
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [editUsernameMode, setEditUsernameMode] = useState(false);
+  const [newUsernameInput, setNewUsernameInput] = useState('');
+  const [usernameError, setUsernameError] = useState('');
 
   // Profile & Social State
   const [profileStats, setProfileStats] = useState(null);
@@ -71,6 +78,30 @@ export default function Dashboard() {
   const isCallerRef = useRef(false);
   const callStartTimeRef = useRef(null);
   const activeCallTargetRef = useRef(null);
+
+  const handleUpdateUsername = async () => {
+    setUsernameError('');
+    if (newUsernameInput.trim().length < 3) {
+      setUsernameError('Username must be at least 3 characters long');
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/users/change_username`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ newUsername: newUsernameInput })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setUsernameError(data.message);
+      } else {
+        localStorage.setItem('token', data.token);
+        window.location.reload();
+      }
+    } catch (err) {
+      setUsernameError('An error occurred');
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -734,7 +765,12 @@ export default function Dashboard() {
 
       case 'profile':
         return (
-          <div className="profile-container">
+          <div className="profile-container" style={{ position: 'relative' }}>
+            <div className="profile-header-actions" style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10 }}>
+              <button className="icon-btn settings-btn" onClick={() => { setEditUsernameMode(false); setShowSettingsModal(true); }}>
+                <Menu size={24} />
+              </button>
+            </div>
             <div className="profile-header">
               <div className="profile-avatar-large">
                 <div className="profile-avatar-inner">
@@ -743,18 +779,19 @@ export default function Dashboard() {
               </div>
               
               <div className="profile-info">
-                <div className="profile-username-row">
+                <div className="profile-username-row" style={{ justifyContent: 'center' }}>
                   <span className="profile-username">@{user.username}</span>
-                  <button className="logout-btn" onClick={logout}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <LogOut size={16} /> Log Out
-                    </div>
-                  </button>
                 </div>
                 
-                <div className="profile-stats" style={{ gap: '24px' }}>
-                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('followers', user.id)}><strong>{profileStats?.followers?.length || 0}</strong> followers</span>
-                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('following', user.id)}><strong>{profileStats?.following?.length || 0}</strong> following</span>
+                <div className="premium-stats-container">
+                  <div className="premium-stat-box" onClick={() => handleConnectionsClick('followers', user.id)}>
+                    <span className="stat-number">{profileStats?.followers?.length || 0}</span>
+                    <span className="stat-label">Followers</span>
+                  </div>
+                  <div className="premium-stat-box" onClick={() => handleConnectionsClick('following', user.id)}>
+                    <span className="stat-number">{profileStats?.following?.length || 0}</span>
+                    <span className="stat-label">Following</span>
+                  </div>
                 </div>
 
                 <div>
@@ -835,6 +872,51 @@ export default function Dashboard() {
       </nav>
 
       {/* CONNECTIONS MODAL */}
+      {/* Modals and Overlays */}
+      {showSettingsModal && (
+        <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
+          <div className="modal-content settings-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Settings</h2>
+              <button onClick={() => setShowSettingsModal(false)} className="close-btn"><X size={24} /></button>
+            </div>
+            <div className="settings-options">
+              {editUsernameMode ? (
+                <div className="settings-edit-username">
+                  <input 
+                    type="text" 
+                    value={newUsernameInput} 
+                    onChange={(e) => setNewUsernameInput(e.target.value)} 
+                    placeholder="New Username" 
+                    className="premium-input"
+                  />
+                  {usernameError && <p className="error-text" style={{fontSize: '0.85rem', marginTop: '6px', color: 'var(--brand-red)'}}>{usernameError}</p>}
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                    <button className="premium-btn primary" onClick={handleUpdateUsername}>Save Changes</button>
+                    <button className="premium-btn secondary" onClick={() => setEditUsernameMode(false)}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button className="settings-item-btn" onClick={() => {
+                  setNewUsernameInput(user.username);
+                  setEditUsernameMode(true);
+                }}>
+                  Change Username
+                </button>
+              )}
+              
+              <button className="settings-item-btn" onClick={() => alert("Privacy Policy: Your data is secure with Twelo.")}>
+                Privacy Policy
+              </button>
+              
+              <button className="settings-item-btn logout-danger" onClick={logout}>
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {connectionsModal.isOpen && (
         <div className="call-overlay" style={{ zIndex: 100 }}>
           <div className="auth-card" style={{ maxWidth: '400px', width: '90%', background: '#121212', padding: '24px', borderRadius: '12px', position: 'relative' }}>

@@ -165,6 +165,38 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Change Username
+app.post('/api/users/change_username', authenticateToken, async (req, res) => {
+  try {
+    const { newUsername } = req.body;
+    if (!newUsername || newUsername.trim().length < 3) {
+      return res.status(400).json({ message: 'Username must be at least 3 characters' });
+    }
+
+    const trimmedUsername = newUsername.trim().toLowerCase();
+    const existingUser = await User.findOne({ username: trimmedUsername });
+    
+    if (existingUser && existingUser._id.toString() !== req.user.userId) {
+      return res.status(400).json({ message: 'Username already taken' });
+    }
+
+    const user = await User.findById(req.user.userId);
+    user.username = trimmedUsername;
+    await user.save();
+
+    // Generate new token with updated username
+    const jwtToken = jwt.sign(
+      { userId: user._id, username: user.username, uniqueId: user.uniqueId },
+      process.env.JWT_SECRET || 'insta_jwt_secret_key_12345',
+      { expiresIn: '7d' }
+    );
+
+    res.json({ message: 'Username updated successfully', token: jwtToken, username: user.username });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating username' });
+  }
+});
+
 // Get Public Profile
 app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => {
   try {
