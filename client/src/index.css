@@ -457,6 +457,9 @@ input, button, textarea {
   font-size: 0.95rem;
   line-height: 1.4;
   word-break: break-word;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
 }
 
 .msg-wrapper.sent .msg-bubble {
