@@ -23,6 +23,7 @@ import {
   MicOff,
   SwitchCamera,
   Image as ImageIcon,
+  Camera,
   MoreVertical,
   Trash2,
   Play,
@@ -145,6 +146,7 @@ export default function Dashboard() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, msgId: null, isSender: false });
   const pressTimerRef = useRef(null);
@@ -1649,22 +1651,36 @@ export default function Dashboard() {
                       )}
                       
                       {!isRecording && (
-                        <input
-                          type="text"
-                          placeholder="Message..."
-                          className="chat-text-input"
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          onFocus={() => {
-                            setTimeout(() => {
-                              window.scrollTo({ top: 0, behavior: 'instant' });
-                              document.body.scrollTop = 0;
-                            }, 100);
-                            setTimeout(() => {
-                              window.scrollTo({ top: 0, behavior: 'instant' });
-                            }, 300);
-                          }}
-                        />
+                        <div style={{ display: 'flex', alignItems: 'center', flex: 1, position: 'relative' }}>
+                          <button type="button" className="media-btn" onClick={() => cameraInputRef.current.click()} style={{ background: 'transparent', border: 'none', cursor: 'pointer', position: 'absolute', left: '10px', zIndex: 10 }}>
+                            <Camera size={20} color="#a8a8a8" />
+                          </button>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            capture="environment"
+                            ref={cameraInputRef} 
+                            style={{ display: 'none' }} 
+                            onChange={handleImageSelect} 
+                          />
+                          <input
+                            type="text"
+                            placeholder="Message..."
+                            className="chat-text-input"
+                            style={{ paddingLeft: '40px' }}
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            onFocus={() => {
+                              setTimeout(() => {
+                                window.scrollTo({ top: 0, behavior: 'instant' });
+                                document.body.scrollTop = 0;
+                              }, 100);
+                              setTimeout(() => {
+                                window.scrollTo({ top: 0, behavior: 'instant' });
+                              }, 300);
+                            }}
+                          />
+                        </div>
                       )}
 
                       {!newMessage.trim() && !isRecording && (
