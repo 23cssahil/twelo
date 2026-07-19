@@ -38,17 +38,36 @@ import * as THREE from 'three';
 import { AuthContext, SocketContext } from '../App';
 
 const CoinSVG = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="url(#goldGradient)" stroke="#B8860B" strokeWidth="1.5">
+  <svg width={size} height={size} viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#FFDF00" />
-        <stop offset="50%" stopColor="#D4AF37" />
-        <stop offset="100%" stopColor="#996515" />
+      <linearGradient id="coinRim" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#fdf0a6" />
+        <stop offset="25%" stopColor="#d4af37" />
+        <stop offset="50%" stopColor="#fff8cd" />
+        <stop offset="75%" stopColor="#aa7c11" />
+        <stop offset="100%" stopColor="#fdf0a6" />
       </linearGradient>
+      <linearGradient id="coinFace" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="#ffe55c" />
+        <stop offset="100%" stopColor="#d4af37" />
+      </linearGradient>
+      <filter id="innerShadow">
+        <feOffset dx="0" dy="2"/>
+        <feGaussianBlur stdDeviation="1.5" result="offset-blur"/>
+        <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse"/>
+        <feFlood floodColor="black" floodOpacity="0.4" result="color"/>
+        <feComposite operator="in" in="color" in2="inverse" result="shadow"/>
+        <feComposite operator="over" in="shadow" in2="SourceGraphic"/>
+      </filter>
+      <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.3" />
+      </filter>
     </defs>
-    <circle cx="12" cy="12" r="10"></circle>
-    <circle cx="12" cy="12" r="7" fill="none" stroke="#D4AF37" strokeWidth="1"></circle>
-    <text x="12" y="16.5" fontSize="13" fontFamily="Arial, sans-serif" fontWeight="bold" fill="#FFF" textAnchor="middle" style={{textShadow: "1px 1px 2px #996515"}}>T</text>
+    
+    <circle cx="20" cy="20" r="18" fill="url(#coinRim)" filter="url(#dropShadow)" />
+    <circle cx="20" cy="20" r="15" fill="url(#coinFace)" filter="url(#innerShadow)" stroke="#b8860b" strokeWidth="1" />
+    
+    <text x="20" y="27" fontSize="22" fontFamily="Arial, sans-serif" fontWeight="900" fill="#a47209" textAnchor="middle" style={{textShadow: "1px 1px 1px rgba(255,255,255,0.7)"}}>T</text>
   </svg>
 );
 
@@ -1471,27 +1490,29 @@ export default function Dashboard() {
               )}
               {!isSearchingRandom && !matchFailed && (
                 <div className="search-text" style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
-                  <span>Tap the globe to find a random chat!</span>
-                  <div style={{ display: 'flex', gap: '10px', background: 'rgba(0,0,0,0.5)', padding: '10px', borderRadius: '15px', backdropFilter: 'blur(5px)', fontSize: '0.9rem' }}>
+                  <span style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)', fontWeight: 'bold' }}>Tap the globe to find a random chat!</span>
+                  <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.1)', padding: '6px', borderRadius: '30px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
                     <button 
                       onClick={(e) => { e.stopPropagation(); setGenderFilter('any'); }} 
-                      style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', background: genderFilter === 'any' ? 'var(--brand-blue)' : 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', transition: '0.3s' }}
+                      style={{ padding: '8px 16px', borderRadius: '25px', border: 'none', background: genderFilter === 'any' ? 'linear-gradient(135deg, #00c6ff, #0072ff)' : 'transparent', color: genderFilter === 'any' ? '#fff' : '#aaa', cursor: 'pointer', transition: '0.3s', fontWeight: 'bold', fontSize: '0.9rem', boxShadow: genderFilter === 'any' ? '0 4px 15px rgba(0, 114, 255, 0.4)' : 'none' }}
                     >
                       Any (Free)
                     </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); setGenderFilter('male'); }} 
-                      style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', background: genderFilter === 'male' ? 'var(--brand-blue)' : 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.3s' }}
+                      style={{ padding: '6px 14px', borderRadius: '25px', border: '1px solid', borderColor: genderFilter === 'male' ? 'transparent' : 'rgba(255,255,255,0.1)', background: genderFilter === 'male' ? 'linear-gradient(135deg, #f12711, #f5af19)' : 'rgba(0,0,0,0.2)', color: genderFilter === 'male' ? '#fff' : '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.3s', fontWeight: 'bold', fontSize: '0.9rem', boxShadow: genderFilter === 'male' ? '0 4px 15px rgba(245, 175, 25, 0.4)' : 'none' }}
                     >
-                      <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Leo" alt="Male" style={{width:'20px', height:'20px', borderRadius:'50%', background:'#fff'}} />
-                      Male (1 <CoinSVG size={14} />)
+                      <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Leo" alt="Male" style={{width:'24px', height:'24px', borderRadius:'50%', background:'#fff', border: '2px solid rgba(255,255,255,0.8)'}} />
+                      Male
+                      <div style={{display:'flex', alignItems:'center', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:'12px', fontSize:'0.75rem', fontWeight:'normal'}}><CoinSVG size={14}/> <span style={{marginLeft:'3px', marginTop:'1px'}}>1</span></div>
                     </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); setGenderFilter('female'); }} 
-                      style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', background: genderFilter === 'female' ? 'var(--brand-blue)' : 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.3s' }}
+                      style={{ padding: '6px 14px', borderRadius: '25px', border: '1px solid', borderColor: genderFilter === 'female' ? 'transparent' : 'rgba(255,255,255,0.1)', background: genderFilter === 'female' ? 'linear-gradient(135deg, #fc4a1a, #f7b733)' : 'rgba(0,0,0,0.2)', color: genderFilter === 'female' ? '#fff' : '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.3s', fontWeight: 'bold', fontSize: '0.9rem', boxShadow: genderFilter === 'female' ? '0 4px 15px rgba(247, 183, 51, 0.4)' : 'none' }}
                     >
-                      <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Anita" alt="Female" style={{width:'20px', height:'20px', borderRadius:'50%', background:'#fff'}} />
-                      Female (1 <CoinSVG size={14} />)
+                      <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Anita" alt="Female" style={{width:'24px', height:'24px', borderRadius:'50%', background:'#fff', border: '2px solid rgba(255,255,255,0.8)'}} />
+                      Female
+                      <div style={{display:'flex', alignItems:'center', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:'12px', fontSize:'0.75rem', fontWeight:'normal'}}><CoinSVG size={14}/> <span style={{marginLeft:'3px', marginTop:'1px'}}>1</span></div>
                     </button>
                   </div>
                 </div>
