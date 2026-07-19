@@ -1466,7 +1466,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className={`main-content ${activeTab === 'home' ? 'no-scroll' : ''}`}>
+      <main className={`main-content ${(activeTab === 'home' || activeTab === 'messages') ? 'no-scroll' : ''}`}>
         {renderTabContent()}
       </main>
 
