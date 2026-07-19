@@ -665,7 +665,20 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
       });
     });
     
-    // Add latest message summary if needed, but we'll fetch details for simplicity
+    // Fetch last message for each user to sort them
+    for (let i = 0; i < users.length; i++) {
+      const lastMsg = await Message.findOne({
+        $or: [
+          { sender: currentUserId, receiver: users[i]._id },
+          { sender: users[i]._id, receiver: currentUserId }
+        ]
+      }).sort({ createdAt: -1 }).select('createdAt');
+      users[i].lastMessageAt = lastMsg ? lastMsg.createdAt : new Date(0);
+    }
+    
+    // Sort users by lastMessageAt descending
+    users.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+    
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching recent chats', error: error.message });
