@@ -515,7 +515,7 @@ export default function Dashboard() {
     }
     setSearchLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/users/search?query=${value}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/users/search?q=${value}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) setSearchResults(data);
     } catch (err) { console.error(err); } finally {
