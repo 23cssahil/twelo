@@ -1056,7 +1056,15 @@ io.on('connection', (socket) => {
           const roomId = `bot_room_${Date.now()}_${userId}`;
           const botUser = { userId: 'twelo-bot', socketId: 'bot-socket' };
           
-          activeRandomChats.set(roomId, { user1: { userId, socketId: socket.id }, user2: botUser, botState: 'waiting_for_hi' });
+          const botFlows = ['DEFAULT', 'SILENT_LEAVE', 'HI_THEN_LEAVE', 'NETWORK_ERROR', 'KAHA_SE_HO'];
+          const selectedFlow = botFlows[Math.floor(Math.random() * botFlows.length)];
+
+          activeRandomChats.set(roomId, { 
+             user1: { userId, socketId: socket.id }, 
+             user2: botUser, 
+             botState: 'init',
+             botFlow: selectedFlow 
+          });
 
           io.to(socket.id).emit('match_found', {
              roomId,
@@ -1066,19 +1074,36 @@ io.on('connection', (socket) => {
              partnerUsername: 'Stranger'
           });
 
-          // Bot sends first message "hi" after delay
-          setTimeout(() => {
-             io.to(socket.id).emit('receive_anonymous_typing', { isTyping: true });
-             setTimeout(() => {
-                io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
-                io.to(socket.id).emit('receive_anonymous_message', {
-                  _id: `anon-bot-${Date.now()}`,
-                  message: `hi`,
-                  senderSocket: 'bot-socket',
-                  createdAt: new Date().toISOString()
-                });
-             }, 2500); // typing for 2.5s
-          }, 1500); // wait 1.5s before starting to type
+          if (selectedFlow === 'DEFAULT') {
+            activeRandomChats.get(roomId).botState = 'waiting_for_hi';
+            setTimeout(() => {
+               io.to(socket.id).emit('receive_anonymous_typing', { isTyping: true });
+               setTimeout(() => {
+                  io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
+                  io.to(socket.id).emit('receive_anonymous_message', { _id: `anon-bot-${Date.now()}`, message: `hi`, senderSocket: 'bot-socket', createdAt: new Date().toISOString() });
+               }, 2500); 
+            }, 1500); 
+          } else if (selectedFlow === 'SILENT_LEAVE') {
+            activeRandomChats.get(roomId).botState = 'waiting_for_msg';
+          } else if (selectedFlow === 'HI_THEN_LEAVE') {
+            activeRandomChats.get(roomId).botState = 'waiting_for_msg';
+          } else if (selectedFlow === 'NETWORK_ERROR') {
+            activeRandomChats.get(roomId).botState = 'network_error';
+            setTimeout(() => {
+               io.to(socket.id).emit('receive_anonymous_message', { _id: `sys-${Date.now()}`, message: `Network Error`, isSystem: true, senderSocket: 'system', createdAt: new Date().toISOString() });
+               io.to(socket.id).emit('anonymous_chat_ended');
+               activeRandomChats.delete(roomId);
+            }, 4000);
+          } else if (selectedFlow === 'KAHA_SE_HO') {
+            activeRandomChats.get(roomId).botState = 'waiting_for_reply_1';
+            setTimeout(() => {
+               io.to(socket.id).emit('receive_anonymous_typing', { isTyping: true });
+               setTimeout(() => {
+                  io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
+                  io.to(socket.id).emit('receive_anonymous_message', { _id: `anon-bot-${Date.now()}`, message: `hello kaha se ho`, senderSocket: 'bot-socket', createdAt: new Date().toISOString() });
+               }, 2500); 
+            }, 1500); 
+          }
 
         }
       }, 4000); // exactly 4 seconds
@@ -1103,26 +1128,34 @@ io.on('connection', (socket) => {
         setTimeout(() => {
           io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
           
-          if (chat.botState === 'waiting_for_hi') {
-            chat.botState = 'waiting_for_how_are_you_reply';
-            io.to(socket.id).emit('receive_anonymous_message', {
-              _id: `anon-bot-${Date.now()}`,
-              message: `how are you`,
-              senderSocket: 'bot-socket',
-              createdAt: new Date().toISOString()
-            });
-          } else if (chat.botState === 'waiting_for_how_are_you_reply') {
-            chat.botState = 'waiting_for_gender';
-            io.to(socket.id).emit('receive_anonymous_message', {
-              _id: `anon-bot-${Date.now()}`,
-              message: `M or F`,
-              senderSocket: 'bot-socket',
-              createdAt: new Date().toISOString()
-            });
-          } else if (chat.botState === 'waiting_for_gender') {
-            // Bot leaves regardless of what they reply at this stage
-            io.to(socket.id).emit('anonymous_chat_ended');
-            activeRandomChats.delete(roomId);
+          if (chat.botFlow === 'DEFAULT') {
+            if (chat.botState === 'waiting_for_hi') {
+              chat.botState = 'waiting_for_how_are_you_reply';
+              io.to(socket.id).emit('receive_anonymous_message', { _id: `anon-bot-${Date.now()}`, message: `how are you`, senderSocket: 'bot-socket', createdAt: new Date().toISOString() });
+            } else if (chat.botState === 'waiting_for_how_are_you_reply') {
+              chat.botState = 'waiting_for_gender';
+              io.to(socket.id).emit('receive_anonymous_message', { _id: `anon-bot-${Date.now()}`, message: `M or F`, senderSocket: 'bot-socket', createdAt: new Date().toISOString() });
+            } else if (chat.botState === 'waiting_for_gender') {
+              io.to(socket.id).emit('anonymous_chat_ended');
+              activeRandomChats.delete(roomId);
+            }
+          } else if (chat.botFlow === 'SILENT_LEAVE') {
+             io.to(socket.id).emit('anonymous_chat_ended');
+             activeRandomChats.delete(roomId);
+          } else if (chat.botFlow === 'HI_THEN_LEAVE') {
+             io.to(socket.id).emit('receive_anonymous_message', { _id: `anon-bot-${Date.now()}`, message: `hi`, senderSocket: 'bot-socket', createdAt: new Date().toISOString() });
+             setTimeout(() => {
+                io.to(socket.id).emit('anonymous_chat_ended');
+                activeRandomChats.delete(roomId);
+             }, 1000);
+          } else if (chat.botFlow === 'KAHA_SE_HO') {
+            if (chat.botState === 'waiting_for_reply_1') {
+              chat.botState = 'waiting_for_reply_2';
+              io.to(socket.id).emit('receive_anonymous_message', { _id: `anon-bot-${Date.now()}`, message: `nice`, senderSocket: 'bot-socket', createdAt: new Date().toISOString() });
+            } else if (chat.botState === 'waiting_for_reply_2') {
+              io.to(socket.id).emit('anonymous_chat_ended');
+              activeRandomChats.delete(roomId);
+            }
           }
         }, 2000); // 2s typing time
       }, 1000); // 1s wait before starting to type
