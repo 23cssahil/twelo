@@ -58,6 +58,8 @@ export default function Dashboard() {
   const [anonymousMessages, setAnonymousMessages] = useState([]);
   const [isAnonymousChatActive, setIsAnonymousChatActive] = useState(false);
   const [matchFailed, setMatchFailed] = useState(false);
+  const [anonymousPartnerAvatar, setAnonymousPartnerAvatar] = useState('');
+  const [anonymousPartnerCountry, setAnonymousPartnerCountry] = useState('');
 
   // Chat state
   const [recentChats, setRecentChats] = useState([]);
@@ -227,14 +229,16 @@ export default function Dashboard() {
       handleEndCallQuietly();
     });
 
-    socket.on('match_found', ({ roomId, partnerId }) => {
-      setIsSearchingRandom(false);
-      setAnonymousRoomId(roomId);
-      setAnonymousPartnerId(partnerId);
-      setAnonymousMessages([]);
-      setIsAnonymousChatActive(true);
-      setActiveTab('anonymousChat');
-    });
+    socket.on('match_found', ({ roomId, partnerId, partnerAvatar, partnerCountry }) => {
+        setIsSearchingRandom(false);
+        setAnonymousRoomId(roomId);
+        setAnonymousPartnerId(partnerId);
+        setAnonymousPartnerAvatar(partnerAvatar || '');
+        setAnonymousPartnerCountry(partnerCountry || 'Earth');
+        setAnonymousMessages([]);
+        setIsAnonymousChatActive(true);
+        setActiveTab('anonymousChat');
+      });
 
     socket.on('receive_anonymous_message', (msg) => {
       setAnonymousMessages(prev => [...prev, msg]);
@@ -792,7 +796,17 @@ export default function Dashboard() {
                     ←
                   </button>
                   <div className="user-names">
-                    <span className="user-username">Stranger</span>
+                    <span className="user-username" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {anonymousPartnerAvatar ? (
+                        <img src={anonymousPartnerAvatar} alt="Avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#222' }} />
+                      ) : (
+                        <div className="user-avatar-small" style={{ width: '28px', height: '28px', fontSize: '12px' }}>?</div>
+                      )}
+                      Stranger
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>
+                      {anonymousPartnerCountry}
+                    </span>
                   </div>
                 </div>
                 <div className="chat-actions">

@@ -89,10 +89,10 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-app.post('/api/auth/complete_profile', async (req, res) => {
+  app.post('/api/auth/complete_profile', async (req, res) => {
   try {
-    const { name, email, googleId } = req.body;
-    if (!name || !email || !googleId) return res.status(400).json({ message: 'All fields required' });
+    const { name, email, googleId, age, country, gender } = req.body;
+    if (!name || !email || !googleId || !age || !country || !gender) return res.status(400).json({ message: 'All fields required' });
 
     const existingUser = await User.findOne({ googleId });
     if (existingUser) return res.status(400).json({ message: 'User already exists' });
@@ -112,7 +112,17 @@ app.post('/api/auth/complete_profile', async (req, res) => {
       userExists = await User.findOne({ username });
     }
 
-    const newUser = new User({ username, name, email, googleId, uniqueId });
+    let avatarSeed = "";
+    if (gender.toLowerCase() === 'male') {
+       const rand = Math.floor(Math.random() * 5) + 1;
+       avatarSeed = `male${rand}`;
+    } else {
+       const rand = Math.floor(Math.random() * 2) + 1;
+       avatarSeed = `female${rand}`;
+    }
+    const avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${avatarSeed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+
+    const newUser = new User({ username, name, email, googleId, uniqueId, age: Number(age), country, gender: gender.toLowerCase(), avatarUrl });
     await newUser.save();
 
     const jwtToken = jwt.sign(
@@ -506,7 +516,7 @@ io.on('connection', (socket) => {
   });
 
   // --- Anonymous Random Chat Events ---
-  socket.on('search_random', (userId) => {
+  socket.on('search_random', async (userId) => {
     if (!randomChatQueue.some(u => u.userId === userId)) {
       randomChatQueue.push({ userId, socketId: socket.id });
     }
@@ -518,8 +528,25 @@ io.on('connection', (socket) => {
       const roomId = `random_${Date.now()}_${Math.random().toString(36).substring(2,8)}`;
       activeRandomChats.set(roomId, { user1, user2 });
 
-      io.to(user1.socketId).emit('match_found', { roomId, partnerId: user2.userId });
-      io.to(user2.socketId).emit('match_found', { roomId, partnerId: user1.userId });
+      try {
+        const user1Record = await User.findById(user1.userId);
+        const user2Record = await User.findById(user2.userId);
+
+        io.to(user1.socketId).emit('match_found', { 
+          roomId, 
+          partnerId: user2.userId,
+          partnerAvatar: user2Record?.avatarUrl,
+          partnerCountry: user2Record?.country
+        });
+        io.to(user2.socketId).emit('match_found', { 
+          roomId, 
+          partnerId: user1.userId,
+          partnerAvatar: user1Record?.avatarUrl,
+          partnerCountry: user1Record?.country
+        });
+      } catch (err) {
+        console.error("Error fetching random chat users", err);
+      }
     }
   });
 

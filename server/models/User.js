@@ -26,6 +26,26 @@ const UserSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+  age: {
+    type: Number,
+    required: true,
+    default: 18,
+  },
+  country: {
+    type: String,
+    required: true,
+    default: 'Earth',
+  },
+  gender: {
+    type: String,
+    required: true,
+    enum: ['male', 'female'],
+    default: 'male',
+  },
+  avatarUrl: {
+    type: String,
+    default: '',
+  },
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

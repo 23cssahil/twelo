@@ -17,6 +17,9 @@ export default function Login() {
   const [isNewUser, setIsNewUser] = useState(false);
   const [googleData, setGoogleData] = useState(null);
   const [name, setName] = useState('');
+  const [age, setAge] = useState('');
+  const [country, setCountry] = useState('');
+  const [gender, setGender] = useState('');
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
@@ -57,8 +60,8 @@ export default function Login() {
 
   const handleCompleteProfile = async (e) => {
     e.preventDefault();
-    if (!name.trim()) {
-      setError("Please enter your name");
+    if (!name.trim() || !age || !country.trim() || !gender) {
+      setError("Please fill out all fields");
       return;
     }
     
@@ -68,7 +71,7 @@ export default function Login() {
       const res = await fetch(`${API_URL}/api/auth/complete_profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email: googleData.email, googleId: googleData.googleId })
+        body: JSON.stringify({ name, email: googleData.email, googleId: googleData.googleId, age, country, gender })
       });
       
       const data = await res.json();
@@ -138,6 +141,52 @@ export default function Login() {
                 autoFocus
               />
               <label className="floating-label">Your Full Name</label>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div className="form-group floating-group" style={{ flex: 1 }}>
+                <input
+                  type="number"
+                  className="auth-input floating-input"
+                  placeholder=" "
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  required
+                  min="13"
+                  max="100"
+                />
+                <label className="floating-label">Age</label>
+              </div>
+
+              <div className="form-group floating-group" style={{ flex: 2 }}>
+                <input
+                  type="text"
+                  className="auth-input floating-input"
+                  placeholder=" "
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  required
+                />
+                <label className="floating-label">Country</label>
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', color: '#a8a8a8', fontSize: '0.9rem', marginBottom: '8px', marginLeft: '4px' }}>Gender</label>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div 
+                  onClick={() => setGender('male')}
+                  style={{ flex: 1, padding: '12px', textAlign: 'center', borderRadius: '12px', cursor: 'pointer', border: gender === 'male' ? '2px solid var(--brand-blue)' : '2px solid #333', background: gender === 'male' ? 'rgba(0,191,255,0.1)' : 'transparent', color: gender === 'male' ? 'var(--brand-blue)' : '#888', fontWeight: gender === 'male' ? 'bold' : 'normal', transition: 'all 0.3s' }}
+                >
+                  Male
+                </div>
+                <div 
+                  onClick={() => setGender('female')}
+                  style={{ flex: 1, padding: '12px', textAlign: 'center', borderRadius: '12px', cursor: 'pointer', border: gender === 'female' ? '2px solid var(--brand-blue)' : '2px solid #333', background: gender === 'female' ? 'rgba(0,191,255,0.1)' : 'transparent', color: gender === 'female' ? 'var(--brand-blue)' : '#888', fontWeight: gender === 'female' ? 'bold' : 'normal', transition: 'all 0.3s' }}
+                >
+                  Female
+                </div>
+              </div>
             </div>
             
             <button 
