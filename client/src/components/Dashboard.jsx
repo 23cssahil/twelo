@@ -1199,6 +1199,15 @@ export default function Dashboard() {
                         className="chat-text-input"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
+                        onFocus={() => {
+                          setTimeout(() => {
+                            window.scrollTo({ top: 0, behavior: 'instant' });
+                            document.body.scrollTop = 0;
+                          }, 100);
+                          setTimeout(() => {
+                            window.scrollTo({ top: 0, behavior: 'instant' });
+                          }, 300);
+                        }}
                         required
                       />
                       {newMessage.trim() && (
