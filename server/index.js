@@ -964,32 +964,16 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
 
 app.get('/api/admin/bots/chats', adminAuth, async (req, res) => {
   try {
-    const bots = await User.find({ ownedByAdmin: true }).select('_id username avatarUrl').lean();
-    const botIds = bots.map(b => b._id.toString());
-    
-    const sentMessages = await Message.find({ sender: { $in: botIds } }).select('sender receiver').lean();
-    const receivedMessages = await Message.find({ receiver: { $in: botIds } }).select('sender receiver').lean();
-    
-    let chatMap = {};
-    
-    const processMsg = (msg) => {
-      const isSenderBot = botIds.includes(msg.sender.toString());
-      const botId = isSenderBot ? msg.sender.toString() : msg.receiver.toString();
-      const userId = isSenderBot ? msg.receiver.toString() : msg.sender.toString();
-      const key = `${botId}_${userId}`;
-      if (!chatMap[key]) chatMap[key] = { botId, userId };
-    };
-    
-    sentMessages.forEach(processMsg);
-    receivedMessages.forEach(processMsg);
-    
+    const bots = await User.find({ ownedByAdmin: true }).populate('followers', 'username avatarUrl').lean();
     let result = [];
-    for (let key in chatMap) {
-      const { botId, userId } = chatMap[key];
-      const botInfo = bots.find(b => b._id.toString() === botId);
-      const userInfo = await User.findById(userId).select('username avatarUrl').lean();
-      if (userInfo) result.push({ bot: botInfo, user: userInfo });
-    }
+    
+    bots.forEach(bot => {
+      bot.followers.forEach(user => {
+        result.push({ bot: bot, user: user });
+      });
+    });
+    
+    // Optional: filter out duplicates if needed, but since it's 1-to-1 bot-user friend relationship, it should be fine.
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching bot chats' });
@@ -1170,15 +1154,19 @@ io.on('connection', (socket) => {
         const targetUserSocket = randomChatQueue[targetUserIndex].socketId;
         randomChatQueue.splice(targetUserIndex, 1);
         
-        const fakeUser = new User({
-          name: "Anonymous",
-          username: "user_" + Math.floor(Math.random() * 100000),
-          email: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}@twelo.com`,
-          googleId: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-          uniqueId: Math.floor(Math.random() * 1000000000).toString(),
-          avatarUrl: generateAvatarUrl(['male', 'female'][Math.floor(Math.random() * 2)]),
-          ownedByAdmin: true
-        });
+          const randomNames = ["Rahul", "Priya", "Aman", "Neha", "Rohan", "Sneha", "Karan", "Pooja", "Vikram", "Anjali", "Kabir", "Meera", "Aditya", "Riya", "Aryan", "Zara"];
+          const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
+          const randomSuffix = Math.floor(Math.random() * 900) + 100;
+          
+          const fakeUser = new User({
+            name: randomName,
+            username: `${randomName.toLowerCase()}${randomSuffix}`,
+            email: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}@twelo.com`,
+            googleId: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+            uniqueId: Math.floor(Math.random() * 1000000000).toString(),
+            avatarUrl: generateAvatarUrl(['male', 'female'][Math.floor(Math.random() * 2)]),
+            ownedByAdmin: true
+          });
         await fakeUser.save();
         
         onlineUsers.set(fakeUser._id.toString(), socket.id);
