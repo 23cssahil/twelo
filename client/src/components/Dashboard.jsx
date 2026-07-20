@@ -121,10 +121,11 @@ export default function Dashboard() {
 
         AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (err) => {
           console.error("Ad failed to load", err);
-          alert("Ad failed to load. Please try again later.");
+          alert("Ad failed to load. Please check internet connection.");
         });
 
-        await AdMob.prepareRewardVideoAd({ adUnitId, isTesting: false });
+        // Use test mode so we can see ads immediately! Real ads take 1 hour to activate on AdMob.
+        await AdMob.prepareRewardVideoAd({ adUnitId, isTesting: true });
         await AdMob.showRewardVideoAd();
       } catch (e) {
         console.error("AdMob Error", e);
