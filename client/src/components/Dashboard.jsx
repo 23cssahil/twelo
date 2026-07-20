@@ -217,7 +217,7 @@ export default function Dashboard() {
   const callStartTimeRef = useRef(null);
   const activeCallTargetRef = useRef(null);
 
-  const [gyro, setGyro] = useState({ x: 0, y: 0 });
+
 
   // Media & Context Menu State
   const [isRecording, setIsRecording] = useState(false);
@@ -245,26 +245,7 @@ export default function Dashboard() {
   const [deleteUsernameInput, setDeleteUsernameInput] = useState('');
   const [deleteError, setDeleteError] = useState('');
 
-  useEffect(() => {
-    const handleOrientation = (e) => {
-      let x = e.gamma || 0; // -90 to 90 (left-right)
-      let y = e.beta || 0;  // -180 to 180 (front-back)
-      
-      // Reduce sensitivity for a very subtle effect
-      x = x / 3;
-      y = y / 3;
 
-      // Restrict max pixel movement to a small range (10px)
-      x = Math.max(-10, Math.min(10, x));
-      y = Math.max(-10, Math.min(10, y));
-      setGyro({ x, y });
-    };
-    
-    if (window.DeviceOrientationEvent) {
-      window.addEventListener('deviceorientation', handleOrientation);
-    }
-    return () => window.removeEventListener('deviceorientation', handleOrientation);
-  }, []);
 
   const handleUpdateUsername = async () => {
     setUsernameError('');
@@ -1513,7 +1494,7 @@ export default function Dashboard() {
             <div 
               style={{ 
                 position: 'absolute', top: '-15vh', left: '0', width: '100%', height: '130vh', zIndex: 0,
-                transform: `translate(${gyro.x}px, ${gyro.y}px) scale(1.1)`,
+                transform: `scale(1.1)`,
                 transition: 'transform 0.1s ease-out'
               }}
             >
