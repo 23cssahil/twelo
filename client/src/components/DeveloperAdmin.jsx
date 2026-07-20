@@ -44,6 +44,7 @@ export default function DeveloperAdmin() {
   const [selectedBotChat, setSelectedBotChat] = useState(null);
   const selectedBotChatRef = useRef(null);
   const botMessagesEndRef = useRef(null);
+  const [unreadBotChats, setUnreadBotChats] = useState(new Set());
   const [botChatMessages, setBotChatMessages] = useState([]);
   const [botChatMessageInput, setBotChatMessageInput] = useState('');
 
@@ -114,6 +115,8 @@ export default function DeveloperAdmin() {
             (msg.sender === currBot.user._id && msg.receiver === currBot.bot._id)
         )) {
             setBotChatMessages(prev => [...prev, msg]);
+        } else {
+            setUnreadBotChats(prev => new Set(prev).add(msg.sender));
         }
       });
       
@@ -417,6 +420,11 @@ export default function DeveloperAdmin() {
 
   const openBotChat = async (chat) => {
     setSelectedBotChat(chat);
+    setUnreadBotChats(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(chat.user._id);
+      return newSet;
+    });
     try {
       const res = await fetch(`${API_URL}/api/admin/bots/messages/${chat.bot._id}/${chat.user._id}`, {
         headers: { 'x-admin-pass': password }
@@ -582,9 +590,11 @@ export default function DeveloperAdmin() {
                 <button 
                   onClick={() => { setActiveTab('bot-chats'); fetchBotChats(); }} 
                   className={`dev-btn-${activeTab === 'bot-chats' ? 'primary' : 'secondary'}`}
+                  style={{ position: 'relative' }}
                 >
                   <MessageSquare size={16} style={{ marginRight: '8px' }} />
                   Bot Chats
+                  {unreadBotChats.size > 0 && <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ff4b4b', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{unreadBotChats.size}</span>}
                 </button>
               </div>
 
@@ -726,7 +736,6 @@ export default function DeveloperAdmin() {
                   </div>
                 </div>
               ) : (
-              ) : (
                 <div className="chat-container" style={{ border: '1px solid #333', borderRadius: '12px', overflow: 'hidden' }}>
                   {!selectedBotChat ? (
                     <div className="chat-list" style={{ width: '100%', maxWidth: '100%', borderRight: 'none' }}>
@@ -748,6 +757,9 @@ export default function DeveloperAdmin() {
                                   Chatting with your bot <strong>@{chat.bot.username}</strong>
                                 </span>
                               </div>
+                              {unreadBotChats.has(chat.user._id) && (
+                                <div style={{ width: '10px', height: '10px', background: '#ff4b4b', borderRadius: '50%', marginLeft: 'auto' }}></div>
+                              )}
                             </div>
                           ))
                         )}
