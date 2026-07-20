@@ -211,6 +211,8 @@
 @media (max-width: 768px) {
   .dev-header {
     padding: 15px;
+    flex-direction: column;
+    gap: 15px;
   }
   .dev-content {
     padding: 15px;
@@ -222,8 +224,44 @@
     flex-direction: column;
     align-items: flex-start;
   }
-  .dev-btn-danger, .dev-btn-secondary {
+  .dev-btn-danger, .dev-btn-secondary, .dev-btn-primary {
     width: 100%;
     justify-content: center;
   }
+  form {
+    flex-direction: column;
+  }
+  .dev-tabs {
+    flex-wrap: wrap;
+    gap: 10px !important;
+  }
+  .dev-tabs button {
+    flex: 1 1 calc(50% - 10px);
+    font-size: 0.8rem;
+    padding: 8px !important;
+  }
+  .dev-stat-card {
+    padding: 15px;
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+  /* Modals fix */
+  .modal-content {
+    width: 95% !important;
+    max-width: 100% !important;
+    padding: 15px !important;
+    height: 85vh !important;
+  }
 }
+
+/* Toast fix for mobile */
+@media (max-width: 480px) {
+  div[style*="position: fixed"][style*="bottom: 20px"] {
+    width: 90% !important;
+    left: 5% !important;
+    right: 5% !important;
+    box-sizing: border-box;
+  }
+}
+
