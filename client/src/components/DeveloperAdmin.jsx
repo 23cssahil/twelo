@@ -607,7 +607,7 @@ export default function DeveloperAdmin() {
                     )}
                   </div>
                 </>
-              ) : (
+              ) : activeTab === 'reports' ? (
                 <div className="dev-reports-list" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   {reports.length === 0 ? (
                     <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No pending reports. Great job!</div>
