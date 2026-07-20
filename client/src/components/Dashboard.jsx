@@ -322,10 +322,15 @@ export default function Dashboard() {
       const data = await response.json();
       if (!response.ok) {
         setUsernameError(data.message);
-      } else {
-        localStorage.setItem('token', data.token);
-        window.location.reload();
-      }
+        } else {
+          localStorage.setItem('token', data.token);
+          const savedUser = JSON.parse(localStorage.getItem('user'));
+          if (savedUser) {
+            savedUser.username = data.username;
+            localStorage.setItem('user', JSON.stringify(savedUser));
+          }
+          window.location.reload();
+        }
     } catch (err) {
       setUsernameError('An error occurred');
     }
