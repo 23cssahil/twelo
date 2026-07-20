@@ -153,6 +153,7 @@ export default function Dashboard() {
         await AdMob.prepareRewardVideoAd({ adUnitId, isTesting: true });
       } catch (e) {
         console.error("AdMob Error", e);
+        alert("AdMob Code Error: " + e.message);
         // Fallback to fake ad if AdMob fails completely
         setShowAdModal(true);
         setAdTimeLeft(15);
