@@ -75,7 +75,22 @@ import { Capacitor } from '@capacitor/core';
 import { AdMob, RewardAdPluginEvents } from '@capacitor-community/admob';
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, _setActiveTab] = useState('home');
+  
+  const setActiveTab = useCallback((tab) => {
+    _setActiveTab(prev => {
+      if (prev !== tab) {
+        window.history.pushState({ tab }, '');
+        return tab;
+      }
+      return prev;
+    });
+  }, []);
+
+  useEffect(() => {
+    window.history.replaceState({ tab: 'home' }, '');
+  }, []);
+
   const { user, token, logout } = useContext(AuthContext);
   const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : '');
   const socket = useContext(SocketContext);
@@ -544,6 +559,10 @@ export default function Dashboard() {
         setActiveChatUser(null);
         setIsAnonymousChatActive(false);
         setConnectionsModal({ isOpen: false, title: '', users: [] });
+      } else if (e.state && e.state.tab) {
+        _setActiveTab(e.state.tab);
+      } else {
+        _setActiveTab('home');
       }
     };
 
@@ -592,16 +611,7 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [isSearchingRandom, randomSearchTimer, socket, user, activeTab]);
 
-  // Handle hardware back button
-  useEffect(() => {
-    const handlePopState = (e) => {
-      if (activeChatUser) {
-        setActiveChatUser(null);
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [activeChatUser]);
+  // Removed redundant popstate handler
 
   useEffect(() => {
     if (messagesEndRef.current) {
