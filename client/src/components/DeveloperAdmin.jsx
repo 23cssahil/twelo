@@ -28,8 +28,14 @@ export default function DeveloperAdmin() {
 
   const [incomingRandom, setIncomingRandom] = useState(null);
   const [activeRandomChat, setActiveRandomChat] = useState(null);
+  const activeRandomChatRef = React.useRef(activeRandomChat);
   const [randomMessages, setRandomMessages] = useState([]);
   const [randomMessageInput, setRandomMessageInput] = useState('');
+
+  // Sync ref with state
+  useEffect(() => {
+    activeRandomChatRef.current = activeRandomChat;
+  }, [activeRandomChat]);
 
   const [botRequests, setBotRequests] = useState([]);
   const [botChats, setBotChats] = useState([]);
@@ -58,7 +64,15 @@ export default function DeveloperAdmin() {
           } catch (e) {}
           
           if (Notification.permission === 'granted') {
-            new Notification('New Random Chat!', { body: `@${user.username} is waiting...` });
+            const notif = new Notification('New Random Chat!', { body: `@${user.username} is waiting...` });
+            notif.onclick = () => {
+              window.focus();
+              if (activeRandomChatRef.current) {
+                socket.emit('send_anonymous_message', { roomId: activeRandomChatRef.current.roomId, messageText: 'bye' });
+                socket.emit('leave_anonymous_chat', { roomId: activeRandomChatRef.current.roomId });
+              }
+              socket.emit('admin_intercept_random', { targetUserId: user._id });
+            };
           }
           setIncomingRandom(user);
           // Auto clear after 6 seconds if not intercepted
@@ -794,7 +808,7 @@ export default function DeveloperAdmin() {
       {incomingRandom && (
         <div style={{
           position: 'fixed', bottom: '20px', right: '20px', background: '#10b981', color: '#fff', 
-          padding: '20px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', zIndex: 1000,
+          padding: '20px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', zIndex: 9999,
           animation: 'slideUp 0.3s ease-out'
         }}>
           <h3 style={{ margin: '0 0 10px 0' }}>🔔 New Random Chat Waiting!</h3>
