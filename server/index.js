@@ -1169,7 +1169,7 @@ io.on('connection', (socket) => {
         
         const targetDbUser = await User.findById(targetUserId).select('username avatarUrl country gender').lean();
         
-        io.to(targetUserSocket).emit('random_chat_started', {
+        io.to(targetUserSocket).emit('match_found', {
           roomId,
           partnerId: fakeUser._id.toString(),
           partnerAvatar: fakeUser.avatarUrl,
