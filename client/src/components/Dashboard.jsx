@@ -1086,6 +1086,11 @@ export default function Dashboard() {
 
     setNewMessage('');
     setReplyingTo(null);
+
+    // Keep keyboard open
+    setTimeout(() => {
+      document.getElementById('chat-input')?.focus();
+    }, 100);
   };
 
   const handleLongPress = (msg) => {
@@ -1483,6 +1488,11 @@ export default function Dashboard() {
 
     setAnonymousMessages(prev => [...prev, msg]);
     setNewMessage('');
+
+    // Keep keyboard open
+    setTimeout(() => {
+      document.getElementById('chat-input')?.focus();
+    }, 100);
   };
 
   const handleSendAnonymousFriendRequest = async () => {
@@ -2096,6 +2106,7 @@ export default function Dashboard() {
                           </button>
                           <input 
                             type="file" 
+                            id="camera-input"
                             accept="image/jpeg, image/png, image/webp" 
                             capture="environment"
                             ref={cameraInputRef} 
@@ -2103,6 +2114,7 @@ export default function Dashboard() {
                             onChange={handleImageSelect} 
                           />
                           <input
+                            id="chat-input"
                             type="text"
                             placeholder="Message..."
                             className="chat-text-input"
