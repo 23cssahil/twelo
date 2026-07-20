@@ -633,44 +633,66 @@ export default function DeveloperAdmin() {
                   )}
                 </div>
               ) : activeTab === 'bot-requests' ? (
-                <div className="dev-user-list">
-                  {botRequests.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No pending requests for bots.</div>
-                  ) : (
-                    botRequests.map((req, i) => (
-                      <div key={i} className="dev-user-card" style={{ borderLeft: '4px solid #10b981' }}>
-                        <div>
-                          <strong>{req.requester.username}</strong> wants to be friends with your bot <strong>@{req.bot.username}</strong>
-                        </div>
-                        <button 
-                          onClick={() => handleAcceptBotRequest(req.bot._id, req.requester._id)}
-                          className="dev-btn-primary" style={{ background: '#10b981' }}
-                        >
-                          Accept
-                        </button>
-                      </div>
-                    ))
-                  )}
+                <div className="chat-container" style={{ border: '1px solid #333', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div className="chat-list" style={{ width: '100%', maxWidth: '100%', borderRight: 'none' }}>
+                    <div className="chat-list-header" style={{ background: '#111' }}>
+                      <h2>Pending Requests ({botRequests.length})</h2>
+                    </div>
+                    <div className="chat-users-scroll" style={{ background: '#050505' }}>
+                      {botRequests.length === 0 ? (
+                        <div style={{ textAlign: 'center', color: '#a8a8a8', padding: '20px' }}>No pending requests for bots.</div>
+                      ) : (
+                        botRequests.map((req, i) => (
+                          <div key={i} className="chat-user-item" style={{ cursor: 'default', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                              <div className="user-avatar-small">
+                                <img src={req.requester.avatarUrl || `https://ui-avatars.com/api/?name=${req.requester.username}`} alt='avatar' />
+                              </div>
+                              <div className="user-names">
+                                <span className="user-username">@{req.requester.username}</span>
+                                <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>
+                                  wants to be friends with bot <strong>@{req.bot.username}</strong>
+                                </span>
+                              </div>
+                            </div>
+                            <button 
+                              onClick={() => handleAcceptBotRequest(req.bot._id, req.requester._id)}
+                              className="dev-btn-primary" style={{ background: '#10b981', padding: '8px 15px', borderRadius: '20px', fontSize: '0.85rem' }}
+                            >
+                              Accept
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <div className="dev-user-list">
-                  {botChats.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No bot chats found.</div>
-                  ) : (
-                    botChats.map((chat, i) => (
-                      <div key={i} className="dev-user-card">
-                        <div>
-                          <strong>@{chat.bot.username}</strong> chatting with <strong>@{chat.user.username}</strong>
-                        </div>
-                        <button 
-                          onClick={() => openBotChat(chat)}
-                          className="dev-btn-secondary"
-                        >
-                          Open Chat
-                        </button>
-                      </div>
-                    ))
-                  )}
+                <div className="chat-container" style={{ border: '1px solid #333', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div className="chat-list" style={{ width: '100%', maxWidth: '100%', borderRight: 'none' }}>
+                    <div className="chat-list-header" style={{ background: '#111' }}>
+                      <h2>Bot Chats</h2>
+                    </div>
+                    <div className="chat-users-scroll" style={{ background: '#050505' }}>
+                      {botChats.length === 0 ? (
+                        <div style={{ textAlign: 'center', color: '#a8a8a8', padding: '20px' }}>No bot chats found.</div>
+                      ) : (
+                        botChats.map((chat, i) => (
+                          <div key={i} className="chat-user-item" onClick={() => openBotChat(chat)}>
+                            <div className="user-avatar-small">
+                              <img src={chat.user.avatarUrl || `https://ui-avatars.com/api/?name=${chat.user.username}`} alt='avatar' />
+                            </div>
+                            <div className="user-names">
+                              <span className="user-username">@{chat.user.username}</span>
+                              <span style={{ fontSize: '0.75rem', color: '#10b981' }}>
+                                Chatting with your bot <strong>@{chat.bot.username}</strong>
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -786,89 +808,104 @@ export default function DeveloperAdmin() {
 
       {/* Active Random Chat Modal */}
       {activeRandomChat && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '600px', height: '70vh', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header">
-              <h2>Intercepted: @{activeRandomChat.targetUser.username}</h2>
-              <button className="icon-btn" onClick={() => {
-                if(window.confirm('Leave chat?')) {
-                  socket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId });
-                  setActiveRandomChat(null);
-                }
-              }}><X size={24} /></button>
-            </div>
-            <div style={{ padding: '10px', background: '#222', fontSize: '0.8rem', color: '#aaa', textAlign: 'center' }}>
-              You are chatting disguised as: <strong>@{activeRandomChat.botAccount.username}</strong>
-            </div>
-            
-            <div style={{ flex: 1, overflowY: 'auto', padding: '15px', background: '#111', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {randomMessages.map((msg, i) => (
-                <div key={i} style={{
-                  alignSelf: msg.isMine ? 'flex-end' : 'flex-start',
-                  background: msg.isMine ? '#0095f6' : '#333',
-                  padding: '10px 15px',
-                  borderRadius: '15px',
-                  color: '#fff',
-                  maxWidth: '70%'
-                }}>
-                  {msg.message}
+        <div className="modal-overlay dev-chat-override">
+          <div className="chat-container" style={{ width: '100%', maxWidth: '800px', height: '80vh', position: 'relative', zIndex: 1001 }}>
+            <div className="chat-area">
+              <div className="chat-room-header" style={{ background: '#111' }}>
+                <div className="chat-header-info">
+                  <button className="back-btn" onClick={() => {
+                    if(window.confirm('Leave chat?')) {
+                      socket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId });
+                      setActiveRandomChat(null);
+                    }
+                  }} style={{ border: 'none', background: 'transparent', fontSize: '1.2rem', cursor: 'pointer', marginRight: '8px', color: '#fff' }}>
+                    <X size={24} />
+                  </button>
+                  <div className="user-names">
+                    <span className="user-username" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className='user-avatar-small' style={{ width: '28px', height: '28px' }}>
+                        <img src={activeRandomChat.botAccount.avatarUrl || `https://ui-avatars.com/api/?name=${activeRandomChat.botAccount.username}`} alt='avatar' />
+                      </div>
+                      Disguised as @{activeRandomChat.botAccount.username}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#10b981' }}>Chatting with @{activeRandomChat.targetUser.username}</span>
+                  </div>
                 </div>
-              ))}
+              </div>
+              
+              <div className="chat-messages-area" style={{ background: '#0a0a0a', flex: 1, padding: '20px' }}>
+                {randomMessages.map((msg, i) => (
+                  <div key={i} className={`msg-wrapper ${msg.isMine ? 'sent' : 'received'}`}>
+                    <div className="msg-bubble">
+                      <div>{msg.message}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <form className="chat-input-area" onSubmit={handleSendRandomMessage} style={{ background: '#111' }}>
+                <div className="chat-input-wrapper">
+                  <input
+                    type="text"
+                    value={randomMessageInput}
+                    onChange={(e) => setRandomMessageInput(e.target.value)}
+                    placeholder="Type a message as bot..."
+                  />
+                  <button type="submit" className="action-icon-btn send-btn"><Send size={22} /></button>
+                </div>
+              </form>
             </div>
-            
-            <form onSubmit={handleSendRandomMessage} style={{ display: 'flex', padding: '15px', background: '#1a1a1a', gap: '10px' }}>
-              <input 
-                type="text" 
-                value={randomMessageInput}
-                onChange={e => setRandomMessageInput(e.target.value)}
-                placeholder="Type a message as bot..."
-                className="dev-input"
-                style={{ flex: 1 }}
-              />
-              <button type="submit" className="dev-btn-primary"><Send size={18} /></button>
-            </form>
           </div>
         </div>
       )}
 
       {/* Bot DM Chat Modal */}
       {selectedBotChat && (
-        <div className="modal-overlay" onClick={() => setSelectedBotChat(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', height: '70vh', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header">
-              <h2>DM: @{selectedBotChat.bot.username} ↔ @{selectedBotChat.user.username}</h2>
-              <button className="icon-btn" onClick={() => setSelectedBotChat(null)}><X size={24} /></button>
-            </div>
-            
-            <div style={{ flex: 1, overflowY: 'auto', padding: '15px', background: '#111', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {botChatMessages.map((msg, i) => {
-                const isBot = msg.sender === selectedBotChat.bot._id;
-                return (
-                  <div key={i} style={{
-                    alignSelf: isBot ? 'flex-end' : 'flex-start',
-                    background: isBot ? '#10b981' : '#333',
-                    padding: '10px 15px',
-                    borderRadius: '15px',
-                    color: '#fff',
-                    maxWidth: '70%'
-                  }}>
-                    {msg.message}
+        <div className="modal-overlay dev-chat-override" onClick={() => setSelectedBotChat(null)}>
+          <div className="chat-container" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '800px', height: '80vh', position: 'relative', zIndex: 1001 }}>
+            <div className="chat-area">
+              <div className="chat-room-header" style={{ background: '#111' }}>
+                <div className="chat-header-info">
+                  <button className="back-btn" onClick={() => setSelectedBotChat(null)} style={{ border: 'none', background: 'transparent', fontSize: '1.2rem', cursor: 'pointer', marginRight: '8px', color: '#fff' }}>
+                    <X size={24} />
+                  </button>
+                  <div className="user-names">
+                    <span className="user-username" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className='user-avatar-small' style={{ width: '28px', height: '28px' }}>
+                        <img src={`https://ui-avatars.com/api/?name=${selectedBotChat.bot.username}`} alt='avatar' />
+                      </div>
+                      Disguised as @{selectedBotChat.bot.username}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#10b981' }}>Chatting with @{selectedBotChat.user.username}</span>
                   </div>
-                );
-              })}
+                </div>
+              </div>
+              
+              <div className="chat-messages-area" style={{ background: '#0a0a0a', flex: 1, padding: '20px' }}>
+                {botChatMessages.map((msg, i) => {
+                  const isBot = msg.sender === selectedBotChat.bot._id;
+                  return (
+                    <div key={i} className={`msg-wrapper ${isBot ? 'sent' : 'received'}`}>
+                      <div className="msg-bubble">
+                        <div>{msg.message}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <form className="chat-input-area" onSubmit={handleSendBotMessage} style={{ background: '#111' }}>
+                <div className="chat-input-wrapper">
+                  <input
+                    type="text"
+                    value={botChatMessageInput}
+                    onChange={(e) => setBotChatMessageInput(e.target.value)}
+                    placeholder="Reply as bot..."
+                  />
+                  <button type="submit" className="action-icon-btn send-btn"><Send size={22} /></button>
+                </div>
+              </form>
             </div>
-            
-            <form onSubmit={handleSendBotMessage} style={{ display: 'flex', padding: '15px', background: '#1a1a1a', gap: '10px' }}>
-              <input 
-                type="text" 
-                value={botChatMessageInput}
-                onChange={e => setBotChatMessageInput(e.target.value)}
-                placeholder="Reply as bot..."
-                className="dev-input"
-                style={{ flex: 1 }}
-              />
-              <button type="submit" className="dev-btn-primary" style={{ background: '#10b981' }}><Send size={18} /></button>
-            </form>
           </div>
         </div>
       )}

@@ -443,6 +443,14 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
     targetUser.friendRequests.push(req.user.userId);
     targetUser.notifications.push({ type: 'follow_request', user: req.user.userId });
     await targetUser.save();
+
+    if (targetUser.ownedByAdmin) {
+      io.to('admin_room').emit('admin_new_bot_request', {
+        bot: { _id: targetUser._id, username: targetUser.username },
+        requester: await User.findById(req.user.userId).select('username uniqueId avatarUrl')
+      });
+    }
+
     res.json({ message: "Request sent successfully" });
   } catch (error) {
     res.status(500).json({ message: 'Error sending request' });
@@ -473,6 +481,13 @@ app.post('/api/users/anonymous_follow/:id', authenticateToken, async (req, res) 
     targetUser.friendRequests.push(req.user.userId);
     targetUser.notifications.push({ type: 'follow_request', user: req.user.userId });
     await targetUser.save();
+
+    if (targetUser.ownedByAdmin) {
+      io.to('admin_room').emit('admin_new_bot_request', {
+        bot: { _id: targetUser._id, username: targetUser.username },
+        requester: currentUser
+      });
+    }
 
     res.json({ message: "Request sent successfully", coinsLeft: currentUser.coins });
   } catch (error) {
@@ -934,6 +949,13 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
     
     await bot.save();
     await user.save();
+
+    // Alert user that request was accepted
+    const receiverSocketId = onlineUsers.get(user._id.toString());
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('request_accepted_alert');
+    }
+
     res.json({ message: "Bot request accepted" });
   } catch (error) {
     res.status(500).json({ message: 'Error accepting bot request' });
