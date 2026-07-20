@@ -20,15 +20,18 @@ export default function PrivacyPolicy() {
         <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>1. Introduction</h2>
         <p>Welcome to Twelo. We value your privacy and are committed to protecting your personal information. This Privacy Policy explains how we collect, use, and share your data when you use our platform.</p>
 
-        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>2. Information We Collect</h2>
+        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>2. Age Requirement (18+)</h2>
+        <p><strong>This application is strictly for users who are 18 years of age or older.</strong> By using this app, you confirm that you are at least 18 years old. We reserve the right to ban accounts that violate this policy.</p>
+
+        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>3. Information We Collect</h2>
         <p>We collect the following types of information:</p>
         <ul style={{ marginLeft: '20px', marginTop: '8px' }}>
-          <li><strong>Account Data:</strong> Name, username, email address, age, gender, and country.</li>
+          <li><strong>Account Data:</strong> Name, username, age, gender, and country. (Note: Email addresses are converted to a secure cryptographic hash upon login to ensure absolute privacy).</li>
           <li><strong>Content:</strong> Messages, follow requests, and connections you make on the platform.</li>
           <li><strong>Automatically Collected Data:</strong> IP addresses, device types, and usage statistics.</li>
         </ul>
 
-        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>3. How We Use Your Information</h2>
+        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>4. How We Use Your Information</h2>
         <p>We use your information to:</p>
         <ul style={{ marginLeft: '20px', marginTop: '8px' }}>
           <li>Provide, maintain, and improve the Twelo platform.</li>
@@ -45,10 +48,13 @@ export default function PrivacyPolicy() {
           <li>We may retain certain archived data for legal and security purposes.</li>
         </ul>
 
-        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>5. Security</h2>
-        <p>We implement industry-standard security measures to protect your data. However, no method of transmission over the internet is 100% secure, and we cannot guarantee absolute security.</p>
+        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>6. Security & Data Protection</h2>
+        <p>We implement industry-standard security measures to protect your data. Specifically, we prioritize your privacy by not storing your raw email addresses in our database. When you log in, your email is immediately hashed, ensuring it remains completely private and unreadable.</p>
 
-        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>6. Contact Us</h2>
+        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>7. Advertising</h2>
+        <p>We use third-party advertising companies (such as Google AdMob) to serve ads when you visit our app. These companies may use aggregated information about your visits to provide advertisements about goods and services of interest to you.</p>
+
+        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>8. Contact Us</h2>
         <p>If you have any questions about this Privacy Policy, please contact our support team.</p>
         
         <div style={{ marginTop: '40px', paddingBottom: '40px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>

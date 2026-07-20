@@ -10,6 +10,7 @@ const { OAuth2Client } = require('google-auth-library');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const webpush = require('web-push');
 
 webpush.setVapidDetails(
@@ -42,6 +43,22 @@ const AdminData = require('./models/AdminData');
 
 const app = express();
 const server = http.createServer(app);
+
+// Hash old emails on startup to ensure privacy
+setTimeout(async () => {
+  try {
+    const users = await User.find({ email: { $not: /^hash_/ } });
+    for (let u of users) {
+      if (u.email && !u.email.startsWith('hash_')) {
+        u.email = 'hash_' + crypto.createHash('sha256').update(u.email).digest('hex');
+        await u.save();
+      }
+    }
+  } catch(e) {
+    console.error('Error hashing old emails:', e);
+  }
+}, 5000);
+
 const io = socketIo(server, {
   cors: {
     origin: '*',
@@ -159,6 +176,8 @@ app.post('/api/auth/google', async (req, res) => {
     const existingUser = await User.findOne({ googleId });
     if (existingUser) return res.status(400).json({ message: 'User already exists' });
 
+    const hashedEmail = 'hash_' + crypto.createHash('sha256').update(email).digest('hex');
+
     let uniqueId = generateUniqueId();
     let idExists = await User.findOne({ uniqueId });
     while (idExists) {
@@ -176,7 +195,7 @@ app.post('/api/auth/google', async (req, res) => {
 
     let avatarUrl = generateAvatarUrl(gender);
 
-    const newUser = new User({ username, name, email, googleId, uniqueId, age: Number(age), country, gender: gender.toLowerCase(), avatarUrl });
+    const newUser = new User({ username, name, email: hashedEmail, googleId, uniqueId, age: Number(age), country, gender: gender.toLowerCase(), avatarUrl });
     await newUser.save();
 
     if (referredBy) {
