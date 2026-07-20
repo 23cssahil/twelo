@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.onrender.twelo_app.twa",
+    "sha256_cert_fingerprints": ["BA:65:8B:71:2A:FF:3C:72:5B:F3:49:2A:4C:1D:AE:98:D4:E0:AF:17:EA:12:6F:4A:F8:86:2A:BC:EC:08:71:6A"]
+  }
+}]
