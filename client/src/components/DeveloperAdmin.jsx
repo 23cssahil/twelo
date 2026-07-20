@@ -59,10 +59,49 @@ export default function DeveloperAdmin() {
   }, [botChatMessages]);
 
   useEffect(() => {
-    if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-      Notification.requestPermission();
+    const setupWebPush = async () => {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
+          const registration = await navigator.serviceWorker.ready;
+          
+          let subscription = await registration.pushManager.getSubscription();
+          if (!subscription) {
+            const vapidPublicKey = 'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA';
+            const convertedVapidKey = (base64String => {
+              const padding = '='.repeat((4 - base64String.length % 4) % 4);
+              const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+              const rawData = window.atob(base64);
+              const outputArray = new Uint8Array(rawData.length);
+              for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+              return outputArray;
+            })(vapidPublicKey);
+
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: convertedVapidKey
+            });
+          }
+          
+          // Send to backend
+          await fetch(`${API_URL}/api/admin/subscribe`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'x-admin-pass': password 
+            },
+            body: JSON.stringify(subscription)
+          });
+        }
+      } catch (err) {
+        console.error('Web Push Setup Error:', err);
+      }
+    };
+    
+    if (isAuthenticated) {
+      setupWebPush();
     }
-  }, []);
+  }, [isAuthenticated, password, API_URL]);
 
   useEffect(() => {
     if (isAuthenticated) {

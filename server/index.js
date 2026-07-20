@@ -10,6 +10,13 @@ const { OAuth2Client } = require('google-auth-library');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const webpush = require('web-push');
+
+webpush.setVapidDetails(
+  'mailto:admin@twelo.com',
+  'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA',
+  '3ZmJhL9NsYAEHfMuCbFaZCgCEJ88pPFFLZ4e5w0uC6c'
+);
 
 const googleClient = new OAuth2Client('440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com');
 
@@ -31,6 +38,7 @@ const User = require('./models/User');
 const DeletedUser = require('./models/DeletedUser');
 const Message = require('./models/Message');
 const Report = require('./models/Report');
+const AdminData = require('./models/AdminData');
 
 const app = express();
 const server = http.createServer(app);
@@ -796,6 +804,26 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
   }
 });
 
+app.post('/api/admin/subscribe', adminAuth, async (req, res) => {
+  try {
+    const subscription = req.body;
+    let adminData = await AdminData.findOne();
+    if (!adminData) {
+      adminData = new AdminData();
+    }
+    // Check if sub already exists to prevent duplicates
+    const exists = adminData.pushSubscriptions.find(s => s.endpoint === subscription.endpoint);
+    if (!exists) {
+      adminData.pushSubscriptions.push(subscription);
+      await adminData.save();
+    }
+    res.status(201).json({ message: 'Subscribed' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error subscribing' });
+  }
+});
+
 app.get('/api/admin/users', adminAuth, async (req, res) => {
   try {
     const query = req.query.q;
@@ -959,7 +987,7 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
     
     bot.friendRequests = bot.friendRequests.filter(id => id.toString() !== user._id.toString());
     if (!bot.followers.includes(user._id)) bot.followers.push(user._id);
-    if (!user.followers.includes(bot._id)) user.followers.push(bot._id);
+    if (!user.following.includes(bot._id)) user.following.push(bot._id);
     
     user.notifications.push({ type: 'request_accepted', user: bot._id });
     
@@ -1323,6 +1351,22 @@ io.on('connection', (socket) => {
       const adminSockets = io.sockets.adapter.rooms.get('admin_room') || new Set();
       const availableAdmins = Array.from(adminSockets).filter(sid => !adminBusySockets.has(sid));
 
+      // Always send web push notification if we have subscriptions, regardless of active sockets
+      (async () => {
+        try {
+          const adminData = await AdminData.findOne();
+          if (adminData && adminData.pushSubscriptions && adminData.pushSubscriptions.length > 0) {
+            const payload = JSON.stringify({
+              title: 'Globe Touched!',
+              body: `A new user is looking for a chat. Intercept now!`,
+              icon: '/icon-192.png'
+            });
+            const pushes = adminData.pushSubscriptions.map(sub => webpush.sendNotification(sub, payload).catch(e => console.log('Push error:', e)));
+            await Promise.all(pushes);
+          }
+        } catch (e) { console.error('Error sending push', e); }
+      })();
+
       if (availableAdmins.length > 0 && targetDbUser) {
         // Alert ALL available admins.
         availableAdmins.forEach(sid => io.to(sid).emit('admin_alert_new_random', targetDbUser));
@@ -1538,7 +1582,6 @@ io.on('connection', (socket) => {
       if (socketId === socket.id) {
         onlineUsers.delete(userId);
         console.log(`User ${userId} disconnected`);
-        break;
       }
     }
     io.emit('online_users', Array.from(onlineUsers.keys()));
