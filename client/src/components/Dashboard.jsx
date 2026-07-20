@@ -1091,11 +1091,6 @@ export default function Dashboard() {
 
     setNewMessage('');
     setReplyingTo(null);
-
-    // Keep keyboard open
-    setTimeout(() => {
-      document.getElementById('chat-input')?.focus();
-    }, 100);
   };
 
   const handleLongPress = (msg) => {
@@ -1493,11 +1488,6 @@ export default function Dashboard() {
 
     setAnonymousMessages(prev => [...prev, msg]);
     setNewMessage('');
-
-    // Keep keyboard open
-    setTimeout(() => {
-      document.getElementById('chat-input')?.focus();
-    }, 100);
   };
 
   const handleSendAnonymousFriendRequest = async () => {
@@ -1739,7 +1729,7 @@ export default function Dashboard() {
                       required
                     />
                     {newMessage.trim() && (
-                      <button type="submit" className="chat-send-btn"><Send size={18} /></button>
+                      <button type="submit" className="chat-send-btn" onPointerDown={(e) => e.preventDefault()}><Send size={18} /></button>
                     )}
                   </div>
                 </form>
@@ -2169,7 +2159,7 @@ export default function Dashboard() {
                       )}
 
                       {newMessage.trim() && !isRecording && (
-                        <button type="submit" className="chat-send-btn" disabled={isUploading}>
+                        <button type="submit" className="chat-send-btn" disabled={isUploading} onPointerDown={(e) => e.preventDefault()}>
                           {isUploading ? <span style={{ fontSize: '12px' }}>...</span> : <Send size={18} />}
                         </button>
                       )}
