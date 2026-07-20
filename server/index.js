@@ -774,12 +774,26 @@ const adminAuth = (req, res, next) => {
   }
 };
 
-app.get('/api/admin/stats', adminAuth, (req, res) => {
-  res.json({
-    activeUsers: onlineUsers.size,
-    randomRooms: activeRandomChats.size,
-    queuedRandom: randomChatQueue.length
-  });
+app.get('/api/admin/stats', adminAuth, async (req, res) => {
+  try {
+    const allOnlineIds = Array.from(onlineUsers.keys());
+    const validMongoIds = allOnlineIds.filter(id => /^[a-fA-F0-9]{24}$/.test(id));
+    const realUsersCount = await User.countDocuments({ 
+      _id: { $in: validMongoIds }, 
+      ownedByAdmin: { $ne: true } 
+    });
+    res.json({
+      activeUsers: realUsersCount,
+      randomRooms: activeRandomChats.size,
+      queuedRandom: randomChatQueue.length
+    });
+  } catch (err) {
+    res.json({
+      activeUsers: 0,
+      randomRooms: activeRandomChats.size,
+      queuedRandom: randomChatQueue.length
+    });
+  }
 });
 
 app.get('/api/admin/users', adminAuth, async (req, res) => {
@@ -947,6 +961,8 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
     if (!bot.followers.includes(user._id)) bot.followers.push(user._id);
     if (!user.followers.includes(bot._id)) user.followers.push(bot._id);
     
+    user.notifications.push({ type: 'request_accepted', user: bot._id });
+    
     await bot.save();
     await user.save();
 
@@ -954,6 +970,7 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
     const receiverSocketId = onlineUsers.get(user._id.toString());
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('request_accepted_alert');
+      io.to(receiverSocketId).emit('new_notification');
     }
 
     res.json({ message: "Bot request accepted" });
