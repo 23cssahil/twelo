@@ -904,6 +904,90 @@ app.get('/api/admin/reports', adminAuth, async (req, res) => {
   }
 });
 
+app.get('/api/admin/bots/requests', adminAuth, async (req, res) => {
+  try {
+    const bots = await User.find({ ownedByAdmin: true }).select('_id friendRequests username');
+    let allRequests = [];
+    for (let bot of bots) {
+      if (bot.friendRequests && bot.friendRequests.length > 0) {
+        const requesters = await User.find({ _id: { $in: bot.friendRequests } }).select('username uniqueId avatarUrl').lean();
+        for (let rq of requesters) {
+          allRequests.push({ bot: { _id: bot._id, username: bot.username }, requester: rq });
+        }
+      }
+    }
+    res.json(allRequests);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching bot requests' });
+  }
+});
+
+app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) => {
+  try {
+    const bot = await User.findById(req.params.botId);
+    const user = await User.findById(req.params.userId);
+    if (!bot || !user || !bot.ownedByAdmin) return res.status(404).json({ message: "Invalid request" });
+    
+    bot.friendRequests = bot.friendRequests.filter(id => id.toString() !== user._id.toString());
+    if (!bot.followers.includes(user._id)) bot.followers.push(user._id);
+    if (!user.followers.includes(bot._id)) user.followers.push(bot._id);
+    
+    await bot.save();
+    await user.save();
+    res.json({ message: "Bot request accepted" });
+  } catch (error) {
+    res.status(500).json({ message: 'Error accepting bot request' });
+  }
+});
+
+app.get('/api/admin/bots/chats', adminAuth, async (req, res) => {
+  try {
+    const bots = await User.find({ ownedByAdmin: true }).select('_id username avatarUrl').lean();
+    const botIds = bots.map(b => b._id.toString());
+    
+    const sentMessages = await Message.find({ sender: { $in: botIds } }).select('sender receiver').lean();
+    const receivedMessages = await Message.find({ receiver: { $in: botIds } }).select('sender receiver').lean();
+    
+    let chatMap = {};
+    
+    const processMsg = (msg) => {
+      const isSenderBot = botIds.includes(msg.sender.toString());
+      const botId = isSenderBot ? msg.sender.toString() : msg.receiver.toString();
+      const userId = isSenderBot ? msg.receiver.toString() : msg.sender.toString();
+      const key = `${botId}_${userId}`;
+      if (!chatMap[key]) chatMap[key] = { botId, userId };
+    };
+    
+    sentMessages.forEach(processMsg);
+    receivedMessages.forEach(processMsg);
+    
+    let result = [];
+    for (let key in chatMap) {
+      const { botId, userId } = chatMap[key];
+      const botInfo = bots.find(b => b._id.toString() === botId);
+      const userInfo = await User.findById(userId).select('username avatarUrl').lean();
+      if (userInfo) result.push({ bot: botInfo, user: userInfo });
+    }
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching bot chats' });
+  }
+});
+
+app.get('/api/admin/bots/messages/:botId/:userId', adminAuth, async (req, res) => {
+  try {
+    const messages = await Message.find({
+      $or: [
+        { sender: req.params.botId, receiver: req.params.userId },
+        { sender: req.params.userId, receiver: req.params.botId }
+      ]
+    }).sort({ createdAt: 1 }).lean();
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching bot messages' });
+  }
+});
+
 app.post('/api/admin/reports/:id/resolve', adminAuth, async (req, res) => {
   try {
     await Report.findByIdAndUpdate(req.params.id, { status: 'resolved' });
@@ -1050,25 +1134,81 @@ io.on('connection', (socket) => {
     }
   });
 
-  // --- Anonymous Random Chat Events ---
-  socket.on('search_random', async (payload) => {
-    // Handle both old string payload and new object payload from updated clients
-    const userId = typeof payload === 'string' ? payload : payload.userId;
-    const isBotEligible = typeof payload === 'object' ? payload.isBotEligible : false;
-    const genderFilter = typeof payload === 'object' ? (payload.genderFilter || 'any') : 'any';
+    socket.on('admin_online', async () => {
+      socket.join('admin_room');
+      const bots = await User.find({ ownedByAdmin: true }).select('_id');
+      bots.forEach(bot => {
+        onlineUsers.set(bot._id.toString(), socket.id);
+      });
+    });
 
-    let userGender = 'male';
-    let userCoins = 0;
-    try {
-        const u = await User.findById(userId).select('gender coins').lean();
-        if (u) {
-            userGender = (u.gender || 'male').toLowerCase();
-            userCoins = u.coins || 0;
-        }
-    } catch(e) {}
+    socket.on('admin_intercept_random', async ({ targetUserId }) => {
+      const targetUserIndex = randomChatQueue.findIndex(u => u.userId === targetUserId);
+      if (targetUserIndex !== -1) {
+        const targetUserSocket = randomChatQueue[targetUserIndex].socketId;
+        randomChatQueue.splice(targetUserIndex, 1);
+        
+        const fakeUser = new User({
+          name: "Anonymous",
+          username: "user_" + Math.floor(Math.random() * 100000),
+          email: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}@twelo.com`,
+          googleId: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          uniqueId: Math.floor(Math.random() * 1000000000).toString(),
+          avatarUrl: generateAvatarUrl(['male', 'female'][Math.floor(Math.random() * 2)]),
+          ownedByAdmin: true
+        });
+        await fakeUser.save();
+        
+        onlineUsers.set(fakeUser._id.toString(), socket.id);
+        
+        const roomId = `room_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        activeRandomChats.set(roomId, {
+          user1: { userId: targetUserId, socketId: targetUserSocket },
+          user2: { userId: fakeUser._id.toString(), socketId: socket.id }
+        });
+        
+        const targetDbUser = await User.findById(targetUserId).select('username avatarUrl country gender').lean();
+        
+        io.to(targetUserSocket).emit('random_chat_started', {
+          roomId,
+          partnerId: fakeUser._id.toString(),
+          partnerAvatar: fakeUser.avatarUrl,
+          partnerCountry: fakeUser.country
+        });
+        
+        io.to(socket.id).emit('admin_intercept_started', {
+          roomId,
+          targetUser: targetDbUser,
+          botAccount: fakeUser
+        });
+      }
+    });
 
-    // Reject if filter used but not enough coins
-    if (genderFilter !== 'any' && userCoins < 1) {
+    // --- Anonymous Random Chat Events ---
+    socket.on('search_random', async (payload) => {
+      // Handle both old string payload and new object payload from updated clients
+      const userId = typeof payload === 'string' ? payload : payload.userId;
+      const isBotEligible = typeof payload === 'object' ? payload.isBotEligible : false;
+      const genderFilter = typeof payload === 'object' ? (payload.genderFilter || 'any') : 'any';
+
+      let userGender = 'male';
+      let userCoins = 0;
+      let targetDbUser = null;
+      try {
+          const u = await User.findById(userId).select('gender coins username avatarUrl country').lean();
+          if(u) {
+             userGender = u.gender;
+             userCoins = u.coins;
+             targetDbUser = u;
+          }
+      } catch (err) {}
+
+      // Immediately alert admin
+      if (targetDbUser) {
+        io.to('admin_room').emit('admin_alert_new_random', targetDbUser);
+      }
+
+      if (genderFilter !== 'any' && userCoins < 1) {
         io.to(socket.id).emit('cancel_search');
         return;
     }

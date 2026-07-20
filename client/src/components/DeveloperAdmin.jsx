@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../App';
+import { AuthContext, SocketContext } from '../App';
 import { useNavigate } from 'react-router-dom';
 import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle } from 'lucide-react';
 import './DeveloperAdmin.css';
 
 export default function DeveloperAdmin() {
   const { API_URL } = useContext(AuthContext);
+  const socket = useContext(SocketContext);
   const navigate = useNavigate();
   
   const [password, setPassword] = useState('');
@@ -25,14 +26,77 @@ export default function DeveloperAdmin() {
   const [selectedUserChats, setSelectedUserChats] = useState(null);
   const [isFetchingChats, setIsFetchingChats] = useState(false);
 
-  // Focus input on load
+  const [incomingRandom, setIncomingRandom] = useState(null);
+  const [activeRandomChat, setActiveRandomChat] = useState(null);
+  const [randomMessages, setRandomMessages] = useState([]);
+  const [randomMessageInput, setRandomMessageInput] = useState('');
+
+  const [botRequests, setBotRequests] = useState([]);
+  const [botChats, setBotChats] = useState([]);
+  const [selectedBotChat, setSelectedBotChat] = useState(null);
+  const [botChatMessages, setBotChatMessages] = useState([]);
+  const [botChatMessageInput, setBotChatMessageInput] = useState('');
+
+  useEffect(() => {
+    if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+  }, []);
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchStats();
       const interval = setInterval(fetchStats, 10000); // Poll every 10s
-      return () => clearInterval(interval);
+      
+      if (socket) {
+        socket.emit('admin_online');
+        
+        socket.on('admin_alert_new_random', (user) => {
+          try {
+            const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+            audio.play().catch(e => console.log('Audio blocked', e));
+          } catch (e) {}
+          
+          if (Notification.permission === 'granted') {
+            new Notification('New Random Chat!', { body: `@${user.username} is waiting...` });
+          }
+          setIncomingRandom(user);
+          // Auto clear after 6 seconds if not intercepted
+          setTimeout(() => setIncomingRandom(null), 6000);
+        });
+
+        socket.on('admin_intercept_started', (data) => {
+          setActiveRandomChat(data);
+          setIncomingRandom(null);
+          setRandomMessages([]);
+        });
+
+        socket.on('receive_anonymous_message', (msg) => {
+          setRandomMessages(prev => [...prev, { ...msg, isMine: false }]);
+        });
+        
+        socket.on('receive_message', (msg) => {
+          setBotChatMessages(prev => [...prev, msg]);
+        });
+        
+        socket.on('anonymous_chat_ended', () => {
+          alert('Anonymous chat ended by user.');
+          setActiveRandomChat(null);
+        });
+      }
+
+      return () => {
+        clearInterval(interval);
+        if (socket) {
+          socket.off('admin_alert_new_random');
+          socket.off('admin_intercept_started');
+          socket.off('receive_anonymous_message');
+          socket.off('receive_message');
+          socket.off('anonymous_chat_ended');
+        }
+      };
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, socket]);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -236,6 +300,96 @@ export default function DeveloperAdmin() {
     }
   };
 
+  const handleIntercept = () => {
+    if (incomingRandom && socket) {
+      if (activeRandomChat) {
+        socket.emit('send_anonymous_message', { 
+          roomId: activeRandomChat.roomId, 
+          messageText: 'bye' 
+        });
+        socket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId });
+      }
+      socket.emit('admin_intercept_random', { targetUserId: incomingRandom._id });
+    }
+  };
+
+  const handleSendRandomMessage = (e) => {
+    e.preventDefault();
+    if (!randomMessageInput.trim() || !activeRandomChat || !socket) return;
+    
+    socket.emit('send_anonymous_message', { 
+      roomId: activeRandomChat.roomId, 
+      messageText: randomMessageInput 
+    });
+    setRandomMessages(prev => [...prev, { 
+      _id: Date.now(), 
+      message: randomMessageInput, 
+      isMine: true, 
+      createdAt: new Date().toISOString() 
+    }]);
+    setRandomMessageInput('');
+  };
+
+  const fetchBotRequests = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bots/requests`, { headers: { 'x-admin-pass': password }});
+      if (res.ok) setBotRequests(await res.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchBotChats = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bots/chats`, { headers: { 'x-admin-pass': password }});
+      if (res.ok) setBotChats(await res.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const handleAcceptBotRequest = async (botId, userId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bots/accept/${botId}/${userId}`, {
+        method: 'POST', headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) {
+        setBotRequests(botRequests.filter(r => r.requester._id !== userId || r.bot._id !== botId));
+        fetchBotChats();
+        alert('Request accepted!');
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const openBotChat = async (chat) => {
+    setSelectedBotChat(chat);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bots/messages/${chat.bot._id}/${chat.user._id}`, {
+        headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) setBotChatMessages(await res.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const handleSendBotMessage = (e) => {
+    e.preventDefault();
+    if (!botChatMessageInput.trim() || !selectedBotChat || !socket) return;
+    
+    const msgData = {
+      senderId: selectedBotChat.bot._id,
+      receiverId: selectedBotChat.user._id,
+      messageText: botChatMessageInput,
+      messageType: 'text',
+      fileUrl: null,
+      replyTo: null
+    };
+    
+    socket.emit('send_message', msgData);
+    setBotChatMessages(prev => [...prev, {
+      ...msgData,
+      _id: Date.now(),
+      sender: selectedBotChat.bot._id,
+      createdAt: new Date().toISOString()
+    }]);
+    setBotChatMessageInput('');
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="dev-auth-container">
@@ -360,6 +514,20 @@ export default function DeveloperAdmin() {
                   User Reports
                   {reports.length > 0 && <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ff4b4b', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{reports.length}</span>}
                 </button>
+                <button 
+                  onClick={() => { setActiveTab('bot-requests'); fetchBotRequests(); }} 
+                  className={`dev-btn-${activeTab === 'bot-requests' ? 'primary' : 'secondary'}`}
+                >
+                  <Users size={16} style={{ marginRight: '8px' }} />
+                  Bot Inbox
+                </button>
+                <button 
+                  onClick={() => { setActiveTab('bot-chats'); fetchBotChats(); }} 
+                  className={`dev-btn-${activeTab === 'bot-chats' ? 'primary' : 'secondary'}`}
+                >
+                  <MessageSquare size={16} style={{ marginRight: '8px' }} />
+                  Bot Chats
+                </button>
               </div>
 
               {activeTab === 'users' ? (
@@ -464,6 +632,46 @@ export default function DeveloperAdmin() {
                     ))
                   )}
                 </div>
+              ) : activeTab === 'bot-requests' ? (
+                <div className="dev-user-list">
+                  {botRequests.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No pending requests for bots.</div>
+                  ) : (
+                    botRequests.map((req, i) => (
+                      <div key={i} className="dev-user-card" style={{ borderLeft: '4px solid #10b981' }}>
+                        <div>
+                          <strong>{req.requester.username}</strong> wants to be friends with your bot <strong>@{req.bot.username}</strong>
+                        </div>
+                        <button 
+                          onClick={() => handleAcceptBotRequest(req.bot._id, req.requester._id)}
+                          className="dev-btn-primary" style={{ background: '#10b981' }}
+                        >
+                          Accept
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div className="dev-user-list">
+                  {botChats.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No bot chats found.</div>
+                  ) : (
+                    botChats.map((chat, i) => (
+                      <div key={i} className="dev-user-card">
+                        <div>
+                          <strong>@{chat.bot.username}</strong> chatting with <strong>@{chat.user.username}</strong>
+                        </div>
+                        <button 
+                          onClick={() => openBotChat(chat)}
+                          className="dev-btn-secondary"
+                        >
+                          Open Chat
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -556,6 +764,111 @@ export default function DeveloperAdmin() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Incoming Random User Alert Toast */}
+      {incomingRandom && (
+        <div style={{
+          position: 'fixed', bottom: '20px', right: '20px', background: '#10b981', color: '#fff', 
+          padding: '20px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', zIndex: 1000,
+          animation: 'slideUp 0.3s ease-out'
+        }}>
+          <h3 style={{ margin: '0 0 10px 0' }}>🔔 New Random Chat Waiting!</h3>
+          <p style={{ margin: '0 0 15px 0' }}><strong>@{incomingRandom.username}</strong> is searching for a partner...</p>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={handleIntercept} className="dev-btn-primary" style={{ background: '#fff', color: '#10b981' }}>{activeRandomChat ? 'Say Bye & Switch' : 'Intercept Now'}</button>
+            <button onClick={() => setIncomingRandom(null)} className="dev-btn-secondary" style={{ background: 'transparent', border: '1px solid #fff', color: '#fff' }}>Ignore</button>
+          </div>
+        </div>
+      )}
+
+      {/* Active Random Chat Modal */}
+      {activeRandomChat && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '600px', height: '70vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <h2>Intercepted: @{activeRandomChat.targetUser.username}</h2>
+              <button className="icon-btn" onClick={() => {
+                if(window.confirm('Leave chat?')) {
+                  socket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId });
+                  setActiveRandomChat(null);
+                }
+              }}><X size={24} /></button>
+            </div>
+            <div style={{ padding: '10px', background: '#222', fontSize: '0.8rem', color: '#aaa', textAlign: 'center' }}>
+              You are chatting disguised as: <strong>@{activeRandomChat.botAccount.username}</strong>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto', padding: '15px', background: '#111', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {randomMessages.map((msg, i) => (
+                <div key={i} style={{
+                  alignSelf: msg.isMine ? 'flex-end' : 'flex-start',
+                  background: msg.isMine ? '#0095f6' : '#333',
+                  padding: '10px 15px',
+                  borderRadius: '15px',
+                  color: '#fff',
+                  maxWidth: '70%'
+                }}>
+                  {msg.message}
+                </div>
+              ))}
+            </div>
+            
+            <form onSubmit={handleSendRandomMessage} style={{ display: 'flex', padding: '15px', background: '#1a1a1a', gap: '10px' }}>
+              <input 
+                type="text" 
+                value={randomMessageInput}
+                onChange={e => setRandomMessageInput(e.target.value)}
+                placeholder="Type a message as bot..."
+                className="dev-input"
+                style={{ flex: 1 }}
+              />
+              <button type="submit" className="dev-btn-primary"><Send size={18} /></button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bot DM Chat Modal */}
+      {selectedBotChat && (
+        <div className="modal-overlay" onClick={() => setSelectedBotChat(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', height: '70vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <h2>DM: @{selectedBotChat.bot.username} ↔ @{selectedBotChat.user.username}</h2>
+              <button className="icon-btn" onClick={() => setSelectedBotChat(null)}><X size={24} /></button>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto', padding: '15px', background: '#111', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {botChatMessages.map((msg, i) => {
+                const isBot = msg.sender === selectedBotChat.bot._id;
+                return (
+                  <div key={i} style={{
+                    alignSelf: isBot ? 'flex-end' : 'flex-start',
+                    background: isBot ? '#10b981' : '#333',
+                    padding: '10px 15px',
+                    borderRadius: '15px',
+                    color: '#fff',
+                    maxWidth: '70%'
+                  }}>
+                    {msg.message}
+                  </div>
+                );
+              })}
+            </div>
+            
+            <form onSubmit={handleSendBotMessage} style={{ display: 'flex', padding: '15px', background: '#1a1a1a', gap: '10px' }}>
+              <input 
+                type="text" 
+                value={botChatMessageInput}
+                onChange={e => setBotChatMessageInput(e.target.value)}
+                placeholder="Reply as bot..."
+                className="dev-input"
+                style={{ flex: 1 }}
+              />
+              <button type="submit" className="dev-btn-primary" style={{ background: '#10b981' }}><Send size={18} /></button>
+            </form>
           </div>
         </div>
       )}
