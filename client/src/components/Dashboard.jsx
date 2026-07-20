@@ -564,7 +564,12 @@ export default function Dashboard() {
         setShowSettingsModal(false);
         setPublicProfileData(null);
         setActiveChatUser(null);
-        setIsAnonymousChatActive(false);
+        if (isAnonymousChatActive) {
+          if (socket) {
+             socket.emit('leave_anonymous_chat', { roomId: anonymousRoomId });
+          }
+          setIsAnonymousChatActive(false);
+        }
         setConnectionsModal({ isOpen: false, title: '', users: [] });
       } else if (e.state && e.state.tab) {
         _setActiveTab(e.state.tab);
@@ -1680,14 +1685,13 @@ export default function Dashboard() {
                     <Flag size={20} />
                   </button>
                   <button 
-                    className="premium-btn primary" 
-                    style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center' }}
-                    onClick={handleSendAnonymousFriendRequest}
-                    disabled={!isAnonymousChatActive || coins < 5}
-                    title="Send Friend Request (Costs 5 Coins)"
-                  >
-                    <UserPlus size={16} style={{ marginRight: '6px' }} /> Add Friend
-                  </button>
+                      className="premium-btn primary" 
+                      style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center' }}
+                      onClick={handleSendAnonymousFriendRequest}
+                      title="Send Friend Request (Costs 5 Coins)"
+                    >
+                      <UserPlus size={16} style={{ marginRight: '6px' }} /> Add Friend (5 <CoinSVG size={12} style={{marginLeft: '2px'}}/>)
+                    </button>
                 </div>
               </div>
               

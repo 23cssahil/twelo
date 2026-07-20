@@ -111,6 +111,30 @@ export default function DeveloperAdmin() {
     }
   }, [isAuthenticated, API_URL]);
 
+  // SPA Back Button Handling for Overlays & Chats
+  useEffect(() => {
+    const isOverlayOpen = selectedReport || chatViewTarget || activeRandomChat || selectedBotChat;
+    
+    if (isOverlayOpen) {
+      window.history.pushState({ adminOverlay: true }, '');
+    }
+
+    const handlePopState = (e) => {
+      if (selectedReport || chatViewTarget || activeRandomChat || selectedBotChat) {
+        if (activeRandomChat && adminSocket) {
+          adminSocket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId });
+        }
+        setSelectedReport(null);
+        setChatViewTarget(null);
+        setActiveRandomChat(null);
+        setSelectedBotChat(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedReport, chatViewTarget, activeRandomChat, selectedBotChat, adminSocket]);
+
   const handleLogin = (e) => {
     e.preventDefault();
     if (password === 'twelo-admin-6006390989') {
