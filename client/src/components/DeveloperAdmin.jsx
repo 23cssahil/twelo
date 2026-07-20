@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext, SocketContext } from '../App';
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import { AuthContext } from '../App';
 import { useNavigate } from 'react-router-dom';
+import io from 'socket.io-client';
 import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle } from 'lucide-react';
 import './DeveloperAdmin.css';
 
 export default function DeveloperAdmin() {
   const { API_URL } = useContext(AuthContext);
-  const socket = useContext(SocketContext);
   const navigate = useNavigate();
+  
+  const [adminSocket, setAdminSocket] = useState(null);
   
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -54,63 +56,60 @@ export default function DeveloperAdmin() {
       fetchStats();
       const interval = setInterval(fetchStats, 10000); // Poll every 10s
       
-      if (socket) {
-        socket.emit('admin_online');
-        
-        socket.on('admin_alert_new_random', (user) => {
-          try {
-            const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-            audio.play().catch(e => console.log('Audio blocked', e));
-          } catch (e) {}
-          
-          if (Notification.permission === 'granted') {
-            const notif = new Notification('New Random Chat!', { body: `@${user.username} is waiting...` });
-            notif.onclick = () => {
-              window.focus();
-              if (activeRandomChatRef.current) {
-                socket.emit('send_anonymous_message', { roomId: activeRandomChatRef.current.roomId, messageText: 'bye' });
-                socket.emit('leave_anonymous_chat', { roomId: activeRandomChatRef.current.roomId });
-              }
-              socket.emit('admin_intercept_random', { targetUserId: user._id });
-            };
-          }
-          setIncomingRandom(user);
-          // Auto clear after 6 seconds if not intercepted
-          setTimeout(() => setIncomingRandom(null), 6000);
-        });
+      const newSocket = io(API_URL);
+      setAdminSocket(newSocket);
 
-        socket.on('admin_intercept_started', (data) => {
-          setActiveRandomChat(data);
-          setIncomingRandom(null);
-          setRandomMessages([]);
-        });
+      newSocket.on('connect', () => {
+        newSocket.emit('admin_online');
+      });
+        
+      newSocket.on('admin_alert_new_random', (user) => {
+        try {
+          const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+          audio.play().catch(e => console.log('Audio blocked', e));
+        } catch (e) {}
+        
+        if (Notification.permission === 'granted') {
+          const notif = new Notification('New Random Chat!', { body: `@${user.username} is waiting...` });
+          notif.onclick = () => {
+            window.focus();
+            if (activeRandomChatRef.current) {
+              newSocket.emit('send_anonymous_message', { roomId: activeRandomChatRef.current.roomId, messageText: 'bye' });
+              newSocket.emit('leave_anonymous_chat', { roomId: activeRandomChatRef.current.roomId });
+            }
+            newSocket.emit('admin_intercept_random', { targetUserId: user._id });
+          };
+        }
+        setIncomingRandom(user);
+        // Auto clear after 6 seconds if not intercepted
+        setTimeout(() => setIncomingRandom(null), 6000);
+      });
 
-        socket.on('receive_anonymous_message', (msg) => {
-          setRandomMessages(prev => [...prev, { ...msg, isMine: false }]);
-        });
-        
-        socket.on('receive_message', (msg) => {
-          setBotChatMessages(prev => [...prev, msg]);
-        });
-        
-        socket.on('anonymous_chat_ended', () => {
-          alert('Anonymous chat ended by user.');
-          setActiveRandomChat(null);
-        });
-      }
+      newSocket.on('admin_intercept_started', (data) => {
+        setActiveRandomChat(data);
+        setIncomingRandom(null);
+        setRandomMessages([]);
+      });
+
+      newSocket.on('receive_anonymous_message', (msg) => {
+        setRandomMessages(prev => [...prev, { ...msg, isMine: false }]);
+      });
+      
+      newSocket.on('receive_message', (msg) => {
+        setBotChatMessages(prev => [...prev, msg]);
+      });
+      
+      newSocket.on('anonymous_chat_ended', () => {
+        alert('Anonymous chat ended by user.');
+        setActiveRandomChat(null);
+      });
 
       return () => {
         clearInterval(interval);
-        if (socket) {
-          socket.off('admin_alert_new_random');
-          socket.off('admin_intercept_started');
-          socket.off('receive_anonymous_message');
-          socket.off('receive_message');
-          socket.off('anonymous_chat_ended');
-        }
+        newSocket.disconnect();
       };
     }
-  }, [isAuthenticated, socket]);
+  }, [isAuthenticated, API_URL]);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -315,23 +314,23 @@ export default function DeveloperAdmin() {
   };
 
   const handleIntercept = () => {
-    if (incomingRandom && socket) {
+    if (incomingRandom && adminSocket) {
       if (activeRandomChat) {
-        socket.emit('send_anonymous_message', { 
+        adminSocket.emit('send_anonymous_message', { 
           roomId: activeRandomChat.roomId, 
           messageText: 'bye' 
         });
-        socket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId });
+        adminSocket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId });
       }
-      socket.emit('admin_intercept_random', { targetUserId: incomingRandom._id });
+      adminSocket.emit('admin_intercept_random', { targetUserId: incomingRandom._id });
     }
   };
 
   const handleSendRandomMessage = (e) => {
     e.preventDefault();
-    if (!randomMessageInput.trim() || !activeRandomChat || !socket) return;
+    if (!randomMessageInput.trim() || !activeRandomChat || !adminSocket) return;
     
-    socket.emit('send_anonymous_message', { 
+    adminSocket.emit('send_anonymous_message', { 
       roomId: activeRandomChat.roomId, 
       messageText: randomMessageInput 
     });
@@ -383,7 +382,7 @@ export default function DeveloperAdmin() {
 
   const handleSendBotMessage = (e) => {
     e.preventDefault();
-    if (!botChatMessageInput.trim() || !selectedBotChat || !socket) return;
+    if (!botChatMessageInput.trim() || !selectedBotChat || !adminSocket) return;
     
     const msgData = {
       senderId: selectedBotChat.bot._id,
@@ -394,7 +393,7 @@ export default function DeveloperAdmin() {
       replyTo: null
     };
     
-    socket.emit('send_message', msgData);
+    adminSocket.emit('send_message', msgData);
     setBotChatMessages(prev => [...prev, {
       ...msgData,
       _id: Date.now(),
