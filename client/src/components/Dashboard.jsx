@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Home as HomeIcon, 
@@ -216,7 +216,18 @@ export default function Dashboard() {
   const isCallerRef = useRef(false);
   const callStartTimeRef = useRef(null);
   const activeCallTargetRef = useRef(null);
+  // Refs for Socket optimization
+  const activeChatUserRef = useRef(activeChatUser);
+  const activeTabRef = useRef(activeTab);
+  const searchQueryRef = useRef(searchQuery);
+  const publicProfileDataRef = useRef(publicProfileData);
 
+  useEffect(() => {
+    activeChatUserRef.current = activeChatUser;
+    activeTabRef.current = activeTab;
+    searchQueryRef.current = searchQuery;
+    publicProfileDataRef.current = publicProfileData;
+  }, [activeChatUser, activeTab, searchQuery, publicProfileData]);
 
 
   // Media & Context Menu State
@@ -355,7 +366,7 @@ export default function Dashboard() {
     socket.on('online_users', (users) => setOnlineUsers(users));
     
     socket.on('receive_message', (msg) => {
-      if ((activeChatUser && msg.sender === activeChatUser._id) || msg.sender === user.id) {
+      if ((activeChatUserRef.current && msg.sender === activeChatUserRef.current._id) || msg.sender === user.id) {
         setMessages((prev) => [...prev, msg]);
       } else {
         if (msg.sender !== user.id) {
@@ -372,29 +383,29 @@ export default function Dashboard() {
 
     socket.on('new_notification', () => {
       fetchNotifications();
-      if (activeTab !== 'notifications') {
+      if (activeTabRef.current !== 'notifications') {
         setUnreadNotifsCount(prev => prev + 1);
       }
     });
 
     socket.on('request_accepted_alert', () => {
       fetchProfile();
-      if (activeTab === 'search') {
-        handleSearch({ target: { value: searchQuery } });
+      if (activeTabRef.current === 'search') {
+        handleSearch({ target: { value: searchQueryRef.current } });
       }
-      if (activeTab === 'publicProfile' && publicProfileData) {
-        viewPublicProfile(publicProfileData._id);
+      if (activeTabRef.current === 'publicProfile' && publicProfileDataRef.current) {
+        viewPublicProfile(publicProfileDataRef.current._id);
       }
     });
 
     socket.on('request_rejected_alert', () => {
       alert("Your follow request was rejected.");
       fetchProfile();
-      if (activeTab === 'search') {
-        handleSearch({ target: { value: searchQuery } });
+      if (activeTabRef.current === 'search') {
+        handleSearch({ target: { value: searchQueryRef.current } });
       }
-      if (activeTab === 'publicProfile' && publicProfileData) {
-        viewPublicProfile(publicProfileData._id);
+      if (activeTabRef.current === 'publicProfile' && publicProfileDataRef.current) {
+        viewPublicProfile(publicProfileDataRef.current._id);
       }
     });
 
@@ -470,6 +481,7 @@ export default function Dashboard() {
     return () => {
       socket.off('online_users');
       socket.off('receive_message');
+      socket.off('message_deleted');
       socket.off('new_notification');
       socket.off('request_accepted_alert');
       socket.off('request_rejected_alert');
@@ -477,10 +489,13 @@ export default function Dashboard() {
       socket.off('call_accepted');
       socket.off('call_ended');
       socket.off('match_found');
+      socket.off('receive_anonymous_typing');
       socket.off('receive_anonymous_message');
       socket.off('anonymous_chat_ended');
+      socket.off('coins_deducted');
+      socket.off('message_viewed');
     };
-  }, [socket, activeChatUser, user, activeTab, searchQuery, publicProfileData]);
+  }, [socket, user]);
 
   // SPA Back Button Handling for Overlays & Chats
   useEffect(() => {
@@ -1390,7 +1405,7 @@ export default function Dashboard() {
     }
   }, [swapVideo, callActive, remoteStreamState]);
 
-  const handleGlobeClick = () => {
+  const handleGlobeClick = useCallback(() => {
     if (!isSearchingRandom) {
       if (genderFilter !== 'any' && coins < 1) {
         alert("Not enough coins! You need 1 coin to use the gender filter.");
@@ -1404,7 +1419,7 @@ export default function Dashboard() {
       setIsSearchingRandom(false);
       if (socket) socket.emit('cancel_search', user.id);
     }
-  };
+  }, [isSearchingRandom, genderFilter, coins, globeSearchFails, socket, user]);
 
   const handleSendAnonymousMessage = (e) => {
     e.preventDefault();
@@ -1498,6 +1513,7 @@ export default function Dashboard() {
                 transition: 'transform 0.1s ease-out'
               }}
             >
+              {useMemo(() => (
                <Globe
                   ref={globeEl}
                   globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
@@ -1507,6 +1523,7 @@ export default function Dashboard() {
                   showAtmosphere={false}
                   onGlobeClick={handleGlobeClick}
                 />
+              ), [handleGlobeClick])}
             </div>
             
             <div className="coin-display" style={{ zIndex: 10 }}>
