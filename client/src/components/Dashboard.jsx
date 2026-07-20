@@ -314,7 +314,7 @@ export default function Dashboard() {
       return;
     }
     try {
-      const response = await fetch(`${API_URL}/users/change_username`, {
+      const response = await fetch(`${API_URL}/api/users/change_username`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ newUsername: newUsernameInput })
