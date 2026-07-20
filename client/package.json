@@ -33,5 +33,8 @@
     "@vitejs/plugin-react": "^4.0.3",
     "vite": "^4.4.5",
     "vite-plugin-node-polyfills": "^0.28.0"
+  },
+  "overrides": {
+    "@capacitor/core": "^8.4.2"
   }
 }
