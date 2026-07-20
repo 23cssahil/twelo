@@ -4,4 +4,5 @@
     <string name="title_activity_main">Twelo</string>
     <string name="package_name">com.twelo.app</string>
     <string name="custom_url_scheme">com.twelo.app</string>
+    <string name="server_client_id">440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com</string>
 </resources>

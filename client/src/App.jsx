@@ -8,6 +8,7 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import DeveloperAdmin from './components/DeveloperAdmin';
 import { Capacitor } from '@capacitor/core';
 import { AdMob } from '@capacitor-community/admob';
+import { App as CapacitorApp } from '@capacitor/app';
 
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
@@ -24,6 +25,21 @@ export default function App() {
 
   const API_URL = import.meta.env.VITE_API_URL || 'https://twelo-backend.onrender.com';
   const GOOGLE_CLIENT_ID = '440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com';
+
+  useEffect(() => {
+    // Handle Native Android Back Button
+    const backButtonListener = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) {
+        window.history.back();
+      } else {
+        CapacitorApp.exitApp();
+      }
+    });
+
+    return () => {
+      backButtonListener.then(listener => listener.remove());
+    };
+  }, []);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');

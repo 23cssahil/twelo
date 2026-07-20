@@ -3,6 +3,8 @@ import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { AuthContext } from '../App';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 export default function Login() {
   const { login, API_URL } = useContext(AuthContext);
@@ -62,6 +64,52 @@ export default function Login() {
     setError('Google Login Failed. Please try again.');
   };
 
+  const handleNativeGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Initialize before sign in (required on some devices/Capacitor versions)
+      await GoogleAuth.initialize({
+        clientId: '440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com',
+        scopes: ['profile', 'email'],
+        grantOfflineAccess: true,
+      });
+
+      // Attempt native sign in
+      const googleUser = await GoogleAuth.signIn();
+      const idToken = googleUser.authentication.idToken;
+
+      const res = await fetch(`${API_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: idToken })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to authenticate');
+      }
+
+      if (data.isNewUser) {
+        setGoogleData({ email: data.email, googleId: data.googleId });
+        setName(googleUser.name || googleUser.displayName || '');
+        setIsNewUser(true);
+      } else {
+        login(data.user, data.token);
+        navigate(from);
+      }
+    } catch (err) {
+      console.error(err);
+      const errorMessage = err.message || JSON.stringify(err);
+      alert('Native Google Login Error: ' + errorMessage);
+      setError('Google Login Error: ' + errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCompleteProfile = async (e) => {
     e.preventDefault();
     if (!name.trim() || !age || !country.trim() || !gender) {
@@ -103,22 +151,46 @@ export default function Login() {
         {!isNewUser ? (
           <>
             <h2 style={{ textAlign: 'center', marginBottom: '24px', fontSize: '1.2rem', color: '#f5f5f5' }}>
-              Welcome back
+              Welcome to Twelo
             </h2>
             <p style={{ textAlign: 'center', color: '#a8a8a8', marginBottom: '32px', fontSize: '0.9rem' }}>
-              Log in with Google to continue to Twelo.
+              Log in with Google to continue.
             </p>
             
             <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                theme="filled_black"
-                shape="pill"
-                size="large"
-                text="continue_with"
-                width="280"
-              />
+              {Capacitor.isNativePlatform() ? (
+                <button 
+                  onClick={handleNativeGoogleLogin}
+                  style={{
+                    backgroundColor: '#1a1a1a',
+                    color: '#fff',
+                    border: '1px solid #333',
+                    borderRadius: '24px',
+                    padding: '12px 24px',
+                    fontSize: '1rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    width: '280px',
+                    justifyContent: 'center',
+                    fontWeight: '500'
+                  }}
+                >
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" style={{ width: '20px', height: '20px' }} />
+                  Continue with Google
+                </button>
+              ) : (
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  theme="filled_black"
+                  shape="pill"
+                  size="large"
+                  text="continue_with"
+                  width="280"
+                />
+              )}
             </div>
             {loading && <p style={{ textAlign: 'center', marginTop: '16px', color: '#a8a8a8' }}>Please wait...</p>}
           </>

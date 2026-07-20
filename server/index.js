@@ -276,11 +276,9 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
     if (hoursSinceRefill >= 24) {
       if (user.coins < 10) {
         user.coins = 10;
-        user.lastCoinReplenishDate = now;
-        await user.save();
+        await User.updateOne({ _id: user._id }, { $set: { coins: 10, lastCoinReplenishDate: now } });
       } else {
-        user.lastCoinReplenishDate = now; // Just update the timer
-        await user.save();
+        await User.updateOne({ _id: user._id }, { $set: { lastCoinReplenishDate: now } });
       }
     }
 

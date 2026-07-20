@@ -92,7 +92,7 @@ export default function Dashboard() {
   }, []);
 
   const { user, token, logout } = useContext(AuthContext);
-  const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : '');
+  const API_URL = import.meta.env.VITE_API_URL || 'https://twelo-backend.onrender.com';
   const socket = useContext(SocketContext);
   const navigate = useNavigate();
 
@@ -143,10 +143,6 @@ export default function Dashboard() {
         AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (err) => {
           console.error("Ad failed to load", err);
           alert("Ad failed to load. Please check internet connection.");
-          // Fallback
-          setShowAdModal(true);
-          setAdTimeLeft(15);
-          setAdCompleted(false);
         });
 
         // Start preparing the ad (this triggers the Loaded event when ready)
@@ -154,10 +150,6 @@ export default function Dashboard() {
       } catch (e) {
         console.error("AdMob Error", e);
         alert("AdMob Code Error: " + e.message);
-        // Fallback to fake ad if AdMob fails completely
-        setShowAdModal(true);
-        setAdTimeLeft(15);
-        setAdCompleted(false);
       }
     } else {
       // Fallback for Web users

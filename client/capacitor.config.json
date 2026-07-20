@@ -1,5 +1,12 @@
 {
   "appId": "com.twelo.app",
   "appName": "Twelo",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
+    }
+  }
 }
