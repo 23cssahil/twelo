@@ -1004,8 +1004,9 @@ app.post('/api/admin/reports/:id/resolve', adminAuth, async (req, res) => {
 });
 
 // Random Chat Queue
-let randomChatQueue = []; // [{ userId, socketId }]
+let randomChatQueue = []; // [{ userId, socketId, genderFilter, userGender }]
 const activeRandomChats = new Map(); // roomId -> { user1, user2 }
+const adminBusySockets = new Set(); // Track which admin sockets are currently intercepting
 
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
@@ -1151,6 +1152,7 @@ io.on('connection', (socket) => {
     socket.on('admin_intercept_random', async ({ targetUserId }) => {
       const targetUserIndex = randomChatQueue.findIndex(u => u.userId === targetUserId);
       if (targetUserIndex !== -1) {
+        adminBusySockets.add(socket.id);
         const targetUserSocket = randomChatQueue[targetUserIndex].socketId;
         randomChatQueue.splice(targetUserIndex, 1);
         
@@ -1213,179 +1215,187 @@ io.on('connection', (socket) => {
           }
       } catch (err) {}
 
-      // Immediately alert admin
-      if (targetDbUser) {
-        io.to('admin_room').emit('admin_alert_new_random', targetDbUser);
-      }
-
       if (genderFilter !== 'any' && userCoins < 1) {
         io.to(socket.id).emit('cancel_search');
         return;
-    }
-
-    if (!randomChatQueue.some(u => u.userId === userId)) {
-      randomChatQueue.push({ userId, socketId: socket.id, genderFilter, userGender });
-    }
-
-    // Try to find a match in the queue
-    let matchedIndex = -1;
-    const myIndex = randomChatQueue.findIndex(u => u.userId === userId);
-    
-    if (myIndex !== -1) {
-      for (let i = 0; i < randomChatQueue.length; i++) {
-         if (i === myIndex) continue;
-         const potentialPartner = randomChatQueue[i];
-         
-         const myFilterMatches = genderFilter === 'any' || genderFilter === potentialPartner.userGender;
-         const theirFilterMatches = potentialPartner.genderFilter === 'any' || potentialPartner.genderFilter === userGender;
-         
-         if (myFilterMatches && theirFilterMatches) {
-             matchedIndex = i;
-             break;
-         }
       }
-    }
 
-    if (matchedIndex !== -1) {
-      const user2 = randomChatQueue[matchedIndex];
-      // Splice higher index first to avoid shifting issues
-      if (myIndex > matchedIndex) {
-         randomChatQueue.splice(myIndex, 1);
-         randomChatQueue.splice(matchedIndex, 1);
-      } else {
-         randomChatQueue.splice(matchedIndex, 1);
-         randomChatQueue.splice(myIndex, 1);
+      if (!randomChatQueue.some(u => u.userId === userId)) {
+        randomChatQueue.push({ userId, socketId: socket.id, genderFilter, userGender });
       }
+
+      // 1. Check if there are ANY real users in the queue that match
+      let matchedIndex = -1;
+      const myIndex = randomChatQueue.findIndex(u => u.userId === userId);
       
-      const user1 = { userId, socketId: socket.id, genderFilter, userGender };
-      
-      // Deduct coins if filters were used
-      try {
-          if (user1.genderFilter !== 'any') {
-              const dbU1 = await User.findById(user1.userId);
-              if (dbU1 && dbU1.coins >= 1) {
-                  dbU1.coins -= 1;
-                  await dbU1.save();
-                  io.to(user1.socketId).emit('coins_deducted', { amount: 1, balance: dbU1.coins });
-              }
-          }
-          if (user2.genderFilter !== 'any') {
-              const dbU2 = await User.findById(user2.userId);
-              if (dbU2 && dbU2.coins >= 1) {
-                  dbU2.coins -= 1;
-                  await dbU2.save();
-                  io.to(user2.socketId).emit('coins_deducted', { amount: 1, balance: dbU2.coins });
-              }
-          }
-      } catch(e) { console.error("Coin deduction error", e); }
-      
-      const roomId = `random_${Date.now()}_${Math.random().toString(36).substring(2,8)}`;
-      activeRandomChats.set(roomId, { user1, user2 });
-
-      try {
-        const user1Record = await User.findById(user1.userId);
-        const user2Record = await User.findById(user2.userId);
-
-        io.to(user1.socketId).emit('match_found', { 
-          roomId, 
-          partnerId: user2.userId,
-          partnerAvatar: user2Record?.avatarUrl,
-          partnerCountry: user2Record?.country
-        });
-        io.to(user2.socketId).emit('match_found', { 
-          roomId, 
-          partnerId: user1.userId,
-          partnerAvatar: user1Record?.avatarUrl,
-          partnerCountry: user1Record?.country
-        });
-      } catch (err) {
-        console.error("Error fetching random chat users", err);
-      }
-      return;
-    }
-
-    if (isBotEligible) {
-      setTimeout(async () => {
-        // After 4 seconds, check if user is STILL in queue
-        const userIndex = randomChatQueue.findIndex(u => u.userId === userId);
-        if (userIndex !== -1) {
-          // Remove from queue
-          const meInQueue = randomChatQueue[userIndex];
-          randomChatQueue.splice(userIndex, 1);
-          
-          let botGender = meInQueue.userGender === 'female' ? 'male' : 'female';
-          
-          if (meInQueue.genderFilter !== 'any') {
-              botGender = meInQueue.genderFilter; // Force bot to be the requested gender
-              
-              // Deduct coin
-              try {
-                  const dbU1 = await User.findById(userId);
-                  if (dbU1 && dbU1.coins >= 1) {
-                      dbU1.coins -= 1;
-                      await dbU1.save();
-                      io.to(socket.id).emit('coins_deducted', { amount: 1, balance: dbU1.coins });
-                  }
-              } catch(e) {}
-          }
-          
-          // Match with Bot!
-          const roomId = `bot_room_${Date.now()}_${userId}`;
-          const botUser = { userId: 'twelo-bot', socketId: 'bot-socket' };
-          
-          const botFlows = ['DEFAULT', 'SILENT_LEAVE', 'HI_THEN_LEAVE', 'NETWORK_ERROR', 'KAHA_SE_HO'];
-          const selectedFlow = botFlows[Math.floor(Math.random() * botFlows.length)];
-
-          activeRandomChats.set(roomId, { 
-             user1: { userId, socketId: socket.id }, 
-             user2: botUser, 
-             botState: 'init',
-             botFlow: selectedFlow 
-          });
-
-          io.to(socket.id).emit('match_found', {
-             roomId,
-             partnerId: 'twelo-bot',
-             partnerAvatar: generateAvatarUrl(botGender),
-             partnerCountry: 'India',
-             partnerUsername: 'Stranger'
-          });
-
-          if (selectedFlow === 'DEFAULT') {
-            activeRandomChats.get(roomId).botState = 'waiting_for_hi';
-            setTimeout(() => {
-               io.to(socket.id).emit('receive_anonymous_typing', { isTyping: true });
-               setTimeout(() => {
-                  io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
-                  io.to(socket.id).emit('receive_anonymous_message', { _id: `anon-bot-${Date.now()}`, message: `hi`, senderSocket: 'bot-socket', createdAt: new Date().toISOString() });
-               }, 2500); 
-            }, 1500); 
-          } else if (selectedFlow === 'SILENT_LEAVE') {
-            activeRandomChats.get(roomId).botState = 'waiting_for_msg';
-          } else if (selectedFlow === 'HI_THEN_LEAVE') {
-            activeRandomChats.get(roomId).botState = 'waiting_for_msg';
-          } else if (selectedFlow === 'NETWORK_ERROR') {
-            activeRandomChats.get(roomId).botState = 'network_error';
-            setTimeout(() => {
-               io.to(socket.id).emit('receive_anonymous_message', { _id: `sys-${Date.now()}`, message: `Network Error`, isSystem: true, senderSocket: 'system', createdAt: new Date().toISOString() });
-               io.to(socket.id).emit('anonymous_chat_ended');
-               activeRandomChats.delete(roomId);
-            }, 4000);
-          } else if (selectedFlow === 'KAHA_SE_HO') {
-            activeRandomChats.get(roomId).botState = 'waiting_for_reply_1';
-            setTimeout(() => {
-               io.to(socket.id).emit('receive_anonymous_typing', { isTyping: true });
-               setTimeout(() => {
-                  io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
-                  io.to(socket.id).emit('receive_anonymous_message', { _id: `anon-bot-${Date.now()}`, message: `hello kaha se ho`, senderSocket: 'bot-socket', createdAt: new Date().toISOString() });
-               }, 2500); 
-            }, 1500); 
-          }
-
+      if (myIndex !== -1) {
+        for (let i = 0; i < randomChatQueue.length; i++) {
+           if (i === myIndex) continue;
+           const potentialPartner = randomChatQueue[i];
+           
+           const myFilterMatches = genderFilter === 'any' || genderFilter === potentialPartner.userGender;
+           const theirFilterMatches = potentialPartner.genderFilter === 'any' || potentialPartner.genderFilter === userGender;
+           
+           if (myFilterMatches && theirFilterMatches) {
+               matchedIndex = i;
+               break;
+           }
         }
-      }, 4000); // exactly 4 seconds
-    }
-  });
+      }
+
+      // If a real user is found, match them immediately
+      if (matchedIndex !== -1) {
+        const user2 = randomChatQueue[matchedIndex];
+        // Splice higher index first to avoid shifting issues
+        if (myIndex > matchedIndex) {
+           randomChatQueue.splice(myIndex, 1);
+           randomChatQueue.splice(matchedIndex, 1);
+        } else {
+           randomChatQueue.splice(matchedIndex, 1);
+           randomChatQueue.splice(myIndex, 1);
+        }
+        
+        const user1 = { userId, socketId: socket.id, genderFilter, userGender };
+        
+        // Deduct coins if filters were used
+        try {
+            if (user1.genderFilter !== 'any') {
+                const dbU1 = await User.findById(user1.userId);
+                if (dbU1 && dbU1.coins >= 1) {
+                    dbU1.coins -= 1;
+                    await dbU1.save();
+                    io.to(user1.socketId).emit('coins_deducted', { amount: 1, balance: dbU1.coins });
+                }
+            }
+            if (user2.genderFilter !== 'any') {
+                const dbU2 = await User.findById(user2.userId);
+                if (dbU2 && dbU2.coins >= 1) {
+                    dbU2.coins -= 1;
+                    await dbU2.save();
+                    io.to(user2.socketId).emit('coins_deducted', { amount: 1, balance: dbU2.coins });
+                }
+            }
+        } catch(e) { console.error("Coin deduction error", e); }
+        
+        const roomId = `random_${Date.now()}_${Math.random().toString(36).substring(2,8)}`;
+        activeRandomChats.set(roomId, { user1, user2 });
+
+        try {
+          const user1Record = await User.findById(user1.userId);
+          const user2Record = await User.findById(user2.userId);
+
+          io.to(user1.socketId).emit('match_found', { 
+            roomId, 
+            partnerId: user2.userId,
+            partnerAvatar: user2Record?.avatarUrl,
+            partnerCountry: user2Record?.country
+          });
+          io.to(user2.socketId).emit('match_found', { 
+            roomId, 
+            partnerId: user1.userId,
+            partnerAvatar: user1Record?.avatarUrl,
+            partnerCountry: user1Record?.country
+          });
+        } catch (err) {
+          console.error("Error fetching random chat users", err);
+        }
+        return; // Success, don't alert admin or use bot
+      }
+
+      // 2. No real users. Can we alert an Admin?
+      const adminSockets = io.sockets.adapter.rooms.get('admin_room') || new Set();
+      const availableAdmins = Array.from(adminSockets).filter(sid => !adminBusySockets.has(sid));
+
+      if (availableAdmins.length > 0 && targetDbUser) {
+        // Alert ALL available admins.
+        availableAdmins.forEach(sid => io.to(sid).emit('admin_alert_new_random', targetDbUser));
+        
+        // Give admin 6 seconds to intercept
+        setTimeout(() => triggerBotMatch(userId, isBotEligible, socket.id), 6000);
+      } else {
+        // No admin available, wait a tiny bit then bot
+        setTimeout(() => triggerBotMatch(userId, isBotEligible, socket.id), 2500);
+      }
+    });
+
+    const triggerBotMatch = async (userId, isBotEligible, userSocketId) => {
+      if (!isBotEligible) return;
+      const userIndex = randomChatQueue.findIndex(u => u.userId === userId);
+      if (userIndex !== -1) {
+        // User is still in queue, hasn't been intercepted by real user or admin
+        const meInQueue = randomChatQueue[userIndex];
+        randomChatQueue.splice(userIndex, 1);
+        
+        let botGender = meInQueue.userGender === 'female' ? 'male' : 'female';
+        
+        if (meInQueue.genderFilter !== 'any') {
+            botGender = meInQueue.genderFilter; // Force bot to be the requested gender
+            
+            // Deduct coin
+            try {
+                const dbU1 = await User.findById(userId);
+                if (dbU1 && dbU1.coins >= 1) {
+                    dbU1.coins -= 1;
+                    await dbU1.save();
+                    io.to(userSocketId).emit('coins_deducted', { amount: 1, balance: dbU1.coins });
+                }
+            } catch(e) {}
+        }
+        
+        // Match with Bot!
+        const roomId = `bot_room_${Date.now()}_${userId}`;
+        const botUser = { userId: 'twelo-bot', socketId: 'bot-socket' };
+        
+        const botFlows = ['DEFAULT', 'SILENT_LEAVE', 'HI_THEN_LEAVE', 'NETWORK_ERROR', 'KAHA_SE_HO'];
+        const selectedFlow = botFlows[Math.floor(Math.random() * botFlows.length)];
+
+        activeRandomChats.set(roomId, { 
+           user1: { userId, socketId: userSocketId }, 
+           user2: botUser, 
+           botState: 'init',
+           botFlow: selectedFlow 
+        });
+
+        io.to(userSocketId).emit('match_found', {
+           roomId,
+           partnerId: 'twelo-bot',
+           partnerAvatar: generateAvatarUrl(botGender),
+           partnerCountry: 'India',
+           partnerUsername: 'Stranger'
+        });
+
+        if (selectedFlow === 'DEFAULT') {
+          activeRandomChats.get(roomId).botState = 'waiting_for_hi';
+          setTimeout(() => {
+             io.to(userSocketId).emit('receive_anonymous_typing', { isTyping: true });
+             setTimeout(() => {
+                io.to(userSocketId).emit('receive_anonymous_typing', { isTyping: false });
+                io.to(userSocketId).emit('receive_anonymous_message', { _id: `anon-bot-${Date.now()}`, message: `hi`, senderSocket: 'bot-socket', createdAt: new Date().toISOString() });
+             }, 2500); 
+          }, 1500); 
+        } else if (selectedFlow === 'SILENT_LEAVE') {
+          activeRandomChats.get(roomId).botState = 'waiting_for_msg';
+        } else if (selectedFlow === 'HI_THEN_LEAVE') {
+          activeRandomChats.get(roomId).botState = 'waiting_for_msg';
+        } else if (selectedFlow === 'NETWORK_ERROR') {
+          activeRandomChats.get(roomId).botState = 'network_error';
+          setTimeout(() => {
+             io.to(userSocketId).emit('receive_anonymous_message', { _id: `sys-${Date.now()}`, message: `Network Error`, isSystem: true, senderSocket: 'system', createdAt: new Date().toISOString() });
+             io.to(userSocketId).emit('anonymous_chat_ended');
+             activeRandomChats.delete(roomId);
+          }, 4000);
+        } else if (selectedFlow === 'KAHA_SE_HO') {
+          activeRandomChats.get(roomId).botState = 'waiting_for_reply_1';
+          setTimeout(() => {
+             io.to(userSocketId).emit('receive_anonymous_typing', { isTyping: true });
+             setTimeout(() => {
+                io.to(userSocketId).emit('receive_anonymous_typing', { isTyping: false });
+                io.to(userSocketId).emit('receive_anonymous_message', { _id: `anon-bot-${Date.now()}`, message: `hello kaha se ho`, senderSocket: 'bot-socket', createdAt: new Date().toISOString() });
+             }, 2500); 
+          }, 1500); 
+        }
+      }
+    };
 
   socket.on('cancel_search', (userId) => {
     randomChatQueue = randomChatQueue.filter(u => u.userId !== userId);
@@ -1467,6 +1477,11 @@ io.on('connection', (socket) => {
          activeRandomChats.delete(roomId);
          return;
       }
+      
+      if (chat.user1.socketId) adminBusySockets.delete(chat.user1.socketId);
+      if (chat.user2.socketId) adminBusySockets.delete(chat.user2.socketId);
+      adminBusySockets.delete(socket.id);
+
       const receiverSocketId = chat.user1.socketId === socket.id ? chat.user2.socketId : chat.user1.socketId;
       io.to(receiverSocketId).emit('anonymous_chat_ended');
       activeRandomChats.delete(roomId);
@@ -1491,6 +1506,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    adminBusySockets.delete(socket.id);
     randomChatQueue = randomChatQueue.filter(u => u.socketId !== socket.id);
     
     for (const [roomId, chat] of activeRandomChats.entries()) {
