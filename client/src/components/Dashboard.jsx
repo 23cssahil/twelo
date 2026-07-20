@@ -124,11 +124,17 @@ export default function Dashboard() {
   const handleWatchAd = async () => {
     if (Capacitor.isNativePlatform()) {
       try {
-        const adUnitId = 'ca-app-pub-7775487062260313/6350919371';
+        // Use Google's official Test Ad Unit ID for guaranteed test delivery
+        const adUnitId = 'ca-app-pub-3940256099942544/5224354917';
         
         // Remove old listeners to avoid multiple rewards
         AdMob.removeAllListeners();
         
+        AdMob.addListener(RewardAdPluginEvents.Loaded, () => {
+          // Ad is ready, show it now
+          AdMob.showRewardVideoAd().catch(e => console.error(e));
+        });
+
         AdMob.addListener(RewardAdPluginEvents.Rewarded, (rewardItem) => {
           rewardUserForAd();
           alert("Reward Earned! 5 Coins added.");
@@ -137,11 +143,14 @@ export default function Dashboard() {
         AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (err) => {
           console.error("Ad failed to load", err);
           alert("Ad failed to load. Please check internet connection.");
+          // Fallback
+          setShowAdModal(true);
+          setAdTimeLeft(15);
+          setAdCompleted(false);
         });
 
-        // Use test mode so we can see ads immediately! Real ads take 1 hour to activate on AdMob.
+        // Start preparing the ad (this triggers the Loaded event when ready)
         await AdMob.prepareRewardVideoAd({ adUnitId, isTesting: true });
-        await AdMob.showRewardVideoAd();
       } catch (e) {
         console.error("AdMob Error", e);
         // Fallback to fake ad if AdMob fails completely
