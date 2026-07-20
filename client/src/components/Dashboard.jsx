@@ -1503,6 +1503,18 @@ export default function Dashboard() {
     setActiveTab('home');
   };
 
+  const globeComponent = useMemo(() => (
+    <Globe
+      ref={globeEl}
+      globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+      backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+      bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+      backgroundColor="rgba(0,0,0,0)"
+      showAtmosphere={false}
+      onGlobeClick={handleGlobeClick}
+    />
+  ), [handleGlobeClick]);
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'earn':
@@ -1544,17 +1556,7 @@ export default function Dashboard() {
                 transition: 'transform 0.1s ease-out'
               }}
             >
-              {useMemo(() => (
-               <Globe
-                  ref={globeEl}
-                  globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-                  backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-                  bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-                  backgroundColor="rgba(0,0,0,0)"
-                  showAtmosphere={false}
-                  onGlobeClick={handleGlobeClick}
-                />
-              ), [handleGlobeClick])}
+              {globeComponent}
             </div>
             
             <div className="coin-display" style={{ zIndex: 10 }}>
