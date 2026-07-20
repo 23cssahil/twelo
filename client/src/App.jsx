@@ -6,6 +6,8 @@ import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import DeveloperAdmin from './components/DeveloperAdmin';
+import { Capacitor } from '@capacitor/core';
+import { AdMob } from '@capacitor-community/admob';
 
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
@@ -28,6 +30,14 @@ export default function App() {
     if (savedUser && token) {
       setUser(JSON.parse(savedUser));
     }
+    
+    // Initialize AdMob if running natively
+    if (Capacitor.isNativePlatform()) {
+      AdMob.initialize({
+        initializeForTesting: false,
+      }).catch(err => console.error("AdMob initialization failed", err));
+    }
+
     setLoading(false);
 
     const handleBeforeInstallPrompt = (e) => {

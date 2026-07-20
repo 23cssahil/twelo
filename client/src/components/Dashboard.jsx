@@ -71,6 +71,8 @@ const CoinSVG = ({ size = 18 }) => (
     <text x="20" y="27" fontSize="22" fontFamily="Arial, sans-serif" fontWeight="900" fill="#a47209" textAnchor="middle" style={{textShadow: "1px 1px 1px rgba(255,255,255,0.7)"}}>T</text>
   </svg>
 );
+import { Capacitor } from '@capacitor/core';
+import { AdMob, RewardAdPluginEvents } from '@capacitor-community/admob';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('home');
@@ -104,10 +106,39 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [showAdModal, adTimeLeft, adCompleted]);
 
-  const handleWatchAd = () => {
-    setShowAdModal(true);
-    setAdTimeLeft(15);
-    setAdCompleted(false);
+  const handleWatchAd = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const adUnitId = 'ca-app-pub-7775487062260313/6350919371';
+        
+        // Remove old listeners to avoid multiple rewards
+        AdMob.removeAllListeners();
+        
+        AdMob.addListener(RewardAdPluginEvents.Rewarded, (rewardItem) => {
+          rewardUserForAd();
+          alert("Reward Earned! 5 Coins added.");
+        });
+
+        AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (err) => {
+          console.error("Ad failed to load", err);
+          alert("Ad failed to load. Please try again later.");
+        });
+
+        await AdMob.prepareRewardVideoAd({ adUnitId, isTesting: false });
+        await AdMob.showRewardVideoAd();
+      } catch (e) {
+        console.error("AdMob Error", e);
+        // Fallback to fake ad if AdMob fails completely
+        setShowAdModal(true);
+        setAdTimeLeft(15);
+        setAdCompleted(false);
+      }
+    } else {
+      // Fallback for Web users
+      setShowAdModal(true);
+      setAdTimeLeft(15);
+      setAdCompleted(false);
+    }
   };
 
   const rewardUserForAd = async () => {
