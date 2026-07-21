@@ -460,12 +460,20 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
     const targetUserId = req.params.id;
     if (targetUserId === req.user.userId) return res.status(400).json({ message: "Cannot follow yourself" });
 
+    const currentUser = await User.findById(req.user.userId);
+    if (!currentUser || currentUser.coins < 5) {
+      return res.status(400).json({ message: "Not enough coins. You need 5 coins to send a request." });
+    }
+
     const targetUser = await User.findById(targetUserId);
     if (!targetUser) return res.status(404).json({ message: "User not found" });
 
     // Check if already following or request already sent
     if (targetUser.followers.includes(req.user.userId)) return res.status(400).json({ message: "Already following" });
     if (targetUser.friendRequests.includes(req.user.userId)) return res.status(400).json({ message: "Request already sent" });
+
+    currentUser.coins -= 5;
+    await currentUser.save();
 
     targetUser.friendRequests.push(req.user.userId);
     targetUser.notifications.push({ type: 'follow_request', user: req.user.userId });
@@ -1279,7 +1287,7 @@ io.on('connection', (socket) => {
           }
       } catch (err) {}
 
-      if (genderFilter !== 'any' && userCoins < 1) {
+      if (genderFilter !== 'any' && userCoins < 2) {
         io.to(socket.id).emit('cancel_search');
         return;
       }
@@ -1325,18 +1333,18 @@ io.on('connection', (socket) => {
         try {
             if (user1.genderFilter !== 'any') {
                 const dbU1 = await User.findById(user1.userId);
-                if (dbU1 && dbU1.coins >= 1) {
-                    dbU1.coins -= 1;
+                if (dbU1 && dbU1.coins >= 2) {
+                    dbU1.coins -= 2;
                     await dbU1.save();
-                    io.to(user1.socketId).emit('coins_deducted', { amount: 1, balance: dbU1.coins });
+                    io.to(user1.socketId).emit('coins_deducted', { amount: 2, balance: dbU1.coins });
                 }
             }
             if (user2.genderFilter !== 'any') {
                 const dbU2 = await User.findById(user2.userId);
-                if (dbU2 && dbU2.coins >= 1) {
-                    dbU2.coins -= 1;
+                if (dbU2 && dbU2.coins >= 2) {
+                    dbU2.coins -= 2;
                     await dbU2.save();
-                    io.to(user2.socketId).emit('coins_deducted', { amount: 1, balance: dbU2.coins });
+                    io.to(user2.socketId).emit('coins_deducted', { amount: 2, balance: dbU2.coins });
                 }
             }
         } catch(e) { console.error("Coin deduction error", e); }
