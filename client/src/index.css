@@ -313,11 +313,16 @@ input, button, textarea {
 .user-names {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .user-username {
   font-weight: 600;
   font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .user-id {
@@ -411,6 +416,8 @@ input, button, textarea {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  flex: 1;
 }
 
 .back-btn {
