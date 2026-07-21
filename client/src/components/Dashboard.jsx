@@ -610,14 +610,19 @@ export default function Dashboard() {
   // Matchmaking Timer and Globe auto-rotate
   useEffect(() => {
     if (globeEl.current) {
-      globeEl.current.controls().autoRotate = true;
-      globeEl.current.controls().autoRotateSpeed = isSearchingRandom ? 6.0 : 1.5;
-      globeEl.current.controls().enableZoom = false;
+      const controls = globeEl.current.controls && globeEl.current.controls();
+      if (controls) {
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = isSearchingRandom ? 6.0 : 1.5;
+        controls.enableZoom = false;
+      }
 
       // Set camera distance to make the globe smaller
-      globeEl.current.pointOfView({ altitude: 5.5 });
+      if (globeEl.current.pointOfView) {
+        globeEl.current.pointOfView({ altitude: 5.5 });
+      }
 
-      const scene = globeEl.current.scene();
+      const scene = globeEl.current.scene && globeEl.current.scene();
       if (scene && !scene.userData.ambientAdded) {
         const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); // Bright ambient light removes all shadows
         scene.add(ambientLight);
@@ -1482,12 +1487,18 @@ export default function Dashboard() {
       }
       setIsSearchingRandom(true);
       setRandomSearchTimer(5);
+      setMatchFailed(false);
       if (socket) socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
     } else {
       setIsSearchingRandom(false);
       if (socket) socket.emit('cancel_search', user.id);
     }
   }, [isSearchingRandom, genderFilter, coins, socket, user]);
+
+  const handleGlobeClickRef = useRef(handleGlobeClick);
+  useEffect(() => {
+    handleGlobeClickRef.current = handleGlobeClick;
+  }, [handleGlobeClick]);
 
   const handleSendAnonymousMessage = (e) => {
     e.preventDefault();
@@ -1548,9 +1559,9 @@ export default function Dashboard() {
       bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
       backgroundColor="rgba(0,0,0,0)"
       showAtmosphere={false}
-      onGlobeClick={handleGlobeClick}
+      onGlobeClick={() => handleGlobeClickRef.current && handleGlobeClickRef.current()}
     />
-  ), [handleGlobeClick]);
+  ), []);
 
   const timeSince = (date) => {
     if (!date) return 'a while ago';
