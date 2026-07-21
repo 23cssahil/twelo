@@ -204,7 +204,6 @@ export default function Dashboard() {
   const [isSearchingRandom, setIsSearchingRandom] = useState(false);
   const [randomSearchTimer, setRandomSearchTimer] = useState(0);
   const [matchFailed, setMatchFailed] = useState(false);
-  const [globeSearchFails, setGlobeSearchFails] = useState(0);
   const [genderFilter, setGenderFilter] = useState('any');
   const [anonymousRoomId, setAnonymousRoomId] = useState(null);
   const [anonymousPartnerId, setAnonymousPartnerId] = useState(null);
@@ -498,7 +497,6 @@ export default function Dashboard() {
 
     socket.on('match_found', ({ roomId, partnerId, partnerAvatar, partnerCountry }) => {
         setIsSearchingRandom(false);
-        setGlobeSearchFails(0); // Reset failure count on successful match (real or bot)
         setAnonymousRoomId(roomId);
         setAnonymousPartnerId(partnerId);
         setAnonymousPartnerAvatar(partnerAvatar || '');
@@ -1467,14 +1465,13 @@ export default function Dashboard() {
         return;
       }
       setIsSearchingRandom(true);
-      const isBotEligible = globeSearchFails >= 2;
-      setRandomSearchTimer(isBotEligible ? 4 : 5);
-      if (socket) socket.emit('search_random', { userId: user.id, isBotEligible, genderFilter });
+      setRandomSearchTimer(5);
+      if (socket) socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
     } else {
       setIsSearchingRandom(false);
       if (socket) socket.emit('cancel_search', user.id);
     }
-  }, [isSearchingRandom, genderFilter, coins, globeSearchFails, socket, user]);
+  }, [isSearchingRandom, genderFilter, coins, socket, user]);
 
   const handleSendAnonymousMessage = (e) => {
     e.preventDefault();
