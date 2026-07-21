@@ -124,8 +124,7 @@ export default function Dashboard() {
   const handleWatchAd = async () => {
     if (Capacitor.isNativePlatform()) {
       try {
-        // Use Google's official Test Ad Unit ID for guaranteed test delivery
-        const adUnitId = 'ca-app-pub-3940256099942544/5224354917';
+        const adUnitId = 'ca-app-pub-7775487062260313/6350919371';
         
         // Remove old listeners to avoid multiple rewards
         AdMob.removeAllListeners();
@@ -146,13 +145,15 @@ export default function Dashboard() {
         });
 
         // Start preparing the ad (this triggers the Loaded event when ready)
-        await AdMob.prepareRewardVideoAd({ adUnitId, isTesting: true });
+        await AdMob.prepareRewardVideoAd({ adUnitId, isTesting: false });
       } catch (e) {
-        console.error("AdMob Error", e);
-        alert("AdMob Code Error: " + e.message);
+        console.error("Ad preparation failed", e);
+        // Fallback to custom web ad modal if plugin fails
+        setShowAdModal(true);
+        setAdTimeLeft(15);
+        setAdCompleted(false);
       }
     } else {
-      // Fallback for Web users
       setShowAdModal(true);
       setAdTimeLeft(15);
       setAdCompleted(false);
