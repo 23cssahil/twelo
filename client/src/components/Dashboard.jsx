@@ -1591,7 +1591,8 @@ export default function Dashboard() {
                 position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
                 zIndex: 5,
-                paddingTop: '65vh'
+                justifyContent: 'flex-end',
+                paddingBottom: '80px'
               }}
             >
               {isSearchingRandom && (
@@ -1608,7 +1609,7 @@ export default function Dashboard() {
               {!isSearchingRandom && !matchFailed && (
                 <div className="search-text" style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
                   <span style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)', fontWeight: 'bold' }}>Tap the globe to find a random chat!</span>
-                  <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.1)', padding: '6px', borderRadius: '30px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', background: 'rgba(255,255,255,0.1)', padding: '6px', borderRadius: '30px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
                     <button 
                       onClick={(e) => { e.stopPropagation(); setGenderFilter('any'); }} 
                       style={{ padding: '8px 16px', borderRadius: '25px', border: 'none', background: genderFilter === 'any' ? 'linear-gradient(135deg, #00c6ff, #0072ff)' : 'transparent', color: genderFilter === 'any' ? '#fff' : '#aaa', cursor: 'pointer', transition: '0.3s', fontWeight: 'bold', fontSize: '0.9rem', boxShadow: genderFilter === 'any' ? '0 4px 15px rgba(0, 114, 255, 0.4)' : 'none' }}
