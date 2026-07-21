@@ -72,7 +72,7 @@ export default function App() {
   // Handle socket connection
   useEffect(() => {
     if (user && token) {
-      const newSocket = io(API_URL);
+      const newSocket = io(API_URL, { transports: ['websocket'] });
       setSocket(newSocket);
 
       newSocket.on('connect', () => {
@@ -161,9 +161,10 @@ export default function App() {
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
           zIndex: 9999,
           width: '90%',
-          maxWidth: '350px'
+          maxWidth: '350px',
+          boxSizing: 'border-box'
         }}>
-          <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Install Twelo App</h3>
+          <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', textAlign: 'center' }}>Install Twelo App</h3>
           <p style={{ margin: 0, color: '#a8a8a8', fontSize: '0.9rem', textAlign: 'center' }}>
             Add Twelo to your home screen for a better experience!
           </p>
