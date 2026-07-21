@@ -1769,8 +1769,18 @@ export default function Dashboard() {
                   </div>
                 </form>
               ) : (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)' }}>
-                  Chat has ended. <button onClick={handleLeaveAnonymousChat} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', cursor: 'pointer', fontWeight: 'bold' }}>Return Home</button>
+                <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                  <div>Chat has ended.</div>
+                  {anonymousPartnerId && (
+                    <button 
+                      className="premium-btn primary" 
+                      style={{ fontSize: '0.85rem', padding: '8px 16px', display: 'flex', alignItems: 'center' }}
+                      onClick={handleSendAnonymousFriendRequest}
+                    >
+                      <UserPlus size={16} style={{ marginRight: '6px' }} /> Add Friend (5 <CoinSVG size={12} style={{marginLeft: '2px'}}/>)
+                    </button>
+                  )}
+                  <button onClick={handleLeaveAnonymousChat} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', cursor: 'pointer', fontWeight: 'bold' }}>Return Home</button>
                 </div>
               )}
             </div>
@@ -1806,6 +1816,7 @@ export default function Dashboard() {
                   const reqUser = notif.user;
                   if (!reqUser) return null;
                   const isAccepted = profileStats?.followers?.includes(reqUser._id);
+                  const isFollowingBack = profileStats?.following?.includes(reqUser._id);
                   const text = notif.type === 'request_accepted' ? 'accepted your follow request' : 'wants to follow you';
                   
                   return (
@@ -1820,7 +1831,11 @@ export default function Dashboard() {
                       {notif.type === 'request_accepted' ? (
                         <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWithUser(reqUser)}>Chat</button>
                       ) : isAccepted ? (
-                        <button className="chat-now-btn" disabled style={{ background: '#333' }}>Accepted</button>
+                        isFollowingBack ? (
+                          <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWithUser(reqUser)}>Chat</button>
+                        ) : (
+                          <button className="chat-now-btn" style={{ background: '#10b981' }} onClick={() => sendFollowRequest(reqUser._id)}>Follow Back</button>
+                        )
                       ) : (
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button className="chat-now-btn accept-btn" style={{ flex: 1 }} onClick={() => acceptRequest(reqUser._id)}>Accept</button>

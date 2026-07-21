@@ -460,20 +460,12 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
     const targetUserId = req.params.id;
     if (targetUserId === req.user.userId) return res.status(400).json({ message: "Cannot follow yourself" });
 
-    const currentUser = await User.findById(req.user.userId);
-    if (!currentUser || currentUser.coins < 5) {
-      return res.status(400).json({ message: "Not enough coins. You need 5 coins to send a request." });
-    }
-
     const targetUser = await User.findById(targetUserId);
     if (!targetUser) return res.status(404).json({ message: "User not found" });
 
     // Check if already following or request already sent
     if (targetUser.followers.includes(req.user.userId)) return res.status(400).json({ message: "Already following" });
     if (targetUser.friendRequests.includes(req.user.userId)) return res.status(400).json({ message: "Request already sent" });
-
-    currentUser.coins -= 5;
-    await currentUser.save();
 
     targetUser.friendRequests.push(req.user.userId);
     targetUser.notifications.push({ type: 'follow_request', user: req.user.userId });
