@@ -1718,6 +1718,7 @@ export default function Dashboard() {
                   <div className="chat-input-wrapper">
                     <input
                       type="text"
+                      autoComplete="off"
                       placeholder="Type a message..."
                       className="chat-text-input"
                       value={newMessage}
@@ -2116,6 +2117,7 @@ export default function Dashboard() {
                           <input
                             id="chat-input"
                             type="text"
+                            autoComplete="off"
                             placeholder="Message..."
                             className="chat-text-input"
                             style={{ paddingLeft: '40px' }}
