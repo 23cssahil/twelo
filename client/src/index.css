@@ -314,6 +314,8 @@ input, button, textarea {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .user-username {
