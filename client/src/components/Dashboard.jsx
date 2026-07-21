@@ -107,7 +107,7 @@ export default function Dashboard() {
 
           AdMob.addListener(RewardAdPluginEvents.Rewarded, (rewardItem) => {
             rewardUserForAd();
-            alert("Reward Earned! 5 Coins added.");
+            // Removed alert here because it freezes the AdMob WebView on Android
           });
 
           // Preload the NEXT ad as soon as the current one is dismissed
@@ -1476,8 +1476,8 @@ export default function Dashboard() {
 
   const handleGlobeClick = useCallback(() => {
     if (!isSearchingRandom) {
-      if (genderFilter !== 'any' && coins < 1) {
-        alert("Not enough coins! You need 1 coin to use the gender filter.");
+      if (genderFilter !== 'any' && coins < 2) {
+        alert("Not enough coins! You need 2 coins to use the gender filter.");
         return;
       }
       setIsSearchingRandom(true);
@@ -1553,7 +1553,7 @@ export default function Dashboard() {
   ), [handleGlobeClick]);
 
   const timeSince = (date) => {
-    if (!date) return 'just now';
+    if (!date) return 'a while ago';
     const seconds = Math.floor((new Date() - new Date(date)) / 1000);
     let interval = seconds / 31536000;
     if (interval > 1) return Math.floor(interval) + " years ago";
