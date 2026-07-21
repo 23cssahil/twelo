@@ -1677,7 +1677,7 @@ export default function Dashboard() {
             
             <div 
               className="icon-btn" 
-              style={{ position: 'absolute', top: '16px', left: '16px', cursor: 'pointer', zIndex: 10, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)' }}
+              style={{ position: 'absolute', top: '16px', left: '16px', cursor: 'pointer', zIndex: 10, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', pointerEvents: 'auto' }}
               onClick={() => setActiveTab('notifications')}
             >
               <Bell size={24} color="#fff" />
@@ -2390,7 +2390,10 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className={`main-content ${(activeTab === 'home' || activeTab === 'messages') ? 'no-scroll' : ''}`}>
+      <main 
+        className={`main-content ${(activeTab === 'home' || activeTab === 'messages') ? 'no-scroll' : ''}`}
+        style={{ pointerEvents: activeTab === 'home' ? 'none' : 'auto' }}
+      >
         {renderTabContent()}
       </main>
 
