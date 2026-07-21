@@ -1629,7 +1629,7 @@ export default function Dashboard() {
                 position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
                 zIndex: 5,
-                paddingTop: '60vh'
+                paddingTop: '53vh'
               }}
             >
               {isSearchingRandom && (
@@ -2346,7 +2346,7 @@ export default function Dashboard() {
     <div className="dashboard-container">
       {/* Globe always mounted to prevent WebGL context loss / black screen */}
       <div style={{
-        position: 'fixed', top: '-15vh', left: '0', width: '100%', height: '130vh', zIndex: 0,
+        position: 'fixed', top: '-5vh', left: '0', width: '100%', height: '130vh', zIndex: 0,
         transform: 'scale(1.1)',
         display: activeTab === 'home' ? 'block' : 'none',
         pointerEvents: activeTab === 'home' ? 'auto' : 'none'
