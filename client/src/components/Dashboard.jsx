@@ -91,6 +91,44 @@ export default function Dashboard() {
     window.history.replaceState({ tab: 'home' }, '');
   }, []);
 
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      const initializeAdMob = async () => {
+        try {
+          const adUnitId = 'ca-app-pub-7775487062260313/6350919371';
+          
+          await AdMob.initialize({
+            requestTrackingAuthorization: true,
+            testingDevices: ['2077ef9a63d2b398840261c8221a0c9b'],
+            initializeForTesting: false,
+          });
+
+          AdMob.removeAllListeners();
+
+          AdMob.addListener(RewardAdPluginEvents.Rewarded, (rewardItem) => {
+            rewardUserForAd();
+            alert("Reward Earned! 5 Coins added.");
+          });
+
+          // Preload the NEXT ad as soon as the current one is dismissed
+          AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
+            AdMob.prepareRewardVideoAd({ adUnitId, isTesting: false }).catch(e => console.error("Re-preload failed", e));
+          });
+
+          AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (err) => {
+            console.error("Ad failed to load", err);
+          });
+
+          // Preload the FIRST ad
+          await AdMob.prepareRewardVideoAd({ adUnitId, isTesting: false });
+        } catch (e) {
+          console.error("AdMob initialization failed", e);
+        }
+      };
+      initializeAdMob();
+    }
+  }, []);
+
   const { user, token, logout } = useContext(AuthContext);
   const API_URL = import.meta.env.VITE_API_URL || 'https://twelo-backend.onrender.com';
   const socket = useContext(SocketContext);
@@ -124,34 +162,12 @@ export default function Dashboard() {
   const handleWatchAd = async () => {
     if (Capacitor.isNativePlatform()) {
       try {
-        const adUnitId = 'ca-app-pub-7775487062260313/6350919371';
-        
-        // Remove old listeners to avoid multiple rewards
-        AdMob.removeAllListeners();
-        
-        AdMob.addListener(RewardAdPluginEvents.Loaded, () => {
-          // Ad is ready, show it now
-          AdMob.showRewardVideoAd().catch(e => console.error(e));
-        });
-
-        AdMob.addListener(RewardAdPluginEvents.Rewarded, (rewardItem) => {
-          rewardUserForAd();
-          alert("Reward Earned! 5 Coins added.");
-        });
-
-        AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (err) => {
-          console.error("Ad failed to load", err);
-          alert("Ad failed to load. Please check internet connection.");
-        });
-
-        // Start preparing the ad (this triggers the Loaded event when ready)
-        await AdMob.prepareRewardVideoAd({ adUnitId, isTesting: false });
+        // Show the ad because it's already preloaded by our useEffect
+        await AdMob.showRewardVideoAd();
       } catch (e) {
-        console.error("Ad preparation failed", e);
-        // Fallback to custom web ad modal if plugin fails
-        setShowAdModal(true);
-        setAdTimeLeft(15);
-        setAdCompleted(false);
+        console.error("Ad show failed", e);
+        // Attempt to preload again just in case
+        AdMob.prepareRewardVideoAd({ adUnitId: 'ca-app-pub-7775487062260313/6350919371', isTesting: false }).catch(err => console.error(err));
       }
     } else {
       setShowAdModal(true);
