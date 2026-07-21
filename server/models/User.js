@@ -61,6 +61,7 @@ const UserSchema = new mongoose.Schema({
   coins: { type: Number, default: 10 },
   lastCoinReplenishDate: { type: Date, default: Date.now },
   ownedByAdmin: { type: Boolean, default: false },
+  lastActive: { type: Date, default: Date.now },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);

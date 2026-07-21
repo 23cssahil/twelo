@@ -1536,6 +1536,22 @@ export default function Dashboard() {
     />
   ), [handleGlobeClick]);
 
+  const timeSince = (date) => {
+    if (!date) return 'just now';
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " years ago";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+    interval = seconds / 60;
+    if (interval >= 1) return Math.floor(interval) + " mins ago";
+    return "just now";
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'earn':
@@ -1878,6 +1894,9 @@ export default function Dashboard() {
               </div>
               <div className="profile-info" style={{ marginTop: '16px' }}>
                 <span className="profile-username">@{publicProfileData.username}</span>
+                <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : '#a8a8a8', marginTop: '4px' }}>
+                  {onlineUsers.includes(publicProfileData._id) ? '🟢 Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
+                </div>
                 <div className="profile-stats" style={{ justifyContent: 'center', marginTop: '16px', gap: '24px' }}>
                   <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('followers', publicProfileData._id)}><strong>{publicProfileData.followers?.length || 0}</strong> followers</span>
                   <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('following', publicProfileData._id)}><strong>{publicProfileData.following?.length || 0}</strong> following</span>
