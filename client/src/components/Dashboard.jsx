@@ -1602,16 +1602,6 @@ export default function Dashboard() {
       case 'home':
         return (
           <div className="space-container" style={{ overflow: 'hidden' }}>
-            <div 
-              style={{ 
-                position: 'absolute', top: '-15vh', left: '0', width: '100%', height: '130vh', zIndex: 0,
-                transform: `scale(1.1)`,
-                transition: 'transform 0.1s ease-out'
-              }}
-            >
-              {globeComponent}
-            </div>
-            
             <div className="coin-display" style={{ zIndex: 10 }}>
               <CoinSVG size={18} />
               <span>{coins}</span>
@@ -1627,9 +1617,15 @@ export default function Dashboard() {
               }}
             >
               {isSearchingRandom && (
-                <div style={{ pointerEvents: 'auto', textAlign: 'center' }}>
+                <div style={{ pointerEvents: 'auto', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                   <div className="match-timer">{randomSearchTimer}s</div>
                   <div className="search-text">Looking for someone in the universe...</div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIsSearchingRandom(false); setRandomSearchTimer(5); if (socket) socket.emit('cancel_search', user.id); }}
+                    style={{ padding: '8px 20px', borderRadius: '20px', border: '1px solid rgba(255,100,100,0.5)', background: 'rgba(255,50,50,0.2)', color: '#ff6b6b', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}
+                  >
+                    Cancel
+                  </button>
                 </div>
               )}
               {matchFailed && (
@@ -2332,6 +2328,15 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-container">
+      {/* Globe always mounted to prevent WebGL context loss / black screen */}
+      <div style={{
+        position: 'fixed', top: '-15vh', left: '0', width: '100%', height: '130vh', zIndex: 0,
+        transform: 'scale(1.1)',
+        display: activeTab === 'home' ? 'block' : 'none',
+        pointerEvents: activeTab === 'home' ? 'auto' : 'none'
+      }}>
+        {globeComponent}
+      </div>
       <aside className="sidebar">
         <div>
           <h1 className="sidebar-logo" onClick={() => setActiveTab('home')}>Twelo</h1>
