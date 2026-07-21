@@ -523,6 +523,11 @@ export default function Dashboard() {
         setAnonymousPartnerTyping(false);
       });
 
+    socket.on('cancel_search', () => {
+      setIsSearchingRandom(false);
+      setRandomSearchTimer(5);
+    });
+
     socket.on('receive_anonymous_typing', ({ isTyping }) => {
       setAnonymousPartnerTyping(isTyping);
     });
@@ -558,6 +563,7 @@ export default function Dashboard() {
       socket.off('call_accepted');
       socket.off('call_ended');
       socket.off('match_found');
+      socket.off('cancel_search');
       socket.off('receive_anonymous_typing');
       socket.off('receive_anonymous_message');
       socket.off('anonymous_chat_ended');
@@ -636,7 +642,6 @@ export default function Dashboard() {
     } else if (isSearchingRandom && randomSearchTimer === 0) {
       setIsSearchingRandom(false);
       setMatchFailed(true);
-      setGlobeSearchFails(prev => prev + 1);
       if (socket) socket.emit('cancel_search', user.id);
       setTimeout(() => setMatchFailed(false), 3000);
     }
