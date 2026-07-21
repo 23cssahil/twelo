@@ -148,8 +148,9 @@ export default function App() {
         <div style={{
           position: 'fixed',
           bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
+          left: '16px',
+          right: '16px',
+          margin: '0 auto',
           backgroundColor: '#111',
           border: '1px solid #333',
           borderRadius: '12px',
