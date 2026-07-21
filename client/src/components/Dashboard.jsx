@@ -1653,7 +1653,7 @@ export default function Dashboard() {
                     >
                       <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Leo" alt="Male" style={{width:'24px', height:'24px', borderRadius:'50%', background:'#fff', border: '2px solid rgba(255,255,255,0.8)'}} />
                       Male
-                      <div style={{display:'flex', alignItems:'center', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:'12px', fontSize:'0.75rem', fontWeight:'normal'}}><CoinSVG size={14}/> <span style={{marginLeft:'3px', marginTop:'1px'}}>1</span></div>
+                      <div style={{display:'flex', alignItems:'center', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:'12px', fontSize:'0.75rem', fontWeight:'normal'}}><CoinSVG size={14}/> <span style={{marginLeft:'3px', marginTop:'1px'}}>2</span></div>
                     </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); setGenderFilter('female'); }} 
@@ -1661,7 +1661,7 @@ export default function Dashboard() {
                     >
                       <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Anita" alt="Female" style={{width:'24px', height:'24px', borderRadius:'50%', background:'#fff', border: '2px solid rgba(255,255,255,0.8)'}} />
                       Female
-                      <div style={{display:'flex', alignItems:'center', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:'12px', fontSize:'0.75rem', fontWeight:'normal'}}><CoinSVG size={14}/> <span style={{marginLeft:'3px', marginTop:'1px'}}>1</span></div>
+                      <div style={{display:'flex', alignItems:'center', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:'12px', fontSize:'0.75rem', fontWeight:'normal'}}><CoinSVG size={14}/> <span style={{marginLeft:'3px', marginTop:'1px'}}>2</span></div>
                     </button>
                   </div>
                 </div>
