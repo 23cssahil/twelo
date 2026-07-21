@@ -410,7 +410,7 @@ export default function Dashboard() {
       fetchProfile();
       fetchNotifications();
     }
-  }, [activeTab, token]);
+  }, [token]);
 
   useEffect(() => {
     const handleResize = () => {

@@ -706,56 +706,55 @@ app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
 // Get all chats for current user (recent conversations list)
 app.get('/api/chats/recent', authenticateToken, async (req, res) => {
   try {
-    const currentUserId = req.user.userId;
-
-    // Find all users the current user has chatted with
-    const sentMessages = await Message.distinct('receiver', { sender: currentUserId });
-    const receivedMessages = await Message.distinct('sender', { receiver: currentUserId });
-    
-    // Combine unique user IDs
-    const chattedUserIds = [...new Set([...sentMessages, ...receivedMessages])];
-    
-    const users = await User.find({ _id: { $in: chattedUserIds } }).select('username uniqueId avatarUrl gender').lean();
-    const foundUserIds = users.map(u => u._id.toString());
-    
-    users.forEach(u => {
-      if (!u.avatarUrl || u.avatarUrl.includes('randomuser.me') || u.avatarUrl.includes('iran.liara.run') || u.avatarUrl.includes('top=')) {
-        u.avatarUrl = generateAvatarUrl(u.gender);
-        User.updateOne({ _id: u._id }, { $set: { avatarUrl: u.avatarUrl } }).catch(console.error);
-      }
-    });
-
-    const missingUserIds = chattedUserIds.filter(id => !foundUserIds.includes(id.toString()));
-    missingUserIds.forEach(id => {
-      users.push({
-        _id: id,
-        username: "Deleted Account",
-        uniqueId: "none",
-        avatarUrl: '',
-        isDeleted: true
-      });
-    });
-    
-    // Fetch last message for each user to sort them
-    for (let i = 0; i < users.length; i++) {
-      const lastMsg = await Message.findOne({
-        $and: [
-          {
-            $or: [
-              { sender: currentUserId, receiver: users[i]._id },
-              { sender: users[i]._id, receiver: currentUserId }
-            ]
+    const currentUserId = new mongoose.Types.ObjectId(req.user.userId);
+    const chats = await Message.aggregate([
+      {
+        $match: {
+          $or: [{ sender: currentUserId }, { receiver: currentUserId }],
+          deletedBy: { $ne: currentUserId }
+        }
+      },
+      {
+        $project: {
+          otherUserId: {
+            $cond: [{ $eq: ['$sender', currentUserId] }, '$receiver', '$sender']
           },
-          { deletedBy: { $ne: currentUserId } }
-        ]
-      }).sort({ createdAt: -1 }).select('createdAt');
-      users[i].lastMessageAt = lastMsg ? lastMsg.createdAt : new Date(0);
-    }
-    
-    // Sort users by lastMessageAt descending
-    users.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
-    
-    res.json(users);
+          createdAt: 1
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      { $group: { _id: '$otherUserId', lastMessageAt: { $first: '$createdAt' } } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          username: { $ifNull: ['$user.username', 'Deleted Account'] },
+          uniqueId: { $ifNull: ['$user.uniqueId', 'none'] },
+          avatarUrl: { $ifNull: ['$user.avatarUrl', ''] },
+          gender: '$user.gender',
+          isDeleted: { $eq: ['$user._id', null] },
+          lastMessageAt: 1
+        }
+      },
+      { $sort: { lastMessageAt: -1 } }
+    ]);
+
+    chats.forEach(chat => {
+      if (chat.avatarUrl && !chat.avatarUrl.includes('randomuser.me') && !chat.avatarUrl.includes('iran.liara.run') && !chat.avatarUrl.includes('top=')) return;
+      if (!chat.gender) return;
+      chat.avatarUrl = generateAvatarUrl(chat.gender);
+      User.updateOne({ _id: chat._id }, { $set: { avatarUrl: chat.avatarUrl } }).catch(console.error);
+    });
+
+    res.json(chats);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching recent chats', error: error.message });
   }

@@ -44,4 +44,8 @@ const MessageSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// Supports the two directions used when loading a user's conversations.
+MessageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
+MessageSchema.index({ receiver: 1, sender: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Message', MessageSchema);
