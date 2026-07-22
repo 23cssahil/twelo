@@ -2139,11 +2139,8 @@ export default function Dashboard() {
                       <button 
                         className="back-btn" 
                         onClick={() => {
-                          if (window.history.state && window.history.state.view === 'chat') {
-                            window.history.back();
-                          } else {
-                            setActiveChatUser(null);
-                          }
+                          setActiveChatUser(null);
+                          setActiveTab('home');
                         }}
                         style={{ border: 'none', background: 'transparent', fontSize: '1.2rem', cursor: 'pointer', marginRight: '8px' }}
                       >
