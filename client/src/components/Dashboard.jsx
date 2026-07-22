@@ -2444,7 +2444,7 @@ export default function Dashboard() {
     }
   };
 
-  const totalUnread = Object.values(unreadMessages).reduce((a, b) => a + b, 0);
+  const totalUnreadUsers = Object.values(unreadMessages).filter(count => count > 0).length;
 
   return (
     <div className="dashboard-container">
@@ -2473,7 +2473,7 @@ export default function Dashboard() {
             </div>
             <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
               <MessageSquare size={24} /><span>Messages</span>
-              {totalUnread > 0 && <span className="sidebar-badge">{totalUnread}</span>}
+              {totalUnreadUsers > 0 && <span className="sidebar-badge">{totalUnreadUsers}</span>}
             </div>
             <div className={`nav-item ${activeTab === 'earn' ? 'active' : ''}`} onClick={() => setActiveTab('earn')}>
               <Gift size={24} color="#FFD700" /><span>Earn Coins</span>
@@ -2512,7 +2512,7 @@ export default function Dashboard() {
         <div className={`nav-item ${activeTab === 'earn' ? 'active' : ''}`} onClick={() => setActiveTab('earn')}><Gift size={24} color={activeTab === 'earn' ? '#fff' : '#FFD700'} /></div>
         <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')} style={{ position: 'relative' }}>
           <MessageSquare size={24} />
-          {totalUnread > 0 && <span className="badge">{totalUnread}</span>}
+          {totalUnreadUsers > 0 && <span className="badge">{totalUnreadUsers}</span>}
         </div>
         <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}><UserIcon size={24} /></div>
       </nav>
