@@ -765,6 +765,11 @@ export default function Dashboard() {
     if (publicProfileData && publicProfileData._id === targetUserId) {
       setPublicProfileData(prev => ({ ...prev, friendRequests: [...(prev.friendRequests || []), user.id] }));
     }
+    setNotifications(prev => prev.map(notif =>
+      String(notif.user?._id) === String(targetUserId)
+        ? { ...notif, followBackRequested: true }
+        : notif
+    ));
     
     try {
       const res = await fetch(`${API_URL}/api/users/follow/${targetUserId}`, {
@@ -1829,6 +1834,7 @@ export default function Dashboard() {
                   if (!reqUser) return null;
                   const isAccepted = profileStats?.followers?.includes(reqUser._id);
                   const isFollowingBack = profileStats?.following?.includes(reqUser._id);
+                  const hasSentFollowBack = notif.followBackRequested === true;
                   const text = notif.type === 'request_accepted' ? 'accepted your follow request' : 'wants to follow you';
                   
                   return (
@@ -1845,6 +1851,8 @@ export default function Dashboard() {
                       ) : isAccepted ? (
                         isFollowingBack ? (
                           <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWithUser(reqUser)}>Chat</button>
+                        ) : hasSentFollowBack ? (
+                          <button className="chat-now-btn" style={{ background: '#333', cursor: 'default' }} disabled>Request Sent</button>
                         ) : (
                           <button className="chat-now-btn" style={{ background: '#10b981' }} onClick={() => sendFollowRequest(reqUser._id)}>Follow Back</button>
                         )
