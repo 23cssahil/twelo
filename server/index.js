@@ -799,6 +799,12 @@ app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
     const { otherUserId } = req.params;
     const currentUserId = req.user.userId;
 
+    // Mark messages sent by the other user to current user as viewed
+    await Message.updateMany(
+      { sender: otherUserId, receiver: currentUserId, isViewed: false },
+      { $set: { isViewed: true, viewedAt: new Date() } }
+    );
+
     const messages = await Message.find({
       $and: [
         {
@@ -828,16 +834,29 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
           deletedBy: { $ne: currentUserId }
         }
       },
+      { $sort: { createdAt: -1 } },
       {
-        $project: {
-          otherUserId: {
+        $group: {
+          _id: {
             $cond: [{ $eq: ['$sender', currentUserId] }, '$receiver', '$sender']
           },
-          createdAt: 1
+          lastMessageAt: { $first: '$createdAt' },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$receiver', currentUserId] },
+                    { $eq: ['$isViewed', false] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          }
         }
       },
-      { $sort: { createdAt: -1 } },
-      { $group: { _id: '$otherUserId', lastMessageAt: { $first: '$createdAt' } } },
       {
         $lookup: {
           from: 'users',
@@ -855,7 +874,8 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
           avatarUrl: { $ifNull: ['$user.avatarUrl', ''] },
           gender: '$user.gender',
           isDeleted: { $eq: ['$user._id', null] },
-          lastMessageAt: 1
+          lastMessageAt: 1,
+          unreadCount: 1
         }
       },
       { $sort: { lastMessageAt: -1 } }
@@ -873,6 +893,7 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error fetching recent chats', error: error.message });
   }
 });
+
 
 // Socket.io Real-time Setup
 const onlineUsers = new Map();

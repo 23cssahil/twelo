@@ -415,6 +415,12 @@ export default function Dashboard() {
   }, [token]);
 
   useEffect(() => {
+    if (token && activeTab === 'messages') {
+      fetchRecentChats();
+    }
+  }, [activeTab, token]);
+
+  useEffect(() => {
     const handleResize = () => {
       if (window.visualViewport) {
         document.documentElement.style.setProperty('--vvp-height', `${window.visualViewport.height}px`);
@@ -440,6 +446,9 @@ export default function Dashboard() {
     socket.on('receive_message', (msg) => {
       if ((activeChatUserRef.current && msg.sender === activeChatUserRef.current._id) || msg.sender === user.id) {
         setMessages((prev) => [...prev, msg]);
+        if (msg.sender !== user.id) {
+          socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id, senderId: msg.sender });
+        }
       } else {
         if (msg.sender !== user.id) {
           setUnreadMessages(prev => ({...prev, [msg.sender]: (prev[msg.sender] || 0) + 1}));
@@ -695,7 +704,14 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${API_URL}/api/chats/recent`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (res.ok) setRecentChats(data);
+      if (res.ok) {
+        setRecentChats(data);
+        const unreads = {};
+        data.forEach(chat => {
+          unreads[chat._id] = chat.unreadCount || 0;
+        });
+        setUnreadMessages(unreads);
+      }
     } catch (err) { console.error(err); }
   };
 
