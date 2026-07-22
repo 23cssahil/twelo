@@ -501,33 +501,79 @@ input, button, textarea {
 
 .chat-input-area {
   padding: 12px 16px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   background-color: var(--bg-color);
-  padding-bottom: 24px; /* Extra padding for modern phones */
+  padding-bottom: max(24px, env(safe-area-inset-bottom)); /* Modern safe area padding */
   flex-shrink: 0;
   overscroll-behavior: contain; /* Prevent scroll chaining */
 }
 
 .chat-input-wrapper {
   display: flex;
-  align-items: center;
+  align-items: flex-end; /* Align bottom for expanding text areas */
   background-color: #1a1a1a;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 24px;
-  padding: 6px 16px;
+  padding: 6px 12px;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.chat-input-wrapper:focus-within {
+  background-color: #222;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .chat-text-input {
   flex: 1;
   padding: 10px 0;
   font-size: 1rem;
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  outline: none;
   overscroll-behavior: contain; /* Prevent scroll chaining */
+}
+.chat-text-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .chat-send-btn {
-  color: var(--brand-blue);
-  font-weight: 600;
+  background-color: var(--brand-blue);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  margin-bottom: 4px; /* Align with input text */
+  cursor: pointer;
+  transition: transform 0.2s, background-color 0.2s;
+  flex-shrink: 0;
+}
+.chat-send-btn:hover {
+  background-color: var(--brand-blue-hover);
+  transform: scale(1.05);
+}
+.chat-send-btn:active {
+  transform: scale(0.95);
+}
+.chat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.media-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+.media-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Profile View */
