@@ -31,7 +31,8 @@ import {
   Square,
   Pause,
   Flag,
-  Loader2
+  Loader2,
+  Share2
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -2474,41 +2475,27 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                <div style={{ width: '100%', marginTop: '24px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' }}>{user.name}</h3>
-                  <div className="profile-id-box">
-                    <label style={{ fontSize: '0.85rem', color: '#a8a8a8', display: 'block', marginBottom: '8px' }}>Unique Profile ID</label>
-                    <div className="profile-id-value" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', padding: '12px 16px', borderRadius: '12px' }}>
-                      <span style={{ fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: '1px', color: 'var(--brand-blue)' }}>{user.uniqueId}</span>
-                      <UserCheck size={20} style={{ color: 'var(--brand-blue)' }} />
+                <div style={{ width: '100%', marginTop: '20px' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '12px', textAlign: 'center' }}>{user.name}</h3>
+                  <div className="profile-id-strip" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.04)', padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '0.85rem', color: '#a8a8a8' }}>ID:</span>
+                      <span style={{ fontFamily: 'monospace', fontSize: '1rem', color: 'var(--brand-blue)', letterSpacing: '0.5px' }}>{user.uniqueId}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                      <button 
-                        className="chat-now-btn" 
-                        style={{ flex: 1, background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: '0.9rem' }}
-                        onClick={() => {
-                          navigator.clipboard.writeText(user.uniqueId);
-                          alert('ID Copied!');
-                        }}
-                      >
-                        Copy ID
-                      </button>
-                      <button 
-                        className="chat-now-btn" 
-                        style={{ flex: 1, fontSize: '0.9rem' }}
-                        onClick={() => {
-                          const url = `${window.location.origin}/u/${user.uniqueId}`;
-                          if (navigator.share) {
-                            navigator.share({ title: 'Twelo Profile', url });
-                          } else {
-                            navigator.clipboard.writeText(url);
-                            alert('Profile Link Copied!');
-                          }
-                        }}
-                      >
-                        Share Link
-                      </button>
-                    </div>
+                    <button 
+                      style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      onClick={() => {
+                        const url = `${window.location.origin}/u/${user.uniqueId}`;
+                        if (navigator.share) {
+                          navigator.share({ title: 'Twelo Profile', url });
+                        } else {
+                          navigator.clipboard.writeText(url);
+                          alert('Profile Link Copied!');
+                        }
+                      }}
+                    >
+                      <Share2 size={18} />
+                    </button>
                   </div>
                 </div>
               </div>
