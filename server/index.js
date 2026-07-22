@@ -391,7 +391,18 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
 // Get Notifications (auto-migrates old friendRequests)
 app.get('/api/users/notifications', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl');
+    const formatNotifications = (notifications) => notifications.map(notification => {
+      const item = notification.toObject ? notification.toObject() : notification;
+      const requestUser = item.user;
+      const followBackRequested = Boolean(
+        requestUser?.friendRequests?.some(id => id.toString() === req.user.userId)
+      );
+
+      if (requestUser) delete requestUser.friendRequests;
+      return { ...item, followBackRequested };
+    });
+
+    const user = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl friendRequests');
     
     // Auto-migrate old friendRequests to notifications
     let migrated = false;
@@ -423,13 +434,13 @@ app.get('/api/users/notifications', authenticateToken, async (req, res) => {
 
     if (migrated) {
       await user.save();
-      const populatedUser = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl');
+      const populatedUser = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl friendRequests');
       const sorted = populatedUser.notifications.sort((a, b) => b.createdAt - a.createdAt);
-      return res.json(sorted);
+      return res.json(formatNotifications(sorted));
     }
     
     const sorted = user.notifications.sort((a, b) => b.createdAt - a.createdAt);
-    res.json(sorted);
+    res.json(formatNotifications(sorted));
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching notifications' });
