@@ -2431,13 +2431,13 @@ export default function Dashboard() {
       case 'profile':
         return (
           <div className="profile-container" style={{ position: 'relative' }}>
-            <div className="profile-header-actions" style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}>
-              <button className="icon-btn settings-btn" onClick={() => { setEditUsernameMode(false); setShowSettingsModal(true); }}>
-                <Menu size={24} />
-              </button>
-            </div>
-            <div className="profile-header">
-              <div className="profile-avatar-large" style={{ position: 'relative' }}>
+            <div className="profile-card">
+              <div className="profile-header-actions" style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}>
+                <button className="icon-btn settings-btn" onClick={() => { setEditUsernameMode(false); setShowSettingsModal(true); }}>
+                  <Menu size={24} />
+                </button>
+              </div>
+              <div className="profile-avatar-large">
                 <div className="profile-avatar-inner">
                   {(profileStats?.avatarUrl || user.avatarUrl) ? <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
                 </div>
@@ -2449,23 +2449,19 @@ export default function Dashboard() {
               </div>
               
               <div className="profile-info">
-                <div className="profile-username-row" style={{ justifyContent: 'center' }}>
-                  <span className="profile-username">@{user.username}</span>
-                </div>
+                <span className="profile-username">@{user.username}</span>
                 
-                <div className="premium-stats-container">
-                  <div className="premium-stat-box" onClick={() => handleConnectionsClick('followers', user.id)}>
-                    <span className="stat-number">{profileStats?.followers?.length || 0}</span>
-                    <span className="stat-label">Followers</span>
-                  </div>
-                  <div className="premium-stat-box" onClick={() => handleConnectionsClick('following', user.id)}>
-                    <span className="stat-number">{profileStats?.following?.length || 0}</span>
-                    <span className="stat-label">Following</span>
-                  </div>
+                <div className="profile-stats">
+                  <span onClick={() => handleConnectionsClick('followers', user.id)} style={{ cursor: 'pointer' }}>
+                    <strong>{profileStats?.followers?.length || 0}</strong> followers
+                  </span>
+                  <span onClick={() => handleConnectionsClick('following', user.id)} style={{ cursor: 'pointer' }}>
+                    <strong>{profileStats?.following?.length || 0}</strong> following
+                  </span>
                 </div>
 
                 {(profileStats?.age || user.age) && (profileStats?.gender || user.gender) && (
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', margin: '20px 0', color: '#a8a8a8', fontSize: '0.9rem', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
+                  <div className="profile-demographics">
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
                       <span>{profileStats?.age || user.age} Yrs</span>
@@ -2478,18 +2474,18 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>{user.name}</h3>
+                <div style={{ width: '100%', marginTop: '24px' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' }}>{user.name}</h3>
                   <div className="profile-id-box">
-                    <label>Unique Profile ID</label>
-                    <div className="profile-id-value">
-                      <span>{user.uniqueId}</span>
+                    <label style={{ fontSize: '0.85rem', color: '#a8a8a8', display: 'block', marginBottom: '8px' }}>Unique Profile ID</label>
+                    <div className="profile-id-value" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', padding: '12px 16px', borderRadius: '12px' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: '1px', color: 'var(--brand-blue)' }}>{user.uniqueId}</span>
                       <UserCheck size={20} style={{ color: 'var(--brand-blue)' }} />
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                       <button 
-                        className="premium-btn secondary" 
-                        style={{ fontSize: '0.8rem', padding: '8px' }}
+                        className="chat-now-btn" 
+                        style={{ flex: 1, background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: '0.9rem' }}
                         onClick={() => {
                           navigator.clipboard.writeText(user.uniqueId);
                           alert('ID Copied!');
@@ -2498,8 +2494,8 @@ export default function Dashboard() {
                         Copy ID
                       </button>
                       <button 
-                        className="premium-btn primary" 
-                        style={{ fontSize: '0.8rem', padding: '8px' }}
+                        className="chat-now-btn" 
+                        style={{ flex: 1, fontSize: '0.9rem' }}
                         onClick={() => {
                           const url = `${window.location.origin}/u/${user.uniqueId}`;
                           if (navigator.share) {
@@ -2510,7 +2506,7 @@ export default function Dashboard() {
                           }
                         }}
                       >
-                        Share Profile
+                        Share Link
                       </button>
                     </div>
                   </div>
