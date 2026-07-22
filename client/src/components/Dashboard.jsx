@@ -2027,7 +2027,7 @@ export default function Dashboard() {
         
         return (
           <div className="profile-container">
-            <div className="profile-header" style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+            <div className="profile-card">
               <button 
                 onClick={() => {
                   if (activeChatUser) {
@@ -2041,7 +2041,7 @@ export default function Dashboard() {
               >
                 ←
               </button>
-              <div className="profile-avatar-large" style={{ margin: '0 auto', position: 'relative' }}>
+              <div className="profile-avatar-large">
                 <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
                 {publicProfileData.country && (
                   <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
@@ -2049,16 +2049,16 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-              <div className="profile-info" style={{ marginTop: '16px' }}>
+              <div className="profile-info">
                 <span className="profile-username">@{publicProfileData.username}</span>
                 <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : '#a8a8a8', marginTop: '4px' }}>
                   {onlineUsers.includes(publicProfileData._id) ? '🟢 Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
                 </div>
-                <div className="profile-stats" style={{ justifyContent: 'center', marginTop: '16px', gap: '24px' }}>
+                <div className="profile-stats">
                   <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('followers', publicProfileData._id)}><strong>{publicProfileData.followers?.length || 0}</strong> followers</span>
                   <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('following', publicProfileData._id)}><strong>{publicProfileData.following?.length || 0}</strong> following</span>
                 </div>
-                <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                <div className="profile-actions">
                   {isFollowing ? (
                     <>
                       <button className="chat-now-btn" style={{ flex: 1 }} onClick={() => startChatWithUser(publicProfileData)}>Message</button>
@@ -2071,7 +2071,7 @@ export default function Dashboard() {
                   )}
                 </div>
                 {publicProfileData.age && publicProfileData.gender && (
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '24px', color: '#a8a8a8', fontSize: '0.9rem', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
+                  <div className="profile-demographics">
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
                       <span>{publicProfileData.age} Yrs</span>
