@@ -792,12 +792,13 @@ export default function Dashboard() {
 
   const viewPublicProfile = async (targetId) => {
     if (!targetId || targetId === user.id) return;
+    setPublicProfileData({ isLoading: true, _id: targetId });
+    setActiveTab('publicProfile');
     try {
       const res = await fetch(`${API_URL}/api/users/public_profile/${targetId}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
         setPublicProfileData(data);
-        setActiveTab('publicProfile');
         
         // Record search history if viewing from search
         if (activeTab === 'search') {
@@ -2014,6 +2015,13 @@ export default function Dashboard() {
 
       case 'publicProfile':
         if (!publicProfileData) return null;
+        if (publicProfileData.isLoading) {
+          return (
+            <div className="profile-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+              <div style={{ color: '#a8a8a8' }}>Loading...</div>
+            </div>
+          );
+        }
         const isFollowing = profileStats?.following?.includes(publicProfileData._id);
         const hasRequested = publicProfileData.friendRequests?.includes(user.id);
         

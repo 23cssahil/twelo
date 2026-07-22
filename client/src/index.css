@@ -423,6 +423,8 @@ input, button, textarea {
   gap: 12px;
   min-width: 0;
   flex: 1;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .back-btn {
