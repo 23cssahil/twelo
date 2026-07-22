@@ -21,6 +21,10 @@
   padding: 0;
 }
 
+html, body {
+  overscroll-behavior-y: none; /* Prevent elastic scrolling on mobile */
+}
+
 body {
   background-color: var(--bg-color);
   color: var(--text-primary);
@@ -440,6 +444,7 @@ input, button, textarea {
 .chat-messages-area {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain; /* Prevent scroll chaining */
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -504,6 +509,7 @@ input, button, textarea {
   background-color: var(--bg-color);
   padding-bottom: 24px; /* Extra padding for modern phones */
   flex-shrink: 0;
+  overscroll-behavior: contain; /* Prevent scroll chaining */
 }
 
 .chat-input-wrapper {
@@ -519,6 +525,7 @@ input, button, textarea {
   flex: 1;
   padding: 10px 0;
   font-size: 1rem;
+  overscroll-behavior: contain; /* Prevent scroll chaining */
 }
 
 .chat-send-btn {
