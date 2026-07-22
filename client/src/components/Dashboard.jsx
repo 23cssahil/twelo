@@ -227,6 +227,8 @@ export default function Dashboard() {
   const [isAnonymousChatActive, setIsAnonymousChatActive] = useState(false);
   const [anonymousPartnerAvatar, setAnonymousPartnerAvatar] = useState('');
   const [anonymousPartnerCountry, setAnonymousPartnerCountry] = useState('');
+  const [anonymousPartnerName, setAnonymousPartnerName] = useState('Stranger');
+  const [isAiCompanion, setIsAiCompanion] = useState(false);
   const [anonymousPartnerTyping, setAnonymousPartnerTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
 
@@ -511,12 +513,14 @@ export default function Dashboard() {
       handleEndCallQuietly();
     });
 
-    socket.on('match_found', ({ roomId, partnerId, partnerAvatar, partnerCountry }) => {
+    socket.on('match_found', ({ roomId, partnerId, partnerAvatar, partnerCountry, partnerName, isAiCompanion: aiCompanion }) => {
         setIsSearchingRandom(false);
         setAnonymousRoomId(roomId);
         setAnonymousPartnerId(partnerId);
         setAnonymousPartnerAvatar(partnerAvatar || '');
         setAnonymousPartnerCountry(partnerCountry || 'Earth');
+        setAnonymousPartnerName(partnerName || 'Stranger');
+        setIsAiCompanion(Boolean(aiCompanion));
         setAnonymousMessages([]);
         setIsAnonymousChatActive(true);
         setActiveTab('anonymousChat');
@@ -525,7 +529,7 @@ export default function Dashboard() {
 
     socket.on('cancel_search', () => {
       setIsSearchingRandom(false);
-      setRandomSearchTimer(5);
+      setRandomSearchTimer(7);
     });
 
     socket.on('receive_anonymous_typing', ({ isTyping }) => {
@@ -1496,7 +1500,7 @@ export default function Dashboard() {
         return;
       }
       setIsSearchingRandom(true);
-      setRandomSearchTimer(5);
+      setRandomSearchTimer(7);
       setMatchFailed(false);
       if (socket) socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
     } else {
@@ -1557,6 +1561,8 @@ export default function Dashboard() {
     }
     setAnonymousRoomId(null);
     setAnonymousPartnerId(null);
+    setAnonymousPartnerName('Stranger');
+    setIsAiCompanion(false);
     setIsAnonymousChatActive(false);
     setActiveTab('home');
   };
@@ -1712,7 +1718,7 @@ export default function Dashboard() {
                   <div className="user-names">
                     <span className="user-username" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {anonymousPartnerAvatar ? <div className='user-avatar-small' style={{ width: '28px', height: '28px', fontSize: '12px' }}><img src={anonymousPartnerAvatar} alt='avatar' /></div> : <div className='user-avatar-small' style={{ width: '28px', height: '28px', fontSize: '12px' }}>?</div>}
-                      Stranger
+                      {anonymousPartnerName}
                     </span>
                     <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>
                       {anonymousPartnerCountry}
@@ -1720,7 +1726,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="chat-actions">
-                  <button 
+                  {!isAiCompanion && <button
                     className="action-icon-btn" 
                     onClick={() => {
                       setReportTarget({ id: anonymousPartnerId, username: 'Anonymous User', isAnonymous: true });
@@ -1730,15 +1736,15 @@ export default function Dashboard() {
                     style={{ color: '#ff4b4b' }}
                   >
                     <Flag size={20} />
-                  </button>
-                  <button 
+                  </button>}
+                  {!isAiCompanion && <button
                       className="premium-btn primary" 
                       style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center' }}
                       onClick={handleSendAnonymousFriendRequest}
                       title="Send Friend Request (Costs 5 Coins)"
                     >
                       <UserPlus size={16} style={{ marginRight: '6px' }} /> Add Friend (5 <CoinSVG size={12} style={{marginLeft: '2px'}}/>)
-                    </button>
+                    </button>}
                 </div>
               </div>
               
@@ -1788,7 +1794,7 @@ export default function Dashboard() {
               ) : (
                 <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                   <div>Chat has ended.</div>
-                  {anonymousPartnerId && (
+                  {anonymousPartnerId && !isAiCompanion && (
                     <button 
                       className="premium-btn primary" 
                       style={{ fontSize: '0.85rem', padding: '8px 16px', display: 'flex', alignItems: 'center' }}
