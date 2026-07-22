@@ -1647,6 +1647,28 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('mark_all_read', async ({ senderId, receiverId }) => {
+    try {
+      await Message.updateMany(
+        { sender: senderId, receiver: receiverId, isViewed: false },
+        { $set: { isViewed: true, viewedAt: new Date() } }
+      );
+      const senderSocketId = onlineUsers.get(senderId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit('messages_marked_read', { readerId: receiverId });
+      }
+    } catch (error) {
+      console.error('Error marking all read:', error);
+    }
+  });
+
+  socket.on('typing_status', ({ senderId, receiverId, isTyping }) => {
+    const receiverSocketId = onlineUsers.get(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('typing_status_received', { senderId, isTyping });
+    }
+  });
+
   socket.on('disconnect', () => {
     adminBusySockets.delete(socket.id);
     randomChatQueue = randomChatQueue.filter(u => u.socketId !== socket.id);

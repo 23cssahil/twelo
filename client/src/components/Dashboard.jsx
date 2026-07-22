@@ -237,6 +237,8 @@ export default function Dashboard() {
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [partnerTyping, setPartnerTyping] = useState(false);
+  const chatTypingTimeoutRef = useRef(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState({});
 
@@ -563,7 +565,17 @@ export default function Dashboard() {
       fetchRecentChats();
     });
 
+    socket.on('messages_marked_read', ({ readerId }) => {
+      if (activeChatUserRef.current && activeChatUserRef.current._id === readerId) {
+        setMessages(prev => prev.map(msg => msg.sender === user.id ? { ...msg, isViewed: true } : msg));
+      }
+    });
 
+    socket.on('typing_status_received', ({ senderId, isTyping }) => {
+      if (activeChatUserRef.current && activeChatUserRef.current._id === senderId) {
+        setPartnerTyping(isTyping);
+      }
+    });
 
     return () => {
       socket.off('online_users');
@@ -582,6 +594,8 @@ export default function Dashboard() {
       socket.off('anonymous_chat_ended');
       socket.off('coins_deducted');
       socket.off('message_viewed');
+      socket.off('messages_marked_read');
+      socket.off('typing_status_received');
     };
   }, [socket, user]);
 
@@ -1125,6 +1139,9 @@ export default function Dashboard() {
     e.preventDefault();
     if (!newMessage.trim() || !activeChatUser || !socket) return;
     
+    if (chatTypingTimeoutRef.current) clearTimeout(chatTypingTimeoutRef.current);
+    socket.emit('typing_status', { senderId: user.id, receiverId: activeChatUser._id, isTyping: false });
+    
     const replyToObj = replyingTo ? {
       messageId: replyingTo._id,
       messageText: replyingTo.message,
@@ -1261,7 +1278,11 @@ export default function Dashboard() {
     setActiveChatUser(targetUser);
     setActiveTab('messages');
     setUnreadMessages(prev => ({...prev, [targetUser._id]: 0})); // Reset unread
+    setPartnerTyping(false);
     fetchMessages(targetUser._id);
+    if (socket) {
+      socket.emit('mark_all_read', { senderId: targetUser._id, receiverId: user.id });
+    }
     window.history.pushState({ view: 'chat' }, '', '');
   };
 
@@ -2148,7 +2169,14 @@ export default function Dashboard() {
                           )}
                           
                           <p className="msg-text">{msg.message}</p>
-                          <div className="msg-time">{formatTime(msg.createdAt)}</div>
+                          <div className="msg-time" style={{ display: 'flex', alignItems: 'center', justifyContent: msg.sender === user.id ? 'flex-end' : 'flex-start', gap: '4px' }}>
+                            <span>{formatTime(msg.createdAt)}</span>
+                            {msg.sender === user.id && (
+                              <span style={{ fontSize: '0.65rem', opacity: 0.8, fontWeight: 'bold' }}>
+                                {msg.isViewed ? '· Seen' : '· Sent'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         {swipeMsgId === msg._id && (
                           <div className={`swipe-reply-icon ${msg.sender === user.id ? 'sent-icon' : 'received-icon'}`}>
@@ -2168,6 +2196,13 @@ export default function Dashboard() {
                         )}
                       </div>
                     ))}
+                    {partnerTyping && (
+                      <div className="msg-wrapper received">
+                        <div className="msg-bubble" style={{ opacity: 0.7, padding: '8px 12px', fontSize: '0.85rem', color: '#a8a8a8', fontStyle: 'italic', background: 'rgba(255,255,255,0.05)' }}>
+                          @{activeChatUser.username} is typing...
+                        </div>
+                      </div>
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
 
@@ -2211,7 +2246,18 @@ export default function Dashboard() {
                             className="chat-text-input"
                             style={{ paddingLeft: '40px' }}
                             value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
+                            onChange={(e) => {
+                              setNewMessage(e.target.value);
+                              if (socket && activeChatUser) {
+                                socket.emit('typing_status', { senderId: user.id, receiverId: activeChatUser._id, isTyping: true });
+                                if (chatTypingTimeoutRef.current) clearTimeout(chatTypingTimeoutRef.current);
+                                chatTypingTimeoutRef.current = setTimeout(() => {
+                                  if (socket && activeChatUserRef.current) {
+                                    socket.emit('typing_status', { senderId: user.id, receiverId: activeChatUserRef.current._id, isTyping: false });
+                                  }
+                                }, 2000);
+                              }
+                            }}
                             onFocus={() => {
                               setTimeout(() => {
                                 window.scrollTo({ top: 0, behavior: 'instant' });
