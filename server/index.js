@@ -1658,14 +1658,15 @@ io.on('connection', (socket) => {
   // Handle user disconnect
   socket.on('mark_viewed', async ({ messageId, receiverId, senderId }) => {
     try {
-      await Message.findByIdAndUpdate(messageId, { isViewed: true });
+      const now = new Date();
+      await Message.findByIdAndUpdate(messageId, { isViewed: true, viewedAt: now });
       const senderSocketId = onlineUsers.get(senderId);
       if (senderSocketId) {
-        io.to(senderSocketId).emit('message_viewed', { messageId, receiverId });
+        io.to(senderSocketId).emit('message_viewed', { messageId, receiverId, viewedAt: now });
       }
       const receiverSocketId = onlineUsers.get(receiverId);
       if (receiverSocketId) {
-        io.to(receiverSocketId).emit('message_viewed', { messageId, receiverId });
+        io.to(receiverSocketId).emit('message_viewed', { messageId, receiverId, viewedAt: now });
       }
     } catch (error) {
       console.error('Error marking viewed:', error);
@@ -1674,13 +1675,14 @@ io.on('connection', (socket) => {
 
   socket.on('mark_all_read', async ({ senderId, receiverId }) => {
     try {
+      const now = new Date();
       await Message.updateMany(
         { sender: senderId, receiver: receiverId, isViewed: false },
-        { $set: { isViewed: true, viewedAt: new Date() } }
+        { $set: { isViewed: true, viewedAt: now } }
       );
       const senderSocketId = onlineUsers.get(senderId);
       if (senderSocketId) {
-        io.to(senderSocketId).emit('messages_marked_read', { readerId: receiverId });
+        io.to(senderSocketId).emit('messages_marked_read', { readerId: receiverId, viewedAt: now });
       }
     } catch (error) {
       console.error('Error marking all read:', error);

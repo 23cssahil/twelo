@@ -560,14 +560,14 @@ export default function Dashboard() {
       setCoins(balance);
     });
 
-    socket.on('message_viewed', ({ messageId }) => {
-      setMessages(prev => prev.map(msg => msg._id === messageId ? { ...msg, isViewed: true } : msg));
+    socket.on('message_viewed', ({ messageId, viewedAt }) => {
+      setMessages(prev => prev.map(msg => msg._id === messageId ? { ...msg, isViewed: true, viewedAt } : msg));
       fetchRecentChats();
     });
 
-    socket.on('messages_marked_read', ({ readerId }) => {
+    socket.on('messages_marked_read', ({ readerId, viewedAt }) => {
       if (activeChatUserRef.current && activeChatUserRef.current._id === readerId) {
-        setMessages(prev => prev.map(msg => msg.sender === user.id ? { ...msg, isViewed: true } : msg));
+        setMessages(prev => prev.map(msg => msg.sender === user.id ? { ...msg, isViewed: true, viewedAt } : msg));
       }
     });
 
@@ -684,7 +684,7 @@ export default function Dashboard() {
         parent.scrollTop = parent.scrollHeight;
       }
     }
-  }, [messages, anonymousMessages]);
+  }, [messages, anonymousMessages, partnerTyping, anonymousPartnerTyping]);
 
   // Deep Link check on load
   useEffect(() => {
@@ -1294,6 +1294,18 @@ export default function Dashboard() {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
   };
 
+  const formatSeenTime = (dateStr) => {
+    if (!dateStr) return 'Seen';
+    const date = new Date(dateStr);
+    const diffInSeconds = Math.floor((new Date() - date) / 1000);
+    if (diffInSeconds < 60) return 'Seen just now';
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) return `Seen ${diffInMinutes}m ago`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `Seen ${diffInHours}h ago`;
+    return `Seen ${Math.floor(diffInHours / 24)}d ago`;
+  };
+
   const startChatWithUser = (targetUser) => {
     setActiveChatUser(targetUser);
     setActiveTab('messages');
@@ -1825,12 +1837,27 @@ export default function Dashboard() {
               {isAnonymousChatActive ? (
                 <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
                   <div className="chat-input-wrapper">
-                    <input
-                      type="text"
+                    <textarea
+                      id="anonymous-chat-input"
                       autoComplete="off"
                       placeholder="Type a message..."
                       className="chat-text-input"
+                      style={{ resize: 'none', minHeight: '44px', maxHeight: '120px', lineHeight: '24px', overflowY: 'auto' }}
                       value={newMessage}
+                      rows={1}
+                      onInput={(e) => {
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (newMessage.trim()) {
+                            handleSendAnonymousMessage(e);
+                            e.target.style.height = 'auto';
+                          }
+                        }
+                      }}
                       onChange={(e) => {
                         setNewMessage(e.target.value);
                         if (socket && anonymousRoomId && isAnonymousChatActive) {
@@ -2201,7 +2228,7 @@ export default function Dashboard() {
                             <span>{formatTime(msg.createdAt)}</span>
                             {msg.sender === user.id && (
                               <span style={{ fontSize: '0.65rem', opacity: 0.8, fontWeight: 'bold' }}>
-                                {msg.isViewed ? '· Seen' : '· Sent'}
+                                {msg.isViewed ? `✓ ${formatSeenTime(msg.viewedAt)}` : '✓ Sent'}
                               </span>
                             )}
                           </div>
@@ -2266,14 +2293,27 @@ export default function Dashboard() {
                             style={{ display: 'none' }} 
                             onChange={handleImageSelect} 
                           />
-                          <input
+                          <textarea
                             id="chat-input"
-                            type="text"
                             autoComplete="off"
                             placeholder="Message..."
                             className="chat-text-input"
-                            style={{ paddingLeft: '40px' }}
+                            style={{ paddingLeft: '40px', resize: 'none', minHeight: '44px', maxHeight: '120px', lineHeight: '24px', overflowY: 'auto' }}
                             value={newMessage}
+                            rows={1}
+                            onInput={(e) => {
+                              e.target.style.height = 'auto';
+                              e.target.style.height = `${e.target.scrollHeight}px`;
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                if (newMessage.trim()) {
+                                  handleSendMessage(e);
+                                  e.target.style.height = 'auto';
+                                }
+                              }
+                            }}
                             onChange={(e) => {
                               setNewMessage(e.target.value);
                               if (socket && activeChatUser) {
