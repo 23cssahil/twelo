@@ -21,10 +21,6 @@
   padding: 0;
 }
 
-html, body {
-  overscroll-behavior-y: none; /* Prevent elastic scrolling on mobile */
-}
-
 body {
   background-color: var(--bg-color);
   color: var(--text-primary);
