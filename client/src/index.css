@@ -35,6 +35,7 @@ html.body-lock, html.body-lock body {
   overflow: hidden;
   width: 100%;
   height: 100%;
+  overscroll-behavior-y: none;
 }
 
 input, button, textarea {
