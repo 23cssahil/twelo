@@ -1311,6 +1311,7 @@ export default function Dashboard() {
 
   const startChatWithUser = (targetUser) => {
     setActiveChatUser(targetUser);
+    setMessages([]);
     setActiveTab('messages');
     setUnreadMessages(prev => ({...prev, [targetUser._id]: 0})); // Reset unread
     setPartnerTyping(false);
