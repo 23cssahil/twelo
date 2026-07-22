@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Home as HomeIcon, 
@@ -679,7 +679,7 @@ export default function Dashboard() {
 
   // Removed redundant popstate handler
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (messagesEndRef.current) {
       const parent = messagesEndRef.current.parentElement;
       if (parent) {
