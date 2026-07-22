@@ -2029,7 +2029,13 @@ export default function Dashboard() {
           <div className="profile-container">
             <div className="profile-header" style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
               <button 
-                onClick={() => setActiveTab('search')} 
+                onClick={() => {
+                  if (activeChatUser) {
+                    setActiveTab('messages');
+                  } else {
+                    setActiveTab('search');
+                  }
+                }} 
                 className="back-btn" 
                 style={{ position: 'absolute', top: 0, left: 0, border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', zIndex: 10 }}
               >
@@ -2140,7 +2146,7 @@ export default function Dashboard() {
                         className="back-btn" 
                         onClick={() => {
                           setActiveChatUser(null);
-                          setActiveTab('home');
+                          setActiveTab('messages'); // Back to chats list
                         }}
                         style={{ border: 'none', background: 'transparent', fontSize: '1.2rem', cursor: 'pointer', marginRight: '8px' }}
                       >
