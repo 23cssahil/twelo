@@ -240,6 +240,12 @@ export default function Dashboard() {
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
   const chatTypingTimeoutRef = useRef(null);
+  
+  const [timeTick, setTimeTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setTimeTick(t => t + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState({});
 
@@ -1301,12 +1307,27 @@ export default function Dashboard() {
     if (!dateStr) return 'Seen';
     const date = new Date(dateStr);
     const diffInSeconds = Math.floor((new Date() - date) / 1000);
+    
     if (diffInSeconds < 60) return 'Seen just now';
+    
     const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) return `Seen ${diffInMinutes}m ago`;
+    if (diffInMinutes < 60) return diffInMinutes === 1 ? `Seen 1 minute ago` : `Seen ${diffInMinutes} minutes ago`;
+    
     const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `Seen ${diffInHours}h ago`;
-    return `Seen ${Math.floor(diffInHours / 24)}d ago`;
+    if (diffInHours < 24) return diffInHours === 1 ? `Seen 1 hour ago` : `Seen ${diffInHours} hours ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return diffInDays === 1 ? `Seen 1 day ago` : `Seen ${diffInDays} days ago`;
+    
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    if (diffInWeeks < 4) return diffInWeeks === 1 ? `Seen 1 week ago` : `Seen ${diffInWeeks} weeks ago`;
+    
+    const diffInMonths = Math.floor(diffInDays / 30);
+    if (diffInMonths < 12) return diffInMonths === 1 ? `Seen 1 month ago` : `Seen ${diffInMonths} months ago`;
+    
+    const diffInYears = Math.floor(diffInDays / 365);
+    if (diffInYears === 1) return `Seen 1 year ago`;
+    return `Seen ${diffInYears} years ago`;
   };
 
   const startChatWithUser = (targetUser) => {
