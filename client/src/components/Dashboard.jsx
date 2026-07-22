@@ -737,6 +737,26 @@ export default function Dashboard() {
     } catch (err) { console.error(err); }
   };
 
+  const handleDeleteChat = async () => {
+    if (!activeChatUser) return;
+    if (window.confirm('Are you sure you want to delete all messages in this chat?')) {
+      try {
+        const res = await fetch(`${API_URL}/api/messages/chat/${activeChatUser._id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          setMessages([]);
+          fetchRecentChats();
+        } else {
+          alert('Failed to delete chat');
+        }
+      } catch (err) {
+        console.error('Error deleting chat:', err);
+      }
+    }
+  };
+
   const fetchSearchHistory = async () => {
     try {
       const res = await fetch(`${API_URL}/api/users/search-history`, { headers: { Authorization: `Bearer ${token}` } });
@@ -2097,6 +2117,14 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="chat-actions">
+                      <button 
+                        className="action-icon-btn" 
+                        onClick={handleDeleteChat}
+                        title="Delete Chat"
+                        style={{ color: '#ff4b4b' }}
+                      >
+                        <Trash2 size={20} />
+                      </button>
                       <button 
                         className="action-icon-btn" 
                         onClick={() => {

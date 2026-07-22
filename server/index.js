@@ -823,6 +823,31 @@ app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
   }
 });
 
+// Delete Entire Chat Route
+app.delete('/api/messages/chat/:otherUserId', authenticateToken, async (req, res) => {
+  try {
+    const { otherUserId } = req.params;
+    const currentUserId = req.user.userId;
+
+    await Message.updateMany(
+      {
+        $or: [
+          { sender: currentUserId, receiver: otherUserId },
+          { sender: otherUserId, receiver: currentUserId }
+        ],
+        deletedBy: { $ne: currentUserId }
+      },
+      {
+        $addToSet: { deletedBy: currentUserId } // Using $addToSet is safer than $push to avoid duplicates
+      }
+    );
+
+    res.json({ message: 'Chat deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting chat', error: error.message });
+  }
+});
+
 // Get all chats for current user (recent conversations list)
 app.get('/api/chats/recent', authenticateToken, async (req, res) => {
   try {
