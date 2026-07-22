@@ -238,6 +238,7 @@ export default function Dashboard() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [partnerTyping, setPartnerTyping] = useState(false);
+  const [typingUsers, setTypingUsers] = useState({});
   const chatTypingTimeoutRef = useRef(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState({});
@@ -572,6 +573,7 @@ export default function Dashboard() {
     });
 
     socket.on('typing_status_received', ({ senderId, isTyping }) => {
+      setTypingUsers(prev => ({ ...prev, [senderId]: isTyping }));
       if (activeChatUserRef.current && activeChatUserRef.current._id === senderId) {
         setPartnerTyping(isTyping);
       }
@@ -2094,9 +2096,15 @@ export default function Dashboard() {
                       </div>
                       <div className="user-names">
                         <span className="user-username">@{chatUser.username}</span>
-                        <span style={{ fontSize: '0.75rem', color: isOnline ? '#2bd856' : '#a8a8a8' }}>
-                          {isOnline ? 'online' : 'offline'}
-                        </span>
+                        {typingUsers[chatUser._id] ? (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--brand-blue)', fontStyle: 'italic', fontWeight: 'bold' }}>
+                            typing...
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: isOnline ? '#2bd856' : '#a8a8a8' }}>
+                            {isOnline ? 'online' : 'offline'}
+                          </span>
+                        )}
                       </div>
                       {unreadCount > 0 && (
                         <div style={{ marginLeft: 'auto', background: 'var(--brand-red)', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '0.75rem', fontWeight: 'bold' }}>
