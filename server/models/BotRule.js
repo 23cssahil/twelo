@@ -16,6 +16,10 @@ const botRuleSchema = new mongoose.Schema({
     type: String,
     trim: true
   }], // Array of possible follow-up questions
+  botFollowUpResponses: [{ 
+    type: String,
+    trim: true
+  }], // Array of possible reactions to user's answer to the follow-up
   action: { 
     type: String, 
     enum: ['continue', 'disconnect', 'disconnect_immediately'], 

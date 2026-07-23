@@ -52,6 +52,16 @@ function createAiCompanion(userGender) {
 }
 
 async function generateAiCompanionReply(chat, messageText) {
+  if (chat.pendingFollowUpReaction && chat.pendingFollowUpReaction.length > 0) {
+    const reaction = pickOne(chat.pendingFollowUpReaction);
+    chat.pendingFollowUpReaction = null;
+    return {
+      reply: reaction,
+      followUp: '',
+      action: 'continue'
+    };
+  }
+
   const text = (messageText || '').trim().toLowerCase();
   
   if (!chat.ruleHistory) chat.ruleHistory = {};
@@ -113,7 +123,13 @@ async function generateAiCompanionReply(chat, messageText) {
     
     // Check if consistent and already cached
     if (matchedRule.isConsistent !== false && chat.ruleHistory[ruleId]) {
-      return chat.ruleHistory[ruleId];
+      const cachedResult = chat.ruleHistory[ruleId];
+      if (cachedResult.followUp && cachedResult.followUpResponses && cachedResult.followUpResponses.length > 0) {
+        chat.pendingFollowUpReaction = cachedResult.followUpResponses;
+      } else {
+        chat.pendingFollowUpReaction = null;
+      }
+      return cachedResult;
     }
     
     let response = '';
@@ -137,7 +153,18 @@ async function generateAiCompanionReply(chat, messageText) {
       }
     }
                        
-    const result = { reply: response, followUp: followUp, action: matchedRule.action };
+    const result = { 
+      reply: response, 
+      followUp: followUp, 
+      action: matchedRule.action,
+      followUpResponses: matchedRule.botFollowUpResponses || []
+    };
+    
+    if (followUp && result.followUpResponses.length > 0) {
+      chat.pendingFollowUpReaction = result.followUpResponses;
+    } else {
+      chat.pendingFollowUpReaction = null;
+    }
     
     if (matchedRule.isConsistent !== false) {
       chat.ruleHistory[ruleId] = result;

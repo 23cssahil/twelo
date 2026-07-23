@@ -18,6 +18,7 @@ export default function BotTrainingAdmin() {
     triggers: '',
     responses: '',
     followUps: '',
+    followUpResponses: '',
     gender: 'both',
     action: 'continue',
     isConsistent: true,
@@ -53,6 +54,7 @@ export default function BotTrainingAdmin() {
         userMessageTriggers: newRule.triggers.split(',').map(t => t.trim()).filter(Boolean),
         botResponses: newRule.responses.split('|').map(t => t.trim()).filter(Boolean),
         botFollowUps: newRule.followUps ? newRule.followUps.split('|').map(t => t.trim()).filter(Boolean) : [],
+        botFollowUpResponses: newRule.followUpResponses ? newRule.followUpResponses.split('|').map(t => t.trim()).filter(Boolean) : [],
         botGender: newRule.gender,
         action: newRule.action,
         isConsistent: newRule.isConsistent,
@@ -64,7 +66,7 @@ export default function BotTrainingAdmin() {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        setNewRule({ triggers: '', responses: '', followUps: '', gender: 'both', action: 'continue', isConsistent: true, responseMode: 'random' });
+        setNewRule({ triggers: '', responses: '', followUps: '', followUpResponses: '', gender: 'both', action: 'continue', isConsistent: true, responseMode: 'random' });
         fetchBotRules();
       }
     } catch (err) { console.error(err); }
@@ -156,6 +158,11 @@ export default function BotTrainingAdmin() {
               <input type="text" placeholder="e.g. Aap batao? | Tumhara kya hai?" value={newRule.followUps} onChange={e => setNewRule({...newRule, followUps: e.target.value})} />
             </div>
             
+            <div className="form-group">
+              <label>Bot's Reaction to Follow-up Answer (optional, separated by |):</label>
+              <input type="text" placeholder="e.g. Achha name hai | Nice | Sahi hai" value={newRule.followUpResponses} onChange={e => setNewRule({...newRule, followUpResponses: e.target.value})} />
+            </div>
+            
             <div className="form-row">
               <div className="form-group">
                 <label>Response Mode:</label>
@@ -231,6 +238,7 @@ export default function BotTrainingAdmin() {
                     <p><strong>Triggers:</strong> {rule.userMessageTriggers.join(', ')}</p>
                     <p><strong>Responses:</strong> {rule.botResponses.join(' | ')}</p>
                     {rule.botFollowUps && rule.botFollowUps.length > 0 && <p><strong>Follow-ups:</strong> {rule.botFollowUps.join(' | ')}</p>}
+                    {rule.botFollowUpResponses && rule.botFollowUpResponses.length > 0 && <p><strong>Reactions:</strong> {rule.botFollowUpResponses.join(' | ')}</p>}
                     
                     <div className="bot-rule-meta">
                       <span className="meta-badge">Bot: {rule.botGender}</span>
