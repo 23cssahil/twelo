@@ -2615,6 +2615,10 @@ export default function Dashboard() {
                 </button>
               )}
               
+              <button className="settings-item-btn" onClick={() => navigate('/about-us')}>
+                About Us
+              </button>
+              
               <button className="settings-item-btn" onClick={() => navigate('/privacy-policy')}>
                 Privacy Policy
               </button>
