@@ -64,7 +64,17 @@ async function generateAiCompanionReply(chat, messageText) {
     for (const rule of rules) {
       if (rule.botGender !== 'both' && rule.botGender !== chat.companion.gender) continue;
       
-      const isMatch = rule.userMessageTriggers.some(trigger => text.includes(trigger.toLowerCase().trim()));
+      const isMatch = rule.userMessageTriggers.some(trigger => {
+        const t = trigger.toLowerCase().trim();
+        if (!t) return false;
+        try {
+          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+          return regex.test(text);
+        } catch(e) {
+          return text.includes(t);
+        }
+      });
       if (isMatch) {
         matchedRule = rule;
         break;
