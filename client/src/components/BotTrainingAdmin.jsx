@@ -19,6 +19,7 @@ export default function BotTrainingAdmin() {
     responses: '',
     followUps: '',
     followUpResponses: '',
+    disableFollowUpOnRepeat: false,
     gender: 'both',
     action: 'continue',
     isConsistent: true,
@@ -55,6 +56,7 @@ export default function BotTrainingAdmin() {
         botResponses: newRule.responses.split('|').map(t => t.trim()).filter(Boolean),
         botFollowUps: newRule.followUps ? newRule.followUps.split('|').map(t => t.trim()).filter(Boolean) : [],
         botFollowUpResponses: newRule.followUpResponses ? newRule.followUpResponses.split('|').map(t => t.trim()).filter(Boolean) : [],
+        disableFollowUpOnRepeat: newRule.disableFollowUpOnRepeat,
         botGender: newRule.gender,
         action: newRule.action,
         isConsistent: newRule.isConsistent,
@@ -66,7 +68,7 @@ export default function BotTrainingAdmin() {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        setNewRule({ triggers: '', responses: '', followUps: '', followUpResponses: '', gender: 'both', action: 'continue', isConsistent: true, responseMode: 'random' });
+        setNewRule({ triggers: '', responses: '', followUps: '', followUpResponses: '', disableFollowUpOnRepeat: false, gender: 'both', action: 'continue', isConsistent: true, responseMode: 'random' });
         fetchBotRules();
       }
     } catch (err) { console.error(err); }
@@ -154,7 +156,13 @@ export default function BotTrainingAdmin() {
             </div>
             
             <div className="form-group">
-              <label>Bot's Follow-up Question (optional, separated by |):</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                <label style={{ margin: 0 }}>Bot's Follow-up Question (optional, separated by |):</label>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <input type="checkbox" id="disableFollowUp" checked={newRule.disableFollowUpOnRepeat} onChange={e => setNewRule({...newRule, disableFollowUpOnRepeat: e.target.checked})} style={{ width: 'auto', marginRight: '5px' }} />
+                  <label htmlFor="disableFollowUp" style={{ margin: 0, fontSize: '0.85em', cursor: 'pointer', fontWeight: 'normal' }}>Disable on repeat</label>
+                </div>
+              </div>
               <input type="text" placeholder="e.g. Aap batao? | Tumhara kya hai?" value={newRule.followUps} onChange={e => setNewRule({...newRule, followUps: e.target.value})} />
             </div>
             
@@ -243,8 +251,9 @@ export default function BotTrainingAdmin() {
                     <div className="bot-rule-meta">
                       <span className="meta-badge">Bot: {rule.botGender}</span>
                       <span className="meta-badge">Action: {rule.action}</span>
-                      <span className="meta-badge">Mode: {rule.responseMode}</span>
-                      <span className="meta-badge">Consistent: {rule.isConsistent ? 'Yes' : 'No'}</span>
+                      <span className="meta-badge">{rule.responseMode}</span>
+                      <span className="meta-badge">{rule.isConsistent ? 'Consistent' : 'Varying'}</span>
+                      {rule.disableFollowUpOnRepeat && <span className="meta-badge" style={{background: '#6c757d'}}>No Repeat Follow-up</span>}
                     </div>
                   </div>
                   <button onClick={() => handleDeleteBotRule(rule._id)} className="bot-btn-delete" title="Delete Rule">

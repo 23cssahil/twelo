@@ -30,6 +30,10 @@ const botRuleSchema = new mongoose.Schema({
     enum: ['male', 'female', 'both'], 
     default: 'both' 
   },
+  disableFollowUpOnRepeat: {
+    type: Boolean,
+    default: false
+  },
   isConsistent: {
     type: Boolean,
     default: true

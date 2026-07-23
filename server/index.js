@@ -124,12 +124,19 @@ async function generateAiCompanionReply(chat, messageText) {
     // Check if consistent and already cached
     if (matchedRule.isConsistent !== false && chat.ruleHistory[ruleId]) {
       const cachedResult = chat.ruleHistory[ruleId];
-      if (cachedResult.followUp && cachedResult.followUpResponses && cachedResult.followUpResponses.length > 0) {
-        chat.pendingFollowUpReaction = cachedResult.followUpResponses;
+      let returnResult = { ...cachedResult };
+      
+      if (matchedRule.disableFollowUpOnRepeat) {
+        returnResult.followUp = '';
+        returnResult.followUpResponses = [];
+      }
+      
+      if (returnResult.followUp && returnResult.followUpResponses && returnResult.followUpResponses.length > 0) {
+        chat.pendingFollowUpReaction = returnResult.followUpResponses;
       } else {
         chat.pendingFollowUpReaction = null;
       }
-      return cachedResult;
+      return returnResult;
     }
     
     let response = '';
@@ -160,7 +167,13 @@ async function generateAiCompanionReply(chat, messageText) {
       followUpResponses: matchedRule.botFollowUpResponses || []
     };
     
-    if (followUp && result.followUpResponses.length > 0) {
+    // Check if this rule has been used before (for non-consistent rules or first time cache)
+    if (matchedRule.disableFollowUpOnRepeat && chat.ruleHistory[ruleId] && chat.ruleHistory[ruleId].hasMatchedOnce) {
+        result.followUp = '';
+        result.followUpResponses = [];
+    }
+    
+    if (result.followUp && result.followUpResponses.length > 0) {
       chat.pendingFollowUpReaction = result.followUpResponses;
     } else {
       chat.pendingFollowUpReaction = null;
@@ -168,6 +181,9 @@ async function generateAiCompanionReply(chat, messageText) {
     
     if (matchedRule.isConsistent !== false) {
       chat.ruleHistory[ruleId] = result;
+      chat.ruleHistory[ruleId].hasMatchedOnce = true;
+    } else {
+      chat.ruleHistory[ruleId].hasMatchedOnce = true;
     }
     return result;
   } catch (error) {
