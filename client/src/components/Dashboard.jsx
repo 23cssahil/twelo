@@ -205,6 +205,7 @@ export default function Dashboard() {
 
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [editUsernameMode, setEditUsernameMode] = useState(false);
   const [newUsernameInput, setNewUsernameInput] = useState('');
   const [usernameError, setUsernameError] = useState('');
@@ -637,7 +638,7 @@ export default function Dashboard() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen]);
+  }, [showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, showLogoutConfirm]);
 
   // Lock document scroll when chat is active to prevent keyboard from pushing header out of view
   useEffect(() => {
@@ -2656,7 +2657,7 @@ export default function Dashboard() {
                 Contact Us
               </button>
               
-              <button className="settings-item-btn logout-danger" onClick={logout}>
+              <button className="settings-item-btn logout-danger" onClick={() => { setShowSettingsModal(false); setShowLogoutConfirm(true); }}>
                 Log Out
               </button>
 
@@ -2953,6 +2954,33 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="settings-drawer-overlay" style={{ zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="settings-drawer" style={{ height: 'auto', maxHeight: '50%', borderRadius: '15px', width: '90%', maxWidth: '350px', padding: '24px', textAlign: 'center' }}>
+            <h2 style={{ fontSize: '1.4rem', marginBottom: '10px', color: 'var(--text-primary)' }}>Log Out</h2>
+            <p style={{ color: '#a8a8a8', fontSize: '0.95rem', marginBottom: '24px' }}>
+              Are you sure you want to log out of your account?
+            </p>
+            <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+              <button 
+                className="premium-btn primary" 
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{ flex: 1, padding: '12px', background: '#333' }}
+              >
+                No
+              </button>
+              <button 
+                className="premium-btn" 
+                onClick={logout}
+                style={{ flex: 1, padding: '12px', backgroundColor: '#ff4b4b', color: '#fff', border: 'none' }}
+              >
+                Yes, Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
