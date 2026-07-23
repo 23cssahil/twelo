@@ -1573,7 +1573,7 @@ io.on('connection', (socket) => {
           partnerId: companion.id,
           partnerAvatar: companion.avatarUrl,
           partnerCountry: companion.country,
-          partnerName: `${companion.name} · AI companion`,
+          partnerName: 'Stranger',
           isAiCompanion: true
         });
       }, AI_COMPANION_FALLBACK_DELAY_MS);
