@@ -1640,7 +1640,7 @@ io.on('connection', (socket) => {
               
               callback();
             }, typingDelay);
-          }, 500);
+          }, 650);
         };
 
         // Calculate read delay (roughly 150ms per 5 characters, min 1000ms, max 4000ms)
