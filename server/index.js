@@ -1289,7 +1289,7 @@ io.on('connection', (socket) => {
         io.to(receiverSocketId).emit('receive_message', payload);
       } else {
         // Send Web Push Notification if offline
-        User.findById(receiverId).populate('pushSubscriptions').then(receiver => {
+        User.findById(receiverId).then(receiver => {
           if (receiver && receiver.pushSubscriptions && receiver.pushSubscriptions.length > 0) {
             User.findById(senderId).then(sender => {
               const pushPayload = JSON.stringify({
@@ -1669,7 +1669,7 @@ io.on('connection', (socket) => {
     }
     
     if (receiverUserId) {
-      User.findById(receiverUserId).populate('pushSubscriptions').then(receiver => {
+      User.findById(receiverUserId).then(receiver => {
         if (receiver && receiver.pushSubscriptions && receiver.pushSubscriptions.length > 0) {
            const payload = JSON.stringify({
              title: `New Anonymous Message`,

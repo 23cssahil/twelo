@@ -205,6 +205,7 @@ export default function Dashboard() {
 
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
   const [editUsernameMode, setEditUsernameMode] = useState(false);
   const [newUsernameInput, setNewUsernameInput] = useState('');
   const [usernameError, setUsernameError] = useState('');
@@ -252,8 +253,8 @@ export default function Dashboard() {
   useEffect(() => {
     // Attempt automatic subscription after 2 seconds to not block UI load
     const timer = setTimeout(() => {
-      if ('Notification' in window && Notification.permission === 'default') {
-        setupWebPush();
+      if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        setShowPushPrompt(true);
       } else if ('Notification' in window && Notification.permission === 'granted') {
         setupWebPush();
       }
@@ -2696,11 +2697,9 @@ export default function Dashboard() {
                 About Us
               </button>
               
-              {('Notification' in window && Notification.permission !== 'granted') && (
-                <button className="settings-item-btn" onClick={() => { setupWebPush(); setShowSettingsModal(false); }}>
-                  Enable Notifications
-                </button>
-              )}
+              <button className="settings-item-btn" onClick={() => { setShowSettingsModal(false); navigate('/permissions'); }}>
+                Permissions & Notifications
+              </button>
 
               <button className="settings-item-btn" onClick={() => navigate('/privacy-policy')}>
                 Privacy Policy
@@ -3003,6 +3002,36 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Push Notification Prompt Modal */}
+      {showPushPrompt && (
+        <div className="settings-drawer-overlay" style={{ zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="settings-drawer" style={{ height: 'auto', maxHeight: '50%', borderRadius: '15px', width: '90%', maxWidth: '400px', padding: '20px', textAlign: 'center' }}>
+            <div style={{ width: '50px', height: '50px', background: '#333', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px auto' }}>
+              <Bell size={24} color="#fff" />
+            </div>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Permissions & Notifications</h2>
+            <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginBottom: '20px' }}>
+              Get instant alerts for new messages even when you're away from the app.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+              <button 
+                className="premium-btn primary" 
+                onClick={() => { setShowPushPrompt(false); setupWebPush(); }}
+                style={{ padding: '12px' }}
+              >
+                Turn On
+              </button>
+              <button 
+                className="premium-btn" 
+                onClick={() => setShowPushPrompt(false)}
+                style={{ padding: '12px', background: 'transparent', border: '1px solid #333' }}
+              >
+                Not Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import Dashboard from './components/Dashboard';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import AboutUs from './components/AboutUs';
 import DeveloperAdmin from './components/DeveloperAdmin';
+import Permissions from './components/Permissions';
 import { Capacitor } from '@capacitor/core';
 import { AdMob } from '@capacitor-community/admob';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -140,6 +141,7 @@ export default function App() {
               <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/about-us" element={<AboutUs />} />
+              <Route path="/permissions" element={<Permissions />} />
               <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" state={{ from: window.location.pathname }} />} />
             </Routes>
           </Router>
