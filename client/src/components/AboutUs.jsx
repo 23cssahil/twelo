@@ -30,10 +30,10 @@ export default function AboutUs() {
         </div>
 
         <div style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: '#fff', marginBottom: '16px', fontSize: '1.2rem', display: 'inline-block', borderBottom: '2px solid #2bd856', paddingBottom: '4px' }}>Special Thanks to Shivaling</h2>
+          <h2 style={{ color: '#fff', marginBottom: '16px', fontSize: '1.2rem', display: 'inline-block', borderBottom: '2px solid #2bd856', paddingBottom: '4px' }}>Special Thanks to Shiva</h2>
           <div style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #00c6ff', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
             <p style={{ margin: 0, color: '#e0e0e0', fontSize: '1.05rem', lineHeight: '1.7' }}>
-              A massive shoutout to our very 1st user, <strong style={{ color: '#fff' }}>Shivaling</strong> (<em>@shivalingbigaragaddi6429</em>). 
+              A massive shoutout to our very 1st user, <strong style={{ color: '#fff' }}>Shiva</strong> (<em>@shivalingbigaragaddi6429</em>). 
               <br/><br/>
               Thank you for your immense help in identifying bugs and improving the website! Your feedback has been invaluable to Twelo's journey and growth.
             </p>
