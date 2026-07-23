@@ -24,7 +24,7 @@ self.addEventListener('push', function(e) {
     vibrate: [200, 100, 200, 100, 200, 100, 200],
     requireInteraction: true,
     data: {
-      url: '/dev'
+      url: payload.url || '/'
     }
   };
 

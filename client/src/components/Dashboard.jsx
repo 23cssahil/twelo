@@ -209,6 +209,58 @@ export default function Dashboard() {
   const [newUsernameInput, setNewUsernameInput] = useState('');
   const [usernameError, setUsernameError] = useState('');
 
+  // Web Push Notification Setup
+  const setupWebPush = async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
+        const registration = await navigator.serviceWorker.ready;
+        
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          const vapidPublicKey = 'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA';
+          const convertedVapidKey = (base64String => {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+            return outputArray;
+          })(vapidPublicKey);
+
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: convertedVapidKey
+          });
+        }
+        
+        // Send to backend
+        await fetch(`${API_URL}/api/users/subscribe`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(subscription)
+        });
+      }
+    } catch (err) {
+      console.error('Web Push Setup Error:', err);
+    }
+  };
+
+  useEffect(() => {
+    // Attempt automatic subscription after 2 seconds to not block UI load
+    const timer = setTimeout(() => {
+      if ('Notification' in window && Notification.permission === 'default') {
+        setupWebPush();
+      } else if ('Notification' in window && Notification.permission === 'granted') {
+        setupWebPush();
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [token, API_URL]);
+
   // Profile & Social State
   const [profileStats, setProfileStats] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -2619,6 +2671,12 @@ export default function Dashboard() {
                 About Us
               </button>
               
+              {('Notification' in window && Notification.permission !== 'granted') && (
+                <button className="settings-item-btn" onClick={() => { setupWebPush(); setShowSettingsModal(false); }}>
+                  Enable Notifications
+                </button>
+              )}
+
               <button className="settings-item-btn" onClick={() => navigate('/privacy-policy')}>
                 Privacy Policy
               </button>

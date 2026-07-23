@@ -21,6 +21,13 @@ const UserSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+  pushSubscriptions: [{
+    endpoint: String,
+    keys: {
+      p256dh: String,
+      auth: String
+    }
+  }],
   uniqueId: {
     type: String,
     required: true,

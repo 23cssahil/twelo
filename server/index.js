@@ -562,9 +562,23 @@ app.post('/api/users/notifications/read', authenticateToken, async (req, res) =>
       }
     });
     if (modified) await user.save();
-    res.json({ message: 'Marked as read' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Error" });
+  }
+});
+
+// Subscribe to Web Push Notifications
+app.post('/api/users/subscribe', authenticateToken, async (req, res) => {
+  try {
+    const subscription = req.body;
+    await User.findByIdAndUpdate(req.user.userId, {
+      $addToSet: { pushSubscriptions: subscription }
+    });
+    res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ message: 'Error marking notifications as read' });
+    console.error('Error saving subscription:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 
@@ -1273,6 +1287,23 @@ io.on('connection', (socket) => {
 
       if (receiverSocketId) {
         io.to(receiverSocketId).emit('receive_message', payload);
+      } else {
+        // Send Web Push Notification if offline
+        User.findById(receiverId).populate('pushSubscriptions').then(receiver => {
+          if (receiver && receiver.pushSubscriptions && receiver.pushSubscriptions.length > 0) {
+            User.findById(senderId).then(sender => {
+              const pushPayload = JSON.stringify({
+                title: `New message from ${sender.username}`,
+                body: messageText.substring(0, 50) + (messageText.length > 50 ? '...' : ''),
+                icon: sender.avatarUrl || '/icon-192x192.png'
+              });
+              
+              receiver.pushSubscriptions.forEach(sub => {
+                webpush.sendNotification(sub, pushPayload).catch(err => console.error('Push error:', err));
+              });
+            });
+          }
+        }).catch(err => console.error('Error finding receiver for push:', err));
       }
       // Only echo to sender if they are on a different device/tab
       if (senderSocketId && senderSocketId !== socket.id) {
@@ -1537,7 +1568,8 @@ io.on('connection', (socket) => {
             const payload = JSON.stringify({
               title: 'Globe Touched!',
               body: `A new user is looking for a chat. Intercept now!`,
-              icon: '/icon-192.png'
+              icon: '/icon-192.png',
+              url: '/twelo-admin-6006390989'
             });
             const pushes = adminData.pushSubscriptions.map(sub => webpush.sendNotification(sub, payload).catch(e => console.log('Push error:', e)));
             await Promise.all(pushes);
@@ -1626,6 +1658,30 @@ io.on('connection', (socket) => {
       senderSocket: senderSocketId,
       createdAt: new Date().toISOString()
     });
+
+    // Attempt Push Notification if user has account and is using anonymous chat but closed the tab/minimized app
+    let receiverUserId = null;
+    for (let [uid, sid] of onlineUsers.entries()) {
+      if (sid === receiverSocketId) {
+        receiverUserId = uid;
+        break;
+      }
+    }
+    
+    if (receiverUserId) {
+      User.findById(receiverUserId).populate('pushSubscriptions').then(receiver => {
+        if (receiver && receiver.pushSubscriptions && receiver.pushSubscriptions.length > 0) {
+           const payload = JSON.stringify({
+             title: `New Anonymous Message`,
+             body: messageText.substring(0, 50) + (messageText.length > 50 ? '...' : ''),
+             icon: '/icon-192x192.png'
+           });
+           receiver.pushSubscriptions.forEach(sub => {
+             webpush.sendNotification(sub, payload).catch(err => console.log('Push error anon:', err));
+           });
+        }
+      }).catch(err => console.error(err));
+    }
   });
 
   socket.on('send_anonymous_typing', ({ roomId, isTyping }) => {
