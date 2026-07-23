@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Trash2, Bot, Lock } from 'lucide-react';
+import { ArrowLeft, Trash2, Bot, Lock, List, Plus } from 'lucide-react';
 import './BotTrainingAdmin.css';
 
 export default function BotTrainingAdmin() {
@@ -10,6 +10,7 @@ export default function BotTrainingAdmin() {
   
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showExistingRules, setShowExistingRules] = useState(false);
   
   const [botRules, setBotRules] = useState([]);
   const [newRule, setNewRule] = useState({
@@ -126,10 +127,16 @@ export default function BotTrainingAdmin() {
         </div>
       </div>
 
-      <div className="bot-training-grid">
-        <div className="bot-training-card">
-          <h2>Create New Rule</h2>
-          <form onSubmit={handleCreateBotRule}>
+      <div className="bot-training-grid" style={{ display: 'block' }}>
+        {!showExistingRules ? (
+          <div className="bot-training-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>Create New Rule</h2>
+              <button type="button" onClick={() => setShowExistingRules(true)} className="bot-btn-submit" style={{ width: 'auto', padding: '8px 16px', background: '#333', margin: 0, display: 'flex', alignItems: 'center' }}>
+                <List size={16} style={{ marginRight: '8px' }} /> View Existing Rules ({botRules.length})
+              </button>
+            </div>
+            <form onSubmit={handleCreateBotRule}>
             <div className="form-group">
               <label>User's Message Triggers (comma-separated):</label>
               <input type="text" placeholder="e.g. name kya hai, naam batao, who are you" value={newRule.triggers} onChange={e => setNewRule({...newRule, triggers: e.target.value})} required />
@@ -180,12 +187,17 @@ export default function BotTrainingAdmin() {
             </div>
             
             <button type="submit" className="bot-btn-submit" style={{ marginTop: '10px' }}>Save Rule</button>
-          </form>
-        </div>
-
-        <div className="bot-training-card">
-          <h2>Existing Rules ({botRules.length})</h2>
-          <div className="bot-rules-list">
+            </form>
+          </div>
+        ) : (
+          <div className="bot-training-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>Existing Rules ({botRules.length})</h2>
+              <button type="button" onClick={() => setShowExistingRules(false)} className="bot-btn-submit" style={{ width: 'auto', padding: '8px 16px', background: '#0095f6', margin: 0, display: 'flex', alignItems: 'center' }}>
+                <Plus size={16} style={{ marginRight: '8px' }} /> Create New Rule
+              </button>
+            </div>
+            <div className="bot-rules-list" style={{ maxHeight: '650px', overflowY: 'auto', paddingRight: '15px' }}>
             {botRules.length === 0 ? (
               <div className="empty-rules">No rules found. Start training your bot by adding a rule!</div>
             ) : (
