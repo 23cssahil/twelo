@@ -1,0 +1,198 @@
+import React, { useState, useEffect, useContext } from 'react';
+import { AuthContext } from '../App';
+import { useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Trash2, Bot, Lock } from 'lucide-react';
+import './BotTrainingAdmin.css';
+
+export default function BotTrainingAdmin() {
+  const { API_URL } = useContext(AuthContext);
+  const navigate = useNavigate();
+  
+  const [password, setPassword] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  const [botRules, setBotRules] = useState([]);
+  const [newRule, setNewRule] = useState({
+    triggers: '',
+    responses: '',
+    followUps: '',
+    gender: 'both',
+    action: 'continue'
+  });
+
+  const fetchBotRules = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bot-rules`, { headers: { 'x-admin-pass': password } });
+      if (res.ok) setBotRules(await res.json());
+    } catch (err) { console.error(err); }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchBotRules();
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (password === 'twelo-admin-6006390989') {
+      setIsAuthenticated(true);
+    } else {
+      alert('Incorrect password');
+    }
+  };
+
+  const handleCreateBotRule = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        userMessageTriggers: newRule.triggers.split(',').map(t => t.trim()).filter(Boolean),
+        botResponses: newRule.responses.split('|').map(t => t.trim()).filter(Boolean),
+        botFollowUps: newRule.followUps ? newRule.followUps.split('|').map(t => t.trim()).filter(Boolean) : [],
+        botGender: newRule.gender,
+        action: newRule.action
+      };
+      const res = await fetch(`${API_URL}/api/admin/bot-rules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        setNewRule({ triggers: '', responses: '', followUps: '', gender: 'both', action: 'continue' });
+        fetchBotRules();
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteBotRule = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this bot rule?")) return;
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bot-rules/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) fetchBotRules();
+    } catch (err) { console.error(err); }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="dev-auth-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
+        <div className="dev-auth-card" style={{ background: '#111', padding: '40px', borderRadius: '12px', border: '1px solid #333', textAlign: 'center', width: '100%', maxWidth: '400px' }}>
+          <Lock size={48} color="#0095f6" style={{ marginBottom: '20px' }} />
+          <h2 style={{ marginBottom: '5px', color: '#fff' }}>Twelo Bot Training</h2>
+          <p style={{ color: '#888', marginBottom: '20px', fontSize: '0.9rem' }}>Admin Access Only</p>
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <input 
+              type="password" 
+              placeholder="Enter Admin Password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="dev-input"
+              style={{ width: '100%', padding: '12px', background: '#050505', border: '1px solid #333', color: '#fff', borderRadius: '8px', boxSizing: 'border-box' }}
+            />
+            <button type="submit" className="bot-btn-submit">Access Training</button>
+          </form>
+          <button onClick={() => navigate(-1)} style={{ marginTop: '20px', background: 'transparent', border: 'none', color: '#888', cursor: 'pointer' }}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bot-training-container">
+      <div className="bot-training-header">
+        <h1><Bot size={28} color="#0095f6" /> AI Bot Training Center</h1>
+        <Link to="/admin" className="bot-training-back">
+          <ArrowLeft size={18} /> Back to Dashboard
+        </Link>
+      </div>
+
+      <div className="bot-manual">
+        <div style={{ padding: '20px' }}>
+          <h2>📖 Training Manual (Kaise Use Karein)</h2>
+          <ul>
+            <li><strong>Triggers (User kya puchega):</strong> Yahan wo saare words ya sentences daalein jo user puch sakta hai. Ek se zyada tarike comma (,) lagakar daalein. (Jaise: <code>name kya hai, naam batao, who are you</code>)</li>
+            <li><strong>Bot's Responses (Bot kya bolega):</strong> Bot ka reply yahan set karein. Agar aap chahte hain ki bot har baar alag reply de (randomness), toh multiple replies ko pipe (|) symbol se alag karein. (Jaise: <code>Mera naam Sahil hai | Main Rohan hu</code>)</li>
+            <li><strong>Follow-up (Bot ka next sawaal):</strong> Reply dene ke baad bot kya puchega? Ise blank bhi chhod sakte hain. Multiple options yahan bhi pipe (|) se set kar sakte hain. (Jaise: <code>Aap batao? | Tumhara kya naam hai?</code>)</li>
+            <li><strong>Consistency:</strong> Agar bot ne ek chat me khud ka naam "Sahil" pick kar liya, toh ussi user se ussi chat me baar baar puchne par wo "Sahil" hi yaad rakhega. Nayi chat me random dusra naam lega.</li>
+            <li><strong>Gender Logic:</strong> "Female Bot Only" select karenge toh ye rule sirf tab kaam karega jab koi Male user chat kar raha ho (kyunki usko Female bot milti hai).</li>
+            <li><strong>Disconnect Action:</strong> Agar aap chahte hain kisi specific reply ke baad bot apne aap chat chhod de, toh action me "Disconnect immediately" chunein. Bot reply karega aur "Stranger has disconnected" show ho jayega.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="bot-training-grid">
+        <div className="bot-training-card">
+          <h2>Create New Rule</h2>
+          <form onSubmit={handleCreateBotRule}>
+            <div className="form-group">
+              <label>User's Message Triggers (comma-separated):</label>
+              <input type="text" placeholder="e.g. name kya hai, naam batao, who are you" value={newRule.triggers} onChange={e => setNewRule({...newRule, triggers: e.target.value})} required />
+            </div>
+            
+            <div className="form-group">
+              <label>Bot's Responses (separated by | for random options):</label>
+              <input type="text" placeholder="e.g. Mera naam Sahil hai | Main Rohan hu" value={newRule.responses} onChange={e => setNewRule({...newRule, responses: e.target.value})} required />
+            </div>
+            
+            <div className="form-group">
+              <label>Bot's Follow-up Question (optional, separated by |):</label>
+              <input type="text" placeholder="e.g. Aap batao? | Tumhara kya hai?" value={newRule.followUps} onChange={e => setNewRule({...newRule, followUps: e.target.value})} />
+            </div>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label>Target Bot Gender:</label>
+                <select value={newRule.gender} onChange={e => setNewRule({...newRule, gender: e.target.value})}>
+                  <option value="both">Both (Male & Female Bots)</option>
+                  <option value="male">Male Bot Only (talks to Female)</option>
+                  <option value="female">Female Bot Only (talks to Male)</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label>Action after reply:</label>
+                <select value={newRule.action} onChange={e => setNewRule({...newRule, action: e.target.value})}>
+                  <option value="continue">Continue Chat</option>
+                  <option value="disconnect">Disconnect immediately</option>
+                </select>
+              </div>
+            </div>
+            
+            <button type="submit" className="bot-btn-submit" style={{ marginTop: '10px' }}>Save Rule</button>
+          </form>
+        </div>
+
+        <div className="bot-training-card">
+          <h2>Existing Rules ({botRules.length})</h2>
+          <div className="bot-rules-list">
+            {botRules.length === 0 ? (
+              <div className="empty-rules">No rules found. Start training your bot by adding a rule!</div>
+            ) : (
+              botRules.map(rule => (
+                <div key={rule._id} className={`bot-rule-item ${rule.action === 'disconnect' ? 'disconnect' : ''}`}>
+                  <div className="bot-rule-content">
+                    <p><strong>Triggers:</strong> {rule.userMessageTriggers.join(', ')}</p>
+                    <p><strong>Responses:</strong> {rule.botResponses.join(' | ')}</p>
+                    {rule.botFollowUps && rule.botFollowUps.length > 0 && <p><strong>Follow-ups:</strong> {rule.botFollowUps.join(' | ')}</p>}
+                    
+                    <div className="bot-rule-meta">
+                      <span className="meta-badge">Bot: {rule.botGender}</span>
+                      <span className={`meta-badge ${rule.action === 'disconnect' ? 'action-disconnect' : ''}`}>
+                        Action: {rule.action}
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={() => handleDeleteBotRule(rule._id)} className="bot-btn-delete" title="Delete Rule">
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

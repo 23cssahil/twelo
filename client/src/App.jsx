@@ -9,6 +9,7 @@ import Terms from './components/Terms';
 import ContactUs from './components/ContactUs';
 import AboutUs from './components/AboutUs';
 import DeveloperAdmin from './components/DeveloperAdmin';
+import BotTrainingAdmin from './components/BotTrainingAdmin';
 import { Capacitor } from '@capacitor/core';
 import { AdMob } from '@capacitor-community/admob';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -139,6 +140,7 @@ export default function App() {
           <Router>
             <Routes>
               <Route path="/twelo-admin-6006390989" element={<DeveloperAdmin />} />
+              <Route path="/admin/bot-training" element={<BotTrainingAdmin />} />
               <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<Terms />} />

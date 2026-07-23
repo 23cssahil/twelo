@@ -48,15 +48,6 @@ export default function DeveloperAdmin() {
   const [botChatMessages, setBotChatMessages] = useState([]);
   const [botChatMessageInput, setBotChatMessageInput] = useState('');
 
-  const [botRules, setBotRules] = useState([]);
-  const [newRule, setNewRule] = useState({
-    triggers: '',
-    responses: '',
-    followUps: '',
-    gender: 'both',
-    action: 'continue'
-  });
-
   useEffect(() => {
     selectedBotChatRef.current = selectedBotChat;
   }, [selectedBotChat]);
@@ -203,46 +194,6 @@ export default function DeveloperAdmin() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [selectedReport, chatViewTarget, activeRandomChat, selectedBotChat, adminSocket]);
-
-  const fetchBotRules = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/admin/bot-rules`, { headers: { 'x-admin-pass': password } });
-      if (res.ok) setBotRules(await res.json());
-    } catch (err) { console.error(err); }
-  };
-
-  const handleCreateBotRule = async (e) => {
-    e.preventDefault();
-    try {
-      const payload = {
-        userMessageTriggers: newRule.triggers.split(',').map(t => t.trim()).filter(Boolean),
-        botResponses: newRule.responses.split('|').map(t => t.trim()).filter(Boolean),
-        botFollowUps: newRule.followUps ? newRule.followUps.split('|').map(t => t.trim()).filter(Boolean) : [],
-        botGender: newRule.gender,
-        action: newRule.action
-      };
-      const res = await fetch(`${API_URL}/api/admin/bot-rules`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        setNewRule({ triggers: '', responses: '', followUps: '', gender: 'both', action: 'continue' });
-        fetchBotRules();
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  const handleDeleteBotRule = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this bot rule?")) return;
-    try {
-      const res = await fetch(`${API_URL}/api/admin/bot-rules/${id}`, {
-        method: 'DELETE',
-        headers: { 'x-admin-pass': password }
-      });
-      if (res.ok) fetchBotRules();
-    } catch (err) { console.error(err); }
-  };
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -684,13 +635,14 @@ export default function DeveloperAdmin() {
                   Bot Chats
                   {unreadBotChats.size > 0 && <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ff4b4b', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{unreadBotChats.size}</span>}
                 </button>
-                <button 
-                  onClick={() => { setActiveTab('bot-training'); fetchBotRules(); }} 
-                  className={`dev-btn-${activeTab === 'bot-training' ? 'primary' : 'secondary'}`}
+                <Link 
+                  to="/admin/bot-training"
+                  className="dev-btn-secondary"
+                  style={{ textDecoration: 'none' }}
                 >
                   <MessageSquare size={16} style={{ marginRight: '8px' }} />
                   🤖 Bot Training
-                </button>
+                </Link>
               </div>
 
               {activeTab === 'users' ? (
@@ -794,78 +746,6 @@ export default function DeveloperAdmin() {
                       </div>
                     ))
                   )}
-                </div>
-              ) : activeTab === 'bot-training' ? (
-                <div className="dev-bot-training" style={{ color: '#fff' }}>
-
-                  <div className="dev-user-card" style={{ marginBottom: '20px', padding: '20px', background: 'rgba(0, 149, 246, 0.1)', border: '1px solid #0095f6' }}>
-                    <h3 style={{ marginBottom: '15px', color: '#0095f6' }}>📖 Bot Training Manual (Kaise Use Karein)</h3>
-                    <ul style={{ paddingLeft: '20px', lineHeight: '1.6', fontSize: '0.95rem' }}>
-                      <li style={{ marginBottom: '8px' }}><strong>Triggers (User kya puchega):</strong> Yahan wo saare words ya sentences daalein jo user puch sakta hai. Ek se zyada tarike comma (,) lagakar daalein. (Jaise: <code style={{ color: '#10b981' }}>name kya hai, naam batao, who are you</code>)</li>
-                      <li style={{ marginBottom: '8px' }}><strong>Bot's Responses (Bot kya bolega):</strong> Bot ka reply yahan set karein. Agar aap chahte hain ki bot har baar alag reply de (randomness), toh multiple replies ko pipe (|) symbol se alag karein. (Jaise: <code style={{ color: '#10b981' }}>Mera naam Sahil hai | Main Rohan hu</code>)</li>
-                      <li style={{ marginBottom: '8px' }}><strong>Follow-up (Bot ka next sawaal):</strong> Reply dene ke baad bot kya puchega? Ise blank bhi chhod sakte hain. Multiple options yahan bhi pipe (|) se set kar sakte hain. (Jaise: <code style={{ color: '#10b981' }}>Aap batao? | Tumhara kya naam hai?</code>)</li>
-                      <li style={{ marginBottom: '8px' }}><strong>Consistency:</strong> Agar bot ne ek chat me khud ka naam "Sahil" pick kar liya, toh ussi user se ussi chat me baar baar puchne par wo "Sahil" hi yaad rakhega. Nayi chat me random dusra naam lega.</li>
-                      <li style={{ marginBottom: '8px' }}><strong>Gender Logic:</strong> "Female Bot Only" select karenge toh ye rule sirf tab kaam karega jab koi Male user chat kar raha ho (kyunki usko Female bot milti hai).</li>
-                      <li><strong>Disconnect Action:</strong> Agar aap chahte hain kisi specific reply ke baad bot apne aap chat chhod de, toh action me "Disconnect immediately" chunein. Bot reply karega aur "Stranger has disconnected" show ho jayega.</li>
-                    </ul>
-                  </div>
-
-                  <div className="dev-user-card" style={{ marginBottom: '20px', padding: '20px' }}>
-                    <h3 style={{ marginBottom: '15px' }}>Train Bot Responses</h3>
-                    <form onSubmit={handleCreateBotRule} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '5px' }}>User's Message Triggers (comma-separated):</label>
-                        <input type="text" className="dev-input" placeholder="e.g. name kya hai, naam batao, who are you" value={newRule.triggers} onChange={e => setNewRule({...newRule, triggers: e.target.value})} required />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '5px' }}>Bot's Responses (separated by | for multiple random options):</label>
-                        <input type="text" className="dev-input" placeholder="e.g. Mera naam Sahil hai | Main Rohan hu" value={newRule.responses} onChange={e => setNewRule({...newRule, responses: e.target.value})} required />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '5px' }}>Bot's Follow-up Question (optional, separated by |):</label>
-                        <input type="text" className="dev-input" placeholder="e.g. Aap batao? | Tumhara kya hai?" value={newRule.followUps} onChange={e => setNewRule({...newRule, followUps: e.target.value})} />
-                      </div>
-                      <div style={{ display: 'flex', gap: '20px' }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', marginBottom: '5px' }}>Target Bot Gender:</label>
-                          <select className="dev-input" value={newRule.gender} onChange={e => setNewRule({...newRule, gender: e.target.value})}>
-                            <option value="both">Both (Male & Female Bots)</option>
-                            <option value="male">Male Bot Only (talks to Female User)</option>
-                            <option value="female">Female Bot Only (talks to Male User)</option>
-                          </select>
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: 'block', marginBottom: '5px' }}>Action after reply:</label>
-                          <select className="dev-input" value={newRule.action} onChange={e => setNewRule({...newRule, action: e.target.value})}>
-                            <option value="continue">Continue Chat</option>
-                            <option value="disconnect">Disconnect immediately (Stranger has disconnected)</option>
-                          </select>
-                        </div>
-                      </div>
-                      <button type="submit" className="dev-btn-primary" style={{ alignSelf: 'flex-start', padding: '10px 20px' }}>Save Rule</button>
-                    </form>
-                  </div>
-
-                  <h3 style={{ marginBottom: '15px' }}>Existing Rules</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {botRules.length === 0 ? <p style={{ color: '#888' }}>No rules found. Add one above!</p> : botRules.map(rule => (
-                      <div key={rule._id} className="dev-user-card" style={{ borderLeft: `4px solid ${rule.action === 'disconnect' ? '#ff4b4b' : '#0095f6'}` }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div>
-                            <p><strong>Triggers:</strong> {rule.userMessageTriggers.join(', ')}</p>
-                            <p><strong>Responses:</strong> {rule.botResponses.join(' | ')}</p>
-                            {rule.botFollowUps && rule.botFollowUps.length > 0 && <p><strong>Follow-ups:</strong> {rule.botFollowUps.join(' | ')}</p>}
-                            <p style={{ marginTop: '10px', fontSize: '0.9rem', color: '#888' }}>
-                              Bot Gender: <span style={{ color: '#fff' }}>{rule.botGender}</span> | Action: <span style={{ color: rule.action === 'disconnect' ? '#ff4b4b' : '#00e676' }}>{rule.action}</span>
-                            </p>
-                          </div>
-                          <button onClick={() => handleDeleteBotRule(rule._id)} className="action-icon-btn delete-btn" style={{ background: 'rgba(255,50,50,0.1)', color: '#ff4b4b' }}>
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               ) : activeTab === 'bot-requests' ? (
                 <div className="chat-container" style={{ border: '1px solid #333', borderRadius: '12px', overflow: 'hidden' }}>
