@@ -797,6 +797,19 @@ export default function DeveloperAdmin() {
                 </div>
               ) : activeTab === 'bot-training' ? (
                 <div className="dev-bot-training" style={{ color: '#fff' }}>
+
+                  <div className="dev-user-card" style={{ marginBottom: '20px', padding: '20px', background: 'rgba(0, 149, 246, 0.1)', border: '1px solid #0095f6' }}>
+                    <h3 style={{ marginBottom: '15px', color: '#0095f6' }}>📖 Bot Training Manual (Kaise Use Karein)</h3>
+                    <ul style={{ paddingLeft: '20px', lineHeight: '1.6', fontSize: '0.95rem' }}>
+                      <li style={{ marginBottom: '8px' }}><strong>Triggers (User kya puchega):</strong> Yahan wo saare words ya sentences daalein jo user puch sakta hai. Ek se zyada tarike comma (,) lagakar daalein. (Jaise: <code style={{ color: '#10b981' }}>name kya hai, naam batao, who are you</code>)</li>
+                      <li style={{ marginBottom: '8px' }}><strong>Bot's Responses (Bot kya bolega):</strong> Bot ka reply yahan set karein. Agar aap chahte hain ki bot har baar alag reply de (randomness), toh multiple replies ko pipe (|) symbol se alag karein. (Jaise: <code style={{ color: '#10b981' }}>Mera naam Sahil hai | Main Rohan hu</code>)</li>
+                      <li style={{ marginBottom: '8px' }}><strong>Follow-up (Bot ka next sawaal):</strong> Reply dene ke baad bot kya puchega? Ise blank bhi chhod sakte hain. Multiple options yahan bhi pipe (|) se set kar sakte hain. (Jaise: <code style={{ color: '#10b981' }}>Aap batao? | Tumhara kya naam hai?</code>)</li>
+                      <li style={{ marginBottom: '8px' }}><strong>Consistency:</strong> Agar bot ne ek chat me khud ka naam "Sahil" pick kar liya, toh ussi user se ussi chat me baar baar puchne par wo "Sahil" hi yaad rakhega. Nayi chat me random dusra naam lega.</li>
+                      <li style={{ marginBottom: '8px' }}><strong>Gender Logic:</strong> "Female Bot Only" select karenge toh ye rule sirf tab kaam karega jab koi Male user chat kar raha ho (kyunki usko Female bot milti hai).</li>
+                      <li><strong>Disconnect Action:</strong> Agar aap chahte hain kisi specific reply ke baad bot apne aap chat chhod de, toh action me "Disconnect immediately" chunein. Bot reply karega aur "Stranger has disconnected" show ho jayega.</li>
+                    </ul>
+                  </div>
+
                   <div className="dev-user-card" style={{ marginBottom: '20px', padding: '20px' }}>
                     <h3 style={{ marginBottom: '15px' }}>Train Bot Responses</h3>
                     <form onSubmit={handleCreateBotRule} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
