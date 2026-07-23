@@ -109,8 +109,17 @@ async function generateAiCompanionReply(chat, messageText) {
       response = matchedRule.botResponses[idx] || '';
       followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > idx) ? matchedRule.botFollowUps[idx] : '';
     } else {
-      response = (matchedRule.botResponses && matchedRule.botResponses.length > 0) ? pickOne(matchedRule.botResponses) : '';
-      followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > 0) ? pickOne(matchedRule.botFollowUps) : '';
+      if (matchedRule.isConsistent === false) {
+        // Round-robin selection for repeated questions
+        if (!chat.ruleHistory[ruleId]) chat.ruleHistory[ruleId] = { nextIndex: 0 };
+        const idx = chat.ruleHistory[ruleId].nextIndex % (matchedRule.botResponses.length || 1);
+        response = matchedRule.botResponses[idx] || '';
+        followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > idx) ? matchedRule.botFollowUps[idx] : '';
+        chat.ruleHistory[ruleId].nextIndex = idx + 1;
+      } else {
+        response = (matchedRule.botResponses && matchedRule.botResponses.length > 0) ? pickOne(matchedRule.botResponses) : '';
+        followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > 0) ? pickOne(matchedRule.botFollowUps) : '';
+      }
     }
                        
     const result = { reply: response, followUp: followUp, action: matchedRule.action };
