@@ -2651,6 +2651,10 @@ export default function Dashboard() {
               <button className="settings-item-btn" onClick={() => navigate('/terms')}>
                 Terms & Conditions
               </button>
+
+              <button className="settings-item-btn" onClick={() => navigate('/contact-us')}>
+                Contact Us
+              </button>
               
               <button className="settings-item-btn logout-danger" onClick={logout}>
                 Log Out

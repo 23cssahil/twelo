@@ -6,6 +6,7 @@ import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import Terms from './components/Terms';
+import ContactUs from './components/ContactUs';
 import AboutUs from './components/AboutUs';
 import DeveloperAdmin from './components/DeveloperAdmin';
 import { Capacitor } from '@capacitor/core';
@@ -141,6 +142,7 @@ export default function App() {
               <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/contact-us" element={<ContactUs />} />
               <Route path="/about-us" element={<AboutUs />} />
               <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" state={{ from: window.location.pathname }} />} />
             </Routes>
