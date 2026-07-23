@@ -1130,6 +1130,15 @@ app.delete('/api/admin/bot-rules/:id', adminAuth, async (req, res) => {
   }
 });
 
+app.put('/api/admin/bot-rules/:id', adminAuth, async (req, res) => {
+  try {
+    const updatedRule = await BotRule.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json({ success: true, rule: updatedRule });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update rule' });
+  }
+});
+
 app.post('/api/admin/block', adminAuth, async (req, res) => {
   try {
     const { userId, isBlocked } = req.body;

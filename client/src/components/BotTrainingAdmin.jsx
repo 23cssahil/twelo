@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Trash2, Bot, Lock, List, Plus } from 'lucide-react';
+import { ArrowLeft, Trash2, Bot, Lock, List, Plus, Edit2 } from 'lucide-react';
 import './BotTrainingAdmin.css';
 
 export default function BotTrainingAdmin() {
@@ -12,6 +12,7 @@ export default function BotTrainingAdmin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showExistingRules, setShowExistingRules] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingRuleId, setEditingRuleId] = useState(null);
   
   const [botRules, setBotRules] = useState([]);
   const [newRule, setNewRule] = useState({
@@ -62,16 +63,36 @@ export default function BotTrainingAdmin() {
         isConsistent: newRule.isConsistent,
         responseMode: newRule.responseMode
       };
-      const res = await fetch(`${API_URL}/api/admin/bot-rules`, {
-        method: 'POST',
+      const method = editingRuleId ? 'PUT' : 'POST';
+      const url = editingRuleId ? `${API_URL}/api/admin/bot-rules/${editingRuleId}` : `${API_URL}/api/admin/bot-rules`;
+      
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
         body: JSON.stringify(payload)
       });
       if (res.ok) {
         setNewRule({ triggers: '', responses: '', followUps: '', followUpResponses: '', disableFollowUpOnRepeat: false, gender: 'both', action: 'continue', isConsistent: true, responseMode: 'random' });
+        setEditingRuleId(null);
         fetchBotRules();
       }
     } catch (err) { console.error(err); }
+  };
+
+  const handleEditRule = (rule) => {
+    setEditingRuleId(rule._id);
+    setNewRule({
+      triggers: rule.userMessageTriggers.join(', '),
+      responses: rule.botResponses.join(' | '),
+      followUps: rule.botFollowUps ? rule.botFollowUps.join(' | ') : '',
+      followUpResponses: rule.botFollowUpResponses ? rule.botFollowUpResponses.join(' | ') : '',
+      disableFollowUpOnRepeat: rule.disableFollowUpOnRepeat || false,
+      gender: rule.botGender,
+      action: rule.action,
+      isConsistent: rule.isConsistent,
+      responseMode: rule.responseMode || 'random'
+    });
+    setShowExistingRules(false);
   };
 
   const handleDeleteBotRule = async (id) => {
@@ -139,7 +160,7 @@ export default function BotTrainingAdmin() {
         {!showExistingRules ? (
           <div className="bot-training-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0 }}>Create New Rule</h2>
+              <h2 style={{ margin: 0 }}>{editingRuleId ? 'Edit Rule' : 'Create New Rule'}</h2>
               <button type="button" onClick={() => setShowExistingRules(true)} className="bot-btn-submit" style={{ width: 'auto', padding: '8px 16px', background: '#333', margin: 0, display: 'flex', alignItems: 'center' }}>
                 <List size={16} style={{ marginRight: '8px' }} /> View Existing Rules ({botRules.length})
               </button>
@@ -206,7 +227,15 @@ export default function BotTrainingAdmin() {
               </div>
             </div>
             
-            <button type="submit" className="bot-btn-submit" style={{ marginTop: '10px' }}>Save Rule</button>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <button type="submit" className="bot-btn-submit">{editingRuleId ? 'Update Rule' : 'Save Rule'}</button>
+              {editingRuleId && (
+                <button type="button" className="bot-btn-submit" style={{ background: '#6c757d' }} onClick={() => {
+                  setEditingRuleId(null);
+                  setNewRule({ triggers: '', responses: '', followUps: '', followUpResponses: '', disableFollowUpOnRepeat: false, gender: 'both', action: 'continue', isConsistent: true, responseMode: 'random' });
+                }}>Cancel Edit</button>
+              )}
+            </div>
             </form>
           </div>
         ) : (
@@ -256,9 +285,14 @@ export default function BotTrainingAdmin() {
                       {rule.disableFollowUpOnRepeat && <span className="meta-badge" style={{background: '#6c757d'}}>No Repeat Follow-up</span>}
                     </div>
                   </div>
-                  <button onClick={() => handleDeleteBotRule(rule._id)} className="bot-btn-delete" title="Delete Rule">
-                    <Trash2 size={18} />
-                  </button>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <button onClick={() => handleEditRule(rule)} className="bot-btn-submit" style={{ width: 'auto', padding: '6px', margin: 0, background: '#007bff' }} title="Edit Rule">
+                      <Edit2 size={16} />
+                    </button>
+                    <button onClick={() => handleDeleteBotRule(rule._id)} className="bot-btn-delete" title="Delete Rule">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               ))
             )}
