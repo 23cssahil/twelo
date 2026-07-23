@@ -61,23 +61,28 @@ async function generateAiCompanionReply(chat, messageText) {
     const rules = await BotRule.find({ isActive: true }).lean();
     
     let matchedRule = null;
+    let maxTriggerLength = 0;
+    
     for (const rule of rules) {
       if (rule.botGender !== 'both' && rule.botGender !== chat.companion.gender) continue;
       
-      const isMatch = rule.userMessageTriggers.some(trigger => {
+      for (const trigger of rule.userMessageTriggers) {
         const t = trigger.toLowerCase().trim();
-        if (!t) return false;
+        if (!t) continue;
+        
+        let isMatch = false;
         try {
           const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-          return regex.test(text);
+          isMatch = regex.test(text);
         } catch(e) {
-          return text.includes(t);
+          isMatch = text.includes(t);
         }
-      });
-      if (isMatch) {
-        matchedRule = rule;
-        break;
+        
+        if (isMatch && t.length > maxTriggerLength) {
+          matchedRule = rule;
+          maxTriggerLength = t.length;
+        }
       }
     }
     
