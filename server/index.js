@@ -1287,24 +1287,24 @@ io.on('connection', (socket) => {
 
       if (receiverSocketId) {
         io.to(receiverSocketId).emit('receive_message', payload);
-      } else {
-        // Send Web Push Notification if offline
-        User.findById(receiverId).then(receiver => {
-          if (receiver && receiver.pushSubscriptions && receiver.pushSubscriptions.length > 0) {
-            User.findById(senderId).then(sender => {
-              const pushPayload = JSON.stringify({
-                title: `New message from ${sender.username}`,
-                body: messageText.substring(0, 50) + (messageText.length > 50 ? '...' : ''),
-                icon: sender.avatarUrl || '/icon-192x192.png'
-              });
-              
-              receiver.pushSubscriptions.forEach(sub => {
-                webpush.sendNotification(sub, pushPayload).catch(err => console.error('Push error:', err));
-              });
-            });
-          }
-        }).catch(err => console.error('Error finding receiver for push:', err));
       }
+      
+      // Send Web Push Notification unconditionally (service worker decides if UI shows it)
+      User.findById(receiverId).then(receiver => {
+        if (receiver && receiver.pushSubscriptions && receiver.pushSubscriptions.length > 0) {
+          User.findById(senderId).then(sender => {
+            const pushPayload = JSON.stringify({
+              title: `New message from ${sender.username}`,
+              body: messageText.substring(0, 50) + (messageText.length > 50 ? '...' : ''),
+              icon: sender.avatarUrl || '/icon-192x192.png'
+            });
+            
+            receiver.pushSubscriptions.forEach(sub => {
+              webpush.sendNotification(sub, pushPayload).catch(err => console.error('Push error:', err));
+            });
+          });
+        }
+      }).catch(err => console.error('Error finding receiver for push:', err));
       // Only echo to sender if they are on a different device/tab
       if (senderSocketId && senderSocketId !== socket.id) {
         io.to(senderSocketId).emit('receive_message', payload);

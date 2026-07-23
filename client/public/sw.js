@@ -29,7 +29,19 @@ self.addEventListener('push', function(e) {
   };
 
   e.waitUntil(
-    self.registration.showNotification(payload.title, options)
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+      let isFocused = false;
+      for (let i = 0; i < clientList.length; i++) {
+        if (clientList[i].focused) {
+          isFocused = true;
+          break;
+        }
+      }
+      
+      if (!isFocused) {
+        return self.registration.showNotification(payload.title, options);
+      }
+    })
   );
 });
 
