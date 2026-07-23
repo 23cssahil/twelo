@@ -2648,6 +2648,10 @@ export default function Dashboard() {
                 Privacy Policy
               </button>
               
+              <button className="settings-item-btn" onClick={() => navigate('/terms')}>
+                Terms & Conditions
+              </button>
+              
               <button className="settings-item-btn logout-danger" onClick={logout}>
                 Log Out
               </button>
