@@ -1720,16 +1720,6 @@ export default function Dashboard() {
               Earn Free Coins
             </h2>
             
-            <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <div style={{ flex: 1 }}>
-                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Watch Video Ad</h3>
-                <p style={{ margin: 0, color: '#aaa', fontSize: '0.9rem' }}>Watch a 15-second video to earn 5 coins instantly.</p>
-              </div>
-              <button onClick={handleWatchAd} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #00c6ff, #0072ff)', border: 'none', borderRadius: '20px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', minWidth: '110px' }}>
-                Watch (+5)
-              </button>
-            </div>
-
             <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginBottom: '20px' }}>
               <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Invite Friends</h3>
               <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Share your unique link. You earn 20 coins for every friend who signs up!</p>
