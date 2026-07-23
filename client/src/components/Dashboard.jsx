@@ -1217,9 +1217,10 @@ export default function Dashboard() {
     }
   };
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = (e, textOverride = null) => {
     e.preventDefault();
-    if (!newMessage.trim() || !activeChatUser || !socket) return;
+    const textToSend = textOverride !== null ? textOverride : newMessage;
+    if (!textToSend.trim() || !activeChatUser || !socket) return;
     
     if (chatTypingTimeoutRef.current) clearTimeout(chatTypingTimeoutRef.current);
     socket.emit('typing_status', { senderId: user.id, receiverId: activeChatUser._id, isTyping: false });
@@ -1230,7 +1231,7 @@ export default function Dashboard() {
       senderName: replyingTo.sender === user.id ? 'You' : activeChatUser.username
     } : null;
 
-    const msgData = { senderId: user.id, receiverId: activeChatUser._id, messageText: newMessage, messageType: 'text', fileUrl: null, replyTo: replyToObj };
+    const msgData = { senderId: user.id, receiverId: activeChatUser._id, messageText: textToSend, messageType: 'text', fileUrl: null, replyTo: replyToObj };
     socket.emit('send_message', msgData);
     
     // Optimistic UI update
@@ -1238,12 +1239,14 @@ export default function Dashboard() {
       _id: `temp-${Date.now()}`,
       sender: user.id, 
       receiver: activeChatUser._id, 
-      message: newMessage, 
+      message: textToSend, 
       replyTo: replyToObj,
-      createdAt: new Date().toISOString() 
+      messageType: 'text',
+      createdAt: new Date().toISOString()
     }]);
-
-    setNewMessage('');
+    
+    // Optional: Only clear state if it's being used
+    if (textOverride === null) setNewMessage('');
     setReplyingTo(null);
   };
 
@@ -1661,24 +1664,26 @@ export default function Dashboard() {
     handleGlobeClickRef.current = handleGlobeClick;
   }, [handleGlobeClick]);
 
-  const handleSendAnonymousMessage = (e) => {
+  const handleSendAnonymousMessage = (e, textOverride = null) => {
     e.preventDefault();
-    if (!newMessage.trim() || !anonymousRoomId || !socket || !isAnonymousChatActive) return;
+    const textToSend = textOverride !== null ? textOverride : newMessage;
+    if (!textToSend.trim() || !anonymousRoomId || !socket || !isAnonymousChatActive) return;
     
     const msg = {
       _id: `temp-${Date.now()}`,
-      message: newMessage,
+      message: textToSend,
       senderSocket: socket.id,
       isMine: true,
       createdAt: new Date().toISOString()
     };
     
-    socket.emit('send_anonymous_message', { roomId: anonymousRoomId, messageText: newMessage });
+    socket.emit('send_anonymous_message', { roomId: anonymousRoomId, messageText: textToSend });
     socket.emit('send_anonymous_typing', { roomId: anonymousRoomId, isTyping: false });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     setAnonymousMessages(prev => [...prev, msg]);
-    setNewMessage('');
+    // Optional: Only clear state if it's being used
+    if (textOverride === null) setNewMessage('');
   };
 
   const handleSendAnonymousFriendRequest = async () => {
@@ -1921,23 +1926,31 @@ export default function Dashboard() {
                       placeholder="Type a message..."
                       className="chat-text-input"
                       style={{ resize: 'none', minHeight: '44px', maxHeight: '120px', lineHeight: '24px', overflowY: 'auto' }}
-                      value={newMessage}
                       rows={1}
                       onInput={(e) => {
                         e.target.style.height = 'auto';
                         e.target.style.height = `${e.target.scrollHeight}px`;
+                        
+                        const sendBtn = document.getElementById('anon-chat-send-btn');
+                        if (e.target.value.trim()) {
+                          if (sendBtn) sendBtn.style.display = 'block';
+                        } else {
+                          if (sendBtn) sendBtn.style.display = 'none';
+                        }
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
-                          if (newMessage.trim()) {
-                            handleSendAnonymousMessage(e);
+                          if (e.target.value.trim()) {
+                            handleSendAnonymousMessage(e, e.target.value);
+                            e.target.value = '';
                             e.target.style.height = 'auto';
+                            const sendBtn = document.getElementById('anon-chat-send-btn');
+                            if (sendBtn) sendBtn.style.display = 'none';
                           }
                         }
                       }}
                       onChange={(e) => {
-                        setNewMessage(e.target.value);
                         if (socket && anonymousRoomId && isAnonymousChatActive) {
                           socket.emit('send_anonymous_typing', { roomId: anonymousRoomId, isTyping: true });
                           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -1948,9 +1961,7 @@ export default function Dashboard() {
                       }}
                       required
                     />
-                    {newMessage.trim() && (
-                      <button type="submit" className="chat-send-btn" onPointerDown={(e) => e.preventDefault()}><Send size={18} /></button>
-                    )}
+                    <button id="anon-chat-send-btn" type="button" className="chat-send-btn" style={{ display: 'none' }} onPointerDown={(e) => { e.preventDefault(); const input = document.getElementById('anonymous-chat-input'); if(input.value.trim()){ handleSendAnonymousMessage(e, input.value); input.value = ''; input.style.height = 'auto'; e.currentTarget.style.display = 'none'; } }}><Send size={18} /></button>
                   </div>
                 </form>
               ) : (
@@ -2393,23 +2404,37 @@ export default function Dashboard() {
                             placeholder="Message..."
                             className="chat-text-input"
                             style={{ paddingLeft: '40px', resize: 'none', minHeight: '44px', maxHeight: '120px', lineHeight: '24px', overflowY: 'auto' }}
-                            value={newMessage}
                             rows={1}
                             onInput={(e) => {
                               e.target.style.height = 'auto';
                               e.target.style.height = `${e.target.scrollHeight}px`;
+                              
+                              const sendBtn = document.getElementById('main-chat-send-btn');
+                              const mediaActions = document.getElementById('main-chat-media-actions');
+                              if (e.target.value.trim()) {
+                                if (sendBtn) sendBtn.style.display = 'block';
+                                if (mediaActions) mediaActions.style.display = 'none';
+                              } else {
+                                if (sendBtn) sendBtn.style.display = 'none';
+                                if (mediaActions) mediaActions.style.display = 'flex';
+                              }
                             }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
-                                if (newMessage.trim()) {
-                                  handleSendMessage(e);
+                                if (e.target.value.trim()) {
+                                  handleSendMessage(e, e.target.value);
+                                  e.target.value = '';
                                   e.target.style.height = 'auto';
+                                  
+                                  const sendBtn = document.getElementById('main-chat-send-btn');
+                                  const mediaActions = document.getElementById('main-chat-media-actions');
+                                  if (sendBtn) sendBtn.style.display = 'none';
+                                  if (mediaActions) mediaActions.style.display = 'flex';
                                 }
                               }
                             }}
                             onChange={(e) => {
-                              setNewMessage(e.target.value);
                               if (socket && activeChatUser) {
                                 socket.emit('typing_status', { senderId: user.id, receiverId: activeChatUser._id, isTyping: true });
                                 if (chatTypingTimeoutRef.current) clearTimeout(chatTypingTimeoutRef.current);
@@ -2433,8 +2458,8 @@ export default function Dashboard() {
                         </div>
                       )}
 
-                      {!newMessage.trim() && !isRecording && (
-                        <div className="media-actions" style={{ display: 'flex', gap: '10px', paddingRight: '10px', alignItems: 'center' }}>
+                      {!isRecording && (
+                        <div id="main-chat-media-actions" className="media-actions" style={{ display: 'flex', gap: '10px', paddingRight: '10px', alignItems: 'center' }}>
                           <button type="button" className="media-btn" onClick={() => fileInputRef.current.click()} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
                             <ImageIcon size={20} color="#a8a8a8" />
                           </button>
@@ -2462,8 +2487,8 @@ export default function Dashboard() {
                         </div>
                       )}
 
-                      {newMessage.trim() && !isRecording && (
-                        <button type="submit" className="chat-send-btn" disabled={isUploading} onPointerDown={(e) => e.preventDefault()}>
+                      {!isRecording && (
+                        <button id="main-chat-send-btn" type="submit" className="chat-send-btn" disabled={isUploading} onPointerDown={(e) => { e.preventDefault(); const input = document.getElementById('chat-input'); if(input.value.trim()){ handleSendMessage(e, input.value); input.value = ''; input.style.height = 'auto'; e.currentTarget.style.display = 'none'; const mediaActions = document.getElementById('main-chat-media-actions'); if (mediaActions) mediaActions.style.display = 'flex'; } }} style={{ display: 'none' }}>
                           {isUploading ? <span style={{ fontSize: '12px' }}>...</span> : <Send size={18} />}
                         </button>
                       )}
