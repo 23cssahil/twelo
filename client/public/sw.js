@@ -24,24 +24,12 @@ self.addEventListener('push', function(e) {
     vibrate: [200, 100, 200, 100, 200, 100, 200],
     requireInteraction: true,
     data: {
-      url: payload.url || '/'
+      url: '/dev'
     }
   };
 
   e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
-      let isFocused = false;
-      for (let i = 0; i < clientList.length; i++) {
-        if (clientList[i].focused) {
-          isFocused = true;
-          break;
-        }
-      }
-      
-      if (!isFocused) {
-        return self.registration.showNotification(payload.title, options);
-      }
-    })
+    self.registration.showNotification(payload.title, options)
   );
 });
 

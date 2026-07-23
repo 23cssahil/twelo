@@ -205,62 +205,9 @@ export default function Dashboard() {
 
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showPushPrompt, setShowPushPrompt] = useState(false);
   const [editUsernameMode, setEditUsernameMode] = useState(false);
   const [newUsernameInput, setNewUsernameInput] = useState('');
   const [usernameError, setUsernameError] = useState('');
-
-  // Web Push Notification Setup
-  const setupWebPush = async () => {
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
-        const registration = await navigator.serviceWorker.ready;
-        
-        let subscription = await registration.pushManager.getSubscription();
-        if (!subscription) {
-          const vapidPublicKey = 'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA';
-          const convertedVapidKey = (base64String => {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-            return outputArray;
-          })(vapidPublicKey);
-
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: convertedVapidKey
-          });
-        }
-        
-        // Send to backend
-        await fetch(`${API_URL}/api/users/subscribe`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(subscription)
-        });
-      }
-    } catch (err) {
-      console.error('Web Push Setup Error:', err);
-    }
-  };
-
-  useEffect(() => {
-    // Attempt automatic subscription after 2 seconds to not block UI load
-    const timer = setTimeout(() => {
-      if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-        setShowPushPrompt(true);
-      } else if ('Notification' in window && Notification.permission === 'granted') {
-        setupWebPush();
-      }
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [token, API_URL]);
 
   // Profile & Social State
   const [profileStats, setProfileStats] = useState(null);
@@ -2697,10 +2644,6 @@ export default function Dashboard() {
                 About Us
               </button>
               
-              <button className="settings-item-btn" onClick={() => { setShowSettingsModal(false); navigate('/permissions'); }}>
-                Permissions & Notifications
-              </button>
-
               <button className="settings-item-btn" onClick={() => navigate('/privacy-policy')}>
                 Privacy Policy
               </button>
@@ -3002,36 +2945,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Push Notification Prompt Modal */}
-      {showPushPrompt && (
-        <div className="settings-drawer-overlay" style={{ zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="settings-drawer" style={{ height: 'auto', maxHeight: '50%', borderRadius: '15px', width: '90%', maxWidth: '400px', padding: '20px', textAlign: 'center' }}>
-            <div style={{ width: '50px', height: '50px', background: '#333', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px auto' }}>
-              <Bell size={24} color="#fff" />
-            </div>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Permissions & Notifications</h2>
-            <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginBottom: '20px' }}>
-              Get instant alerts for new messages even when you're away from the app.
-            </p>
-            <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
-              <button 
-                className="premium-btn primary" 
-                onClick={() => { setShowPushPrompt(false); setupWebPush(); }}
-                style={{ padding: '12px' }}
-              >
-                Turn On
-              </button>
-              <button 
-                className="premium-btn" 
-                onClick={() => setShowPushPrompt(false)}
-                style={{ padding: '12px', background: 'transparent', border: '1px solid #333' }}
-              >
-                Not Now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
