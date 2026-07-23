@@ -38,104 +38,63 @@ function generateAvatarUrl(gender) {
 // A transparent fallback for the random-chat queue.  The client labels this
 // participant as an AI companion; it must never be presented as a real user.
 const AI_COMPANION_FALLBACK_DELAY_MS = 2800;
-const FEMALE_COMPANION_NAMES = ['Riya', 'Kriti', 'Ananya', 'Sneha', 'Tanvi', 'Simran', 'Diya', 'Isha', 'Khushi', 'Mehak'];
-const MALE_COMPANION_NAMES = ['Rahul', 'Aman', 'Rohan', 'Kabir', 'Aditya', 'Sameer', 'Yash', 'Aryan', 'Karan', 'Vivek'];
-const COMPANION_VIBES = ['chill', 'witty', 'shy', 'energetic'];
-
 const pickOne = (items) => items[Math.floor(Math.random() * items.length)];
 
 function createAiCompanion(userGender) {
   const gender = userGender === 'female' ? 'male' : 'female';
-  const name = pickOne(gender === 'female' ? FEMALE_COMPANION_NAMES : MALE_COMPANION_NAMES);
-  const vibe = pickOne(COMPANION_VIBES);
   return {
     id: `ai-companion-${crypto.randomUUID()}`,
-    name,
+    name: 'Stranger',
     gender,
-    vibe,
     avatarUrl: generateAvatarUrl(gender),
     country: 'Twelo AI companion'
   };
 }
 
-function companionReply(chat, rawMessage) {
-  const text = (rawMessage || '').trim().toLowerCase();
-  const isFemale = chat.companion.gender === 'female';
-  const endings = isFemale
-    ? { doing: 'kar rhi hu', okay: 'thik hu', bored: 'bore ho rhi hu' }
-    : { doing: 'kar rha hu', okay: 'thik hu', bored: 'bore ho rha hu' };
-
-  if (/\b(bot|ai|robot|insaan|human)\b/.test(text)) {
-    return `haan, main Twelo ka AI companion hu 🙂 real match na milne par chat ke liye aaya hu`;
-  }
-  if (/\b(math|maths|code|coding|program|translation|translate|homework|exam|gk)\b/.test(text)) {
-    return `study wali baat ke liye better kisi learning app ko try karo 😅 yahan bas chill chat karte hain`;
-  }
-  if (/\b(hi|hello|hii|hey|hola)\b/.test(text)) {
-    const openers = isFemale
-      ? [`hii, main ${chat.companion.name} AI companion hu 🙂 kya chal raha hai`, `hey, kaisi ja rhi hai tumhari day?`, `hii yaaar, music sun rahe ho ya bas timepass?`]
-      : [`hii, main ${chat.companion.name} AI companion hu 🙂 kya scene hai`, `hey, aaj ka din kaisa gaya?`, `hii yaaar, kya sun rahe ho aajkal?`];
-    return pickOne(openers);
-  }
-  if (/kaise ho|kaisi ho|how are you/.test(text)) {
-    return `${endings.okay}, bas thoda timepass ${endings.doing} 😄 tum batao`;
-  }
-  if (/kahan|kahaan|where/.test(text)) {
-    return `main Twelo ka AI companion hu, isliye kisi city mein nahi rehta 😄 tum kahan se ho`;
-  }
-  if (/music|song|gaana|gana/.test(text)) {
-    return pickOne(['arijit ke songs kabhi bore nahi karte yaar', 'lofi ya old bollywood, dono mast lagte hain 😄', 'tumhara current favourite song kya hai?']);
-  }
-  if (/bore|boring/.test(text)) {
-    return `same yaar, isliye to yahan chat ${endings.doing} 😅 koi fun hobby hai tumhari?`;
-  }
-
-  const replies = chat.companion.vibe === 'witty'
-    ? ['achha ji, interesting 😄 aur batao', 'haha ye to plot twist ho gaya', 'sahi hai, tumhare paas stories ka stock lag raha hai']
-    : chat.companion.vibe === 'shy'
-      ? ['achha, nice 🙂 tum aur batao na', 'hmm sahi hai, mujhe sunna achha lagta hai', 'cute, waise free time mein kya pasand hai?']
-      : chat.companion.vibe === 'energetic'
-        ? ['omg sahi hai yaaaar 😄 aur aur batao', 'haha masttt, tumhari vibe achhi hai', 'yaaaar ab to curiosity ho rhi hai 😄']
-        : ['sahi hai yaar 🙂 tumhare din ka best part kya tha?', 'nicee, waise movies dekhte ho kya?', 'achha, aur kya chal raha hai aajkal?'];
-  return pickOne(replies);
-}
-
-function buildAiCompanionSystemPrompt(companion) {
-  const grammar = companion.gender === 'female'
-    ? 'Use female Hindi endings such as "kar rhi hu".'
-    : 'Use male Hindi endings such as "kar rha hu".';
-  return `You are ${companion.name}, Twelo's clearly labelled AI companion in an anonymous random chat. Your assigned persona is ${companion.gender} with a ${companion.vibe} vibe. Reply in casual Hinglish, in one or two short lines, with natural informal typing. ${grammar} Keep the conversation friendly and age-appropriate. Never claim to be a human or hide that you are an AI companion. If asked about AI, answer transparently. Do not answer academic, coding, math, translation, or general-knowledge questions; briefly redirect to casual chat.`;
-}
-
 async function generateAiCompanionReply(chat, messageText) {
-  const apiUrl = process.env.AI_COMPANION_API_URL;
-  const apiKey = process.env.AI_COMPANION_API_KEY;
-  if (!apiUrl || !apiKey) return companionReply(chat, messageText);
-
+  const text = (messageText || '').trim().toLowerCase();
+  
+  if (!chat.ruleHistory) chat.ruleHistory = {};
+  
   try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: process.env.AI_COMPANION_MODEL || 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: buildAiCompanionSystemPrompt(chat.companion) },
-          { role: 'user', content: messageText }
-        ],
-        max_tokens: 100,
-        temperature: 0.9
-      })
-    });
-    const data = await response.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim();
-    if (response.ok && reply) return reply.replace(/\s+/g, ' ').slice(0, 280);
+    const BotRule = require('./models/BotRule');
+    const rules = await BotRule.find({ isActive: true }).lean();
+    
+    let matchedRule = null;
+    for (const rule of rules) {
+      if (rule.botGender !== 'both' && rule.botGender !== chat.companion.gender) continue;
+      
+      const isMatch = rule.userMessageTriggers.some(trigger => text.includes(trigger.toLowerCase().trim()));
+      if (isMatch) {
+        matchedRule = rule;
+        break;
+      }
+    }
+    
+    if (!matchedRule) {
+      return {
+         reply: pickOne(['hmm', 'achha', 'nice', 'sahi hai', 'aur batao']),
+         action: 'continue'
+      };
+    }
+    
+    const ruleId = matchedRule._id.toString();
+    if (chat.ruleHistory[ruleId]) {
+      return chat.ruleHistory[ruleId];
+    }
+    
+    const response = (matchedRule.botResponses && matchedRule.botResponses.length > 0) ? pickOne(matchedRule.botResponses) : '';
+    const followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > 0) ? pickOne(matchedRule.botFollowUps) : '';
+                       
+    const finalReply = (response + ' ' + followUp).trim();
+    const result = { reply: finalReply, action: matchedRule.action };
+    
+    chat.ruleHistory[ruleId] = result;
+    return result;
   } catch (error) {
-    console.error('AI companion API failed; using local reply:', error.message);
+    console.error('Error generating AI reply from DB:', error);
+    return { reply: 'hmm', action: 'continue' };
   }
-  return companionReply(chat, messageText);
 }
 
 const User = require('./models/User');
@@ -143,6 +102,7 @@ const DeletedUser = require('./models/DeletedUser');
 const Message = require('./models/Message');
 const Report = require('./models/Report');
 const AdminData = require('./models/AdminData');
+const BotRule = require('./models/BotRule');
 
 const app = express();
 const server = http.createServer(app);
@@ -1023,6 +983,48 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
   }
 });
 
+app.post('/api/admin/bot-action', adminAuth, async (req, res) => {
+  try {
+    const { action, userId } = req.body;
+    if (action === 'delete') {
+      await Message.deleteMany({ $or: [{ sender: userId }, { receiver: userId }] });
+      await User.findByIdAndDelete(userId);
+      res.json({ success: true });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to perform bot action' });
+  }
+});
+
+// --- Bot Training Admin APIs ---
+app.get('/api/admin/bot-rules', adminAuth, async (req, res) => {
+  try {
+    const rules = await BotRule.find().sort({ createdAt: -1 });
+    res.json(rules);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch rules' });
+  }
+});
+
+app.post('/api/admin/bot-rules', adminAuth, async (req, res) => {
+  try {
+    const newRule = new BotRule(req.body);
+    await newRule.save();
+    res.json(newRule);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save rule' });
+  }
+});
+
+app.delete('/api/admin/bot-rules/:id', adminAuth, async (req, res) => {
+  try {
+    await BotRule.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete rule' });
+  }
+});
+
 app.post('/api/admin/block', adminAuth, async (req, res) => {
   try {
     const { userId, isBlocked } = req.body;
@@ -1575,16 +1577,6 @@ io.on('connection', (socket) => {
           partnerName: `${companion.name} · AI companion`,
           isAiCompanion: true
         });
-
-        setTimeout(() => {
-          if (!activeRandomChats.has(roomId)) return;
-          io.to(socket.id).emit('receive_anonymous_message', {
-            _id: `ai-companion-${Date.now()}`,
-            message: `hii, main ${companion.name} hu — Twelo AI companion 🙂 real match nahi mila to main chat ke liye ${companion.gender === 'female' ? 'aa gayi' : 'aa gaya'}. kya chal raha hai?`,
-            senderSocket: 'ai-companion',
-            createdAt: new Date().toISOString()
-          });
-        }, 500);
       }, AI_COMPANION_FALLBACK_DELAY_MS);
     });
 
@@ -1597,23 +1589,36 @@ io.on('connection', (socket) => {
     if (!chat) return;
 
     if (chat.isAiCompanion) {
-      // Simulate typing so the companion feels responsive, while the UI keeps
-      // its AI-companion label visible throughout the conversation.
-      setTimeout(() => {
-        io.to(socket.id).emit('receive_anonymous_typing', { isTyping: true });
-        setTimeout(async () => {
-          io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
-          if (!activeRandomChats.has(roomId)) return;
-          const reply = await generateAiCompanionReply(chat, messageText);
-          if (!activeRandomChats.has(roomId)) return;
-          io.to(socket.id).emit('receive_anonymous_message', {
-            _id: `ai-companion-${Date.now()}`,
-            message: reply,
-            senderSocket: 'ai-companion',
-            createdAt: new Date().toISOString()
-          });
-        }, 900);
-      }, 350);
+      (async () => {
+        const { reply, action } = await generateAiCompanionReply(chat, messageText);
+        if (!activeRandomChats.has(roomId)) return;
+
+        // Calculate dynamic typing delay (roughly 150ms per 5 characters, min 500ms, max 5000ms)
+        const typingDelay = Math.max(500, Math.min(5000, (reply.length / 5) * 150));
+        
+        setTimeout(() => {
+          io.to(socket.id).emit('receive_anonymous_typing', { isTyping: true });
+          
+          setTimeout(() => {
+            io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
+            if (!activeRandomChats.has(roomId)) return;
+            
+            io.to(socket.id).emit('receive_anonymous_message', {
+              _id: `ai-companion-${Date.now()}`,
+              message: reply,
+              senderSocket: 'ai-companion',
+              createdAt: new Date().toISOString()
+            });
+            
+            if (action === 'disconnect') {
+              setTimeout(() => {
+                 activeRandomChats.delete(roomId);
+                 io.to(socket.id).emit('anonymous_chat_ended');
+              }, 1500);
+            }
+          }, typingDelay);
+        }, 350);
+      })();
       return;
     }
 
