@@ -130,7 +130,7 @@ export default function Dashboard() {
     }
   }, []);
 
-  const { user, token, logout } = useContext(AuthContext);
+  const { user, token, logout, login } = useContext(AuthContext);
   const API_URL = import.meta.env.VITE_API_URL || 'https://twelo-backend.onrender.com';
   const socket = useContext(SocketContext);
   const navigate = useNavigate();
@@ -357,8 +357,9 @@ export default function Dashboard() {
           if (savedUser) {
             savedUser.username = data.username;
             localStorage.setItem('user', JSON.stringify(savedUser));
+            login(savedUser, data.token);
           }
-          window.location.reload();
+          setEditUsernameMode(false);
         }
     } catch (err) {
       setUsernameError('An error occurred');
