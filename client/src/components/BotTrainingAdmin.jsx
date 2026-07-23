@@ -146,12 +146,15 @@ export default function BotTrainingAdmin() {
             <li><strong>Triggers (User kya puchega):</strong> Yahan wo saare words ya sentences daalein jo user puch sakta hai. Ek se zyada tarike comma (,) lagakar daalein. (Jaise: <code>name kya hai, naam batao, who are you</code>)</li>
             <li><strong>Bot's Responses (Bot kya bolega):</strong> Bot ka reply yahan set karein. Agar aap chahte hain ki bot har baar alag reply de (randomness), toh multiple replies ko pipe (|) symbol se alag karein. (Jaise: <code>Mera naam Sahil hai | Main Rohan hu</code>)</li>
             <li><strong>Follow-up (Bot ka next sawaal):</strong> Reply dene ke baad bot kya puchega? Ise blank bhi chhod sakte hain. Multiple options yahan bhi pipe (|) se set kar sakte hain. (Jaise: <code>Aap batao? | Tumhara kya naam hai?</code>)</li>
+            <li><strong>Reaction (Follow-up ka jawaab):</strong> Jab user bot ke puche gaye follow-up ka jawaab dega, toh bot uspe kya react karega? (Jaise: <code>Nice | Achha naam hai</code>). Ye turant next message par jayega bina purane rules check kiye.</li>
+            <li><strong>Disable on repeat (Checkbox):</strong> Agar user baar baar wahi same sawaal puchta hai, toh is checkbox ko on karne se bot use dobara follow-up nahi puchega, sirf jawaab dega.</li>
             <li><strong>Consistency:</strong> Agar bot ne ek chat me khud ka naam "Sahil" pick kar liya, toh ussi user se ussi chat me baar baar puchne par wo "Sahil" hi yaad rakhega. Nayi chat me random dusra naam lega.</li>
             <li><strong>Gender Logic:</strong> "Female Bot Only" select karenge toh ye rule sirf tab kaam karega jab koi Male user chat kar raha ho (kyunki usko Female bot milti hai).</li>
             <li><strong>Disconnect Action:</strong> Aap chat end karne ke 2 options chun sakte hain:
               <br />- <em>Disconnect after reply:</em> Bot pehle reply aur follow-up bhejega, uske baad 2 second me room disconnect karega.
               <br />- <em>Disconnect immediately:</em> Jaise hi user trigger message bhejega, bot bina koi reply bheje user message ki length ke hisaab se (read delay) + 2 second ke baad room disconnect kar dega.
             </li>
+            <li><strong>Edit Rules:</strong> <em>View Existing Rules</em> par click karein aur kisi bhi rule par ✏️ (Edit) daba kar use directly modify karke update karein.</li>
           </ul>
         </div>
       </div>
