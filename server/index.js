@@ -86,14 +86,13 @@ async function generateAiCompanionReply(chat, messageText) {
     const response = (matchedRule.botResponses && matchedRule.botResponses.length > 0) ? pickOne(matchedRule.botResponses) : '';
     const followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > 0) ? pickOne(matchedRule.botFollowUps) : '';
                        
-    const finalReply = (response + ' ' + followUp).trim();
-    const result = { reply: finalReply, action: matchedRule.action };
+    const result = { reply: response, followUp: followUp, action: matchedRule.action };
     
     chat.ruleHistory[ruleId] = result;
     return result;
   } catch (error) {
     console.error('Error generating AI reply from DB:', error);
-    return { reply: 'hmm', action: 'continue' };
+    return { reply: 'hmm', followUp: '', action: 'continue' };
   }
 }
 
@@ -1590,34 +1589,54 @@ io.on('connection', (socket) => {
 
     if (chat.isAiCompanion) {
       (async () => {
-        const { reply, action } = await generateAiCompanionReply(chat, messageText);
+        const { reply, followUp, action } = await generateAiCompanionReply(chat, messageText);
         if (!activeRandomChats.has(roomId)) return;
 
-        // Calculate dynamic typing delay (roughly 150ms per 5 characters, min 500ms, max 5000ms)
-        const typingDelay = Math.max(500, Math.min(5000, (reply.length / 5) * 150));
+        const sendDelay = (text) => Math.max(500, Math.min(5000, (text.length / 5) * 150));
         
-        setTimeout(() => {
-          io.to(socket.id).emit('receive_anonymous_typing', { isTyping: true });
-          
+        const executeAction = () => {
+          if (action === 'disconnect') {
+            setTimeout(() => {
+               activeRandomChats.delete(roomId);
+               io.to(socket.id).emit('anonymous_chat_ended');
+            }, 1500);
+          }
+        };
+
+        const typeAndSend = (text, callback) => {
+          if (!text) {
+            callback();
+            return;
+          }
+          const typingDelay = sendDelay(text);
           setTimeout(() => {
-            io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
-            if (!activeRandomChats.has(roomId)) return;
-            
-            io.to(socket.id).emit('receive_anonymous_message', {
-              _id: `ai-companion-${Date.now()}`,
-              message: reply,
-              senderSocket: 'ai-companion',
-              createdAt: new Date().toISOString()
-            });
-            
-            if (action === 'disconnect') {
-              setTimeout(() => {
-                 activeRandomChats.delete(roomId);
-                 io.to(socket.id).emit('anonymous_chat_ended');
-              }, 1500);
-            }
-          }, typingDelay);
-        }, 350);
+            io.to(socket.id).emit('receive_anonymous_typing', { isTyping: true });
+            setTimeout(() => {
+              io.to(socket.id).emit('receive_anonymous_typing', { isTyping: false });
+              if (!activeRandomChats.has(roomId)) return;
+              
+              io.to(socket.id).emit('receive_anonymous_message', {
+                _id: `ai-companion-${Date.now()}-${Math.random().toString(36).substr(2,9)}`,
+                message: text,
+                senderSocket: 'ai-companion',
+                createdAt: new Date().toISOString()
+              });
+              
+              callback();
+            }, typingDelay);
+          }, 350);
+        };
+
+        // First send the reply
+        typeAndSend(reply, () => {
+          // Then send the follow-up, if any
+          if (followUp) {
+            typeAndSend(followUp, executeAction);
+          } else {
+            executeAction();
+          }
+        });
+
       })();
       return;
     }
