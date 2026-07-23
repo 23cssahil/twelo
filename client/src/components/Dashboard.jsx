@@ -618,8 +618,9 @@ export default function Dashboard() {
     }
 
     const handlePopState = (e) => {
-      if (showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen) {
+      if (showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || showLogoutConfirm) {
         setShowSettingsModal(false);
+        setShowLogoutConfirm(false);
         setPublicProfileData(null);
         setActiveChatUser(null);
         if (isAnonymousChatActive) {
@@ -2574,7 +2575,7 @@ export default function Dashboard() {
           </nav>
         </div>
         <div className="sidebar-footer">
-          <div className="nav-item" onClick={logout} style={{ color: 'var(--brand-red)' }}><LogOut size={24} /><span>Logout</span></div>
+          <div className="nav-item" onClick={() => setShowLogoutConfirm(true)} style={{ color: 'var(--brand-red)' }}><LogOut size={24} /><span>Logout</span></div>
         </div>
       </aside>
 
@@ -2585,7 +2586,7 @@ export default function Dashboard() {
             <Bell size={20} />
             {unreadNotifsCount > 0 && <span className="badge">{unreadNotifsCount}</span>}
           </button>
-          <button onClick={logout} style={{ color: 'var(--brand-red)' }}><LogOut size={20} /></button>
+          <button onClick={() => setShowLogoutConfirm(true)} style={{ color: 'var(--brand-red)' }}><LogOut size={20} /></button>
         </div>
       </header>
 
