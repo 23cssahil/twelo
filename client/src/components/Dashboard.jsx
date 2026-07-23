@@ -1735,10 +1735,6 @@ export default function Dashboard() {
       case 'home':
         return (
           <div className="space-container" style={{ overflow: 'hidden' }}>
-            <div className="coin-display" style={{ zIndex: 10 }}>
-              <CoinSVG size={18} />
-              <span>{coins}</span>
-            </div>
 
             <div 
               className="space-ui-layer"
@@ -1797,14 +1793,6 @@ export default function Dashboard() {
               )}
             </div>
             
-            <div 
-              className="icon-btn" 
-              style={{ position: 'absolute', top: '16px', left: '16px', cursor: 'pointer', zIndex: 10, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', pointerEvents: 'auto' }}
-              onClick={() => setActiveTab('notifications')}
-            >
-              <Bell size={24} color="#fff" />
-              {unreadNotifsCount > 0 && <span className="badge">{unreadNotifsCount}</span>}
-            </div>
           </div>
         );
 
@@ -2554,7 +2542,13 @@ export default function Dashboard() {
       </div>
       <aside className="sidebar">
         <div>
-          <h1 className="sidebar-logo" onClick={() => setActiveTab('home')}>Twelo</h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: '20px' }}>
+            <h1 className="sidebar-logo" onClick={() => setActiveTab('home')}>Twelo</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.5)', color: 'gold', padding: '4px 10px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem' }}>
+              <CoinSVG size={16} />
+              <span>{coins}</span>
+            </div>
+          </div>
           <nav className="nav-links">
             <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>
               <HomeIcon size={24} /><span>Home</span>
@@ -2585,7 +2579,11 @@ export default function Dashboard() {
 
       <header className="mobile-header">
         <h1 className="mobile-logo">Twelo</h1>
-        <div style={{ display: 'flex', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.5)', color: 'gold', padding: '4px 8px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem' }}>
+            <CoinSVG size={16} />
+            <span>{coins}</span>
+          </div>
           <button onClick={() => setActiveTab('notifications')} style={{ position: 'relative' }}>
             <Bell size={20} />
             {unreadNotifsCount > 0 && <span className="badge">{unreadNotifsCount}</span>}
