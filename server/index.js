@@ -1627,15 +1627,20 @@ io.on('connection', (socket) => {
           }, 350);
         };
 
-        // First send the reply
-        typeAndSend(reply, () => {
-          // Then send the follow-up, if any
-          if (followUp) {
-            typeAndSend(followUp, executeAction);
-          } else {
-            executeAction();
-          }
-        });
+        // Calculate read delay (roughly 100ms per 5 characters, min 500ms, max 3000ms)
+        const readDelay = Math.max(500, Math.min(3000, ((messageText || '').length / 5) * 100));
+
+        setTimeout(() => {
+          // First send the reply
+          typeAndSend(reply, () => {
+            // Then send the follow-up, if any
+            if (followUp) {
+              typeAndSend(followUp, executeAction);
+            } else {
+              executeAction();
+            }
+          });
+        }, readDelay);
 
       })();
       return;
