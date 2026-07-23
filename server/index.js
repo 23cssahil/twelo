@@ -47,7 +47,7 @@ function createAiCompanion(userGender) {
     name: 'Stranger',
     gender,
     avatarUrl: generateAvatarUrl(gender),
-    country: 'Twelo AI companion'
+    country: 'India'
   };
 }
 
