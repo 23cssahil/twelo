@@ -97,11 +97,15 @@ async function generateAiCompanionReply(chat, messageText) {
           const tWords = t.split(/\s+/).filter(Boolean);
           const matchedWords = tWords.filter(w => textWords.includes(w)).length;
           
-          // Ratio of trigger words to total message words (ignores weak keyword matches in long sentences)
+          // Ratio of trigger words to total message words
           const ratio = matchedWords / textWordCount;
           
-          if (ratio >= 0.2 || cleanText === t) {
-            const score = ratio + (t.length * 0.001); // Prioritize ratio, break ties with length
+          // Increase threshold to > 0.25 so 1-word triggers fail on 5+ word sentences (fixes false positives)
+          if (ratio > 0.25 || cleanText === t) {
+            // Favor triggers that appear earlier in the user's text to handle multi-keyword inputs intuitively
+            const indexBoost = (1 - (cleanText.indexOf(t) / Math.max(1, cleanText.length))) * 0.001;
+            const score = ratio + indexBoost;
+            
             if (score > maxMatchScore) {
               matchedRule = rule;
               maxMatchScore = score;
