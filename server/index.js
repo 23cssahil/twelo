@@ -1636,6 +1636,17 @@ io.on('connection', (socket) => {
         const { reply, followUp, action } = await generateAiCompanionReply(chat, messageText);
         if (!activeRandomChats.has(roomId)) return;
 
+        if (action === 'disconnect_immediately') {
+          // Calculate read delay (roughly 150ms per 5 characters, min 1000ms, max 4000ms)
+          const readDelay = Math.max(1000, Math.min(4000, ((messageText || '').length / 5) * 150));
+          setTimeout(() => {
+            if (!activeRandomChats.has(roomId)) return;
+            activeRandomChats.delete(roomId);
+            io.to(socket.id).emit('anonymous_chat_ended');
+          }, readDelay + 2000);
+          return;
+        }
+
         const sendDelay = (text) => Math.max(1000, Math.min(6000, (text.length / 5) * 200));
         
         const executeAction = () => {
@@ -1643,7 +1654,7 @@ io.on('connection', (socket) => {
             setTimeout(() => {
                activeRandomChats.delete(roomId);
                io.to(socket.id).emit('anonymous_chat_ended');
-            }, 1500);
+            }, 2000);
           }
         };
 

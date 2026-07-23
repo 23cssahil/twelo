@@ -123,7 +123,10 @@ export default function BotTrainingAdmin() {
             <li><strong>Follow-up (Bot ka next sawaal):</strong> Reply dene ke baad bot kya puchega? Ise blank bhi chhod sakte hain. Multiple options yahan bhi pipe (|) se set kar sakte hain. (Jaise: <code>Aap batao? | Tumhara kya naam hai?</code>)</li>
             <li><strong>Consistency:</strong> Agar bot ne ek chat me khud ka naam "Sahil" pick kar liya, toh ussi user se ussi chat me baar baar puchne par wo "Sahil" hi yaad rakhega. Nayi chat me random dusra naam lega.</li>
             <li><strong>Gender Logic:</strong> "Female Bot Only" select karenge toh ye rule sirf tab kaam karega jab koi Male user chat kar raha ho (kyunki usko Female bot milti hai).</li>
-            <li><strong>Disconnect Action:</strong> Agar aap chahte hain kisi specific reply ke baad bot apne aap chat chhod de, toh action me "Disconnect immediately" chunein. Bot reply karega aur "Stranger has disconnected" show ho jayega.</li>
+            <li><strong>Disconnect Action:</strong> Aap chat end karne ke 2 options chun sakte hain:
+              <br />- <em>Disconnect after reply:</em> Bot pehle reply aur follow-up bhejega, uske baad 2 second me room disconnect karega.
+              <br />- <em>Disconnect immediately:</em> Jaise hi user trigger message bhejega, bot bina koi reply bheje user message ki length ke hisaab se (read delay) + 2 second ke baad room disconnect kar dega.
+            </li>
           </ul>
         </div>
       </div>
@@ -182,7 +185,8 @@ export default function BotTrainingAdmin() {
                 <label>Action after reply:</label>
                 <select value={newRule.action} onChange={e => setNewRule({...newRule, action: e.target.value})}>
                   <option value="continue">Continue Chat</option>
-                  <option value="disconnect">Disconnect immediately</option>
+                  <option value="disconnect">Disconnect after reply</option>
+                  <option value="disconnect_immediately">Disconnect immediately (no reply)</option>
                 </select>
               </div>
             </div>

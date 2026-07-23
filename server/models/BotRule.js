@@ -18,7 +18,7 @@ const botRuleSchema = new mongoose.Schema({
   }], // Array of possible follow-up questions
   action: { 
     type: String, 
-    enum: ['continue', 'disconnect'], 
+    enum: ['continue', 'disconnect', 'disconnect_immediately'], 
     default: 'continue' 
   },
   botGender: { 
