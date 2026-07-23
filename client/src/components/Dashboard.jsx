@@ -678,10 +678,8 @@ export default function Dashboard() {
     if (isSearchingRandom && randomSearchTimer > 0) {
       interval = setInterval(() => setRandomSearchTimer(prev => prev - 1), 1000);
     } else if (isSearchingRandom && randomSearchTimer === 0) {
-      setIsSearchingRandom(false);
-      setMatchFailed(true);
-      if (socket) socket.emit('cancel_search', user.id);
-      setTimeout(() => setMatchFailed(false), 3000);
+      // Don't auto-cancel on the frontend. The backend will ALWAYS send a match or bot within this time.
+      // We just keep the UI in 'searching' state until the server responds, which should be instantaneous now.
     }
     return () => clearInterval(interval);
   }, [isSearchingRandom, randomSearchTimer, socket, user, activeTab]);
