@@ -38,6 +38,9 @@ export default function Terms() {
         <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>5. Liability and Disclaimer</h2>
         <p>Our platform is provided "as is" without any warranties. We are not responsible for the content shared by users in anonymous or direct chats. You use the platform at your own risk.</p>
         
+        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>6. Virtual Currency & Coins</h2>
+        <p>Users receive 10 free coins daily for using the platform. These coins are provided solely as a promotional feature to enhance your experience and are strictly not linked to any ad engagement or external advertising mechanics.</p>
+
         <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid var(--border-color)', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
           <p>If you have questions about these Terms, please contact our support team.</p>
         </div>
