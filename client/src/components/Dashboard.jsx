@@ -1962,7 +1962,7 @@ export default function Dashboard() {
                       }}
                       required
                     />
-                    <button id="anon-chat-send-btn" type="button" className="chat-send-btn" style={{ display: 'none' }} onPointerDown={(e) => { e.preventDefault(); const input = document.getElementById('anonymous-chat-input'); if(input.value.trim()){ handleSendAnonymousMessage(e, input.value); input.value = ''; input.style.height = 'auto'; e.currentTarget.style.display = 'none'; } }}><Send size={18} /></button>
+                    <button id="anon-chat-send-btn" type="button" className="chat-send-btn" style={{ display: 'none' }} onPointerDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); const input = document.getElementById('anonymous-chat-input'); if(input.value.trim()){ handleSendAnonymousMessage(e, input.value); input.value = ''; input.style.height = 'auto'; e.currentTarget.style.display = 'none'; } }}><Send size={18} /></button>
                   </div>
                 </form>
               ) : (
@@ -2489,7 +2489,7 @@ export default function Dashboard() {
                       )}
 
                       {!isRecording && (
-                        <button id="main-chat-send-btn" type="submit" className="chat-send-btn" disabled={isUploading} onPointerDown={(e) => { e.preventDefault(); const input = document.getElementById('chat-input'); if(input.value.trim()){ handleSendMessage(e, input.value); input.value = ''; input.style.height = 'auto'; e.currentTarget.style.display = 'none'; const mediaActions = document.getElementById('main-chat-media-actions'); if (mediaActions) mediaActions.style.display = 'flex'; } }} style={{ display: 'none' }}>
+                        <button id="main-chat-send-btn" type="submit" className="chat-send-btn" disabled={isUploading} onPointerDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); const input = document.getElementById('chat-input'); if(input.value.trim()){ handleSendMessage(e, input.value); input.value = ''; input.style.height = 'auto'; e.currentTarget.style.display = 'none'; const mediaActions = document.getElementById('main-chat-media-actions'); if (mediaActions) mediaActions.style.display = 'flex'; } }} style={{ display: 'none' }}>
                           {isUploading ? <span style={{ fontSize: '12px' }}>...</span> : <Send size={18} />}
                         </button>
                       )}
