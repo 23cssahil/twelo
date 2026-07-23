@@ -115,10 +115,10 @@ export default function Landing() {
         <p style={{ color: '#888', marginBottom: '30px' }}>Powered by NexGenRewards</p>
         
         <div style={{ display: 'flex', justifyContent: 'center', gap: '30px', flexWrap: 'wrap', marginBottom: '40px' }}>
-          <span onClick={() => navigate('/about-us')} style={{ color: '#fff', cursor: 'pointer', fontSize: '1rem' }}>About Us</span>
-          <span onClick={() => navigate('/contact-us')} style={{ color: '#fff', cursor: 'pointer', fontSize: '1rem' }}>Contact Us</span>
-          <span onClick={() => navigate('/privacy-policy')} style={{ color: '#fff', cursor: 'pointer', fontSize: '1rem' }}>Privacy Policy</span>
-          <span onClick={() => navigate('/terms')} style={{ color: '#fff', cursor: 'pointer', fontSize: '1rem' }}>Terms & Conditions</span>
+          <span onClick={() => { window.scrollTo(0,0); navigate('/about-us'); }} style={{ color: '#fff', cursor: 'pointer', fontSize: '1rem' }}>About Us</span>
+          <span onClick={() => { window.scrollTo(0,0); navigate('/contact-us'); }} style={{ color: '#fff', cursor: 'pointer', fontSize: '1rem' }}>Contact Us</span>
+          <span onClick={() => { window.scrollTo(0,0); navigate('/privacy-policy'); }} style={{ color: '#fff', cursor: 'pointer', fontSize: '1rem' }}>Privacy Policy</span>
+          <span onClick={() => { window.scrollTo(0,0); navigate('/terms'); }} style={{ color: '#fff', cursor: 'pointer', fontSize: '1rem' }}>Terms & Conditions</span>
         </div>
         
         <p style={{ color: '#555', fontSize: '0.9rem', margin: 0 }}>&copy; {new Date().getFullYear()} Twelo. All rights reserved.</p>
