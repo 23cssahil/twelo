@@ -196,6 +196,7 @@ export default function Login() {
             <div style={{ marginTop: '20px', fontSize: '0.8rem', color: '#a8a8a8', textAlign: 'center' }}>
               By logging in, you agree to our <br/>
               <span onClick={() => navigate('/terms')} style={{ color: 'var(--brand-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Terms & Conditions</span> and <span onClick={() => navigate('/privacy-policy')} style={{ color: 'var(--brand-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Privacy Policy</span>.<br/><br/>
+              <span style={{ display: 'block', marginBottom: '12px', fontWeight: 'bold', color: '#ddd' }}>Twelo - Powered by NexGenRewards</span>
               Need help? <span onClick={() => navigate('/contact-us')} style={{ color: 'var(--brand-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Contact Us</span>
             </div>
             {loading && <p style={{ textAlign: 'center', marginTop: '16px', color: '#a8a8a8' }}>Please wait...</p>}
