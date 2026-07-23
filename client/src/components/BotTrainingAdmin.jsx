@@ -242,7 +242,8 @@ export default function BotTrainingAdmin() {
               ))
             )}
           </div>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
