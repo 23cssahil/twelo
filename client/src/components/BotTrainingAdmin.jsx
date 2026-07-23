@@ -17,7 +17,9 @@ export default function BotTrainingAdmin() {
     responses: '',
     followUps: '',
     gender: 'both',
-    action: 'continue'
+    action: 'continue',
+    isConsistent: true,
+    responseMode: 'random'
   });
 
   const fetchBotRules = async () => {
@@ -50,7 +52,9 @@ export default function BotTrainingAdmin() {
         botResponses: newRule.responses.split('|').map(t => t.trim()).filter(Boolean),
         botFollowUps: newRule.followUps ? newRule.followUps.split('|').map(t => t.trim()).filter(Boolean) : [],
         botGender: newRule.gender,
-        action: newRule.action
+        action: newRule.action,
+        isConsistent: newRule.isConsistent,
+        responseMode: newRule.responseMode
       };
       const res = await fetch(`${API_URL}/api/admin/bot-rules`, {
         method: 'POST',
@@ -58,7 +62,7 @@ export default function BotTrainingAdmin() {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        setNewRule({ triggers: '', responses: '', followUps: '', gender: 'both', action: 'continue' });
+        setNewRule({ triggers: '', responses: '', followUps: '', gender: 'both', action: 'continue', isConsistent: true, responseMode: 'random' });
         fetchBotRules();
       }
     } catch (err) { console.error(err); }
@@ -143,6 +147,21 @@ export default function BotTrainingAdmin() {
             
             <div className="form-row">
               <div className="form-group">
+                <label>Response Mode:</label>
+                <select value={newRule.responseMode} onChange={e => setNewRule({...newRule, responseMode: e.target.value})}>
+                  <option value="random">Random (Pick randomly)</option>
+                  <option value="sequential">Sequential (Match trigger index to response index)</option>
+                </select>
+              </div>
+              
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', marginTop: '25px' }}>
+                <input type="checkbox" id="isConsistent" checked={newRule.isConsistent} onChange={e => setNewRule({...newRule, isConsistent: e.target.checked})} style={{ width: 'auto', marginRight: '8px' }} />
+                <label htmlFor="isConsistent" style={{ margin: 0, cursor: 'pointer' }}>Consistent in same chat</label>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
                 <label>Target Bot Gender:</label>
                 <select value={newRule.gender} onChange={e => setNewRule({...newRule, gender: e.target.value})}>
                   <option value="both">Both (Male & Female Bots)</option>
@@ -179,9 +198,9 @@ export default function BotTrainingAdmin() {
                     
                     <div className="bot-rule-meta">
                       <span className="meta-badge">Bot: {rule.botGender}</span>
-                      <span className={`meta-badge ${rule.action === 'disconnect' ? 'action-disconnect' : ''}`}>
-                        Action: {rule.action}
-                      </span>
+                      <span className="meta-badge">Action: {rule.action}</span>
+                      <span className="meta-badge">Mode: {rule.responseMode}</span>
+                      <span className="meta-badge">Consistent: {rule.isConsistent ? 'Yes' : 'No'}</span>
                     </div>
                   </div>
                   <button onClick={() => handleDeleteBotRule(rule._id)} className="bot-btn-delete" title="Delete Rule">

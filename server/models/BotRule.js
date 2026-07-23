@@ -26,6 +26,15 @@ const botRuleSchema = new mongoose.Schema({
     enum: ['male', 'female', 'both'], 
     default: 'both' 
   },
+  isConsistent: {
+    type: Boolean,
+    default: true
+  },
+  responseMode: {
+    type: String,
+    enum: ['random', 'sequential'],
+    default: 'random'
+  },
   isActive: { 
     type: Boolean, 
     default: true 

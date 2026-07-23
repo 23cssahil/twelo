@@ -66,9 +66,9 @@ async function generateAiCompanionReply(chat, messageText) {
     for (const rule of rules) {
       if (rule.botGender !== 'both' && rule.botGender !== chat.companion.gender) continue;
       
-      for (const trigger of rule.userMessageTriggers) {
+      rule.userMessageTriggers.forEach((trigger, idx) => {
         const t = trigger.toLowerCase().trim();
-        if (!t) continue;
+        if (!t) return;
         
         let isMatch = false;
         try {
@@ -82,8 +82,9 @@ async function generateAiCompanionReply(chat, messageText) {
         if (isMatch && t.length > maxTriggerLength) {
           matchedRule = rule;
           maxTriggerLength = t.length;
+          matchedRule.matchedTriggerIndex = idx;
         }
-      }
+      });
     }
     
     if (!matchedRule) {
@@ -94,16 +95,29 @@ async function generateAiCompanionReply(chat, messageText) {
     }
     
     const ruleId = matchedRule._id.toString();
-    if (chat.ruleHistory[ruleId]) {
+    
+    // Check if consistent and already cached
+    if (matchedRule.isConsistent !== false && chat.ruleHistory[ruleId]) {
       return chat.ruleHistory[ruleId];
     }
     
-    const response = (matchedRule.botResponses && matchedRule.botResponses.length > 0) ? pickOne(matchedRule.botResponses) : '';
-    const followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > 0) ? pickOne(matchedRule.botFollowUps) : '';
+    let response = '';
+    let followUp = '';
+    
+    if (matchedRule.responseMode === 'sequential' && typeof matchedRule.matchedTriggerIndex === 'number') {
+      const idx = matchedRule.matchedTriggerIndex;
+      response = matchedRule.botResponses[idx] || '';
+      followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > idx) ? matchedRule.botFollowUps[idx] : '';
+    } else {
+      response = (matchedRule.botResponses && matchedRule.botResponses.length > 0) ? pickOne(matchedRule.botResponses) : '';
+      followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > 0) ? pickOne(matchedRule.botFollowUps) : '';
+    }
                        
     const result = { reply: response, followUp: followUp, action: matchedRule.action };
     
-    chat.ruleHistory[ruleId] = result;
+    if (matchedRule.isConsistent !== false) {
+      chat.ruleHistory[ruleId] = result;
+    }
     return result;
   } catch (error) {
     console.error('Error generating AI reply from DB:', error);
