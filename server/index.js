@@ -568,6 +568,12 @@ app.post('/api/users/anonymous_follow/:id', authenticateToken, async (req, res) 
       return res.status(400).json({ message: "Not enough coins. You need 5 coins to send a request." });
     }
 
+    if (targetUserId.startsWith('ai-companion-')) {
+      currentUser.coins -= 5;
+      await currentUser.save();
+      return res.json({ success: true, coinsLeft: currentUser.coins });
+    }
+
     const targetUser = await User.findById(targetUserId);
     if (!targetUser) return res.status(404).json({ message: "User not found" });
 

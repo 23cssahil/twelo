@@ -1826,7 +1826,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="chat-actions">
-                  {!isAiCompanion && <button
+                  <button
                     className="action-icon-btn" 
                     onClick={() => {
                       setReportTarget({ id: anonymousPartnerId, username: 'Anonymous User', isAnonymous: true });
@@ -1836,15 +1836,15 @@ export default function Dashboard() {
                     style={{ color: '#ff4b4b' }}
                   >
                     <Flag size={20} />
-                  </button>}
-                  {!isAiCompanion && <button
+                  </button>
+                  <button
                       className="premium-btn primary" 
                       style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center' }}
                       onClick={handleSendAnonymousFriendRequest}
                       title="Send Friend Request (Costs 5 Coins)"
                     >
                       <UserPlus size={16} style={{ marginRight: '6px' }} /> Add Friend (5 <CoinSVG size={12} style={{marginLeft: '2px'}}/>)
-                    </button>}
+                    </button>
                 </div>
               </div>
               
@@ -1915,7 +1915,7 @@ export default function Dashboard() {
               ) : (
                 <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                   <div>Chat has ended.</div>
-                  {anonymousPartnerId && !isAiCompanion && (
+                  {anonymousPartnerId && (
                     <button 
                       className="premium-btn primary" 
                       style={{ fontSize: '0.85rem', padding: '8px 16px', display: 'flex', alignItems: 'center' }}
