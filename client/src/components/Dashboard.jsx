@@ -549,7 +549,7 @@ export default function Dashboard() {
 
     socket.on('cancel_search', () => {
       setIsSearchingRandom(false);
-      setRandomSearchTimer(7);
+      setRandomSearchTimer(3);
     });
 
     socket.on('receive_anonymous_typing', ({ isTyping }) => {
@@ -1600,7 +1600,7 @@ export default function Dashboard() {
         return;
       }
       setIsSearchingRandom(true);
-      setRandomSearchTimer(7);
+      setRandomSearchTimer(3);
       setMatchFailed(false);
       if (socket) socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
     } else {
@@ -1750,7 +1750,7 @@ export default function Dashboard() {
                   <div className="match-timer">{randomSearchTimer}s</div>
                   <div className="search-text">Looking for someone in the universe...</div>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setIsSearchingRandom(false); setRandomSearchTimer(5); if (socket) socket.emit('cancel_search', user.id); }}
+                    onClick={(e) => { e.stopPropagation(); setIsSearchingRandom(false); setRandomSearchTimer(3); if (socket) socket.emit('cancel_search', user.id); }}
                     style={{ padding: '8px 20px', borderRadius: '20px', border: '1px solid rgba(255,100,100,0.5)', background: 'rgba(255,50,50,0.2)', color: '#ff6b6b', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}
                   >
                     Cancel

@@ -37,7 +37,7 @@ function generateAvatarUrl(gender) {
 
 // A transparent fallback for the random-chat queue.  The client labels this
 // participant as an AI companion; it must never be presented as a real user.
-const AI_COMPANION_FALLBACK_DELAY_MS = 5500;
+const AI_COMPANION_FALLBACK_DELAY_MS = 2800;
 const FEMALE_COMPANION_NAMES = ['Riya', 'Kriti', 'Ananya', 'Sneha', 'Tanvi', 'Simran', 'Diya', 'Isha', 'Khushi', 'Mehak'];
 const MALE_COMPANION_NAMES = ['Rahul', 'Aman', 'Rohan', 'Kabir', 'Aditya', 'Sameer', 'Yash', 'Aryan', 'Karan', 'Vivek'];
 const COMPANION_VIBES = ['chill', 'witty', 'shy', 'energetic'];
