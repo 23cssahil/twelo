@@ -11,6 +11,7 @@ export default function BotTrainingAdmin() {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showExistingRules, setShowExistingRules] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [botRules, setBotRules] = useState([]);
   const [newRule, setNewRule] = useState({
@@ -191,17 +192,36 @@ export default function BotTrainingAdmin() {
           </div>
         ) : (
           <div className="bot-training-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <h2 style={{ margin: 0 }}>Existing Rules ({botRules.length})</h2>
               <button type="button" onClick={() => setShowExistingRules(false)} className="bot-btn-submit" style={{ width: 'auto', padding: '8px 16px', background: '#0095f6', margin: 0, display: 'flex', alignItems: 'center' }}>
                 <Plus size={16} style={{ marginRight: '8px' }} /> Create New Rule
               </button>
             </div>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <input 
+                type="text" 
+                placeholder="Search by Trigger, Response, or Follow-up..." 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{ width: '100%', padding: '12px 15px', borderRadius: '8px', border: '1px solid #333', background: '#1a1a1a', color: '#fff', fontSize: '0.95rem' }}
+              />
+            </div>
+            
             <div className="bot-rules-list" style={{ maxHeight: '650px', overflowY: 'auto', paddingRight: '15px' }}>
             {botRules.length === 0 ? (
               <div className="empty-rules">No rules found. Start training your bot by adding a rule!</div>
             ) : (
-              botRules.map(rule => (
+              botRules.filter(rule => {
+                if (!searchQuery) return true;
+                const q = searchQuery.toLowerCase();
+                return (
+                  rule.userMessageTriggers.some(t => t.toLowerCase().includes(q)) ||
+                  rule.botResponses.some(r => r.toLowerCase().includes(q)) ||
+                  (rule.botFollowUps && rule.botFollowUps.some(f => f.toLowerCase().includes(q)))
+                );
+              }).map(rule => (
                 <div key={rule._id} className={`bot-rule-item ${rule.action === 'disconnect' ? 'disconnect' : ''}`}>
                   <div className="bot-rule-content">
                     <p><strong>Triggers:</strong> {rule.userMessageTriggers.join(', ')}</p>
