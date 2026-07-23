@@ -61,7 +61,11 @@ async function generateAiCompanionReply(chat, messageText) {
     const rules = await BotRule.find({ isActive: true }).lean();
     
     let matchedRule = null;
-    let maxTriggerLength = 0;
+    let maxMatchScore = 0;
+    
+    const cleanText = text.replace(/[.,!?]/g, '');
+    const textWords = cleanText.split(/\s+/).filter(Boolean);
+    const textWordCount = Math.max(1, textWords.length);
     
     for (const rule of rules) {
       if (rule.botGender !== 'both' && rule.botGender !== chat.companion.gender) continue;
@@ -79,10 +83,21 @@ async function generateAiCompanionReply(chat, messageText) {
           isMatch = text.includes(t);
         }
         
-        if (isMatch && t.length > maxTriggerLength) {
-          matchedRule = rule;
-          maxTriggerLength = t.length;
-          matchedRule.matchedTriggerIndex = idx;
+        if (isMatch) {
+          const tWords = t.split(/\s+/).filter(Boolean);
+          const matchedWords = tWords.filter(w => textWords.includes(w)).length;
+          
+          // Ratio of trigger words to total message words (ignores weak keyword matches in long sentences)
+          const ratio = matchedWords / textWordCount;
+          
+          if (ratio >= 0.2 || cleanText === t) {
+            const score = ratio + (t.length * 0.001); // Prioritize ratio, break ties with length
+            if (score > maxMatchScore) {
+              matchedRule = rule;
+              maxMatchScore = score;
+              matchedRule.matchedTriggerIndex = idx;
+            }
+          }
         }
       });
     }
