@@ -10,6 +10,7 @@ import ContactUs from './components/ContactUs';
 import AboutUs from './components/AboutUs';
 import DeveloperAdmin from './components/DeveloperAdmin';
 import BotTrainingAdmin from './components/BotTrainingAdmin';
+import Landing from './components/Landing';
 import { Capacitor } from '@capacitor/core';
 import { AdMob } from '@capacitor-community/admob';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -146,6 +147,7 @@ export default function App() {
               <Route path="/terms" element={<Terms />} />
               <Route path="/contact-us" element={<ContactUs />} />
               <Route path="/about-us" element={<AboutUs />} />
+              <Route path="/" element={!token ? <Landing /> : <Dashboard />} />
               <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" state={{ from: window.location.pathname }} />} />
             </Routes>
           </Router>
