@@ -1129,6 +1129,21 @@ export default function Dashboard() {
     if (!reportTarget) return;
     setIsSubmittingReport(true);
     
+    // If reporting an AI companion, simulate success without sending to backend
+    if (reportTarget.id && reportTarget.id.toString().startsWith('ai-companion-')) {
+      setTimeout(() => {
+        setIsSubmittingReport(false);
+        setReportSuccess(true);
+        setTimeout(() => {
+          setShowReportModal(false);
+          setReportTarget(null);
+          setReportSuccess(false);
+          setReportReason(''); // reset reason
+        }, 2000);
+      }, 500);
+      return;
+    }
+    
     // Capture exactly what is on the screen right now
     const chatContextData = reportTarget.isAnonymous ? anonymousMessages : messages;
     // Format to a readable string or keep as JSON. Let's just stringify a simplified version
