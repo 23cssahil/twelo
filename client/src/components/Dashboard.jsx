@@ -269,6 +269,8 @@ export default function Dashboard() {
   const [currentFacingMode, setCurrentFacingMode] = useState('user');
   
   const [globeStatus, setGlobeStatus] = useState({ isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null });
+  const [showGlobeOfflineModal, setShowGlobeOfflineModal] = useState(false);
+  const [globeOfflineTimerDisplay, setGlobeOfflineTimerDisplay] = useState('');
 
   // Call Details
   const [callerId, setCallerId] = useState('');
@@ -616,6 +618,35 @@ export default function Dashboard() {
       socket.off('globe_status_update');
     };
   }, [socket, user]);
+
+  useEffect(() => {
+    let interval;
+    if (!globeStatus.isEnabled && globeStatus.enableAt) {
+      const updateTimer = () => {
+        const enableTime = new Date(globeStatus.enableAt).getTime();
+        const now = Date.now();
+        const diff = enableTime - now;
+
+        if (diff <= 0) {
+          setGlobeOfflineTimerDisplay('00:00:00');
+          setShowGlobeOfflineModal(false);
+          clearInterval(interval);
+        } else {
+          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          
+          let display = '';
+          if (hours > 0) display += `${hours.toString().padStart(2, '0')}:`;
+          display += `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+          setGlobeOfflineTimerDisplay(display);
+        }
+      };
+      updateTimer();
+      interval = setInterval(updateTimer, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [globeStatus.isEnabled, globeStatus.enableAt]);
 
   // SPA Back Button Handling for Overlays & Chats
   useEffect(() => {
@@ -1619,11 +1650,7 @@ export default function Dashboard() {
       const now = new Date();
       const enableTime = globeStatus.enableAt ? new Date(globeStatus.enableAt) : null;
       if (!enableTime || now < enableTime) {
-         let msg = globeStatus.customMessage || "The globe is currently offline.";
-         if (enableTime) {
-            msg += `\nIt will open at: ${enableTime.toLocaleTimeString()}`;
-         }
-         alert(msg);
+         setShowGlobeOfflineModal(true);
          return;
       }
     }
@@ -3004,6 +3031,38 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      {/* Globe Offline Modal */}
+      {showGlobeOfflineModal && !globeStatus.isEnabled && (
+        <div className="settings-drawer-overlay" style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowGlobeOfflineModal(false)}>
+          <div className="settings-drawer" style={{ height: 'auto', maxHeight: '60%', borderRadius: '20px', width: '90%', maxWidth: '380px', padding: '30px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+               <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '15px', borderRadius: '50%' }}>
+                 <Globe size={48} color="#ef4444" />
+               </div>
+            </div>
+            <h2 style={{ fontSize: '1.6rem', marginBottom: '15px', color: '#fff', fontWeight: 'bold' }}>Globe is Offline</h2>
+            <p style={{ color: '#a8a8a8', marginBottom: '25px', fontSize: '1.05rem', lineHeight: '1.5' }}>
+               {globeStatus.customMessage || "The matching globe is currently offline for maintenance."}
+            </p>
+            {globeStatus.enableAt && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '25px' }}>
+                <p style={{ color: '#ef4444', fontWeight: 'bold', marginBottom: '8px', fontSize: '0.85rem', letterSpacing: '1px' }}>OPENS IN</p>
+                <div style={{ fontSize: '2.8rem', fontWeight: '900', color: '#fff', letterSpacing: '3px', fontFamily: 'monospace' }}>
+                   {globeOfflineTimerDisplay}
+                </div>
+              </div>
+            )}
+            <button 
+               onClick={() => setShowGlobeOfflineModal(false)}
+               className="premium-btn primary" 
+               style={{ width: '100%', padding: '14px', fontSize: '1.1rem', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
+            >
+               Got it
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
