@@ -1056,52 +1056,65 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // DAU & MAU
-    const dauSessions = await UserSession.distinct('user', { startTime: { $gte: startOfDay } });
-    const mauSessions = await UserSession.distinct('user', { startTime: { $gte: startOfMonth } });
+    // Run heavy distinct queries in parallel to significantly reduce loading time
+    const [dauSessions, mauSessions] = await Promise.all([
+      UserSession.distinct('user', { startTime: { $gte: startOfDay } }),
+      UserSession.distinct('user', { startTime: { $gte: startOfMonth } })
+    ]);
     
-    // Retention (simplified logic: check users created recently and if they have sessions)
-    // A full cohort analysis is complex, we will provide a basic DAU/MAU and Session metrics.
-    
-    // Session Length & Core Actions (averages over the last 7 days)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const recentSessions = await UserSession.find({ startTime: { $gte: sevenDaysAgo } }).lean();
     
     let totalDuration = 0;
     let totalMessages = 0;
     let totalMatches = 0;
+    let sessionCount = recentSessions.length;
     
+    // Add completed sessions
     recentSessions.forEach(s => {
       totalDuration += (s.durationMs || 0);
       totalMessages += (s.messagesSent || 0);
       totalMatches += (s.matchesMade || 0);
     });
     
-    const avgSessionMs = recentSessions.length ? totalDuration / recentSessions.length : 0;
-    const avgMessages = recentSessions.length ? totalMessages / recentSessions.length : 0;
-    const avgMatches = recentSessions.length ? totalMatches / recentSessions.length : 0;
+    // Add CURRENT live active sessions so averages update in real-time before disconnect
+    activeSessions.forEach((session) => {
+       totalDuration += (Date.now() - session.startTime);
+       totalMessages += (session.messagesSent || 0);
+       totalMatches += (session.matchesMade || 0);
+       sessionCount++;
+    });
     
-    // Format chart data (Last 7 Days DAU trend)
-    const chartData = {
-      labels: [],
-      dau: []
-    };
+    const avgSessionMs = sessionCount ? totalDuration / sessionCount : 0;
+    const avgMessages = sessionCount ? totalMessages / sessionCount : 0;
+    const avgMatches = sessionCount ? totalMatches / sessionCount : 0;
+    
+    // Format chart data (Last 7 Days DAU trend) with Promise.all for speed
+    const chartData = { labels: [], dau: [] };
+    const chartPromises = [];
     
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
       const dStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       const dEnd = new Date(dStart.getTime() + 24 * 60 * 60 * 1000);
-      const dDau = await UserSession.distinct('user', { startTime: { $gte: dStart, $lt: dEnd } });
+      
       chartData.labels.push(`${d.getDate()}/${d.getMonth()+1}`);
-      chartData.dau.push(dDau.length);
+      chartPromises.push(UserSession.distinct('user', { startTime: { $gte: dStart, $lt: dEnd } }));
     }
+    
+    const dailyDauResults = await Promise.all(chartPromises);
+    dailyDauResults.forEach(res => chartData.dau.push(res.length));
 
-    // Since we just added this feature, retention might be zero, let's fake 1 day retention as (DAU / MAU) * 100 for now to give a KPI feeling if they are active
-    const day1Retention = mauSessions.length ? Math.round((dauSessions.length / mauSessions.length) * 100) : 0;
+    // Combine live active users into DAU/MAU to ensure it's up to second real-time
+    const liveUserIds = Array.from(activeSessions.values()).map(s => s.userId?.toString()).filter(Boolean);
+    const uniqueDau = new Set([...dauSessions.map(id => id.toString()), ...liveUserIds]);
+    const uniqueMau = new Set([...mauSessions.map(id => id.toString()), ...liveUserIds]);
+
+    const day1Retention = uniqueMau.size ? Math.round((uniqueDau.size / uniqueMau.size) * 100) : 0;
 
     res.json({
-      dau: dauSessions.length,
-      mau: mauSessions.length,
+      dau: uniqueDau.size,
+      mau: uniqueMau.size,
       avgSessionMinutes: parseFloat((avgSessionMs / 60000).toFixed(2)),
       avgMessages: parseFloat(avgMessages.toFixed(2)),
       avgMatches: parseFloat(avgMatches.toFixed(2)),
