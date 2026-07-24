@@ -14,8 +14,9 @@ import {
   Title,
   Tooltip,
   Legend,
+  ArcElement
 } from 'chart.js';
-import { Line, Bar } from 'react-chartjs-2';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
@@ -23,6 +24,7 @@ ChartJS.register(
   PointElement,
   LineElement,
   BarElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend
@@ -933,6 +935,64 @@ export default function DeveloperAdmin() {
                           />
                         </div>
                      </div>
+                  )}
+                  {analyticsData.demographics && (
+                    <div className="analytics-charts-grid" style={{ marginTop: '20px' }}>
+                      <div className="dev-panel">
+                        <h4 style={{ marginBottom: '15px' }}>Gender Distribution</h4>
+                        <div style={{ position: 'relative', height: '300px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                          <Doughnut
+                            data={{
+                              labels: ['Male', 'Female'],
+                              datasets: [{
+                                data: [analyticsData.demographics.gender.male, analyticsData.demographics.gender.female],
+                                backgroundColor: ['#3b82f6', '#ec4899'],
+                                borderWidth: 0,
+                                hoverOffset: 4
+                              }]
+                            }}
+                            options={{
+                              responsive: true,
+                              maintainAspectRatio: false,
+                              plugins: {
+                                legend: { position: 'bottom', labels: { color: '#fff', font: { size: 14 } } },
+                                tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', padding: 12 }
+                              },
+                              cutout: '70%'
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="dev-panel">
+                        <h4 style={{ marginBottom: '15px' }}>Top Locations</h4>
+                        <div style={{ position: 'relative', height: '300px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                          <Doughnut
+                            data={{
+                              labels: analyticsData.demographics.country.labels,
+                              datasets: [{
+                                data: analyticsData.demographics.country.counts,
+                                backgroundColor: [
+                                  '#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4',
+                                  '#f97316', '#14b8a6', '#6366f1', '#eab308', '#d946ef'
+                                ],
+                                borderWidth: 0,
+                                hoverOffset: 4
+                              }]
+                            }}
+                            options={{
+                              responsive: true,
+                              maintainAspectRatio: false,
+                              plugins: {
+                                legend: { position: 'right', labels: { color: '#fff', boxWidth: 12, padding: 15 } },
+                                tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', padding: 12 }
+                              },
+                              cutout: '60%'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
                 ) : (

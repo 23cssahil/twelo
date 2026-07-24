@@ -1190,6 +1190,29 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
       yearSignups += count;
     }
 
+    // Fetch Demographics Data
+    const genderDataRaw = await User.aggregate([
+      { $group: { _id: "$gender", count: { $sum: 1 } } }
+    ]);
+    const genderData = { male: 0, female: 0 };
+    genderDataRaw.forEach(g => {
+      if (g._id === 'male') genderData.male = g.count;
+      if (g._id === 'female') genderData.female = g.count;
+    });
+
+    const countryDataRaw = await User.aggregate([
+      { $group: { _id: "$country", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+    const countryData = { labels: [], counts: [] };
+    countryDataRaw.forEach(c => {
+      countryData.labels.push(c._id || 'Unknown');
+      countryData.counts.push(c.count);
+    });
+
+    const demographics = { gender: genderData, country: countryData };
+
     res.json({
       dau: uniqueDau.size,
       mau: uniqueMau.size,
@@ -1202,7 +1225,8 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
       yearlyGrowthData,
       todaySignups,
       monthSignups,
-      yearSignups
+      yearSignups,
+      demographics
     });
 
   } catch (err) {
