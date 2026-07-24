@@ -11,6 +11,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const os = require('os');
 const webpush = require('web-push');
 
 webpush.setVapidDetails(
@@ -1055,16 +1056,34 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
       _id: { $in: validMongoIds }, 
       ownedByAdmin: { $ne: true } 
     });
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const ramUsage = Math.round((usedMem / totalMem) * 100);
+    const cpuLoad = Math.round((os.loadavg()[0] || 0) * 100) / 100;
+    
+    let dbStorageMB = 0;
+    if (mongoose.connection.db) {
+      const dbStats = await mongoose.connection.db.stats();
+      dbStorageMB = Math.round((dbStats.dataSize || 0) / 1024 / 1024);
+    }
+
     res.json({
       activeUsers: realUsersCount,
       randomRooms: activeRandomChats.size,
-      queuedRandom: randomChatQueue.length
+      queuedRandom: randomChatQueue.length,
+      serverHealth: {
+        ramUsage,
+        cpuLoad,
+        dbStorageMB
+      }
     });
   } catch (err) {
     res.json({
       activeUsers: 0,
       randomRooms: activeRandomChats.size,
-      queuedRandom: randomChatQueue.length
+      queuedRandom: randomChatQueue.length,
+      serverHealth: { ramUsage: 0, cpuLoad: 0, dbStorageMB: 0 }
     });
   }
 });
@@ -1213,6 +1232,24 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
 
     const demographics = { gender: genderData, country: countryData };
 
+    // Fetch Peak Hours Heatmap (using Message collection)
+    const peakHoursRaw = await Message.aggregate([
+      {
+        $group: {
+          _id: { $hour: "$createdAt" },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    const peakHours = Array(24).fill(0);
+    peakHoursRaw.forEach(hourData => {
+      if (hourData._id != null) {
+        // Adjust for IST (+5:30) approx + 5 hours for the chart to look accurate for India (since the user is Indian).
+        let istHour = (hourData._id + 5) % 24;
+        peakHours[istHour] += hourData.count;
+      }
+    });
+
     res.json({
       dau: uniqueDau.size,
       mau: uniqueMau.size,
@@ -1226,7 +1263,8 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
       todaySignups,
       monthSignups,
       yearSignups,
-      demographics
+      demographics,
+      peakHours
     });
 
   } catch (err) {

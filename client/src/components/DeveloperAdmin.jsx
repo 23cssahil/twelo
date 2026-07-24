@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
 import io from 'socket.io-client';
-import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2 } from 'lucide-react';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity } from 'lucide-react';
 import './DeveloperAdmin.css';
 import {
   Chart as ChartJS,
@@ -634,6 +634,35 @@ export default function DeveloperAdmin() {
       </div>
 
       <div className="dev-content">
+        {/* Server Health Section */}
+        {stats.serverHealth && (
+          <div className="dev-server-health-panel" style={{ marginBottom: '30px', padding: '15px', backgroundColor: '#111', borderRadius: '12px', border: '1px solid #333' }}>
+            <h3 style={{ margin: '0 0 15px 0', fontSize: '1.1rem', color: '#a8a8a8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Activity size={18} color="#10b981" /> Live Server Health
+            </h3>
+            <div className="dev-stats-grid">
+              <div className="dev-stat-card">
+                <div style={{ color: stats.serverHealth.ramUsage > 90 ? '#ef4444' : '#10b981', fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  {stats.serverHealth.ramUsage}%
+                </div>
+                <p>RAM Usage</p>
+              </div>
+              <div className="dev-stat-card">
+                <div style={{ color: '#0095f6', fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  {stats.serverHealth.cpuLoad}%
+                </div>
+                <p>CPU Load</p>
+              </div>
+              <div className="dev-stat-card">
+                <div style={{ color: '#8b5cf6', fontSize: '1.8rem', fontWeight: 'bold' }}>
+                  {stats.serverHealth.dbStorageMB} MB
+                </div>
+                <p>DB Size</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats Section */}
         <div className="dev-stats-grid">
           <div className="dev-stat-card">
@@ -991,6 +1020,37 @@ export default function DeveloperAdmin() {
                             }}
                           />
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {analyticsData.peakHours && (
+                    <div className="dev-panel" style={{ marginTop: '20px' }}>
+                      <h4 style={{ marginBottom: '15px' }}>Peak Activity Heatmap (24 Hours)</h4>
+                      <div style={{ position: 'relative', height: '300px', width: '100%' }}>
+                        <Bar
+                          data={{
+                            labels: ['12 AM', '1 AM', '2 AM', '3 AM', '4 AM', '5 AM', '6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM', '10 PM', '11 PM'],
+                            datasets: [{
+                              label: 'Messages Sent',
+                              data: analyticsData.peakHours,
+                              backgroundColor: 'rgba(236, 72, 153, 0.8)',
+                              borderRadius: 4
+                            }]
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: { 
+                              y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                              x: { grid: { display: false } }
+                            },
+                            plugins: {
+                              legend: { display: false },
+                              tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#ec4899', padding: 12 }
+                            }
+                          }}
+                        />
                       </div>
                     </div>
                   )}
