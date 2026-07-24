@@ -269,6 +269,21 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://23cssahil_db_user:xsBXl
   })
   .catch(err => console.error('MongoDB Connection Error:', err));
 
+// Active Globe Timer Check
+setInterval(() => {
+  if (!cachedGlobeStatus.isEnabled && cachedGlobeStatus.enableAt) {
+    const enableTime = new Date(cachedGlobeStatus.enableAt).getTime();
+    if (Date.now() >= enableTime) {
+      cachedGlobeStatus.isEnabled = true;
+      cachedGlobeStatus.enableAt = null;
+      io.emit('globe_status_update', cachedGlobeStatus);
+      AdminData.findOne().then(adminData => {
+        if(adminData) { adminData.globeStatus = cachedGlobeStatus; adminData.save(); }
+      }).catch(e => console.error("Globe timer update error", e));
+    }
+  }
+}, 1000);
+
 // Generate custom unique ID for User (8 chars alphanumeric)
 const generateUniqueId = () => {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
