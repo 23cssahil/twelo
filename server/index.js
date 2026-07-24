@@ -1040,7 +1040,7 @@ app.post('/api/reports/create', authenticateToken, async (req, res) => {
 // ==========================================
 const adminAuth = (req, res, next) => {
   const pass = req.headers['x-admin-pass'];
-  if (pass === 'twelo-admin-6006390989') {
+  if (pass === process.env.ADMIN_PASSWORD) {
     next();
   } else {
     res.status(401).json({ message: 'Unauthorized Admin Access' });

@@ -243,12 +243,19 @@ export default function DeveloperAdmin() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [selectedReport, chatViewTarget, activeRandomChat, selectedBotChat, adminSocket]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (password === 'twelo-admin-6006390989') {
-      setIsAuthenticated(true);
-    } else {
-      alert('Incorrect Developer Password');
+    try {
+      const res = await fetch(`${API_URL}/api/admin/stats`, {
+        headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) {
+        setIsAuthenticated(true);
+      } else {
+        alert('Incorrect Developer Password');
+      }
+    } catch (err) {
+      alert('Network Error. Is backend running?');
     }
   };
 
