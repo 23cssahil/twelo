@@ -838,6 +838,62 @@ export default function DeveloperAdmin() {
                         )}
                      </div>
                   </div>
+                  
+                  <div className="dev-stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginTop: '10px' }}>
+                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #14b8a6, #0f766e)', border: 'none' }}>
+                        <div className="stat-info">
+                          <h3 style={{ fontSize: '2rem' }}>+{analyticsData.todaySignups || 0}</h3>
+                          <p style={{ color: '#ccfbf1' }}>New Users (Today)</p>
+                        </div>
+                     </div>
+                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #ec4899, #be185d)', border: 'none' }}>
+                        <div className="stat-info">
+                          <h3 style={{ fontSize: '2rem' }}>+{analyticsData.monthSignups || 0}</h3>
+                          <p style={{ color: '#fbcfe8' }}>New Users (Last 30 Days)</p>
+                        </div>
+                     </div>
+                  </div>
+
+                  {analyticsData.growthData && (
+                     <div className="dev-panel" style={{ padding: '20px' }}>
+                        <h4 style={{ marginBottom: '15px' }}>User Growth & Acquisition (Last 30 Days)</h4>
+                        <Line 
+                          data={{
+                            labels: analyticsData.growthData.labels,
+                            datasets: [{
+                              label: 'New Signups',
+                              data: analyticsData.growthData.signups,
+                              borderColor: '#ec4899',
+                              backgroundColor: 'rgba(236, 72, 153, 0.2)',
+                              fill: true,
+                              tension: 0.4,
+                              pointRadius: 4,
+                              pointHoverRadius: 6,
+                              pointBackgroundColor: '#fff',
+                              pointBorderColor: '#ec4899',
+                              pointBorderWidth: 2,
+                            }]
+                          }}
+                          options={{ 
+                            responsive: true, 
+                            scales: { 
+                              y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                              x: { grid: { color: 'rgba(255,255,255,0.05)' } }
+                            },
+                            plugins: {
+                              legend: { display: false },
+                              tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                titleColor: '#ec4899',
+                                bodyFont: { size: 14, weight: 'bold' },
+                                padding: 12,
+                                displayColors: false
+                              }
+                            }
+                          }}
+                        />
+                     </div>
+                  )}
                 </div>
                 ) : (
                   <div style={{ textAlign: 'center', color: '#888', marginTop: '20px' }}>Loading analytics data...</div>

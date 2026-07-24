@@ -1132,6 +1132,35 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
 
     const day1Retention = uniqueMau.size ? Math.round((uniqueDau.size / uniqueMau.size) * 100) : 0;
 
+    // Fetch Growth Analytics (Last 30 days)
+    const thirtyDaysAgo = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000);
+    const growthDataRaw = await User.aggregate([
+      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+      { 
+        $group: { 
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, 
+          count: { $sum: 1 } 
+        } 
+      },
+      { $sort: { _id: 1 } }
+    ]);
+    
+    const growthData = { labels: [], signups: [] };
+    let todaySignups = 0;
+    let monthSignups = 0;
+    
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toISOString().split('T')[0];
+      growthData.labels.push(`${d.getDate()}/${d.getMonth()+1}`);
+      const found = growthDataRaw.find(g => g._id === dateStr);
+      const count = found ? found.count : 0;
+      growthData.signups.push(count);
+      
+      monthSignups += count;
+      if (i === 0) todaySignups = count;
+    }
+
     res.json({
       dau: uniqueDau.size,
       mau: uniqueMau.size,
@@ -1139,7 +1168,10 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
       avgMessages: parseFloat(avgMessages.toFixed(2)),
       avgMatches: parseFloat(avgMatches.toFixed(2)),
       day1Retention: day1Retention,
-      chartData
+      chartData,
+      growthData,
+      todaySignups,
+      monthSignups
     });
 
   } catch (err) {
