@@ -252,11 +252,22 @@
     font-size: 0.8rem;
     padding: 8px !important;
   }
+  .dev-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)) !important;
+    gap: 10px !important;
+  }
   .dev-stat-card {
-    padding: 15px;
+    padding: 10px !important;
     flex-direction: column;
     text-align: center;
-    gap: 10px;
+    gap: 5px !important;
+  }
+  .dev-stat-card h3 {
+    font-size: 1.2rem !important;
+  }
+  .dev-stat-card p {
+    font-size: 0.65rem !important;
+    line-height: 1.2;
   }
   /* Modals fix */
   .modal-content {
