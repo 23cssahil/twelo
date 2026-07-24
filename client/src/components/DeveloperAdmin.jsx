@@ -802,7 +802,7 @@ export default function DeveloperAdmin() {
                   </div>
                   
                   <div className="analytics-charts-grid">
-                     <div className="dev-panel" style={{ padding: '20px' }}>
+                     <div className="dev-panel">
                         <h4 style={{ marginBottom: '15px' }}>DAU Trend (Last 7 Days)</h4>
                         {analyticsData.chartData && (
                           <div style={{ position: 'relative', height: '300px', width: '100%' }}>
@@ -824,7 +824,7 @@ export default function DeveloperAdmin() {
                         )}
                      </div>
                      
-                     <div className="dev-panel" style={{ padding: '20px' }}>
+                     <div className="dev-panel">
                         <h4 style={{ marginBottom: '15px' }}>Core Actions (Avg per session)</h4>
                         {analyticsData && (
                           <div style={{ position: 'relative', height: '300px', width: '100%' }}>
@@ -860,7 +860,7 @@ export default function DeveloperAdmin() {
                   </div>
 
                   {(analyticsData.growthData || analyticsData.yearlyGrowthData) && (
-                     <div className="dev-panel" style={{ padding: '20px' }}>
+                     <div className="dev-panel">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
                           <h4 style={{ margin: 0 }}>
                             User Growth & Acquisition ({growthTimeframe === 'monthly' ? 'Last 30 Days' : 'Last 12 Months'})
@@ -928,7 +928,7 @@ export default function DeveloperAdmin() {
                 )
               ) : activeTab === 'users' ? (
                 <>
-                  <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                  <form onSubmit={handleSearch} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
                     <input 
                       type="text" 
                       placeholder="Search database..."
@@ -963,7 +963,7 @@ export default function DeveloperAdmin() {
                             <div className="dev-user-meta"><strong>Coins:</strong> {u.coins} | <strong>Status:</strong> {u.isBlocked ? <span style={{color: '#ff4b4b'}}>Blocked</span> : <span style={{color: '#10b981'}}>Active</span>}</div>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', width: '100%' }}>
                           <button 
                             onClick={() => handlePersonalNotification(u._id, u.username)}
                             className="dev-btn-secondary"
