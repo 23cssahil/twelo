@@ -805,37 +805,41 @@ export default function DeveloperAdmin() {
                      <div className="dev-panel" style={{ padding: '20px' }}>
                         <h4 style={{ marginBottom: '15px' }}>DAU Trend (Last 7 Days)</h4>
                         {analyticsData.chartData && (
-                          <Line 
-                            data={{
-                              labels: analyticsData.chartData.labels,
-                              datasets: [{
-                                label: 'Daily Active Users',
-                                data: analyticsData.chartData.dau,
-                                borderColor: '#8b5cf6',
-                                backgroundColor: 'rgba(139, 92, 246, 0.2)',
-                                fill: true,
-                                tension: 0.4
-                              }]
-                            }}
-                            options={{ responsive: true, scales: { y: { beginAtZero: true } } }}
-                          />
+                          <div style={{ position: 'relative', height: '300px', width: '100%' }}>
+                            <Line 
+                              data={{
+                                labels: analyticsData.chartData.labels,
+                                datasets: [{
+                                  label: 'Daily Active Users',
+                                  data: analyticsData.chartData.dau,
+                                  borderColor: '#8b5cf6',
+                                  backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                                  fill: true,
+                                  tension: 0.4
+                                }]
+                              }}
+                              options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }}
+                            />
+                          </div>
                         )}
                      </div>
                      
                      <div className="dev-panel" style={{ padding: '20px' }}>
                         <h4 style={{ marginBottom: '15px' }}>Core Actions (Avg per session)</h4>
                         {analyticsData && (
-                          <Bar 
-                            data={{
-                              labels: ['Messages Sent', 'Matches Made'],
-                              datasets: [{
-                                label: 'Average Count',
-                                data: [analyticsData.avgMessages, analyticsData.avgMatches],
-                                backgroundColor: ['#0ea5e9', '#f59e0b']
-                              }]
-                            }}
-                            options={{ responsive: true, scales: { y: { beginAtZero: true } } }}
-                          />
+                          <div style={{ position: 'relative', height: '300px', width: '100%' }}>
+                            <Bar 
+                              data={{
+                                labels: ['Messages Sent', 'Matches Made'],
+                                datasets: [{
+                                  label: 'Average Count',
+                                  data: [analyticsData.avgMessages, analyticsData.avgMatches],
+                                  backgroundColor: ['#0ea5e9', '#f59e0b']
+                                }]
+                              }}
+                              options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }}
+                            />
+                          </div>
                         )}
                      </div>
                   </div>
@@ -878,41 +882,44 @@ export default function DeveloperAdmin() {
                             </button>
                           </div>
                         </div>
-                        <Line 
-                          data={{
-                            labels: growthTimeframe === 'monthly' ? analyticsData.growthData.labels : analyticsData.yearlyGrowthData.labels,
-                            datasets: [{
-                              label: 'New Signups',
-                              data: growthTimeframe === 'monthly' ? analyticsData.growthData.signups : analyticsData.yearlyGrowthData.signups,
-                              borderColor: '#ec4899',
-                              backgroundColor: 'rgba(236, 72, 153, 0.2)',
-                              fill: true,
-                              tension: 0.4,
-                              pointRadius: 4,
-                              pointHoverRadius: 6,
-                              pointBackgroundColor: '#fff',
-                              pointBorderColor: '#ec4899',
-                              pointBorderWidth: 2,
-                            }]
-                          }}
-                          options={{ 
-                            responsive: true, 
-                            scales: { 
-                              y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                              x: { grid: { color: 'rgba(255,255,255,0.05)' } }
-                            },
-                            plugins: {
-                              legend: { display: false },
-                              tooltip: {
-                                backgroundColor: 'rgba(0,0,0,0.8)',
-                                titleColor: '#ec4899',
-                                bodyFont: { size: 14, weight: 'bold' },
-                                padding: 12,
-                                displayColors: false
+                        <div style={{ position: 'relative', height: '300px', width: '100%' }}>
+                          <Line 
+                            data={{
+                              labels: growthTimeframe === 'monthly' ? analyticsData.growthData.labels : analyticsData.yearlyGrowthData.labels,
+                              datasets: [{
+                                label: 'New Signups',
+                                data: growthTimeframe === 'monthly' ? analyticsData.growthData.signups : analyticsData.yearlyGrowthData.signups,
+                                borderColor: '#ec4899',
+                                backgroundColor: 'rgba(236, 72, 153, 0.2)',
+                                fill: true,
+                                tension: 0.4,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                                pointBackgroundColor: '#fff',
+                                pointBorderColor: '#ec4899',
+                                pointBorderWidth: 2,
+                              }]
+                            }}
+                            options={{ 
+                              responsive: true, 
+                              maintainAspectRatio: false,
+                              scales: { 
+                                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                                x: { grid: { color: 'rgba(255,255,255,0.05)' } }
+                              },
+                              plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                  backgroundColor: 'rgba(0,0,0,0.8)',
+                                  titleColor: '#ec4899',
+                                  bodyFont: { size: 14, weight: 'bold' },
+                                  padding: 12,
+                                  displayColors: false
+                                }
                               }
-                            }
-                          }}
-                        />
+                            }}
+                          />
+                        </div>
                      </div>
                   )}
                 </div>
