@@ -253,6 +253,15 @@
     padding: 15px !important;
     height: 85vh !important;
   }
+  .analytics-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.analytics-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
 }
 
 /* Toast fix for mobile */

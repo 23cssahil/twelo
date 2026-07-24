@@ -801,7 +801,7 @@ export default function DeveloperAdmin() {
                      </div>
                   </div>
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div className="analytics-charts-grid">
                      <div className="dev-panel" style={{ padding: '20px' }}>
                         <h4 style={{ marginBottom: '15px' }}>DAU Trend (Last 7 Days)</h4>
                         {analyticsData.chartData && (
@@ -857,7 +857,7 @@ export default function DeveloperAdmin() {
 
                   {(analyticsData.growthData || analyticsData.yearlyGrowthData) && (
                      <div className="dev-panel" style={{ padding: '20px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
                           <h4 style={{ margin: 0 }}>
                             User Growth & Acquisition ({growthTimeframe === 'monthly' ? 'Last 30 Days' : 'Last 12 Months'})
                           </h4>
