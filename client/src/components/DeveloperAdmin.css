@@ -224,6 +224,10 @@
     flex-direction: column;
     align-items: flex-start;
   }
+  .dev-user-card > div {
+    flex-wrap: wrap;
+    width: 100%;
+  }
   .dev-btn-danger, .dev-btn-secondary, .dev-btn-primary {
     width: 100%;
     justify-content: center;
