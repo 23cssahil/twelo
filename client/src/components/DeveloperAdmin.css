@@ -268,9 +268,25 @@
   .analytics-charts-grid {
     grid-template-columns: 1fr;
   }
+  .demographics-charts-grid {
+    gap: 10px;
+  }
+  .demographics-charts-grid .dev-panel {
+    padding: 10px;
+  }
+  .demographics-charts-grid h4 {
+    font-size: 0.9rem;
+    text-align: center;
+  }
 }
 
 .analytics-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.demographics-charts-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;

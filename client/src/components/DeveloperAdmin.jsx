@@ -937,7 +937,7 @@ export default function DeveloperAdmin() {
                      </div>
                   )}
                   {analyticsData.demographics && (
-                    <div className="analytics-charts-grid" style={{ marginTop: '20px' }}>
+                    <div className="demographics-charts-grid" style={{ marginTop: '20px' }}>
                       <div className="dev-panel">
                         <h4 style={{ marginBottom: '15px' }}>Gender Distribution</h4>
                         <div style={{ position: 'relative', height: '250px', width: '100%', maxWidth: '300px', margin: '0 auto' }}>
