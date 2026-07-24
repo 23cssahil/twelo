@@ -77,6 +77,11 @@ export default function DeveloperAdmin() {
   const [botChatMessageInput, setBotChatMessageInput] = useState('');
 
   useEffect(() => {
+    // Obfuscate URL so nobody sees the actual admin route
+    window.history.replaceState(null, '', '/' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+  }, []);
+
+  useEffect(() => {
     selectedBotChatRef.current = selectedBotChat;
   }, [selectedBotChat]);
 
