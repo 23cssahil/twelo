@@ -3033,8 +3033,8 @@ export default function Dashboard() {
       )}
       {/* Globe Offline Modal */}
       {showGlobeOfflineModal && !globeStatus.isEnabled && (
-        <div className="settings-drawer-overlay" style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowGlobeOfflineModal(false)}>
-          <div className="settings-drawer" style={{ height: 'auto', maxHeight: '60%', borderRadius: '20px', width: '90%', maxWidth: '380px', padding: '30px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setShowGlobeOfflineModal(false)}>
+          <div className="modal-content" style={{ textAlign: 'center', padding: '35px 25px', maxWidth: '380px', background: '#18181b', border: '1px solid #27272a' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
                <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '15px', borderRadius: '50%' }}>
                  <Globe size={48} color="#ef4444" />
@@ -3055,7 +3055,7 @@ export default function Dashboard() {
             <button 
                onClick={() => setShowGlobeOfflineModal(false)}
                className="premium-btn primary" 
-               style={{ width: '100%', padding: '14px', fontSize: '1.1rem', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
+               style={{ width: '100%', padding: '14px', fontSize: '1.1rem', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', border: 'none', color: '#fff', borderRadius: '12px', cursor: 'pointer' }}
             >
                Got it
             </button>
