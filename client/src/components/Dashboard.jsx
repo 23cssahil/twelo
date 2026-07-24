@@ -32,7 +32,8 @@ import {
   Pause,
   Flag,
   Loader2,
-  Share2
+  Share2,
+  Lock
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -3037,7 +3038,7 @@ export default function Dashboard() {
           <div className="modal-content" style={{ textAlign: 'center', padding: '35px 25px', maxWidth: '380px', background: '#18181b', border: '1px solid #27272a' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
                <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '15px', borderRadius: '50%' }}>
-                 <Globe size={48} color="#ef4444" />
+                 <Lock size={48} color="#ef4444" />
                </div>
             </div>
             <h2 style={{ fontSize: '1.6rem', marginBottom: '15px', color: '#fff', fontWeight: 'bold' }}>Globe is Offline</h2>
