@@ -988,7 +988,7 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
 
 // Socket.io Real-time Setup
 const onlineUsers = new Map();
-const activeSessions = new Map(); // userId -> { startTime, messagesSent, matchesMade }
+const activeSessions = new Map(); // socket.id -> { userId, startTime, messagesSent, matchesMade }
 // ==========================================
 // REPORTS ROUTES (USER)
 // ==========================================
@@ -1421,7 +1421,7 @@ io.on('connection', (socket) => {
   // Register user online
   socket.on('register', (userId) => {
     onlineUsers.set(userId, socket.id);
-    activeSessions.set(userId, { startTime: Date.now(), messagesSent: 0, matchesMade: 0 });
+    activeSessions.set(socket.id, { userId: userId, startTime: Date.now(), messagesSent: 0, matchesMade: 0 });
     console.log(`User ${userId} registered with socket ${socket.id}`);
     io.emit('online_users', Array.from(onlineUsers.keys()));
   });
@@ -1429,8 +1429,8 @@ io.on('connection', (socket) => {
   // Handle incoming private message
   socket.on('send_message', async ({ senderId, receiverId, messageText, replyTo, messageType = 'text', fileUrl = null, isViewOnce = false }) => {
     try {
-      if (activeSessions.has(senderId)) {
-        activeSessions.get(senderId).messagesSent += 1;
+      if (activeSessions.has(socket.id)) {
+        activeSessions.get(socket.id).messagesSent += 1;
       }
       
       const message = new Message({
@@ -1692,8 +1692,8 @@ io.on('connection', (socket) => {
         const roomId = `random_${Date.now()}_${Math.random().toString(36).substring(2,8)}`;
         activeRandomChats.set(roomId, { user1, user2 });
         
-        if (activeSessions.has(user1.userId)) activeSessions.get(user1.userId).matchesMade += 1;
-        if (activeSessions.has(user2.userId)) activeSessions.get(user2.userId).matchesMade += 1;
+        if (activeSessions.has(user1.socketId)) activeSessions.get(user1.socketId).matchesMade += 1;
+        if (activeSessions.has(user2.socketId)) activeSessions.get(user2.socketId).matchesMade += 1;
 
         try {
           const user1Record = await User.findById(user1.userId);
@@ -1851,11 +1851,8 @@ io.on('connection', (socket) => {
     const senderSocketId = socket.id;
     const receiverSocketId = chat.user1.socketId === socket.id ? chat.user2.socketId : chat.user1.socketId;
     
-    if (activeSessions.has(chat.user1.userId) && chat.user1.socketId === socket.id) {
-       activeSessions.get(chat.user1.userId).messagesSent += 1;
-    }
-    if (!chat.isAiCompanion && activeSessions.has(chat.user2.userId) && chat.user2.socketId === socket.id) {
-       activeSessions.get(chat.user2.userId).messagesSent += 1;
+    if (activeSessions.has(socket.id)) {
+       activeSessions.get(socket.id).messagesSent += 1;
     }
     
     io.to(receiverSocketId).emit('receive_anonymous_message', { 
@@ -1946,31 +1943,31 @@ io.on('connection', (socket) => {
       }
     }
 
-    for (let [userId, socketId] of onlineUsers.entries()) {
-      if (socketId === socket.id) {
+    for (let [userId, mappedSocketId] of onlineUsers.entries()) {
+      if (mappedSocketId === socket.id) {
         onlineUsers.delete(userId);
-        
-        if (activeSessions.has(userId)) {
-          const session = activeSessions.get(userId);
-          const endTime = Date.now();
-          const durationMs = endTime - session.startTime;
-          
-          if (durationMs > 1000) { // Only save if more than 1 second
-            new UserSession({
-               user: userId,
-               startTime: new Date(session.startTime),
-               endTime: new Date(endTime),
-               durationMs,
-               messagesSent: session.messagesSent,
-               matchesMade: session.matchesMade
-            }).save().catch(e => console.error("Error saving session", e));
-          }
-          activeSessions.delete(userId);
-        }
-
         User.findByIdAndUpdate(userId, { lastActive: new Date() }).catch(e => console.error(e));
         console.log(`User ${userId} disconnected`);
       }
+    }
+    
+    // Save session independently of whether the socket was still the "active" one in onlineUsers
+    if (activeSessions.has(socket.id)) {
+      const session = activeSessions.get(socket.id);
+      const endTime = Date.now();
+      const durationMs = endTime - session.startTime;
+      
+      if (durationMs > 1000) { // Only save if more than 1 second
+        new UserSession({
+           user: session.userId,
+           startTime: new Date(session.startTime),
+           endTime: new Date(endTime),
+           durationMs,
+           messagesSent: session.messagesSent,
+           matchesMade: session.matchesMade
+        }).save().catch(e => console.error("Error saving session", e));
+      }
+      activeSessions.delete(socket.id);
     }
     io.emit('online_users', Array.from(onlineUsers.keys()));
   });
