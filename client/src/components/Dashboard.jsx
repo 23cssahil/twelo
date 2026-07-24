@@ -267,6 +267,8 @@ export default function Dashboard() {
   const [swapVideo, setSwapVideo] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [currentFacingMode, setCurrentFacingMode] = useState('user');
+  
+  const [globeStatus, setGlobeStatus] = useState({ isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null });
 
   // Call Details
   const [callerId, setCallerId] = useState('');
@@ -588,6 +590,10 @@ export default function Dashboard() {
       }
     });
 
+    socket.on('globe_status_update', (status) => {
+      setGlobeStatus(status);
+    });
+
     return () => {
       socket.off('online_users');
       socket.off('receive_message');
@@ -607,6 +613,7 @@ export default function Dashboard() {
       socket.off('message_viewed');
       socket.off('messages_marked_read');
       socket.off('typing_status_received');
+      socket.off('globe_status_update');
     };
   }, [socket, user]);
 
@@ -1608,6 +1615,19 @@ export default function Dashboard() {
   }, [swapVideo, callActive, remoteStreamState]);
 
   const handleGlobeClick = useCallback(() => {
+    if (!globeStatus.isEnabled) {
+      const now = new Date();
+      const enableTime = globeStatus.enableAt ? new Date(globeStatus.enableAt) : null;
+      if (!enableTime || now < enableTime) {
+         let msg = globeStatus.customMessage || "The globe is currently offline.";
+         if (enableTime) {
+            msg += `\nIt will open at: ${enableTime.toLocaleTimeString()}`;
+         }
+         alert(msg);
+         return;
+      }
+    }
+
     if (!isSearchingRandom) {
       if (genderFilter !== 'any' && coins < 2) {
         alert("Not enough coins! You need 2 coins to use the gender filter.");
@@ -1621,7 +1641,7 @@ export default function Dashboard() {
       setIsSearchingRandom(false);
       if (socket) socket.emit('cancel_search', user.id);
     }
-  }, [isSearchingRandom, genderFilter, coins, socket, user]);
+  }, [isSearchingRandom, genderFilter, coins, socket, user, globeStatus]);
 
   const handleGlobeClickRef = useRef(handleGlobeClick);
   useEffect(() => {

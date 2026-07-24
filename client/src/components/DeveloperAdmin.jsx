@@ -58,6 +58,9 @@ export default function DeveloperAdmin() {
   const [randomMessages, setRandomMessages] = useState([]);
   const [randomMessageInput, setRandomMessageInput] = useState('');
 
+  const [globeStatus, setGlobeStatus] = useState({ isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null });
+  const [globeTimerMinutes, setGlobeTimerMinutes] = useState('');
+
   // Sync ref with state
   useEffect(() => {
     activeRandomChatRef.current = activeRandomChat;
@@ -131,6 +134,12 @@ export default function DeveloperAdmin() {
     if (isAuthenticated) {
       fetchStats();
       const interval = setInterval(fetchStats, 10000); // Poll every 10s
+      
+      fetch(`${API_URL}/api/config/globe`)
+        .then(res => res.json())
+        .then(data => setGlobeStatus(data))
+        .catch(e => console.error(e));
+
       
       const newSocket = io(API_URL);
       setAdminSocket(newSocket);
@@ -331,26 +340,39 @@ export default function DeveloperAdmin() {
   const handleBroadcast = async (e) => {
     e.preventDefault();
     if (!broadcastMessage.trim()) return;
-    
-    if (!window.confirm("Send this message to ALL online users globally?")) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/admin/broadcast`, {
+      await fetch(`${API_URL}/api/admin/broadcast`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-pass': password
-        },
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
         body: JSON.stringify({ message: broadcastMessage })
       });
-      
-      if (res.ok) {
-        setBroadcastMessage('');
-        alert('Broadcast sent globally!');
-      }
+      setBroadcastMessage('');
+      alert("Broadcast sent successfully!");
     } catch (err) {
-      console.error(err);
-      alert('Failed to send broadcast');
+      alert("Error sending broadcast");
+    }
+  };
+
+  const handleUpdateGlobe = async (e) => {
+    e.preventDefault();
+    const enableAt = globeTimerMinutes ? new Date(Date.now() + parseInt(globeTimerMinutes) * 60000) : null;
+    try {
+      const res = await fetch(`${API_URL}/api/admin/globe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
+        body: JSON.stringify({
+           isEnabled: globeStatus.isEnabled,
+           customMessage: globeStatus.customMessage,
+           enableAt
+        })
+      });
+      const data = await res.json();
+      setGlobeStatus(data);
+      setGlobeTimerMinutes('');
+      alert('Globe status updated successfully!');
+    } catch (err) {
+      alert('Error updating globe status');
     }
   };
 
@@ -633,6 +655,49 @@ export default function DeveloperAdmin() {
               />
               <button type="submit" className="dev-btn-primary" style={{ background: '#f59e0b', color: '#000' }}>Broadcast</button>
             </form>
+          </div>
+
+          {/* Globe Control System */}
+          <div className="dev-panel" style={{ border: globeStatus.isEnabled ? '1px solid #10b981' : '1px solid #ef4444' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3><Globe size={18} style={{ marginRight: '8px' }}/> Globe Control System</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ color: globeStatus.isEnabled ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>
+                  {globeStatus.isEnabled ? 'ONLINE' : 'OFFLINE'}
+                </span>
+                <label className="switch">
+                  <input 
+                    type="checkbox" 
+                    checked={globeStatus.isEnabled}
+                    onChange={(e) => setGlobeStatus({ ...globeStatus, isEnabled: e.target.checked })}
+                  />
+                  <span className="slider round"></span>
+                </label>
+              </div>
+            </div>
+            <p className="panel-desc">Turn the Random Chat matching ON or OFF.</p>
+            {!globeStatus.isEnabled && (
+              <form onSubmit={handleUpdateGlobe} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Custom Offline Message..."
+                  value={globeStatus.customMessage}
+                  onChange={(e) => setGlobeStatus({ ...globeStatus, customMessage: e.target.value })}
+                  className="dev-input"
+                />
+                <input 
+                  type="number" 
+                  placeholder="Auto-Enable Timer (in minutes, optional)"
+                  value={globeTimerMinutes}
+                  onChange={(e) => setGlobeTimerMinutes(e.target.value)}
+                  className="dev-input"
+                />
+                <button type="submit" className="dev-btn-primary" style={{ background: '#ef4444', color: '#fff' }}>Save Offline State</button>
+              </form>
+            )}
+            {globeStatus.isEnabled && (
+              <button onClick={handleUpdateGlobe} className="dev-btn-primary" style={{ background: '#10b981', color: '#fff', marginTop: '15px' }}>Save Online State</button>
+            )}
           </div>
 
           {/* User Management */}

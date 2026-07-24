@@ -1148,6 +1148,33 @@ app.post('/api/admin/subscribe', adminAuth, async (req, res) => {
   }
 });
 
+// Globe Control APIs
+app.post('/api/admin/globe', adminAuth, async (req, res) => {
+  try {
+    const { isEnabled, customMessage, enableAt } = req.body;
+    let adminData = await AdminData.findOne();
+    if (!adminData) adminData = new AdminData();
+    
+    adminData.globeStatus = { 
+      isEnabled: isEnabled !== undefined ? isEnabled : adminData.globeStatus?.isEnabled, 
+      customMessage: customMessage || adminData.globeStatus?.customMessage, 
+      enableAt: enableAt !== undefined ? enableAt : adminData.globeStatus?.enableAt 
+    };
+    await adminData.save();
+    
+    io.emit('globe_status_update', adminData.globeStatus);
+    res.json(adminData.globeStatus);
+  } catch (err) {
+    console.error("Globe status error", err);
+    res.status(500).json({ error: 'Failed to update globe status' });
+  }
+});
+
+app.get('/api/config/globe', async (req, res) => {
+  let adminData = await AdminData.findOne();
+  res.json(adminData?.globeStatus || { isEnabled: true });
+});
+
 app.get('/api/admin/users', adminAuth, async (req, res) => {
   try {
     const query = req.query.q;
@@ -1432,11 +1459,19 @@ io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
 
   // Register user online
-  socket.on('register', (userId) => {
+  socket.on('register', async (userId) => {
     onlineUsers.set(userId, socket.id);
     activeSessions.set(socket.id, { userId: userId, startTime: Date.now(), messagesSent: 0, matchesMade: 0 });
     console.log(`User ${userId} registered with socket ${socket.id}`);
     io.emit('online_users', Array.from(onlineUsers.keys()));
+    
+    // Send globe status on connect
+    try {
+      const adminData = await AdminData.findOne();
+      if (adminData && adminData.globeStatus) {
+        socket.emit('globe_status_update', adminData.globeStatus);
+      }
+    } catch (e) {}
   });
 
   // Handle incoming private message
@@ -1623,6 +1658,23 @@ io.on('connection', (socket) => {
 
     // --- Anonymous Random Chat Events ---
     socket.on('search_random', async (payload) => {
+      try {
+        const adminData = await AdminData.findOne();
+        if (adminData && adminData.globeStatus && !adminData.globeStatus.isEnabled) {
+           const now = new Date();
+           const enableTime = adminData.globeStatus.enableAt ? new Date(adminData.globeStatus.enableAt) : null;
+           if (!enableTime || now < enableTime) {
+               return; // Globe is offline, ignore search
+           } else if (enableTime && now >= enableTime) {
+               // Auto re-enable since timer passed
+               adminData.globeStatus.isEnabled = true;
+               adminData.globeStatus.enableAt = null;
+               await adminData.save();
+               io.emit('globe_status_update', adminData.globeStatus);
+           }
+        }
+      } catch (e) { console.error("Globe check error", e); }
+
       // Handle both old string payload and new object payload from updated clients
       const userId = typeof payload === 'string' ? payload : payload.userId;
       const isBotEligible = typeof payload === 'object' ? payload.isBotEligible : false;
