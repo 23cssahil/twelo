@@ -3042,9 +3042,14 @@ export default function Dashboard() {
                </div>
             </div>
             <h2 style={{ fontSize: '1.6rem', marginBottom: '15px', color: '#fff', fontWeight: 'bold' }}>Globe is Offline</h2>
-            <p style={{ color: '#a8a8a8', marginBottom: '25px', fontSize: '1.05rem', lineHeight: '1.5' }}>
+            <p style={{ color: '#a8a8a8', marginBottom: globeStatus.enableAt ? '10px' : '25px', fontSize: '1.05rem', lineHeight: '1.5' }}>
                {globeStatus.customMessage || "The matching globe is currently offline for maintenance."}
             </p>
+            {globeStatus.enableAt && (
+              <p style={{ color: '#f59e0b', fontSize: '0.95rem', marginBottom: '25px', fontWeight: '500' }}>
+                 Expected to reopen at: {new Date(globeStatus.enableAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
             {globeStatus.enableAt && (
               <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '25px' }}>
                 <p style={{ color: '#ef4444', fontWeight: 'bold', marginBottom: '8px', fontSize: '0.85rem', letterSpacing: '1px' }}>OPENS IN</p>
