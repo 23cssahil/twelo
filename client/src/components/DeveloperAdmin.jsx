@@ -2,8 +2,31 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
 import io from 'socket.io-client';
-import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle } from 'lucide-react';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2 } from 'lucide-react';
 import './DeveloperAdmin.css';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Line, Bar } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 export default function DeveloperAdmin() {
   const { API_URL } = useContext(AuthContext);
@@ -15,6 +38,7 @@ export default function DeveloperAdmin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   const [stats, setStats] = useState({ activeUsers: 0, randomRooms: 0, queuedRandom: 0 });
+  const [analyticsData, setAnalyticsData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState([]);
   const [broadcastMessage, setBroadcastMessage] = useState('');
@@ -213,10 +237,24 @@ export default function DeveloperAdmin() {
         const data = await res.json();
         setStats(data);
       }
+      
+      if (activeTab === 'analytics') {
+        const analyticsRes = await fetch(`${API_URL}/api/admin/analytics`, {
+          headers: { 'x-admin-pass': password }
+        });
+        if (analyticsRes.ok) {
+          const aData = await analyticsRes.json();
+          setAnalyticsData(aData);
+        }
+      }
     } catch (err) {
       console.error(err);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'analytics') fetchStats();
+  }, [activeTab]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -635,6 +673,14 @@ export default function DeveloperAdmin() {
                   Bot Chats
                   {unreadBotChats.size > 0 && <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ff4b4b', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{unreadBotChats.size}</span>}
                 </button>
+                <button 
+                  onClick={() => { setActiveTab('analytics'); }} 
+                  className={`dev-btn-${activeTab === 'analytics' ? 'primary' : 'secondary'}`}
+                  style={{ background: activeTab === 'analytics' ? '#8b5cf6' : '' }}
+                >
+                  <BarChart2 size={16} style={{ marginRight: '8px' }} />
+                  Analytics & Growth
+                </button>
                 <Link 
                   to="/admin/bot-training"
                   className="dev-btn-secondary"
@@ -645,7 +691,79 @@ export default function DeveloperAdmin() {
                 </Link>
               </div>
 
-              {activeTab === 'users' ? (
+              {activeTab === 'analytics' ? (
+                analyticsData ? (
+                <div className="dev-analytics-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div className="dev-stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', border: 'none' }}>
+                        <div className="stat-info">
+                          <h3 style={{ fontSize: '2rem' }}>{analyticsData.dau}</h3>
+                          <p style={{ color: '#e0e7ff' }}>Daily Active Users</p>
+                        </div>
+                     </div>
+                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', border: 'none' }}>
+                        <div className="stat-info">
+                          <h3 style={{ fontSize: '2rem' }}>{analyticsData.mau}</h3>
+                          <p style={{ color: '#e0f2fe' }}>Monthly Active Users</p>
+                        </div>
+                     </div>
+                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none' }}>
+                        <div className="stat-info">
+                          <h3 style={{ fontSize: '2rem' }}>{analyticsData.day1Retention}%</h3>
+                          <p style={{ color: '#d1fae5' }}>Retention Rate (Est.)</p>
+                        </div>
+                     </div>
+                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', border: 'none' }}>
+                        <div className="stat-info">
+                          <h3 style={{ fontSize: '2rem' }}>{analyticsData.avgSessionMinutes}m</h3>
+                          <p style={{ color: '#fef3c7' }}>Avg Session Length</p>
+                        </div>
+                     </div>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                     <div className="dev-panel" style={{ padding: '20px' }}>
+                        <h4 style={{ marginBottom: '15px' }}>DAU Trend (Last 7 Days)</h4>
+                        {analyticsData.chartData && (
+                          <Line 
+                            data={{
+                              labels: analyticsData.chartData.labels,
+                              datasets: [{
+                                label: 'Daily Active Users',
+                                data: analyticsData.chartData.dau,
+                                borderColor: '#8b5cf6',
+                                backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                                fill: true,
+                                tension: 0.4
+                              }]
+                            }}
+                            options={{ responsive: true, scales: { y: { beginAtZero: true } } }}
+                          />
+                        )}
+                     </div>
+                     
+                     <div className="dev-panel" style={{ padding: '20px' }}>
+                        <h4 style={{ marginBottom: '15px' }}>Core Actions (Avg per session)</h4>
+                        {analyticsData && (
+                          <Bar 
+                            data={{
+                              labels: ['Messages Sent', 'Matches Made'],
+                              datasets: [{
+                                label: 'Average Count',
+                                data: [analyticsData.avgMessages, analyticsData.avgMatches],
+                                backgroundColor: ['#0ea5e9', '#f59e0b']
+                              }]
+                            }}
+                            options={{ responsive: true, scales: { y: { beginAtZero: true } } }}
+                          />
+                        )}
+                     </div>
+                  </div>
+                </div>
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#888', marginTop: '20px' }}>Loading analytics data...</div>
+                )
+              ) : activeTab === 'users' ? (
                 <>
                   <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                     <input 

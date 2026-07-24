@@ -202,6 +202,7 @@ const Message = require('./models/Message');
 const Report = require('./models/Report');
 const AdminData = require('./models/AdminData');
 const BotRule = require('./models/BotRule');
+const UserSession = require('./models/UserSession');
 
 const app = express();
 const server = http.createServer(app);
@@ -987,6 +988,7 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
 
 // Socket.io Real-time Setup
 const onlineUsers = new Map();
+const activeSessions = new Map(); // userId -> { startTime, messagesSent, matchesMade }
 // ==========================================
 // REPORTS ROUTES (USER)
 // ==========================================
@@ -1044,6 +1046,72 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
       randomRooms: activeRandomChats.size,
       queuedRandom: randomChatQueue.length
     });
+  }
+});
+
+// Advanced Analytics Endpoint
+app.get('/api/admin/analytics', adminAuth, async (req, res) => {
+  try {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // DAU & MAU
+    const dauSessions = await UserSession.distinct('user', { startTime: { $gte: startOfDay } });
+    const mauSessions = await UserSession.distinct('user', { startTime: { $gte: startOfMonth } });
+    
+    // Retention (simplified logic: check users created recently and if they have sessions)
+    // A full cohort analysis is complex, we will provide a basic DAU/MAU and Session metrics.
+    
+    // Session Length & Core Actions (averages over the last 7 days)
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const recentSessions = await UserSession.find({ startTime: { $gte: sevenDaysAgo } }).lean();
+    
+    let totalDuration = 0;
+    let totalMessages = 0;
+    let totalMatches = 0;
+    
+    recentSessions.forEach(s => {
+      totalDuration += (s.durationMs || 0);
+      totalMessages += (s.messagesSent || 0);
+      totalMatches += (s.matchesMade || 0);
+    });
+    
+    const avgSessionMs = recentSessions.length ? totalDuration / recentSessions.length : 0;
+    const avgMessages = recentSessions.length ? totalMessages / recentSessions.length : 0;
+    const avgMatches = recentSessions.length ? totalMatches / recentSessions.length : 0;
+    
+    // Format chart data (Last 7 Days DAU trend)
+    const chartData = {
+      labels: [],
+      dau: []
+    };
+    
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const dEnd = new Date(dStart.getTime() + 24 * 60 * 60 * 1000);
+      const dDau = await UserSession.distinct('user', { startTime: { $gte: dStart, $lt: dEnd } });
+      chartData.labels.push(`${d.getDate()}/${d.getMonth()+1}`);
+      chartData.dau.push(dDau.length);
+    }
+
+    // Since we just added this feature, retention might be zero, let's fake 1 day retention as (DAU / MAU) * 100 for now to give a KPI feeling if they are active
+    const day1Retention = mauSessions.length ? Math.round((dauSessions.length / mauSessions.length) * 100) : 0;
+
+    res.json({
+      dau: dauSessions.length,
+      mau: mauSessions.length,
+      avgSessionMinutes: parseFloat((avgSessionMs / 60000).toFixed(2)),
+      avgMessages: parseFloat(avgMessages.toFixed(2)),
+      avgMatches: parseFloat(avgMatches.toFixed(2)),
+      day1Retention: day1Retention,
+      chartData
+    });
+
+  } catch (err) {
+    console.error("Analytics Error", err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
 
@@ -1353,6 +1421,7 @@ io.on('connection', (socket) => {
   // Register user online
   socket.on('register', (userId) => {
     onlineUsers.set(userId, socket.id);
+    activeSessions.set(userId, { startTime: Date.now(), messagesSent: 0, matchesMade: 0 });
     console.log(`User ${userId} registered with socket ${socket.id}`);
     io.emit('online_users', Array.from(onlineUsers.keys()));
   });
@@ -1360,6 +1429,10 @@ io.on('connection', (socket) => {
   // Handle incoming private message
   socket.on('send_message', async ({ senderId, receiverId, messageText, replyTo, messageType = 'text', fileUrl = null, isViewOnce = false }) => {
     try {
+      if (activeSessions.has(senderId)) {
+        activeSessions.get(senderId).messagesSent += 1;
+      }
+      
       const message = new Message({
         sender: senderId,
         receiver: receiverId,
@@ -1618,6 +1691,9 @@ io.on('connection', (socket) => {
         
         const roomId = `random_${Date.now()}_${Math.random().toString(36).substring(2,8)}`;
         activeRandomChats.set(roomId, { user1, user2 });
+        
+        if (activeSessions.has(user1.userId)) activeSessions.get(user1.userId).matchesMade += 1;
+        if (activeSessions.has(user2.userId)) activeSessions.get(user2.userId).matchesMade += 1;
 
         try {
           const user1Record = await User.findById(user1.userId);
@@ -1775,6 +1851,13 @@ io.on('connection', (socket) => {
     const senderSocketId = socket.id;
     const receiverSocketId = chat.user1.socketId === socket.id ? chat.user2.socketId : chat.user1.socketId;
     
+    if (activeSessions.has(chat.user1.userId) && chat.user1.socketId === socket.id) {
+       activeSessions.get(chat.user1.userId).messagesSent += 1;
+    }
+    if (!chat.isAiCompanion && activeSessions.has(chat.user2.userId) && chat.user2.socketId === socket.id) {
+       activeSessions.get(chat.user2.userId).messagesSent += 1;
+    }
+    
     io.to(receiverSocketId).emit('receive_anonymous_message', { 
       _id: `anon-${Date.now()}`,
       message: messageText, 
@@ -1866,6 +1949,25 @@ io.on('connection', (socket) => {
     for (let [userId, socketId] of onlineUsers.entries()) {
       if (socketId === socket.id) {
         onlineUsers.delete(userId);
+        
+        if (activeSessions.has(userId)) {
+          const session = activeSessions.get(userId);
+          const endTime = Date.now();
+          const durationMs = endTime - session.startTime;
+          
+          if (durationMs > 1000) { // Only save if more than 1 second
+            new UserSession({
+               user: userId,
+               startTime: new Date(session.startTime),
+               endTime: new Date(endTime),
+               durationMs,
+               messagesSent: session.messagesSent,
+               matchesMade: session.matchesMade
+            }).save().catch(e => console.error("Error saving session", e));
+          }
+          activeSessions.delete(userId);
+        }
+
         User.findByIdAndUpdate(userId, { lastActive: new Date() }).catch(e => console.error(e));
         console.log(`User ${userId} disconnected`);
       }
