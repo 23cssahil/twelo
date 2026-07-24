@@ -197,8 +197,22 @@ export default function DeveloperAdmin() {
         setActiveRandomChat(null);
       });
 
+      newSocket.on('globe_status_update', (status) => {
+        setGlobeStatus(status);
+        if (status.isEnabled) {
+          setGlobeTimerMinutes('');
+        }
+      });
+
       return () => {
         clearInterval(interval);
+        newSocket.off('connect');
+        newSocket.off('admin_alert_new_random');
+        newSocket.off('admin_intercept_started');
+        newSocket.off('receive_anonymous_message');
+        newSocket.off('receive_message');
+        newSocket.off('anonymous_chat_ended');
+        newSocket.off('globe_status_update');
         newSocket.disconnect();
       };
     }
