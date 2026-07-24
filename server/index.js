@@ -37,7 +37,7 @@ function generateAvatarUrl(gender) {
 
 // A transparent fallback for the random-chat queue.  The client labels this
 // participant as an AI companion; it must never be presented as a real user.
-const AI_COMPANION_FALLBACK_DELAY_MS = 2800;
+const AI_COMPANION_FALLBACK_DELAY_MS = 2200;
 const pickOne = (items) => items[Math.floor(Math.random() * items.length)];
 
 function createAiCompanion(userGender) {
@@ -260,8 +260,13 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 });
 
 // Database Connection
+let cachedGlobeStatus = { isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null };
+
 mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://23cssahil_db_user:xsBXlihiFfWrsEZY@cluster0.pmn7via.mongodb.net/twelo_db?retryWrites=true&w=majority&appName=Cluster0')
-  .then(() => console.log('MongoDB Connected'))
+  .then(() => {
+    console.log('MongoDB Connected');
+    AdminData.findOne().then(data => { if (data?.globeStatus) cachedGlobeStatus = data.globeStatus; }).catch(e => {});
+  })
   .catch(err => console.error('MongoDB Connection Error:', err));
 
 // Generate custom unique ID for User (8 chars alphanumeric)
@@ -1161,6 +1166,7 @@ app.post('/api/admin/globe', adminAuth, async (req, res) => {
       enableAt: enableAt !== undefined ? enableAt : adminData.globeStatus?.enableAt 
     };
     await adminData.save();
+    cachedGlobeStatus = adminData.globeStatus;
     
     io.emit('globe_status_update', adminData.globeStatus);
     res.json(adminData.globeStatus);
@@ -1171,8 +1177,7 @@ app.post('/api/admin/globe', adminAuth, async (req, res) => {
 });
 
 app.get('/api/config/globe', async (req, res) => {
-  let adminData = await AdminData.findOne();
-  res.json(adminData?.globeStatus || { isEnabled: true });
+  res.json(cachedGlobeStatus);
 });
 
 app.get('/api/admin/users', adminAuth, async (req, res) => {
@@ -1467,9 +1472,8 @@ io.on('connection', (socket) => {
     
     // Send globe status on connect
     try {
-      const adminData = await AdminData.findOne();
-      if (adminData && adminData.globeStatus) {
-        socket.emit('globe_status_update', adminData.globeStatus);
+      if (cachedGlobeStatus) {
+        socket.emit('globe_status_update', cachedGlobeStatus);
       }
     } catch (e) {}
   });
@@ -1659,18 +1663,20 @@ io.on('connection', (socket) => {
     // --- Anonymous Random Chat Events ---
     socket.on('search_random', async (payload) => {
       try {
-        const adminData = await AdminData.findOne();
-        if (adminData && adminData.globeStatus && !adminData.globeStatus.isEnabled) {
+        if (!cachedGlobeStatus.isEnabled) {
            const now = new Date();
-           const enableTime = adminData.globeStatus.enableAt ? new Date(adminData.globeStatus.enableAt) : null;
+           const enableTime = cachedGlobeStatus.enableAt ? new Date(cachedGlobeStatus.enableAt) : null;
            if (!enableTime || now < enableTime) {
+               io.to(socket.id).emit('cancel_search');
                return; // Globe is offline, ignore search
            } else if (enableTime && now >= enableTime) {
                // Auto re-enable since timer passed
-               adminData.globeStatus.isEnabled = true;
-               adminData.globeStatus.enableAt = null;
-               await adminData.save();
-               io.emit('globe_status_update', adminData.globeStatus);
+               cachedGlobeStatus.isEnabled = true;
+               cachedGlobeStatus.enableAt = null;
+               io.emit('globe_status_update', cachedGlobeStatus);
+               AdminData.findOne().then(adminData => {
+                   if(adminData) { adminData.globeStatus = cachedGlobeStatus; adminData.save(); }
+               }).catch(e=>{});
            }
         }
       } catch (e) { console.error("Globe check error", e); }
