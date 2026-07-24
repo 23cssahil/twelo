@@ -45,6 +45,7 @@ export default function DeveloperAdmin() {
   const [showBlockedOnly, setShowBlockedOnly] = useState(false);
 
   const [activeTab, setActiveTab] = useState('users');
+  const [growthTimeframe, setGrowthTimeframe] = useState('monthly');
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
 
@@ -848,21 +849,41 @@ export default function DeveloperAdmin() {
                      </div>
                      <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #ec4899, #be185d)', border: 'none' }}>
                         <div className="stat-info">
-                          <h3 style={{ fontSize: '2rem' }}>+{analyticsData.monthSignups || 0}</h3>
-                          <p style={{ color: '#fbcfe8' }}>New Users (Last 30 Days)</p>
+                          <h3 style={{ fontSize: '2rem' }}>+{growthTimeframe === 'monthly' ? (analyticsData.monthSignups || 0) : (analyticsData.yearSignups || 0)}</h3>
+                          <p style={{ color: '#fbcfe8' }}>New Users ({growthTimeframe === 'monthly' ? 'Last 30 Days' : 'Last 12 Months'})</p>
                         </div>
                      </div>
                   </div>
 
-                  {analyticsData.growthData && (
+                  {(analyticsData.growthData || analyticsData.yearlyGrowthData) && (
                      <div className="dev-panel" style={{ padding: '20px' }}>
-                        <h4 style={{ marginBottom: '15px' }}>User Growth & Acquisition (Last 30 Days)</h4>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                          <h4 style={{ margin: 0 }}>
+                            User Growth & Acquisition ({growthTimeframe === 'monthly' ? 'Last 30 Days' : 'Last 12 Months'})
+                          </h4>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button 
+                              onClick={() => setGrowthTimeframe('monthly')}
+                              className={`dev-btn-${growthTimeframe === 'monthly' ? 'primary' : 'secondary'}`}
+                              style={{ padding: '5px 12px', fontSize: '0.8rem' }}
+                            >
+                              Monthly
+                            </button>
+                            <button 
+                              onClick={() => setGrowthTimeframe('yearly')}
+                              className={`dev-btn-${growthTimeframe === 'yearly' ? 'primary' : 'secondary'}`}
+                              style={{ padding: '5px 12px', fontSize: '0.8rem' }}
+                            >
+                              Yearly
+                            </button>
+                          </div>
+                        </div>
                         <Line 
                           data={{
-                            labels: analyticsData.growthData.labels,
+                            labels: growthTimeframe === 'monthly' ? analyticsData.growthData.labels : analyticsData.yearlyGrowthData.labels,
                             datasets: [{
                               label: 'New Signups',
-                              data: analyticsData.growthData.signups,
+                              data: growthTimeframe === 'monthly' ? analyticsData.growthData.signups : analyticsData.yearlyGrowthData.signups,
                               borderColor: '#ec4899',
                               backgroundColor: 'rgba(236, 72, 153, 0.2)',
                               fill: true,

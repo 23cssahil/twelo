@@ -1161,6 +1161,35 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
       if (i === 0) todaySignups = count;
     }
 
+    // Fetch Yearly Growth Analytics (Last 12 months)
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const yearlyGrowthDataRaw = await User.aggregate([
+      { $match: { createdAt: { $gte: twelveMonthsAgo } } },
+      { 
+        $group: { 
+          _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } }, 
+          count: { $sum: 1 } 
+        } 
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const yearlyGrowthData = { labels: [], signups: [] };
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let yearSignups = 0;
+    
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const m = d.getMonth() + 1;
+      const monthStr = `${d.getFullYear()}-${m < 10 ? '0' + m : m}`;
+      yearlyGrowthData.labels.push(`${monthNames[d.getMonth()]} '${d.getFullYear().toString().slice(2)}`);
+      
+      const found = yearlyGrowthDataRaw.find(g => g._id === monthStr);
+      const count = found ? found.count : 0;
+      yearlyGrowthData.signups.push(count);
+      yearSignups += count;
+    }
+
     res.json({
       dau: uniqueDau.size,
       mau: uniqueMau.size,
@@ -1170,8 +1199,10 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
       day1Retention: day1Retention,
       chartData,
       growthData,
+      yearlyGrowthData,
       todaySignups,
-      monthSignups
+      monthSignups,
+      yearSignups
     });
 
   } catch (err) {
