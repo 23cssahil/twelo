@@ -984,7 +984,7 @@ export default function DeveloperAdmin() {
                               responsive: true,
                               maintainAspectRatio: false,
                               plugins: {
-                                legend: { position: 'right', labels: { color: '#fff', boxWidth: 12, padding: 15 } },
+                                legend: { position: 'bottom', labels: { color: '#fff', boxWidth: 12, padding: 15 } },
                                 tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', padding: 12 }
                               },
                               cutout: '60%'
