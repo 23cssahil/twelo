@@ -1669,7 +1669,7 @@ export default function Dashboard() {
   const handleGlobeClick = useCallback(() => {
     // Add light haptic feedback (vibration) for mobile users
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(40); // 40ms light vibration
+      navigator.vibrate(70); // 70ms light vibration (increased slightly)
     }
 
     if (!globeStatus.isEnabled) {
