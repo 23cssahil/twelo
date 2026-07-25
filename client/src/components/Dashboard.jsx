@@ -156,14 +156,14 @@ export default function Dashboard() {
   const [longPressTarget, setLongPressTarget] = useState(null);
   const pressTimer = useRef(null);
 
-  const handleTouchStart = (user) => {
+  const handleSearchHistoryTouchStart = (user) => {
     if (searchQuery) return; // Only on history
     pressTimer.current = setTimeout(() => {
       setLongPressTarget(user);
     }, 800);
   };
 
-  const handleTouchEnd = () => {
+  const handleSearchHistoryTouchEnd = () => {
     if (pressTimer.current) clearTimeout(pressTimer.current);
   };
 
@@ -2212,12 +2212,12 @@ export default function Dashboard() {
                   <div 
                     className="user-card" 
                     key={searchUser._id}
-                    onTouchStart={() => handleTouchStart(searchUser)}
-                    onTouchEnd={handleTouchEnd}
-                    onTouchMove={handleTouchEnd}
-                    onMouseDown={() => handleTouchStart(searchUser)}
-                    onMouseUp={handleTouchEnd}
-                    onMouseLeave={handleTouchEnd}
+                    onTouchStart={() => handleSearchHistoryTouchStart(searchUser)}
+                    onTouchEnd={handleSearchHistoryTouchEnd}
+                    onTouchMove={handleSearchHistoryTouchEnd}
+                    onMouseDown={() => handleSearchHistoryTouchStart(searchUser)}
+                    onMouseUp={handleSearchHistoryTouchEnd}
+                    onMouseLeave={handleSearchHistoryTouchEnd}
                     onContextMenu={(e) => { e.preventDefault(); return false; }}
                     style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', msUserSelect: 'none', MozUserSelect: 'none' }}
                   >
