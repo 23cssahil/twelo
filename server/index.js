@@ -400,7 +400,37 @@ app.post('/api/auth/google', async (req, res) => {
 
     let avatarUrl = generateAvatarUrl(gender);
 
-    const newUser = new User({ username, name, email: hashedEmail, googleId, uniqueId, age: Number(age), country, gender: gender.toLowerCase(), avatarUrl });
+    let finalCountry = country;
+    let countryCode = 'UN';
+
+    // IP Geolocation Logic
+    try {
+      const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || req.ip;
+      // Exclude localhost/private IPs from triggering the API (optional but safe)
+      if (clientIp && clientIp !== '::1' && clientIp !== '127.0.0.1') {
+        const response = await fetch(`http://ip-api.com/json/${clientIp}`);
+        const geoData = await response.json();
+        if (geoData && geoData.status === 'success') {
+          finalCountry = geoData.country;
+          countryCode = geoData.countryCode;
+        }
+      }
+    } catch (geoErr) {
+      console.error('IP Geolocation failed:', geoErr.message);
+    }
+
+    const newUser = new User({ 
+      username, 
+      name, 
+      email: hashedEmail, 
+      googleId, 
+      uniqueId, 
+      age: Number(age), 
+      country: finalCountry, 
+      countryCode,
+      gender: gender.toLowerCase(), 
+      avatarUrl 
+    });
     await newUser.save();
 
     if (referredBy) {
@@ -1812,7 +1842,8 @@ io.on('connection', (socket) => {
           roomId,
           partnerId: fakeUser._id.toString(),
           partnerAvatar: fakeUser.avatarUrl,
-          partnerCountry: fakeUser.country
+          partnerCountry: fakeUser.country,
+          partnerCountryCode: 'UN' // Fallback for fake user
         });
         
         io.to(socket.id).emit('admin_intercept_started', {
@@ -1937,13 +1968,15 @@ io.on('connection', (socket) => {
             roomId, 
             partnerId: user2.userId,
             partnerAvatar: user2Record?.avatarUrl,
-            partnerCountry: user2Record?.country
+            partnerCountry: user2Record?.country,
+            partnerCountryCode: user2Record?.countryCode || 'UN'
           });
           io.to(user2.socketId).emit('match_found', { 
             roomId, 
             partnerId: user1.userId,
             partnerAvatar: user1Record?.avatarUrl,
-            partnerCountry: user1Record?.country
+            partnerCountry: user1Record?.country,
+            partnerCountryCode: user1Record?.countryCode || 'UN'
           });
         } catch (err) {
           console.error("Error fetching random chat users", err);
@@ -1998,6 +2031,7 @@ io.on('connection', (socket) => {
           partnerId: companion.id,
           partnerAvatar: companion.avatarUrl,
           partnerCountry: companion.country,
+          partnerCountryCode: 'UN', // AI companion has no specific country code
           partnerName: 'Stranger',
           isAiCompanion: true
         });

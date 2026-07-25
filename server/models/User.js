@@ -36,6 +36,10 @@ const UserSchema = new mongoose.Schema({
     required: true,
     default: 'Earth',
   },
+  countryCode: {
+    type: String,
+    default: 'UN', // Default to UN (United Nations / Unknown)
+  },
   gender: {
     type: String,
     required: true,

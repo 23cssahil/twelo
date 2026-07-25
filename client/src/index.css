@@ -1594,9 +1594,21 @@ input, button, textarea {
   width: 90px;
   height: 90px;
   border-radius: 50%;
-  margin-bottom: 15px;
   border: 3px solid var(--brand-blue);
   box-shadow: 0 0 15px rgba(0, 255, 170, 0.3);
+  object-fit: cover;
+  display: block;
+}
+
+.match-found-flag {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(30, 30, 30, 0.85);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
   object-fit: cover;
 }
 

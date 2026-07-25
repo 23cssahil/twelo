@@ -246,6 +246,7 @@ export default function Dashboard() {
   const [isAnonymousChatActive, setIsAnonymousChatActive] = useState(false);
   const [anonymousPartnerAvatar, setAnonymousPartnerAvatar] = useState('');
   const [anonymousPartnerCountry, setAnonymousPartnerCountry] = useState('');
+  const [anonymousPartnerCountryCode, setAnonymousPartnerCountryCode] = useState('UN');
   const [anonymousPartnerName, setAnonymousPartnerName] = useState('Stranger');
   const [isAiCompanion, setIsAiCompanion] = useState(false);
   const [anonymousPartnerTyping, setAnonymousPartnerTyping] = useState(false);
@@ -572,6 +573,7 @@ export default function Dashboard() {
           setAnonymousPartnerId(data.partnerId);
           setAnonymousPartnerAvatar(data.partnerAvatar || '');
           setAnonymousPartnerCountry(data.partnerCountry || 'Earth');
+          setAnonymousPartnerCountryCode(data.partnerCountryCode || 'UN');
           setAnonymousPartnerName(data.partnerName || 'Stranger');
           setIsAiCompanion(Boolean(data.isAiCompanion));
           setAnonymousMessages([]);
@@ -3141,7 +3143,16 @@ export default function Dashboard() {
         <div className="match-found-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
           <div className="match-found-card">
             <h2 className="match-found-title">🎉 Match Found!</h2>
-            <img src={matchFoundData.partnerAvatar || `https://api.dicebear.com/6.x/avataaars/svg?seed=${matchFoundData.partnerName || 'Stranger'}`} alt="Avatar" className="match-found-avatar" />
+            <div className="match-found-avatar-container" style={{ position: 'relative', display: 'inline-block', marginBottom: '15px' }}>
+              <img src={matchFoundData.partnerAvatar || `https://api.dicebear.com/6.x/avataaars/svg?seed=${matchFoundData.partnerName || 'Stranger'}`} alt="Avatar" className="match-found-avatar" />
+              {matchFoundData.partnerCountryCode && matchFoundData.partnerCountryCode !== 'UN' && (
+                <img 
+                  src={`https://flagcdn.com/w80/${matchFoundData.partnerCountryCode.toLowerCase()}.png`} 
+                  alt={matchFoundData.partnerCountry}
+                  className="match-found-flag"
+                />
+              )}
+            </div>
             <div className="match-found-name">{matchFoundData.partnerName || 'Stranger'}</div>
             <div className="match-found-country">📍 <strong>{matchFoundData.partnerCountry || 'Earth'}</strong></div>
             <div className="match-found-fact">
@@ -3154,6 +3165,7 @@ export default function Dashboard() {
                 setAnonymousPartnerId(matchFoundData.partnerId);
                 setAnonymousPartnerAvatar(matchFoundData.partnerAvatar || '');
                 setAnonymousPartnerCountry(matchFoundData.partnerCountry || 'Earth');
+                setAnonymousPartnerCountryCode(matchFoundData.partnerCountryCode || 'UN');
                 setAnonymousPartnerName(matchFoundData.partnerName || 'Stranger');
                 setIsAiCompanion(Boolean(matchFoundData.isAiCompanion));
                 setAnonymousMessages([]);
