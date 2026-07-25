@@ -153,6 +153,36 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchHistoryCache, setSearchHistoryCache] = useState(null);
+  const [longPressTarget, setLongPressTarget] = useState(null);
+  const pressTimer = useRef(null);
+
+  const handleTouchStart = (user) => {
+    if (searchQuery) return; // Only on history
+    pressTimer.current = setTimeout(() => {
+      setLongPressTarget(user);
+    }, 800);
+  };
+
+  const handleTouchEnd = () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+  };
+
+  const removeSearchHistoryItem = async (userId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/search-history/${userId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setSearchHistoryCache(prev => prev.filter(u => u._id !== userId));
+        setSearchResults(prev => prev.filter(u => u._id !== userId));
+        setLongPressTarget(null);
+        showToastMsg("Removed from history", 'info');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
   const [searchLoading, setSearchLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
   
@@ -2176,7 +2206,17 @@ export default function Dashboard() {
                 const isFollowing = profileStats?.following?.includes(searchUser._id);
                 const hasRequested = searchUser.friendRequests?.includes(user.id);
                 return (
-                  <div className="user-card" key={searchUser._id}>
+                  <div 
+                    className="user-card" 
+                    key={searchUser._id}
+                    onTouchStart={() => handleTouchStart(searchUser)}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchMove={handleTouchEnd}
+                    onMouseDown={() => handleTouchStart(searchUser)}
+                    onMouseUp={handleTouchEnd}
+                    onMouseLeave={handleTouchEnd}
+                    style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none' }}
+                  >
                     <div className="user-card-info" onClick={() => viewPublicProfile(searchUser._id)} style={{ cursor: 'pointer' }}>
                       <div className="user-avatar-small">
                         {searchUser.avatarUrl ? <img src={searchUser.avatarUrl} alt='avatar' /> : searchUser.username.charAt(0).toUpperCase()}
@@ -3235,6 +3275,32 @@ export default function Dashboard() {
             >
               Start Chat Now →
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Long Press Modal for Search History */}
+      {longPressTarget && (
+        <div className="modal-overlay" onClick={() => setLongPressTarget(null)} style={{ zIndex: 10000, animation: 'fadeIn 0.2s ease' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ textAlign: 'center', padding: '30px 20px', maxWidth: '300px', background: 'linear-gradient(145deg, #1e1e1e, #111)', border: '1px solid #333', borderRadius: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+            <h2 style={{ marginBottom: '10px', fontSize: '1.2rem', color: '#fff' }}>Remove from history?</h2>
+            <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginBottom: '20px' }}>
+              Remove @{longPressTarget.username} from your search history.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                onClick={() => setLongPressTarget(null)}
+                style={{ flex: 1, padding: '12px', background: '#333', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => removeSearchHistoryItem(longPressTarget._id)}
+                style={{ flex: 1, padding: '12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Remove
+              </button>
+            </div>
           </div>
         </div>
       )}

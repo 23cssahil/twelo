@@ -550,6 +550,19 @@ app.get('/api/users/search-history', authenticateToken, async (req, res) => {
   }
 });
 
+app.delete('/api/users/search-history/:id', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    const targetId = req.params.id;
+    user.searchHistory = user.searchHistory.filter(id => id && id.toString() !== targetId);
+    await user.save();
+    res.json({ message: 'Removed from search history' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error removing from search history' });
+  }
+});
+
 // Get My Profile (with stats and coin logic)
 app.get('/api/users/profile', authenticateToken, async (req, res) => {
   try {
