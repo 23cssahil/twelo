@@ -139,6 +139,7 @@ export default function Dashboard() {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [searchHistoryCache, setSearchHistoryCache] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
   
@@ -807,10 +808,14 @@ export default function Dashboard() {
   };
 
   const fetchSearchHistory = async () => {
+    if (searchHistoryCache) setSearchResults(searchHistoryCache);
     try {
       const res = await fetch(`${API_URL}/api/users/search-history`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (res.ok) setSearchResults(data);
+      if (res.ok) {
+        setSearchResults(data);
+        setSearchHistoryCache(data);
+      }
     } catch (e) { console.error("Search history error", e); }
   };
 
