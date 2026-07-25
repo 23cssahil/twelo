@@ -1694,7 +1694,9 @@ io.on('connection', (socket) => {
       if (type === 'everyone') {
         // Only sender can delete for everyone
         if (message.sender.toString() === userId) {
-          await Message.findByIdAndDelete(messageId);
+          await Message.findByIdAndUpdate(messageId, { 
+            $set: { isDeletedForEveryone: true, message: '🚫 This message was deleted', messageType: 'text', fileUrl: null } 
+          });
           const receiverSocketId = onlineUsers.get(message.receiver.toString());
           const senderSocketId = onlineUsers.get(message.sender.toString());
           const payload = { messageId, type: 'everyone' };

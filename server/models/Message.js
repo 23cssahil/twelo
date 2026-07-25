@@ -36,6 +36,10 @@ const MessageSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  isDeletedForEveryone: {
+    type: Boolean,
+    default: false,
+  },
   isViewed: {
     type: Boolean,
     default: false,

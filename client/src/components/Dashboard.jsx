@@ -476,7 +476,13 @@ export default function Dashboard() {
     });
 
     socket.on('message_deleted', ({ messageId, type }) => {
-      setMessages(prev => prev.filter(m => m._id !== messageId));
+      setMessages(prev => {
+        if (type === 'everyone') {
+          return prev.map(m => m._id === messageId ? { ...m, isDeletedForEveryone: true, message: '🚫 This message was deleted', messageType: 'text' } : m);
+        } else {
+          return prev.filter(m => m._id !== messageId);
+        }
+      });
       fetchRecentChats();
     });
 
@@ -1269,6 +1275,15 @@ export default function Dashboard() {
   const deleteMessage = (type) => {
     if (contextMenu.msgId && socket) {
       socket.emit('delete_message', { messageId: contextMenu.msgId, type, userId: user.id });
+      
+      // Optimistic UI update for instant feedback
+      setMessages(prev => {
+        if (type === 'everyone') {
+          return prev.map(m => m._id === contextMenu.msgId ? { ...m, isDeletedForEveryone: true, message: '🚫 This message was deleted', messageType: 'text' } : m);
+        } else {
+          return prev.filter(m => m._id !== contextMenu.msgId);
+        }
+      });
     }
     setContextMenu({ visible: false, msgId: null, isSender: false });
   };
