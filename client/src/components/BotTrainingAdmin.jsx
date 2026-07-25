@@ -17,6 +17,7 @@ const getFlagEmoji = (countryCode) => {
 export default function BotTrainingAdmin() {
   const { API_URL } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -391,26 +392,40 @@ export default function BotTrainingAdmin() {
           <div className="bot-training-card" style={{ maxWidth: '800px', margin: '0 auto', marginBottom: '20px' }}>
             <h2 style={{ margin: '0 0 20px 0' }}>Add Country Fact</h2>
             <form onSubmit={handleCreateCountryFact}>
-              <div className="form-group">
+              <div className="form-group" style={{ position: 'relative' }}>
                 <label>Select Country (Fills Code & Name automatically):</label>
-                <select 
-                  onChange={(e) => {
-                    const code = e.target.value;
-                    const country = WORLD_COUNTRIES.find(c => c.code === code);
-                    if (country) {
-                      setNewFact({...newFact, countryCode: country.code, countryName: country.name});
-                    }
-                  }}
-                  value={newFact.countryCode || ""}
-                  style={{ width: '100%', padding: '12px', background: '#050505', border: '1px solid #333', color: '#fff', borderRadius: '8px', marginBottom: '15px' }}
+                <div 
+                  onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                  style={{ width: '100%', padding: '12px', background: '#050505', border: '1px solid #333', color: '#fff', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
                 >
-                  <option value="" disabled>-- Select a Country --</option>
-                  {WORLD_COUNTRIES.map(c => (
-                    <option key={c.code} value={c.code}>
-                      {getFlagEmoji(c.code)} {c.name}
-                    </option>
-                  ))}
-                </select>
+                  {newFact.countryCode ? (
+                    <>
+                      <img src={`https://flagcdn.com/w20/${newFact.countryCode.toLowerCase()}.png`} alt={newFact.countryCode} />
+                      {newFact.countryName} ({newFact.countryCode})
+                    </>
+                  ) : (
+                    "-- Select a Country --"
+                  )}
+                </div>
+                {showCountryDropdown && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#111', border: '1px solid #333', borderRadius: '8px', maxHeight: '250px', overflowY: 'auto', zIndex: 10, marginTop: '5px' }}>
+                    {WORLD_COUNTRIES.map(c => (
+                      <div 
+                        key={c.code}
+                        onClick={() => {
+                          setNewFact({...newFact, countryCode: c.code, countryName: c.name});
+                          setShowCountryDropdown(false);
+                        }}
+                        style={{ padding: '10px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderBottom: '1px solid #222' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#222'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <img src={`https://flagcdn.com/w20/${c.code.toLowerCase()}.png`} alt={c.code} />
+                        {c.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: '15px' }}>
                 <div className="form-group" style={{ flex: '1' }}>
