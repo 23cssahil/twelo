@@ -3,6 +3,16 @@ import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Trash2, Bot, Lock, List, Plus, Edit2 } from 'lucide-react';
 import './BotTrainingAdmin.css';
+import { WORLD_COUNTRIES } from '../utils/countries';
+
+const getFlagEmoji = (countryCode) => {
+  if (!countryCode) return '';
+  const codePoints = countryCode
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt());
+  return String.fromCodePoint(...codePoints);
+};
 
 export default function BotTrainingAdmin() {
   const { API_URL } = useContext(AuthContext);
@@ -371,12 +381,35 @@ export default function BotTrainingAdmin() {
             <h2 style={{ margin: '0 0 20px 0' }}>Add Country Fact</h2>
             <form onSubmit={handleCreateCountryFact}>
               <div className="form-group">
-                <label>Country Code (e.g., IN, US, GB):</label>
-                <input type="text" placeholder="IN" value={newFact.countryCode} onChange={e => setNewFact({...newFact, countryCode: e.target.value.toUpperCase()})} required maxLength="2" />
+                <label>Select Country (Fills Code & Name automatically):</label>
+                <select 
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    const country = WORLD_COUNTRIES.find(c => c.code === code);
+                    if (country) {
+                      setNewFact({...newFact, countryCode: country.code, countryName: country.name});
+                    }
+                  }}
+                  value={newFact.countryCode || ""}
+                  style={{ width: '100%', padding: '12px', background: '#050505', border: '1px solid #333', color: '#fff', borderRadius: '8px', marginBottom: '15px' }}
+                >
+                  <option value="" disabled>-- Select a Country --</option>
+                  {WORLD_COUNTRIES.map(c => (
+                    <option key={c.code} value={c.code}>
+                      {getFlagEmoji(c.code)} {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="form-group">
-                <label>Country Name (e.g., India, United States):</label>
-                <input type="text" placeholder="India" value={newFact.countryName} onChange={e => setNewFact({...newFact, countryName: e.target.value})} required />
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <div className="form-group" style={{ flex: '1' }}>
+                  <label>Country Code:</label>
+                  <input type="text" placeholder="IN" value={newFact.countryCode} onChange={e => setNewFact({...newFact, countryCode: e.target.value.toUpperCase()})} required maxLength="2" />
+                </div>
+                <div className="form-group" style={{ flex: '2' }}>
+                  <label>Country Name:</label>
+                  <input type="text" placeholder="India" value={newFact.countryName} onChange={e => setNewFact({...newFact, countryName: e.target.value})} required />
+                </div>
               </div>
               <div className="form-group">
                 <label>Fun Facts (separated by | for multiple facts):</label>
