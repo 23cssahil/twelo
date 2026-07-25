@@ -1781,12 +1781,6 @@ export default function Dashboard() {
     setActiveTab('home');
   };
 
-  const globeRingsData = useMemo(() => {
-    if (!matchFoundData || !matchFoundData.partnerCountry) return [];
-    const countryData = COUNTRY_DATA[matchFoundData.partnerCountry] || COUNTRY_DATA['Other'];
-    return [{ lat: countryData.lat, lng: countryData.lng }];
-  }, [matchFoundData]);
-
   const globeComponent = useMemo(() => (
     <Globe
       ref={globeEl}
@@ -1795,14 +1789,9 @@ export default function Dashboard() {
       bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
       backgroundColor="rgba(0,0,0,0)"
       showAtmosphere={false}
-      ringsData={globeRingsData}
-      ringColor={() => '#ff4b4b'}
-      ringMaxRadius={10}
-      ringPropagationSpeed={2}
-      ringRepeatPeriod={700}
       onGlobeClick={() => handleGlobeClickRef.current && handleGlobeClickRef.current()}
     />
-  ), [globeRingsData]);
+  ), []);
 
   const timeSince = (date) => {
     if (!date) return 'a while ago';
