@@ -234,18 +234,22 @@ const { createAdapter } = require('@socket.io/redis-adapter');
 const Redis = require('ioredis');
 
 // Connect to Upstash Redis for Horizontal Scaling
-const redisUrl = process.env.REDIS_URL || 'rediss://default:gQAAAAAAAkHeAAIgcDI5Mjg5ZTJhNDU5MTc0NWQ2YmMwNjJiNjc1YTdjMDBiNw@keen-seahorse-147934.upstash.io:6379';
-const pubClient = new Redis(redisUrl, {
-  tls: redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
-  maxRetriesPerRequest: null
-});
-const subClient = pubClient.duplicate();
+const redisUrl = process.env.REDIS_URL;
+if (redisUrl) {
+  const pubClient = new Redis(redisUrl, {
+    tls: redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
+    maxRetriesPerRequest: null
+  });
+  const subClient = pubClient.duplicate();
 
-pubClient.on('error', (err) => console.log('Redis Pub Error:', err.message));
-subClient.on('error', (err) => console.log('Redis Sub Error:', err.message));
+  pubClient.on('error', (err) => console.log('Redis Pub Error:', err.message));
+  subClient.on('error', (err) => console.log('Redis Sub Error:', err.message));
 
-io.adapter(createAdapter(pubClient, subClient));
-console.log('Redis Adapter initialized for Horizontal Scaling!');
+  io.adapter(createAdapter(pubClient, subClient));
+  console.log('Redis Adapter initialized for Horizontal Scaling!');
+} else {
+  console.log('No REDIS_URL found. Running without Redis Adapter.');
+}
 
 app.use(cors());
 app.use(express.json());
