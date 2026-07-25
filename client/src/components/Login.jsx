@@ -35,6 +35,7 @@ export default function Login() {
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [country, setCountry] = useState('');
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [gender, setGender] = useState('');
 
   const handleGoogleSuccess = async (credentialResponse) => {
@@ -251,21 +252,48 @@ export default function Login() {
                 <label className="floating-label">Age</label>
               </div>
 
-              <div className="form-group floating-group" style={{ flex: 2 }}>
-                <select
+              <div className="form-group floating-group" style={{ flex: 2, position: 'relative' }}>
+                <div 
                   className="auth-input floating-input"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  required
-                  style={{ appearance: 'none', background: 'transparent' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '12px 15px', color: country ? '#fff' : 'transparent' }}
+                  onClick={() => setShowCountryDropdown(!showCountryDropdown)}
                 >
-                  <option value="" disabled hidden></option>
-                  {WORLD_COUNTRIES.map((c) => (
-                    <option key={c.code} value={c.name} style={{ background: '#111', color: '#fff' }}>
-                      {getFlagEmoji(c.code)} {c.name}
-                    </option>
-                  ))}
-                </select>
+                  {country ? (
+                    <>
+                      <img 
+                        src={`https://flagcdn.com/w20/${WORLD_COUNTRIES.find(c => c.name === country)?.code.toLowerCase() || 'un'}.png`} 
+                        alt={country} 
+                        style={{ borderRadius: '2px' }}
+                      />
+                      {country}
+                    </>
+                  ) : (
+                    " "
+                  )}
+                </div>
+                {showCountryDropdown && (
+                  <div style={{ 
+                    position: 'absolute', top: '100%', left: 0, right: 0, 
+                    background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', 
+                    maxHeight: '200px', overflowY: 'auto', zIndex: 10, marginTop: '5px' 
+                  }}>
+                    {WORLD_COUNTRIES.map((c) => (
+                      <div 
+                        key={c.code}
+                        onClick={() => {
+                          setCountry(c.name);
+                          setShowCountryDropdown(false);
+                        }}
+                        style={{ padding: '10px 15px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderBottom: '1px solid #222', color: '#fff' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#333'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <img src={`https://flagcdn.com/w20/${c.code.toLowerCase()}.png`} alt={c.code} style={{ borderRadius: '2px' }} />
+                        {c.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <label className="floating-label">Country</label>
               </div>
             </div>
