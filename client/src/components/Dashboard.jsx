@@ -76,6 +76,19 @@ const CoinSVG = ({ size = 18 }) => (
 import { Capacitor } from '@capacitor/core';
 import { AdMob, RewardAdPluginEvents } from '@capacitor-community/admob';
 
+const COUNTRY_DATA = {
+  "India": { lat: 20.5937, lng: 78.9629, fact: "Did you know? India has the world's largest postal network." },
+  "USA": { lat: 37.0902, lng: -95.7129, fact: "Did you know? The US has the world's largest economy." },
+  "UK": { lat: 55.3781, lng: -3.4360, fact: "Did you know? London has over 170 museums." },
+  "Canada": { lat: 56.1304, lng: -106.3468, fact: "Did you know? Canada has the longest coastline in the world." },
+  "Australia": { lat: -25.2744, lng: 133.7751, fact: "Did you know? Australia is home to the Great Barrier Reef." },
+  "Germany": { lat: 51.1657, lng: 10.4515, fact: "Did you know? Germany has over 20,000 castles." },
+  "France": { lat: 46.2276, lng: 2.2137, fact: "Did you know? France is the most visited country in the world." },
+  "Japan": { lat: 36.2048, lng: 138.2529, fact: "Did you know? Japan consists of over 6,800 islands." },
+  "Brazil": { lat: -14.2350, lng: -51.9253, fact: "Did you know? Brazil is home to the Amazon Rainforest." },
+  "Other": { lat: 0, lng: 0, fact: "Did you know? Earth has over 195 countries!" }
+};
+
 export default function Dashboard() {
   const [activeTab, _setActiveTab] = useState('home');
   
