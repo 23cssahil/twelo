@@ -209,12 +209,17 @@ const CountryFact = require('./models/CountryFact');
 
 const app = express();
 
+const countryFactIndexes = {};
+
 async function getRandomCountryFact(countryCode) {
   try {
     if (countryCode && countryCode !== 'UN') {
       const cf = await CountryFact.findOne({ countryCode: countryCode.toUpperCase() });
       if (cf && cf.facts && cf.facts.length > 0) {
-        return { fact: pickOne(cf.facts), countryCode: cf.countryCode, countryName: cf.countryName };
+        if (countryFactIndexes[cf.countryCode] === undefined) countryFactIndexes[cf.countryCode] = 0;
+        const index = countryFactIndexes[cf.countryCode];
+        countryFactIndexes[cf.countryCode] = (index + 1) % cf.facts.length;
+        return { fact: cf.facts[index], countryCode: cf.countryCode, countryName: cf.countryName };
       }
     }
     
@@ -223,7 +228,10 @@ async function getRandomCountryFact(countryCode) {
     if (allFacts.length > 0) {
       const randomCf = pickOne(allFacts);
       if (randomCf.facts && randomCf.facts.length > 0) {
-        return { fact: pickOne(randomCf.facts), countryCode: randomCf.countryCode, countryName: randomCf.countryName };
+        if (countryFactIndexes[randomCf.countryCode] === undefined) countryFactIndexes[randomCf.countryCode] = 0;
+        const index = countryFactIndexes[randomCf.countryCode];
+        countryFactIndexes[randomCf.countryCode] = (index + 1) % randomCf.facts.length;
+        return { fact: randomCf.facts[index], countryCode: randomCf.countryCode, countryName: randomCf.countryName };
       }
     }
   } catch(e) {}
@@ -2033,21 +2041,24 @@ io.on('connection', (socket) => {
           const user1Record = await User.findById(user1.userId);
           const user2Record = await User.findById(user2.userId);
 
+          const factForUser1 = await getRandomCountryFact(user2Record?.countryCode || 'UN');
+          const factForUser2 = await getRandomCountryFact(user1Record?.countryCode || 'UN');
+
           io.to(user1.socketId).emit('match_found', { 
             roomId, 
             partnerId: user2.userId,
             partnerAvatar: user2Record?.avatarUrl,
-            partnerCountry: user2Record?.country,
-            partnerCountryCode: user2Record?.countryCode || 'UN',
-            partnerFact: (await getRandomCountryFact(user2Record?.countryCode || 'UN')).fact
+            partnerCountry: (user2Record?.countryCode && user2Record.countryCode !== 'UN') ? user2Record.country : factForUser1.countryName,
+            partnerCountryCode: factForUser1.countryCode,
+            partnerFact: factForUser1.fact
           });
           io.to(user2.socketId).emit('match_found', { 
             roomId, 
             partnerId: user1.userId,
             partnerAvatar: user1Record?.avatarUrl,
-            partnerCountry: user1Record?.country,
-            partnerCountryCode: user1Record?.countryCode || 'UN',
-            partnerFact: (await getRandomCountryFact(user1Record?.countryCode || 'UN')).fact
+            partnerCountry: (user1Record?.countryCode && user1Record.countryCode !== 'UN') ? user1Record.country : factForUser2.countryName,
+            partnerCountryCode: factForUser2.countryCode,
+            partnerFact: factForUser2.fact
           });
         } catch (err) {
           console.error("Error fetching random chat users", err);
