@@ -2654,43 +2654,6 @@ export default function Dashboard() {
         pointerEvents: activeTab === 'home' ? 'auto' : 'none'
       }}>
         {globeComponent}
-        {showMatchCard && matchFoundData && (
-          <div className="match-found-overlay">
-            <div className="match-found-card">
-              <h2 className="match-found-title">🎉 Match Found!</h2>
-              <img src={matchFoundData.partnerAvatar || `https://api.dicebear.com/6.x/avataaars/svg?seed=${matchFoundData.partnerName || 'Stranger'}`} alt="Avatar" className="match-found-avatar" />
-              <div className="match-found-name">{matchFoundData.partnerName || 'Stranger'}</div>
-              <div className="match-found-country">📍 <strong>{matchFoundData.partnerCountry || 'Earth'}</strong></div>
-              <div className="match-found-fact">
-                {(COUNTRY_DATA[matchFoundData.partnerCountry] && COUNTRY_DATA[matchFoundData.partnerCountry].fact) || COUNTRY_DATA['Other'].fact}
-              </div>
-              <button 
-                onClick={() => {
-                  if (window.matchTimeoutId) clearTimeout(window.matchTimeoutId);
-                  setAnonymousRoomId(matchFoundData.roomId);
-                  setAnonymousPartnerId(matchFoundData.partnerId);
-                  setAnonymousPartnerAvatar(matchFoundData.partnerAvatar || '');
-                  setAnonymousPartnerCountry(matchFoundData.partnerCountry || 'Earth');
-                  setAnonymousPartnerName(matchFoundData.partnerName || 'Stranger');
-                  setIsAiCompanion(Boolean(matchFoundData.isAiCompanion));
-                  setAnonymousMessages([]);
-                  setIsAnonymousChatActive(true);
-                  setActiveTab('anonymousChat');
-                  setAnonymousPartnerTyping(false);
-                  setShowMatchCard(false);
-                  // Removed setMatchFoundData(null) to prevent react-globe.gl crash with empty ringsData
-                }}
-                style={{
-                  marginTop: '20px', background: 'var(--brand-blue)', border: 'none', color: '#fff', 
-                  padding: '10px 24px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold',
-                  boxShadow: '0 4px 15px rgba(0, 255, 170, 0.3)'
-                }}
-              >
-                Start Chat Now →
-              </button>
-            </div>
-          </div>
-        )}
       </div>
       <aside className="sidebar">
         <div>
@@ -3168,6 +3131,44 @@ export default function Dashboard() {
                style={{ width: '100%', padding: '14px', fontSize: '1.1rem', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', border: 'none', color: '#fff', borderRadius: '12px', cursor: 'pointer' }}
             >
                Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Match Found Overlay - placed at root for correct z-index and centering */}
+      {showMatchCard && matchFoundData && (
+        <div className="match-found-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
+          <div className="match-found-card">
+            <h2 className="match-found-title">🎉 Match Found!</h2>
+            <img src={matchFoundData.partnerAvatar || `https://api.dicebear.com/6.x/avataaars/svg?seed=${matchFoundData.partnerName || 'Stranger'}`} alt="Avatar" className="match-found-avatar" />
+            <div className="match-found-name">{matchFoundData.partnerName || 'Stranger'}</div>
+            <div className="match-found-country">📍 <strong>{matchFoundData.partnerCountry || 'Earth'}</strong></div>
+            <div className="match-found-fact">
+              {(COUNTRY_DATA[matchFoundData.partnerCountry] && COUNTRY_DATA[matchFoundData.partnerCountry].fact) || COUNTRY_DATA['Other'].fact}
+            </div>
+            <button 
+              onClick={() => {
+                if (window.matchTimeoutId) clearTimeout(window.matchTimeoutId);
+                setAnonymousRoomId(matchFoundData.roomId);
+                setAnonymousPartnerId(matchFoundData.partnerId);
+                setAnonymousPartnerAvatar(matchFoundData.partnerAvatar || '');
+                setAnonymousPartnerCountry(matchFoundData.partnerCountry || 'Earth');
+                setAnonymousPartnerName(matchFoundData.partnerName || 'Stranger');
+                setIsAiCompanion(Boolean(matchFoundData.isAiCompanion));
+                setAnonymousMessages([]);
+                setIsAnonymousChatActive(true);
+                setActiveTab('anonymousChat');
+                setAnonymousPartnerTyping(false);
+                setShowMatchCard(false);
+              }}
+              style={{
+                marginTop: '20px', background: 'var(--brand-blue)', border: 'none', color: '#fff', 
+                padding: '10px 24px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold',
+                boxShadow: '0 4px 15px rgba(0, 255, 170, 0.3)'
+              }}
+            >
+              Start Chat Now →
             </button>
           </div>
         </div>
