@@ -2051,15 +2051,44 @@ export default function Dashboard() {
                 {notifications.map(notif => {
                   if (notif.type === 'system_alert') {
                     return (
-                      <div className="user-card" key={notif._id} style={{ borderLeft: '4px solid #f59e0b', background: '#1a1a1a' }}>
-                        <div className="user-card-info" style={{ cursor: 'default' }}>
-                          <div className="user-avatar-small" style={{ background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                             <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                      <div className="user-card" key={notif._id} style={{ 
+                        border: '1px solid rgba(245, 158, 11, 0.3)', 
+                        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(20, 20, 20, 0.8) 100%)', 
+                        boxShadow: '0 4px 15px rgba(245, 158, 11, 0.1)',
+                        backdropFilter: 'blur(10px)',
+                        padding: '16px',
+                        borderRadius: '12px',
+                        marginBottom: '15px'
+                      }}>
+                        <div className="user-card-info" style={{ cursor: 'default', alignItems: 'flex-start', gap: '15px' }}>
+                          <div className="user-avatar-small" style={{ 
+                            background: 'linear-gradient(135deg, #f59e0b, #d97706)', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 0 15px rgba(245, 158, 11, 0.5)',
+                            border: 'none',
+                            width: '45px', height: '45px', borderRadius: '50%', flexShrink: 0
+                          }}>
+                             <Bell size={22} color="#fff" strokeWidth={2.5} />
                           </div>
                           <div className="user-names">
-                            <span className="user-username" style={{ color: '#f59e0b' }}>Twelo Team</span>
-                            <span className="user-id" style={{ fontSize: '0.9rem', color: '#eee', marginTop: '4px' }}>{notif.message}</span>
-                            <span style={{ fontSize: '0.7rem', color: '#888', marginTop: '4px' }}>{new Date(notif.createdAt).toLocaleString()}</span>
+                            <span className="user-username" style={{ 
+                                color: '#fff', 
+                                fontWeight: '800', 
+                                letterSpacing: '1px',
+                                textTransform: 'uppercase',
+                                textShadow: '0 0 10px rgba(245, 158, 11, 0.5)'
+                            }}>Twelo</span>
+                            <span className="user-id" style={{ 
+                                fontSize: '0.95rem', 
+                                color: '#f8fafc', 
+                                marginTop: '6px',
+                                lineHeight: '1.5',
+                                display: 'block',
+                                wordBreak: 'break-word'
+                            }}>{notif.message}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'rgba(245, 158, 11, 0.8)', marginTop: '8px', display: 'block', fontWeight: '500' }}>
+                              {new Date(notif.createdAt).toLocaleString()}
+                            </span>
                           </div>
                         </div>
                       </div>
