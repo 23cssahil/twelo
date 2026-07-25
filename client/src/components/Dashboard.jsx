@@ -566,7 +566,7 @@ export default function Dashboard() {
           setActiveTab('anonymousChat');
           setAnonymousPartnerTyping(false);
           setShowMatchCard(false);
-          setMatchFoundData(null);
+          // Removed setMatchFoundData(null) to prevent react-globe.gl crash with empty ringsData
         }, 2000);
         
         // Save timeout ID to window so we can clear it if user skips
@@ -2676,7 +2676,7 @@ export default function Dashboard() {
                   setActiveTab('anonymousChat');
                   setAnonymousPartnerTyping(false);
                   setShowMatchCard(false);
-                  setMatchFoundData(null);
+                  // Removed setMatchFoundData(null) to prevent react-globe.gl crash with empty ringsData
                 }}
                 style={{
                   marginTop: '20px', background: 'var(--brand-blue)', border: 'none', color: '#fff', 
