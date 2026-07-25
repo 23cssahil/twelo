@@ -2218,7 +2218,8 @@ export default function Dashboard() {
                     onMouseDown={() => handleTouchStart(searchUser)}
                     onMouseUp={handleTouchEnd}
                     onMouseLeave={handleTouchEnd}
-                    style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none' }}
+                    onContextMenu={(e) => { e.preventDefault(); return false; }}
+                    style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', msUserSelect: 'none', MozUserSelect: 'none' }}
                   >
                     <div className="user-card-info" onClick={() => viewPublicProfile(searchUser._id)} style={{ cursor: 'pointer' }}>
                       <div className="user-avatar-small">
