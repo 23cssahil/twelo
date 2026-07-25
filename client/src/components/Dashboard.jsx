@@ -224,6 +224,8 @@ export default function Dashboard() {
   const [isSearchingRandom, setIsSearchingRandom] = useState(false);
   const [randomSearchTimer, setRandomSearchTimer] = useState(0);
   const [matchFailed, setMatchFailed] = useState(false);
+  const [matchFoundData, setMatchFoundData] = useState(null);
+  const [showMatchCard, setShowMatchCard] = useState(false);
   const [genderFilter, setGenderFilter] = useState('any');
   const [anonymousRoomId, setAnonymousRoomId] = useState(null);
   const [anonymousPartnerId, setAnonymousPartnerId] = useState(null);
@@ -546,18 +548,26 @@ export default function Dashboard() {
       handleEndCallQuietly();
     });
 
-    socket.on('match_found', ({ roomId, partnerId, partnerAvatar, partnerCountry, partnerName, isAiCompanion: aiCompanion }) => {
+    socket.on('match_found', (data) => {
         setIsSearchingRandom(false);
-        setAnonymousRoomId(roomId);
-        setAnonymousPartnerId(partnerId);
-        setAnonymousPartnerAvatar(partnerAvatar || '');
-        setAnonymousPartnerCountry(partnerCountry || 'Earth');
-        setAnonymousPartnerName(partnerName || 'Stranger');
-        setIsAiCompanion(Boolean(aiCompanion));
-        setAnonymousMessages([]);
-        setIsAnonymousChatActive(true);
-        setActiveTab('anonymousChat');
-        setAnonymousPartnerTyping(false);
+        setMatchFoundData(data);
+        setShowMatchCard(true);
+
+        // Delay transition to chat by 3.5 seconds to show the Match Card
+        setTimeout(() => {
+          setAnonymousRoomId(data.roomId);
+          setAnonymousPartnerId(data.partnerId);
+          setAnonymousPartnerAvatar(data.partnerAvatar || '');
+          setAnonymousPartnerCountry(data.partnerCountry || 'Earth');
+          setAnonymousPartnerName(data.partnerName || 'Stranger');
+          setIsAiCompanion(Boolean(data.isAiCompanion));
+          setAnonymousMessages([]);
+          setIsAnonymousChatActive(true);
+          setActiveTab('anonymousChat');
+          setAnonymousPartnerTyping(false);
+          setShowMatchCard(false);
+          setMatchFoundData(null);
+        }, 3500);
       });
 
     socket.on('cancel_search', () => {
@@ -1768,6 +1778,12 @@ export default function Dashboard() {
     setActiveTab('home');
   };
 
+  const globeRingsData = useMemo(() => {
+    if (!matchFoundData || !matchFoundData.partnerCountry) return [];
+    const countryData = COUNTRY_DATA[matchFoundData.partnerCountry] || COUNTRY_DATA['Other'];
+    return [{ lat: countryData.lat, lng: countryData.lng }];
+  }, [matchFoundData]);
+
   const globeComponent = useMemo(() => (
     <Globe
       ref={globeEl}
@@ -1776,9 +1792,14 @@ export default function Dashboard() {
       bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
       backgroundColor="rgba(0,0,0,0)"
       showAtmosphere={false}
+      ringsData={globeRingsData}
+      ringColor={() => '#ff4b4b'}
+      ringMaxRadius={10}
+      ringPropagationSpeed={2}
+      ringRepeatPeriod={700}
       onGlobeClick={() => handleGlobeClickRef.current && handleGlobeClickRef.current()}
     />
-  ), []);
+  ), [globeRingsData]);
 
   const timeSince = (date) => {
     if (!date) return 'a while ago';
@@ -2628,6 +2649,19 @@ export default function Dashboard() {
         pointerEvents: activeTab === 'home' ? 'auto' : 'none'
       }}>
         {globeComponent}
+        {showMatchCard && matchFoundData && (
+          <div className="match-found-overlay">
+            <div className="match-found-card">
+              <h2 className="match-found-title">🎉 Match Found!</h2>
+              <img src={matchFoundData.partnerAvatar || `https://api.dicebear.com/6.x/avataaars/svg?seed=${matchFoundData.partnerName || 'Stranger'}`} alt="Avatar" className="match-found-avatar" />
+              <div className="match-found-name">{matchFoundData.partnerName || 'Stranger'}</div>
+              <div className="match-found-country">📍 <strong>{matchFoundData.partnerCountry || 'Earth'}</strong></div>
+              <div className="match-found-fact">
+                {COUNTRY_DATA[matchFoundData.partnerCountry]?.fact || COUNTRY_DATA['Other'].fact}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <aside className="sidebar">
         <div>

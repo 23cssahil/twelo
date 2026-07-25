@@ -1544,9 +1544,95 @@ input, button, textarea {
 
 
 .requests-list { display: flex; flex-direction: column; gap: 15px; max-height: calc(100vh - 200px); overflow-y: auto; padding-right: 5px; }
+.requests-list::-webkit-scrollbar { width: 6px; }
+.requests-list::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+.requests-list::-webkit-scrollbar-track { background: transparent; }
 
+/* Match Found Card UI */
+.match-found-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.match-found-card {
+  background: rgba(30, 30, 30, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 30px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(0, 255, 170, 0.2), 0 10px 20px rgba(0, 0, 0, 0.5);
+  animation: popInCard 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.match-found-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--brand-blue);
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(0, 255, 170, 0.5);
+}
+
+.match-found-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  margin-bottom: 15px;
+  border: 3px solid var(--brand-blue);
+  box-shadow: 0 0 15px rgba(0, 255, 170, 0.3);
+  object-fit: cover;
+}
+
+.match-found-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 10px;
+}
+
+.match-found-country {
+  font-size: 1.1rem;
+  color: #a8a8a8;
+  margin-bottom: 15px;
+}
+
+.match-found-fact {
+  font-size: 0.95rem;
+  color: #e0e0e0;
+  font-style: italic;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 12px;
+  border-radius: 12px;
+  line-height: 1.4;
+}
+
+@keyframes popInCard {
+  0% { transform: scale(0.8) translateY(20px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes pulseMarker {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 99999; } 
 .modal-content { background: #111; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; border: 1px solid #333; max-height: 85vh; overflow-y: auto; } 
-.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; } 
-
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
