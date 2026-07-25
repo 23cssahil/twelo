@@ -2660,7 +2660,7 @@ export default function Dashboard() {
               <div className="match-found-name">{matchFoundData.partnerName || 'Stranger'}</div>
               <div className="match-found-country">📍 <strong>{matchFoundData.partnerCountry || 'Earth'}</strong></div>
               <div className="match-found-fact">
-                {COUNTRY_DATA[matchFoundData.partnerCountry]?.fact || COUNTRY_DATA['Other'].fact}
+                {(COUNTRY_DATA[matchFoundData.partnerCountry] && COUNTRY_DATA[matchFoundData.partnerCountry].fact) || COUNTRY_DATA['Other'].fact}
               </div>
               <button 
                 onClick={() => {
