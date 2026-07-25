@@ -553,8 +553,8 @@ export default function Dashboard() {
         setMatchFoundData(data);
         setShowMatchCard(true);
 
-        // Delay transition to chat by 3.5 seconds to show the Match Card
-        setTimeout(() => {
+        // Delay transition to chat by 2 seconds to show the Match Card
+        const timeoutId = setTimeout(() => {
           setAnonymousRoomId(data.roomId);
           setAnonymousPartnerId(data.partnerId);
           setAnonymousPartnerAvatar(data.partnerAvatar || '');
@@ -567,7 +567,10 @@ export default function Dashboard() {
           setAnonymousPartnerTyping(false);
           setShowMatchCard(false);
           setMatchFoundData(null);
-        }, 3500);
+        }, 2000);
+        
+        // Save timeout ID to window so we can clear it if user skips
+        window.matchTimeoutId = timeoutId;
       });
 
     socket.on('cancel_search', () => {
@@ -2659,6 +2662,30 @@ export default function Dashboard() {
               <div className="match-found-fact">
                 {COUNTRY_DATA[matchFoundData.partnerCountry]?.fact || COUNTRY_DATA['Other'].fact}
               </div>
+              <button 
+                onClick={() => {
+                  if (window.matchTimeoutId) clearTimeout(window.matchTimeoutId);
+                  setAnonymousRoomId(matchFoundData.roomId);
+                  setAnonymousPartnerId(matchFoundData.partnerId);
+                  setAnonymousPartnerAvatar(matchFoundData.partnerAvatar || '');
+                  setAnonymousPartnerCountry(matchFoundData.partnerCountry || 'Earth');
+                  setAnonymousPartnerName(matchFoundData.partnerName || 'Stranger');
+                  setIsAiCompanion(Boolean(matchFoundData.isAiCompanion));
+                  setAnonymousMessages([]);
+                  setIsAnonymousChatActive(true);
+                  setActiveTab('anonymousChat');
+                  setAnonymousPartnerTyping(false);
+                  setShowMatchCard(false);
+                  setMatchFoundData(null);
+                }}
+                style={{
+                  marginTop: '20px', background: 'var(--brand-blue)', border: 'none', color: '#fff', 
+                  padding: '10px 24px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold',
+                  boxShadow: '0 4px 15px rgba(0, 255, 170, 0.3)'
+                }}
+              >
+                Start Chat Now →
+              </button>
             </div>
           </div>
         )}
