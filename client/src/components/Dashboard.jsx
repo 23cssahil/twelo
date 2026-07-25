@@ -559,7 +559,7 @@ export default function Dashboard() {
     });
 
     socket.on('request_rejected_alert', () => {
-      alert("Your follow request was rejected.");
+      showToastMsg("Your follow request was rejected.", 'error');
       fetchProfile();
       if (activeTabRef.current === 'search') {
         handleSearch({ target: { value: searchQueryRef.current } });
