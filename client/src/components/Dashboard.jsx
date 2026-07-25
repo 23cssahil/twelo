@@ -2683,8 +2683,10 @@ export default function Dashboard() {
       <div style={{
         position: 'fixed', top: '-5vh', left: '0', width: '100%', height: '130vh', zIndex: 0,
         transform: 'scale(1.1)',
-        display: activeTab === 'home' ? 'block' : 'none',
-        pointerEvents: activeTab === 'home' ? 'auto' : 'none'
+        visibility: activeTab === 'home' ? 'visible' : 'hidden',
+        opacity: activeTab === 'home' ? 1 : 0,
+        pointerEvents: activeTab === 'home' ? 'auto' : 'none',
+        transition: 'opacity 0.3s ease'
       }}>
         {globeComponent}
       </div>
