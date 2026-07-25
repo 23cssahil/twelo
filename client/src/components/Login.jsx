@@ -261,7 +261,7 @@ export default function Login() {
                 >
                   <option value="" disabled hidden></option>
                   {WORLD_COUNTRIES.map((c) => (
-                    <option key={c.code} value={c.name}>
+                    <option key={c.code} value={c.name} style={{ background: '#111', color: '#fff' }}>
                       {getFlagEmoji(c.code)} {c.name}
                     </option>
                   ))}
