@@ -40,38 +40,8 @@ import Globe from 'react-globe.gl';
 import * as THREE from 'three';
 import { AuthContext, SocketContext } from '../App';
 
-const CoinSVG = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="coinRim" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#fdf0a6" />
-        <stop offset="25%" stopColor="#d4af37" />
-        <stop offset="50%" stopColor="#fff8cd" />
-        <stop offset="75%" stopColor="#aa7c11" />
-        <stop offset="100%" stopColor="#fdf0a6" />
-      </linearGradient>
-      <linearGradient id="coinFace" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#ffe55c" />
-        <stop offset="100%" stopColor="#d4af37" />
-      </linearGradient>
-      <filter id="innerShadow">
-        <feOffset dx="0" dy="2"/>
-        <feGaussianBlur stdDeviation="1.5" result="offset-blur"/>
-        <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse"/>
-        <feFlood floodColor="black" floodOpacity="0.4" result="color"/>
-        <feComposite operator="in" in="color" in2="inverse" result="shadow"/>
-        <feComposite operator="over" in="shadow" in2="SourceGraphic"/>
-      </filter>
-      <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
-        <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.3" />
-      </filter>
-    </defs>
-    
-    <circle cx="20" cy="20" r="18" fill="url(#coinRim)" filter="url(#dropShadow)" />
-    <circle cx="20" cy="20" r="15" fill="url(#coinFace)" filter="url(#innerShadow)" stroke="#b8860b" strokeWidth="1" />
-    
-    <text x="20" y="27" fontSize="22" fontFamily="Arial, sans-serif" fontWeight="900" fill="#a47209" textAnchor="middle" style={{textShadow: "1px 1px 1px rgba(255,255,255,0.7)"}}>T</text>
-  </svg>
+const CoinSVG = ({ size = 18, style = {} }) => (
+  <span style={{ fontSize: `${size}px`, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', ...style }}>🪙</span>
 );
 import { Capacitor } from '@capacitor/core';
 import { AdMob, RewardAdPluginEvents } from '@capacitor-community/admob';
