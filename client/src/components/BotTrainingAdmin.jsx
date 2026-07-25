@@ -14,6 +14,10 @@ export default function BotTrainingAdmin() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingRuleId, setEditingRuleId] = useState(null);
   
+  const [activeTab, setActiveTab] = useState('rules'); // 'rules' | 'facts'
+  const [countryFacts, setCountryFacts] = useState([]);
+  const [newFact, setNewFact] = useState({ countryCode: '', countryName: '', factsText: '' });
+  
   const [botRules, setBotRules] = useState([]);
   const [newRule, setNewRule] = useState({
     triggers: '',
@@ -106,6 +110,44 @@ export default function BotTrainingAdmin() {
     } catch (err) { console.error(err); }
   };
 
+  const fetchCountryFacts = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/country-facts`, { headers: { 'x-admin-pass': password } });
+      if (res.ok) {
+        const data = await res.json();
+        setCountryFacts(data);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleCreateCountryFact = async (e) => {
+    e.preventDefault();
+    try {
+      const factsArray = newFact.factsText.split('|').map(f => f.trim()).filter(f => f);
+      const res = await fetch(`${API_URL}/api/admin/country-facts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
+        body: JSON.stringify({ countryCode: newFact.countryCode, countryName: newFact.countryName, facts: factsArray })
+      });
+      if (res.ok) {
+        setNewFact({ countryCode: '', countryName: '', factsText: '' });
+        fetchCountryFacts();
+      } else {
+        alert('Failed to save country fact');
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteCountryFact = async (id) => {
+    if (!window.confirm('Delete this country fact?')) return;
+    try {
+      const res = await fetch(`${API_URL}/api/admin/country-facts/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) fetchCountryFacts();
+    } catch (err) { console.error(err); }
+  };
   if (!isAuthenticated) {
     return (
       <div className="dev-auth-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
@@ -139,7 +181,24 @@ export default function BotTrainingAdmin() {
         </Link>
       </div>
 
-      <div className="bot-manual">
+      <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', justifyContent: 'center' }}>
+        <button 
+          onClick={() => setActiveTab('rules')}
+          style={{ padding: '10px 20px', background: activeTab === 'rules' ? '#0095f6' : '#222', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          Bot Chat Rules
+        </button>
+        <button 
+          onClick={() => { setActiveTab('facts'); fetchCountryFacts(); }}
+          style={{ padding: '10px 20px', background: activeTab === 'facts' ? '#0095f6' : '#222', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          Match Facts & Spoofing
+        </button>
+      </div>
+
+      {activeTab === 'rules' && (
+        <>
+          <div className="bot-manual">
         <div style={{ padding: '20px' }}>
           <h2>📖 Training Manual (Kaise Use Karein)</h2>
           <ul>
@@ -303,6 +362,64 @@ export default function BotTrainingAdmin() {
           </div>
         )}
       </div>
+      </>
+      )}
+
+      {activeTab === 'facts' && (
+        <div className="bot-training-grid" style={{ display: 'block' }}>
+          <div className="bot-training-card" style={{ maxWidth: '800px', margin: '0 auto', marginBottom: '20px' }}>
+            <h2 style={{ margin: '0 0 20px 0' }}>Add Country Fact</h2>
+            <form onSubmit={handleCreateCountryFact}>
+              <div className="form-group">
+                <label>Country Code (e.g., IN, US, GB):</label>
+                <input type="text" placeholder="IN" value={newFact.countryCode} onChange={e => setNewFact({...newFact, countryCode: e.target.value.toUpperCase()})} required maxLength="2" />
+              </div>
+              <div className="form-group">
+                <label>Country Name (e.g., India, United States):</label>
+                <input type="text" placeholder="India" value={newFact.countryName} onChange={e => setNewFact({...newFact, countryName: e.target.value})} required />
+              </div>
+              <div className="form-group">
+                <label>Fun Facts (separated by | for multiple facts):</label>
+                <input type="text" placeholder="India is the 7th largest country | Yoga originated in India" value={newFact.factsText} onChange={e => setNewFact({...newFact, factsText: e.target.value})} required />
+              </div>
+              <button type="submit" className="bot-btn-submit" style={{ width: '100%' }}>
+                <Plus size={18} style={{ marginRight: '8px' }} /> Save Country Facts
+              </button>
+            </form>
+          </div>
+
+          <div className="bot-training-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <h2 style={{ margin: '0 0 20px 0' }}>Existing Country Facts ({countryFacts.length})</h2>
+            <div className="rules-list">
+              {countryFacts.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#888' }}>No country facts found.</p>
+              ) : (
+                countryFacts.map(cf => (
+                  <div key={cf._id} className="rule-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                        <img src={`https://flagcdn.com/w40/${cf.countryCode.toLowerCase()}.png`} alt={cf.countryCode} style={{ borderRadius: '4px' }} />
+                        <span style={{ fontWeight: 'bold', color: '#0095f6' }}>{cf.countryName} ({cf.countryCode})</span>
+                      </div>
+                      <div style={{ color: '#ccc', fontSize: '0.9em', marginTop: '10px' }}>
+                        <strong>Facts:</strong>
+                        <ul style={{ margin: '5px 0 0 20px', padding: 0 }}>
+                          {cf.facts.map((fact, idx) => <li key={idx} style={{ marginBottom: '4px' }}>{fact}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+                    <div>
+                      <button onClick={() => handleDeleteCountryFact(cf._id)} className="bot-btn-delete" title="Delete Fact">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

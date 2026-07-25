@@ -41,14 +41,15 @@ function generateAvatarUrl(gender) {
 const AI_COMPANION_FALLBACK_DELAY_MS = 2200;
 const pickOne = (items) => items[Math.floor(Math.random() * items.length)];
 
-function createAiCompanion(userGender) {
+function createAiCompanion(userGender, userCountry = 'Earth', userCountryCode = 'UN') {
   const gender = userGender === 'female' ? 'male' : 'female';
   return {
     id: `ai-companion-${crypto.randomUUID()}`,
     name: 'Stranger',
     gender,
     avatarUrl: generateAvatarUrl(gender),
-    country: 'India'
+    country: userCountry,
+    countryCode: userCountryCode
   };
 }
 
@@ -204,8 +205,19 @@ const Report = require('./models/Report');
 const AdminData = require('./models/AdminData');
 const BotRule = require('./models/BotRule');
 const UserSession = require('./models/UserSession');
+const CountryFact = require('./models/CountryFact');
 
 const app = express();
+
+async function getRandomCountryFact(countryCode) {
+  try {
+    const cf = await CountryFact.findOne({ countryCode: countryCode.toUpperCase() });
+    if (cf && cf.facts && cf.facts.length > 0) {
+      return pickOne(cf.facts);
+    }
+  } catch(e) {}
+  return "A beautiful country with rich culture.";
+}
 const server = http.createServer(app);
 
 // Hash old emails on startup to ensure privacy
@@ -1646,6 +1658,46 @@ app.post('/api/admin/reports/:id/resolve', adminAuth, async (req, res) => {
   }
 });
 
+// --- Country Facts Admin Routes ---
+app.get('/api/admin/country-facts', adminAuth, async (req, res) => {
+  try {
+    const facts = await CountryFact.find().sort({ countryName: 1 });
+    res.json(facts);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching country facts', error: err.message });
+  }
+});
+
+app.post('/api/admin/country-facts', adminAuth, async (req, res) => {
+  try {
+    const { countryCode, countryName, facts } = req.body;
+    if (!countryCode || !countryName) return res.status(400).json({ message: 'Missing country code or name' });
+    
+    const uppercaseCode = countryCode.toUpperCase();
+    let countryFact = await CountryFact.findOne({ countryCode: uppercaseCode });
+    if (countryFact) {
+      countryFact.countryName = countryName;
+      countryFact.facts = facts || [];
+      await countryFact.save();
+    } else {
+      countryFact = new CountryFact({ countryCode: uppercaseCode, countryName, facts: facts || [] });
+      await countryFact.save();
+    }
+    res.json({ success: true, countryFact });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saving country fact', error: err.message });
+  }
+});
+
+app.delete('/api/admin/country-facts/:id', adminAuth, async (req, res) => {
+  try {
+    await CountryFact.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting country fact', error: err.message });
+  }
+});
+
 // Random Chat Queue
 let randomChatQueue = []; // [{ userId, socketId, genderFilter, userGender }]
 const activeRandomChats = new Map(); // roomId -> { user1, user2 }
@@ -1843,7 +1895,8 @@ io.on('connection', (socket) => {
           partnerId: fakeUser._id.toString(),
           partnerAvatar: fakeUser.avatarUrl,
           partnerCountry: fakeUser.country,
-          partnerCountryCode: 'UN' // Fallback for fake user
+          partnerCountryCode: 'UN', // Fallback for fake user
+          partnerFact: await getRandomCountryFact('UN')
         });
         
         io.to(socket.id).emit('admin_intercept_started', {
@@ -1883,11 +1936,15 @@ io.on('connection', (socket) => {
       let userGender = 'male';
       let userCoins = 0;
       let targetDbUser = null;
+      let userCountry = 'Earth';
+      let userCountryCode = 'UN';
       try {
-          const u = await User.findById(userId).select('gender coins username avatarUrl country').lean();
+          const u = await User.findById(userId).select('gender coins username avatarUrl country countryCode').lean();
           if(u) {
              userGender = u.gender;
              userCoins = u.coins;
+             userCountry = u.country || 'Earth';
+             userCountryCode = u.countryCode || 'UN';
              targetDbUser = u;
           }
       } catch (err) {}
@@ -1898,7 +1955,7 @@ io.on('connection', (socket) => {
       }
 
       if (!randomChatQueue.some(u => u.userId === userId)) {
-        randomChatQueue.push({ userId, socketId: socket.id, genderFilter, userGender });
+        randomChatQueue.push({ userId, socketId: socket.id, genderFilter, userGender, userCountry, userCountryCode });
       }
 
       // 1. Check if there are ANY real users in the queue that match
@@ -1969,14 +2026,16 @@ io.on('connection', (socket) => {
             partnerId: user2.userId,
             partnerAvatar: user2Record?.avatarUrl,
             partnerCountry: user2Record?.country,
-            partnerCountryCode: user2Record?.countryCode || 'UN'
+            partnerCountryCode: user2Record?.countryCode || 'UN',
+            partnerFact: await getRandomCountryFact(user2Record?.countryCode || 'UN')
           });
           io.to(user2.socketId).emit('match_found', { 
             roomId, 
             partnerId: user1.userId,
             partnerAvatar: user1Record?.avatarUrl,
             partnerCountry: user1Record?.country,
-            partnerCountryCode: user1Record?.countryCode || 'UN'
+            partnerCountryCode: user1Record?.countryCode || 'UN',
+            partnerFact: await getRandomCountryFact(user1Record?.countryCode || 'UN')
           });
         } catch (err) {
           console.error("Error fetching random chat users", err);
@@ -2012,12 +2071,13 @@ io.on('connection', (socket) => {
       // Keep the user in the queue briefly: a real match always takes
       // precedence. If nobody matched (and no admin intercepted), create a
       // clearly disclosed AI-companion room instead of leaving the user idle.
-      setTimeout(() => {
+      setTimeout(async () => {
         const queuedUser = randomChatQueue.find(entry => entry.userId === userId && entry.socketId === socket.id);
         if (!queuedUser) return;
 
         randomChatQueue = randomChatQueue.filter(entry => !(entry.userId === userId && entry.socketId === socket.id));
-        const companion = createAiCompanion(userGender);
+        // Spoof location using queuedUser's country!
+        const companion = createAiCompanion(userGender, queuedUser.userCountry, queuedUser.userCountryCode);
         const roomId = `ai_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
         activeRandomChats.set(roomId, {
           user1: queuedUser,
@@ -2031,7 +2091,8 @@ io.on('connection', (socket) => {
           partnerId: companion.id,
           partnerAvatar: companion.avatarUrl,
           partnerCountry: companion.country,
-          partnerCountryCode: 'UN', // AI companion has no specific country code
+          partnerCountryCode: companion.countryCode, 
+          partnerFact: await getRandomCountryFact(companion.countryCode),
           partnerName: 'Stranger',
           isAiCompanion: true
         });

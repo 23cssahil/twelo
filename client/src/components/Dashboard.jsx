@@ -247,6 +247,7 @@ export default function Dashboard() {
   const [anonymousPartnerAvatar, setAnonymousPartnerAvatar] = useState('');
   const [anonymousPartnerCountry, setAnonymousPartnerCountry] = useState('');
   const [anonymousPartnerCountryCode, setAnonymousPartnerCountryCode] = useState('UN');
+  const [anonymousPartnerFact, setAnonymousPartnerFact] = useState('');
   const [anonymousPartnerName, setAnonymousPartnerName] = useState('Stranger');
   const [isAiCompanion, setIsAiCompanion] = useState(false);
   const [anonymousPartnerTyping, setAnonymousPartnerTyping] = useState(false);
@@ -574,6 +575,7 @@ export default function Dashboard() {
           setAnonymousPartnerAvatar(data.partnerAvatar || '');
           setAnonymousPartnerCountry(data.partnerCountry || 'Earth');
           setAnonymousPartnerCountryCode(data.partnerCountryCode || 'UN');
+          setAnonymousPartnerFact(data.partnerFact || 'A beautiful country with rich culture.');
           setAnonymousPartnerName(data.partnerName || 'Stranger');
           setIsAiCompanion(Boolean(data.isAiCompanion));
           setAnonymousMessages([]);
@@ -3156,7 +3158,7 @@ export default function Dashboard() {
             <div className="match-found-name">{matchFoundData.partnerName || 'Stranger'}</div>
             <div className="match-found-country">📍 <strong>{matchFoundData.partnerCountry || 'Earth'}</strong></div>
             <div className="match-found-fact">
-              {(COUNTRY_DATA[matchFoundData.partnerCountry] && COUNTRY_DATA[matchFoundData.partnerCountry].fact) || COUNTRY_DATA['Other'].fact}
+              {matchFoundData.partnerFact || 'A beautiful country with rich culture.'}
             </div>
             <button 
               onClick={() => {
@@ -3166,6 +3168,7 @@ export default function Dashboard() {
                 setAnonymousPartnerAvatar(matchFoundData.partnerAvatar || '');
                 setAnonymousPartnerCountry(matchFoundData.partnerCountry || 'Earth');
                 setAnonymousPartnerCountryCode(matchFoundData.partnerCountryCode || 'UN');
+                setAnonymousPartnerFact(matchFoundData.partnerFact || 'A beautiful country with rich culture.');
                 setAnonymousPartnerName(matchFoundData.partnerName || 'Stranger');
                 setIsAiCompanion(Boolean(matchFoundData.isAiCompanion));
                 setAnonymousMessages([]);
