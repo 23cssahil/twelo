@@ -1785,7 +1785,6 @@ export default function Dashboard() {
       } else {
         alert(data.message || "Could not send request.");
       }
-      }
     } catch (err) { 
       console.error(err); 
       alert("Error sending request. Please check your connection.");
