@@ -1014,6 +1014,9 @@ export default function Dashboard() {
       ...prev,
       followers: [...(prev.followers || []), requesterId]
     }));
+    setNotifications(prev => prev.filter(notif => 
+      !(['follow_request', 'anonymous_follow_request', 'follow_back_request'].includes(notif.type) && notif.user?._id === requesterId)
+    ));
 
     try {
       const res = await fetch(`${API_URL}/api/users/accept/${requesterId}`, {

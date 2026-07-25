@@ -840,6 +840,14 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
     // Remove from friendRequests so it doesn't stay pending forever
     currentUser.friendRequests = currentUser.friendRequests.filter(id => id.toString() !== requesterId);
     
+    // Clean up old request notifications from current user so they don't reappear
+    currentUser.notifications = (currentUser.notifications || []).filter(n => 
+      !(
+        ['follow_request', 'anonymous_follow_request', 'follow_back_request'].includes(n.type) &&
+        n.user && n.user.toString() === requesterId
+      )
+    );
+
     // Add to followers
     if (!currentUser.followers.includes(requesterId)) {
       currentUser.followers.push(requesterId);
@@ -872,8 +880,16 @@ app.post('/api/users/reject/:id', authenticateToken, async (req, res) => {
     const requesterId = req.params.id;
     const currentUser = await User.findById(req.user.userId);
     
-    // Remove from friendRequests
     currentUser.friendRequests = currentUser.friendRequests.filter(id => id.toString() !== requesterId);
+    
+    // Clean up old request notifications from current user
+    currentUser.notifications = (currentUser.notifications || []).filter(n => 
+      !(
+        ['follow_request', 'anonymous_follow_request', 'follow_back_request'].includes(n.type) &&
+        n.user && n.user.toString() === requesterId
+      )
+    );
+
     await currentUser.save();
 
     res.json({ message: "Request rejected" });
