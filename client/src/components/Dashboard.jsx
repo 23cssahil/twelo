@@ -183,6 +183,36 @@ export default function Dashboard() {
       console.error(err);
     }
   };
+
+  const [longPressNotificationTarget, setLongPressNotificationTarget] = useState(null);
+  const notifPressTimer = useRef(null);
+
+  const handleNotificationTouchStart = (notif) => {
+    notifPressTimer.current = setTimeout(() => {
+      setLongPressNotificationTarget(notif);
+    }, 800);
+  };
+
+  const handleNotificationTouchEnd = () => {
+    if (notifPressTimer.current) clearTimeout(notifPressTimer.current);
+  };
+
+  const removeNotification = async (notifId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/notifications/${notifId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setNotifications(prev => prev.filter(n => n._id !== notifId));
+        setLongPressNotificationTarget(null);
+        showToastMsg("Notification removed", 'info');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const [searchLoading, setSearchLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
   
@@ -2155,7 +2185,18 @@ export default function Dashboard() {
                   const text = textMap[notif.type] || 'interacted with you';
                   
                   return (
-                    <div className="user-card" key={notif._id}>
+                    <div 
+                      className="user-card" 
+                      key={notif._id}
+                      onTouchStart={() => handleNotificationTouchStart(notif)}
+                      onTouchEnd={handleNotificationTouchEnd}
+                      onTouchMove={handleNotificationTouchEnd}
+                      onMouseDown={() => handleNotificationTouchStart(notif)}
+                      onMouseUp={handleNotificationTouchEnd}
+                      onMouseLeave={handleNotificationTouchEnd}
+                      onContextMenu={(e) => { e.preventDefault(); return false; }}
+                      style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', msUserSelect: 'none', MozUserSelect: 'none' }}
+                    >
                       <div className="user-card-info" onClick={() => viewPublicProfile(reqUser._id)} style={{ cursor: 'pointer' }}>
                         <div className="user-avatar-small">{reqUser.avatarUrl ? <img src={reqUser.avatarUrl} alt='avatar' /> : reqUser.username.charAt(0).toUpperCase()}</div>
                         <div className="user-names">
@@ -3328,6 +3369,48 @@ export default function Dashboard() {
               to { transform: scale(1); opacity: 1; }
             }
           `}</style>
+        </div>
+      )}
+
+      {/* Long Press Context Menu for Notifications */}
+      {longPressNotificationTarget && (
+        <div 
+          onClick={() => setLongPressNotificationTarget(null)} 
+          style={{ 
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
+            backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 10000, 
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'fadeIn 0.2s ease' 
+          }}
+        >
+          <div 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              background: '#18181b', border: '1px solid #27272a', borderRadius: '16px', 
+              padding: '20px', width: '260px', boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
+              animation: 'scaleIn 0.2s ease', textAlign: 'center'
+            }}
+          >
+            <div style={{ fontSize: '1.5rem', marginBottom: '10px' }}>🗑️</div>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: '#f8fafc' }}>Remove notification?</h3>
+            <p style={{ color: '#a1a1aa', fontSize: '0.85rem', marginBottom: '20px', lineHeight: '1.4' }}>
+              Delete this notification from your inbox.
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                onClick={() => setLongPressNotificationTarget(null)}
+                style={{ flex: 1, padding: '10px', background: '#27272a', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => removeNotification(longPressNotificationTarget._id)}
+                style={{ flex: 1, padding: '10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -563,6 +563,18 @@ app.delete('/api/users/search-history/:id', authenticateToken, async (req, res) 
   }
 });
 
+app.delete('/api/users/notifications/:id', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    user.notifications = user.notifications.filter(n => n._id && n._id.toString() !== req.params.id);
+    await user.save();
+    res.json({ message: 'Notification removed' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error removing notification' });
+  }
+});
+
 // Get My Profile (with stats and coin logic)
 app.get('/api/users/profile', authenticateToken, async (req, res) => {
   try {
