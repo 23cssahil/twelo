@@ -907,11 +907,11 @@ app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
     const { otherUserId } = req.params;
     const currentUserId = req.user.userId;
 
-    // Mark messages sent by the other user to current user as viewed
-    await Message.updateMany(
+    // Mark messages sent by the other user to current user as viewed (Async in background)
+    Message.updateMany(
       { sender: otherUserId, receiver: currentUserId, isViewed: false },
       { $set: { isViewed: true, viewedAt: new Date() } }
-    );
+    ).catch(err => console.log('Error updating view status', err));
 
     const messages = await Message.find({
       $and: [
