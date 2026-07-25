@@ -289,8 +289,15 @@ export default function Dashboard() {
   
   const [globeStatus, setGlobeStatus] = useState({ isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null });
   const [showGlobeOfflineModal, setShowGlobeOfflineModal] = useState(false);
-  const [showCoinDeductionModal, setShowCoinDeductionModal] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
   const [globeOfflineTimerDisplay, setGlobeOfflineTimerDisplay] = useState('');
+
+  const showToastMsg = (message, type = 'info') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 3000);
+  };
 
   // Call Details
   const [callerId, setCallerId] = useState('');
@@ -1768,7 +1775,7 @@ export default function Dashboard() {
 
   const handleSendAnonymousFriendRequest = async () => {
     if (coins < 5) {
-      alert("Not enough coins! You need 5 coins.");
+      showToastMsg("Not enough coins! You need 5 coins.", 'error');
       return;
     }
     try {
@@ -1780,14 +1787,13 @@ export default function Dashboard() {
       if (res.ok) {
         setCoins(data.coinsLeft);
         if (socket) socket.emit('send_friend_request', { targetUserId: anonymousPartnerId });
-        setShowCoinDeductionModal(true);
-        setTimeout(() => setShowCoinDeductionModal(false), 3000);
+        showToastMsg("Request Sent!", 'coin');
       } else {
-        alert(data.message || "Could not send request.");
+        showToastMsg(data.message || "Could not send request.", 'error');
       }
     } catch (err) { 
       console.error(err); 
-      alert("Error sending request. Please check your connection.");
+      showToastMsg("Error sending request. Please check your connection.", 'error');
     }
   };
 
@@ -3233,19 +3239,37 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Coin Deduction Modal */}
-      {showCoinDeductionModal && (
-        <div className="modal-overlay" onClick={() => setShowCoinDeductionModal(false)} style={{ zIndex: 10000, animation: 'fadeIn 0.3s ease' }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ textAlign: 'center', padding: '40px 20px', maxWidth: '300px', background: 'linear-gradient(145deg, #1e1e1e, #111)', border: '1px solid #333', borderRadius: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
-            <div style={{ animation: 'bounce 0.5s ease' }}>
-              <div style={{ fontSize: '4rem', marginBottom: '10px' }}>🪙</div>
-              <div style={{ color: '#ffb700', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '5px' }}>-5 Coins</div>
-            </div>
-            <h2 style={{ marginBottom: '10px', fontSize: '1.2rem', color: '#fff' }}>Request Sent!</h2>
-            <p style={{ color: '#a8a8a8', fontSize: '0.9rem', lineHeight: '1.4' }}>
-              Your follow request has been sent to the stranger.
-            </p>
-          </div>
+      {/* Toast Notification */}
+      {toast.show && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 10000,
+          background: toast.type === 'coin' ? 'linear-gradient(145deg, #1e1e1e, #111)' : toast.type === 'error' ? '#ef4444' : '#10b981',
+          border: toast.type === 'coin' ? '1px solid #333' : 'none',
+          color: '#fff',
+          padding: '12px 24px',
+          borderRadius: '30px',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          animation: 'slideDownFadeOut 3s forwards'
+        }}>
+          {toast.type === 'coin' && <span style={{ fontSize: '1.2rem', animation: 'bounce 0.5s ease' }}>🪙 <strong style={{ color: '#ffb700', marginLeft: '5px' }}>-5 Coins</strong></span>}
+          {toast.type === 'error' && <span style={{ fontSize: '1.2rem' }}>⚠️</span>}
+          <span style={{ fontSize: '0.95rem', fontWeight: '500' }}>{toast.message}</span>
+          
+          <style>{`
+            @keyframes slideDownFadeOut {
+              0% { top: -50px; opacity: 0; }
+              10% { top: 20px; opacity: 1; }
+              80% { top: 20px; opacity: 1; }
+              100% { top: -50px; opacity: 0; }
+            }
+          `}</style>
         </div>
       )}
 
