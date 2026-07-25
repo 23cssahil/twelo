@@ -5,6 +5,16 @@ import { AuthContext } from '../App';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { WORLD_COUNTRIES } from '../utils/countries';
+
+const getFlagEmoji = (countryCode) => {
+  if (!countryCode) return '';
+  const codePoints = countryCode
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt());
+  return String.fromCodePoint(...codePoints);
+};
 
 export default function Login() {
   const { login, API_URL } = useContext(AuthContext);
@@ -250,16 +260,11 @@ export default function Login() {
                   style={{ appearance: 'none', background: 'transparent' }}
                 >
                   <option value="" disabled hidden></option>
-                  <option value="India">🇮🇳 India</option>
-                  <option value="USA">🇺🇸 USA</option>
-                  <option value="UK">🇬🇧 UK</option>
-                  <option value="Canada">🇨🇦 Canada</option>
-                  <option value="Australia">🇦🇺 Australia</option>
-                  <option value="Germany">🇩🇪 Germany</option>
-                  <option value="France">🇫🇷 France</option>
-                  <option value="Japan">🇯🇵 Japan</option>
-                  <option value="Brazil">🇧🇷 Brazil</option>
-                  <option value="Other">🌍 Other</option>
+                  {WORLD_COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.name}>
+                      {getFlagEmoji(c.code)} {c.name}
+                    </option>
+                  ))}
                 </select>
                 <label className="floating-label">Country</label>
               </div>
