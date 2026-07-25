@@ -56,8 +56,10 @@ export default function BotTrainingAdmin() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (password === 'twelo-admin-6006390989') {
+    if (password === '$@#ilkhan8318374847') {
       setIsAuthenticated(true);
+    } else if (password === 'twelo-admin-6006390989') {
+      alert('This is the old password! Please use the new backend password to login ($@#ilkhan8318374847)');
     } else {
       alert('Incorrect password');
     }
