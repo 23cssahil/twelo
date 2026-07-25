@@ -744,11 +744,15 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
     if (targetUser.followers.some(id => id.toString() === req.user.userId)) return res.status(400).json({ message: "Already following" });
     if (targetUser.friendRequests.some(id => id.toString() === req.user.userId)) return res.status(400).json({ message: "Request already sent" });
 
+    const currentUser = await User.findById(req.user.userId);
+    const isFollowBack = currentUser.followers.some(id => id.toString() === targetUserId);
+    const notifType = isFollowBack ? 'follow_back_request' : 'follow_request';
+
     // Clean up old notifications to prevent spam
-    targetUser.notifications = targetUser.notifications.filter(n => !(n.type === 'follow_request' && n.user && n.user.toString() === req.user.userId));
+    targetUser.notifications = targetUser.notifications.filter(n => !(n.type === notifType && n.user && n.user.toString() === req.user.userId));
     
     targetUser.friendRequests.push(req.user.userId);
-    targetUser.notifications.push({ type: 'follow_request', user: req.user.userId });
+    targetUser.notifications.push({ type: notifType, user: req.user.userId });
     await targetUser.save();
 
     if (targetUser.ownedByAdmin) {
@@ -792,10 +796,10 @@ app.post('/api/users/anonymous_follow/:id', authenticateToken, async (req, res) 
     await currentUser.save();
 
     // Clean up old notifications to prevent spam
-    targetUser.notifications = targetUser.notifications.filter(n => !(n.type === 'follow_request' && n.user && n.user.toString() === req.user.userId));
+    targetUser.notifications = targetUser.notifications.filter(n => !(n.type === 'anonymous_follow_request' && n.user && n.user.toString() === req.user.userId));
 
     targetUser.friendRequests.push(req.user.userId);
-    targetUser.notifications.push({ type: 'follow_request', user: req.user.userId });
+    targetUser.notifications.push({ type: 'anonymous_follow_request', user: req.user.userId });
     await targetUser.save();
 
     if (targetUser.ownedByAdmin) {
@@ -832,7 +836,11 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
       if (!requester.following.includes(req.user.userId)) {
         requester.following.push(req.user.userId);
       }
-      requester.notifications.push({ type: 'request_accepted', user: req.user.userId });
+      const hadAnonymousRequest = currentUser.notifications.some(n => n.type === 'anonymous_follow_request' && n.user && n.user.toString() === requesterId);
+      const acceptType = hadAnonymousRequest ? 'anonymous_request_accepted' : 'request_accepted';
+      
+      requester.notifications = requester.notifications.filter(n => !(n.type === acceptType && n.user && n.user.toString() === req.user.userId));
+      requester.notifications.push({ type: acceptType, user: req.user.userId });
       await requester.save();
     }
 

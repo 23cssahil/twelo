@@ -2100,7 +2100,15 @@ export default function Dashboard() {
                   const isAccepted = profileStats?.followers?.includes(reqUser._id);
                   const isFollowingBack = profileStats?.following?.includes(reqUser._id);
                   const hasSentFollowBack = notif.followBackRequested === true;
-                  const text = notif.type === 'request_accepted' ? 'accepted your follow request' : 'wants to follow you';
+                  
+                  const textMap = {
+                    request_accepted: 'accepted your follow request',
+                    anonymous_request_accepted: 'Random room stranger has accepted your request',
+                    follow_request: 'wants to follow you',
+                    anonymous_follow_request: 'Random room stranger request',
+                    follow_back_request: 'sent you a follow back request'
+                  };
+                  const text = textMap[notif.type] || 'interacted with you';
                   
                   return (
                     <div className="user-card" key={notif._id}>
@@ -2111,7 +2119,7 @@ export default function Dashboard() {
                           <span className="user-id" style={{ fontSize: '0.8rem' }}>{text}</span>
                         </div>
                       </div>
-                      {notif.type === 'request_accepted' ? (
+                      {(notif.type === 'request_accepted' || notif.type === 'anonymous_request_accepted') ? (
                         <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWithUser(reqUser)}>Chat</button>
                       ) : isAccepted ? (
                         isFollowingBack ? (
