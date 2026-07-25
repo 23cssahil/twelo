@@ -289,6 +289,7 @@ export default function Dashboard() {
   
   const [globeStatus, setGlobeStatus] = useState({ isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null });
   const [showGlobeOfflineModal, setShowGlobeOfflineModal] = useState(false);
+  const [showCoinDeductionModal, setShowCoinDeductionModal] = useState(false);
   const [globeOfflineTimerDisplay, setGlobeOfflineTimerDisplay] = useState('');
 
   // Call Details
@@ -1779,11 +1780,16 @@ export default function Dashboard() {
       if (res.ok) {
         setCoins(data.coinsLeft);
         if (socket) socket.emit('send_friend_request', { targetUserId: anonymousPartnerId });
-        alert("Friend request sent!");
+        setShowCoinDeductionModal(true);
+        setTimeout(() => setShowCoinDeductionModal(false), 3000);
       } else {
         alert(data.message || "Could not send request.");
       }
-    } catch (err) { console.error(err); }
+      }
+    } catch (err) { 
+      console.error(err); 
+      alert("Error sending request. Please check your connection.");
+    }
   };
 
   const handleLeaveAnonymousChat = () => {
@@ -3224,6 +3230,22 @@ export default function Dashboard() {
             >
               Start Chat Now →
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Coin Deduction Modal */}
+      {showCoinDeductionModal && (
+        <div className="modal-overlay" onClick={() => setShowCoinDeductionModal(false)} style={{ zIndex: 10000, animation: 'fadeIn 0.3s ease' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ textAlign: 'center', padding: '40px 20px', maxWidth: '300px', background: 'linear-gradient(145deg, #1e1e1e, #111)', border: '1px solid #333', borderRadius: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+            <div style={{ animation: 'bounce 0.5s ease' }}>
+              <div style={{ fontSize: '4rem', marginBottom: '10px' }}>🪙</div>
+              <div style={{ color: '#ffb700', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '5px' }}>-5 Coins</div>
+            </div>
+            <h2 style={{ marginBottom: '10px', fontSize: '1.2rem', color: '#fff' }}>Request Sent!</h2>
+            <p style={{ color: '#a8a8a8', fontSize: '0.9rem', lineHeight: '1.4' }}>
+              Your follow request has been sent to the stranger.
+            </p>
           </div>
         </div>
       )}

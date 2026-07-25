@@ -811,6 +811,7 @@ app.post('/api/users/anonymous_follow/:id', authenticateToken, async (req, res) 
 
     res.json({ message: "Request sent successfully", coinsLeft: currentUser.coins });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error sending anonymous request' });
   }
 });
