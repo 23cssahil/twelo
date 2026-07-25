@@ -3283,29 +3283,51 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Long Press Modal for Search History */}
+      {/* Long Press Context Menu for Search History */}
       {longPressTarget && (
-        <div className="modal-overlay" onClick={() => setLongPressTarget(null)} style={{ zIndex: 10000, animation: 'fadeIn 0.2s ease' }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ textAlign: 'center', padding: '30px 20px', maxWidth: '300px', background: 'linear-gradient(145deg, #1e1e1e, #111)', border: '1px solid #333', borderRadius: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
-            <h2 style={{ marginBottom: '10px', fontSize: '1.2rem', color: '#fff' }}>Remove from history?</h2>
-            <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginBottom: '20px' }}>
-              Remove @{longPressTarget.username} from your search history.
+        <div 
+          onClick={() => setLongPressTarget(null)} 
+          style={{ 
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
+            backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 10000, 
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'fadeIn 0.2s ease' 
+          }}
+        >
+          <div 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              background: '#18181b', border: '1px solid #27272a', borderRadius: '16px', 
+              padding: '20px', width: '260px', boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
+              animation: 'scaleIn 0.2s ease', textAlign: 'center'
+            }}
+          >
+            <div style={{ fontSize: '1.5rem', marginBottom: '10px' }}>🗑️</div>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: '#f8fafc' }}>Remove from history?</h3>
+            <p style={{ color: '#a1a1aa', fontSize: '0.85rem', marginBottom: '20px', lineHeight: '1.4' }}>
+              Remove <strong style={{color: '#fff'}}>@{longPressTarget.username}</strong> from your recent searches.
             </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button 
                 onClick={() => setLongPressTarget(null)}
-                style={{ flex: 1, padding: '12px', background: '#333', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '10px', background: '#27272a', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '0.9rem', cursor: 'pointer' }}
               >
                 Cancel
               </button>
               <button 
                 onClick={() => removeSearchHistoryItem(longPressTarget._id)}
-                style={{ flex: 1, padding: '12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+                style={{ flex: 1, padding: '10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold' }}
               >
                 Remove
               </button>
             </div>
           </div>
+          <style>{`
+            @keyframes scaleIn {
+              from { transform: scale(0.9); opacity: 0; }
+              to { transform: scale(1); opacity: 1; }
+            }
+          `}</style>
         </div>
       )}
 
