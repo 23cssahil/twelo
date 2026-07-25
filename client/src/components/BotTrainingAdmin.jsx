@@ -160,6 +160,15 @@ export default function BotTrainingAdmin() {
       if (res.ok) fetchCountryFacts();
     } catch (err) { console.error(err); }
   };
+
+  const handleEditCountryFact = (fact) => {
+    setNewFact({
+      countryCode: fact.countryCode,
+      countryName: fact.countryName,
+      factsText: fact.facts.join(' | ')
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   if (!isAuthenticated) {
     return (
       <div className="dev-auth-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
@@ -443,7 +452,10 @@ export default function BotTrainingAdmin() {
                         </ul>
                       </div>
                     </div>
-                    <div>
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      <button onClick={() => handleEditCountryFact(cf)} className="bot-btn-submit" style={{ width: 'auto', padding: '6px', margin: 0, background: '#007bff' }} title="Edit Fact">
+                        <Edit2 size={16} />
+                      </button>
                       <button onClick={() => handleDeleteCountryFact(cf._id)} className="bot-btn-delete" title="Delete Fact">
                         <Trash2 size={16} />
                       </button>
