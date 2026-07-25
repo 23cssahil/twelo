@@ -741,9 +741,12 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
     if (!targetUser) return res.status(404).json({ message: "User not found" });
 
     // Check if already following or request already sent
-    if (targetUser.followers.includes(req.user.userId)) return res.status(400).json({ message: "Already following" });
-    if (targetUser.friendRequests.includes(req.user.userId)) return res.status(400).json({ message: "Request already sent" });
+    if (targetUser.followers.some(id => id.toString() === req.user.userId)) return res.status(400).json({ message: "Already following" });
+    if (targetUser.friendRequests.some(id => id.toString() === req.user.userId)) return res.status(400).json({ message: "Request already sent" });
 
+    // Clean up old notifications to prevent spam
+    targetUser.notifications = targetUser.notifications.filter(n => !(n.type === 'follow_request' && n.user && n.user.toString() === req.user.userId));
+    
     targetUser.friendRequests.push(req.user.userId);
     targetUser.notifications.push({ type: 'follow_request', user: req.user.userId });
     await targetUser.save();
@@ -781,12 +784,15 @@ app.post('/api/users/anonymous_follow/:id', authenticateToken, async (req, res) 
     const targetUser = await User.findById(targetUserId);
     if (!targetUser) return res.status(404).json({ message: "User not found" });
 
-    if (targetUser.followers.includes(req.user.userId)) return res.status(400).json({ message: "Already following" });
-    if (targetUser.friendRequests.includes(req.user.userId)) return res.status(400).json({ message: "Request already sent" });
+    if (targetUser.followers.some(id => id.toString() === req.user.userId)) return res.status(400).json({ message: "Already following" });
+    if (targetUser.friendRequests.some(id => id.toString() === req.user.userId)) return res.status(400).json({ message: "Request already sent" });
 
     // Deduct 5 coins
     currentUser.coins -= 5;
     await currentUser.save();
+
+    // Clean up old notifications to prevent spam
+    targetUser.notifications = targetUser.notifications.filter(n => !(n.type === 'follow_request' && n.user && n.user.toString() === req.user.userId));
 
     targetUser.friendRequests.push(req.user.userId);
     targetUser.notifications.push({ type: 'follow_request', user: req.user.userId });
@@ -894,6 +900,9 @@ app.post('/api/users/unfollow/:id', authenticateToken, async (req, res) => {
       currentUser.following = currentUser.following.filter(id => id.toString() !== targetUserId);
       targetUser.followers = targetUser.followers.filter(id => id.toString() !== currentUserId);
       targetUser.friendRequests = targetUser.friendRequests.filter(id => id.toString() !== currentUserId);
+      // Also remove follow_request notification to avoid spam when someone cancels a request
+      targetUser.notifications = targetUser.notifications.filter(n => !(n.type === 'follow_request' && n.user && n.user.toString() === currentUserId));
+      
       await currentUser.save();
       await targetUser.save();
     }
