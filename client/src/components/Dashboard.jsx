@@ -580,7 +580,7 @@ export default function Dashboard() {
           setAnonymousPartnerTyping(false);
           setShowMatchCard(false);
           // Removed setMatchFoundData(null) to prevent react-globe.gl crash with empty ringsData
-        }, 2000);
+        }, 4000);
         
         // Save timeout ID to window so we can clear it if user skips
         window.matchTimeoutId = timeoutId;
