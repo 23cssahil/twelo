@@ -1667,6 +1667,11 @@ export default function Dashboard() {
   }, [swapVideo, callActive, remoteStreamState]);
 
   const handleGlobeClick = useCallback(() => {
+    // Add light haptic feedback (vibration) for mobile users
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(40); // 40ms light vibration
+    }
+
     if (!globeStatus.isEnabled) {
       const now = new Date();
       const enableTime = globeStatus.enableAt ? new Date(globeStatus.enableAt) : null;
