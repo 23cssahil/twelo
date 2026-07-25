@@ -211,12 +211,23 @@ const app = express();
 
 async function getRandomCountryFact(countryCode) {
   try {
-    const cf = await CountryFact.findOne({ countryCode: countryCode.toUpperCase() });
-    if (cf && cf.facts && cf.facts.length > 0) {
-      return pickOne(cf.facts);
+    if (countryCode && countryCode !== 'UN') {
+      const cf = await CountryFact.findOne({ countryCode: countryCode.toUpperCase() });
+      if (cf && cf.facts && cf.facts.length > 0) {
+        return { fact: pickOne(cf.facts), countryCode: cf.countryCode, countryName: cf.countryName };
+      }
+    }
+    
+    // If no countryCode provided, or it's 'UN', or no facts found for it, pick a random country that has facts
+    const allFacts = await CountryFact.find({});
+    if (allFacts.length > 0) {
+      const randomCf = pickOne(allFacts);
+      if (randomCf.facts && randomCf.facts.length > 0) {
+        return { fact: pickOne(randomCf.facts), countryCode: randomCf.countryCode, countryName: randomCf.countryName };
+      }
     }
   } catch(e) {}
-  return "A beautiful country with rich culture.";
+  return { fact: "A beautiful country with rich culture.", countryCode: 'UN', countryName: 'Earth' };
 }
 const server = http.createServer(app);
 
@@ -1890,13 +1901,14 @@ io.on('connection', (socket) => {
         
         const targetDbUser = await User.findById(targetUserId).select('username avatarUrl country gender').lean();
         
+        const factData = await getRandomCountryFact('UN');
         io.to(targetUserSocket).emit('match_found', {
           roomId,
           partnerId: fakeUser._id.toString(),
           partnerAvatar: fakeUser.avatarUrl,
-          partnerCountry: fakeUser.country,
-          partnerCountryCode: 'UN', // Fallback for fake user
-          partnerFact: await getRandomCountryFact('UN')
+          partnerCountry: factData.countryName,
+          partnerCountryCode: factData.countryCode,
+          partnerFact: factData.fact
         });
         
         io.to(socket.id).emit('admin_intercept_started', {
@@ -2027,7 +2039,7 @@ io.on('connection', (socket) => {
             partnerAvatar: user2Record?.avatarUrl,
             partnerCountry: user2Record?.country,
             partnerCountryCode: user2Record?.countryCode || 'UN',
-            partnerFact: await getRandomCountryFact(user2Record?.countryCode || 'UN')
+            partnerFact: (await getRandomCountryFact(user2Record?.countryCode || 'UN')).fact
           });
           io.to(user2.socketId).emit('match_found', { 
             roomId, 
@@ -2035,7 +2047,7 @@ io.on('connection', (socket) => {
             partnerAvatar: user1Record?.avatarUrl,
             partnerCountry: user1Record?.country,
             partnerCountryCode: user1Record?.countryCode || 'UN',
-            partnerFact: await getRandomCountryFact(user1Record?.countryCode || 'UN')
+            partnerFact: (await getRandomCountryFact(user1Record?.countryCode || 'UN')).fact
           });
         } catch (err) {
           console.error("Error fetching random chat users", err);
@@ -2086,13 +2098,17 @@ io.on('connection', (socket) => {
           companion
         });
 
+        const factData = await getRandomCountryFact(queuedUser.userCountryCode);
+        const finalCompanionCountry = factData.countryCode !== 'UN' ? factData.countryName : companion.country;
+        const finalCompanionCode = factData.countryCode !== 'UN' ? factData.countryCode : companion.countryCode;
+
         io.to(socket.id).emit('match_found', {
           roomId,
           partnerId: companion.id,
           partnerAvatar: companion.avatarUrl,
-          partnerCountry: companion.country,
-          partnerCountryCode: companion.countryCode, 
-          partnerFact: await getRandomCountryFact(companion.countryCode),
+          partnerCountry: finalCompanionCountry,
+          partnerCountryCode: finalCompanionCode, 
+          partnerFact: factData.fact,
           partnerName: 'Stranger',
           isAiCompanion: true
         });
