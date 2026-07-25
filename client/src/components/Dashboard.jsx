@@ -733,14 +733,26 @@ export default function Dashboard() {
 
   // Removed redundant popstate handler
 
+  const prevMessagesLength = useRef(0);
+  const prevActiveChatId = useRef(null);
+
   useLayoutEffect(() => {
     if (messagesEndRef.current) {
       const parent = messagesEndRef.current.parentElement;
       if (parent) {
-        parent.scrollTop = parent.scrollHeight;
+        const isNewMessage = messages.length > prevMessagesLength.current;
+        const isRandomNewMessage = anonymousMessages.length > prevMessagesLength.current;
+        const isTyping = partnerTyping || anonymousPartnerTyping;
+        const isNewChat = prevActiveChatId.current !== (activeChatUser?._id || null);
+
+        if (isNewMessage || isRandomNewMessage || isTyping || isNewChat) {
+          parent.scrollTop = parent.scrollHeight;
+        }
       }
     }
-  }, [messages, anonymousMessages, partnerTyping, anonymousPartnerTyping]);
+    prevMessagesLength.current = Math.max(messages.length, anonymousMessages.length);
+    prevActiveChatId.current = activeChatUser?._id || null;
+  }, [messages, anonymousMessages, partnerTyping, anonymousPartnerTyping, activeChatUser]);
 
   // Deep Link check on load
   useEffect(() => {
