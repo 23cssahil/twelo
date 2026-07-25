@@ -2338,7 +2338,11 @@ export default function Dashboard() {
                             </div>
                           )}
                           
-                          <p className="msg-text">{msg.message}</p>
+                          <p className="msg-text" style={msg.isDeletedForEveryone ? { fontStyle: 'italic', color: 'rgba(255,255,255,0.6)' } : {}}>
+                            {msg.isDeletedForEveryone 
+                              ? (msg.sender === user.id ? '🚫 You deleted this message' : '🚫 This message was deleted') 
+                              : msg.message}
+                          </p>
                           <div className="msg-time" style={{ display: 'flex', alignItems: 'center', justifyContent: msg.sender === user.id ? 'flex-end' : 'flex-start', gap: '4px' }}>
                             <span>{formatTime(msg.createdAt)}</span>
                             {msg.sender === user.id && (
