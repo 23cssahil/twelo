@@ -2377,7 +2377,7 @@ export default function Dashboard() {
                         
                         {/* Context Menu for Delete */}
                         {contextMenu.visible && contextMenu.msgId === msg._id && (
-                          <div className="msg-context-menu">
+                          <div className={`msg-context-menu ${msg.sender === user.id ? 'sent-menu' : 'received-menu'}`}>
                             <button onClick={() => deleteMessage('me')} className="context-btn"><Trash2 size={14} /> Delete for me</button>
                             {contextMenu.isSender && (
                               <button onClick={() => deleteMessage('everyone')} className="context-btn" style={{ color: '#ff4b4b' }}><Trash2 size={14} /> Delete for everyone</button>

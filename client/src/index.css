@@ -1489,32 +1489,57 @@ input, button, textarea {
 
 .msg-context-menu {
   position: absolute;
-  bottom: -40px;
-  right: 0;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  bottom: 100%;
+  margin-bottom: 8px;
+  background: rgba(30, 30, 30, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
   z-index: 1000;
   overflow: hidden;
-  min-width: 150px;
+  min-width: 180px;
+  animation: popInMenu 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
+
+.msg-context-menu.sent-menu {
+  right: 0;
+  transform-origin: bottom right;
+}
+
+.msg-context-menu.received-menu {
+  left: 0;
+  transform-origin: bottom left;
+}
+
+@keyframes popInMenu {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 .context-btn {
   background: transparent;
   border: none;
-  color: var(--text-primary);
-  padding: 10px 15px;
+  color: #fff;
+  padding: 12px 16px;
   text-align: left;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
+  gap: 12px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.2s ease;
 }
-.context-btn:hover {
-  background: var(--hover-bg);
+.context-btn:last-child {
+  border-bottom: none;
+}
+.context-btn:hover, .context-btn:active {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 
