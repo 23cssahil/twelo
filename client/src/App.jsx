@@ -155,57 +155,55 @@ export default function App() {
       </AuthContext.Provider>
 
       {showInstallPrompt && (
-        <div style={{
-          position: 'fixed',
-          bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'rgba(20, 20, 20, 0.95)',
-          backdropFilter: 'blur(15px)',
-          WebkitBackdropFilter: 'blur(15px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '20px',
-          padding: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '15px',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)',
-          zIndex: 99999,
-          width: '90%',
-          maxWidth: '380px',
-          boxSizing: 'border-box',
-          animation: 'slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards'
-        }}>
-          <div style={{ width: '60px', height: '60px', background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)', borderRadius: '15px', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 10px 20px rgba(0, 114, 255, 0.3)' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <div style={{ position: 'fixed', bottom: '20px', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 99999 }}>
+          <div style={{
+            pointerEvents: 'auto',
+            background: 'rgba(20, 20, 20, 0.95)',
+            backdropFilter: 'blur(15px)',
+            WebkitBackdropFilter: 'blur(15px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '15px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)',
+            width: '90%',
+            maxWidth: '380px',
+            boxSizing: 'border-box',
+            animation: 'slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}>
+            <div style={{ width: '60px', height: '60px', background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)', borderRadius: '15px', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 10px 20px rgba(0, 114, 255, 0.3)' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <h3 style={{ margin: '0 0 5px 0', color: '#fff', fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>Install Twelo App</h3>
+              <p style={{ margin: 0, color: '#a8a8a8', fontSize: '0.95rem', lineHeight: '1.4' }}>
+                Add Twelo to your home screen for lightning-fast access and a better experience!
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '5px' }}>
+              <button 
+                onClick={() => setShowInstallPrompt(false)}
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.95rem', transition: 'all 0.3s' }}
+              >
+                Later
+              </button>
+              <button 
+                onClick={handleInstallClick}
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.95rem', boxShadow: '0 8px 20px rgba(0, 114, 255, 0.4)', transition: 'all 0.3s' }}
+              >
+                Install Now
+              </button>
+            </div>
+            <style>{`
+              @keyframes slideUpFade {
+                0% { transform: translateY(40px); opacity: 0; }
+                100% { transform: translateY(0); opacity: 1; }
+              }
+            `}</style>
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <h3 style={{ margin: '0 0 5px 0', color: '#fff', fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>Install Twelo App</h3>
-            <p style={{ margin: 0, color: '#a8a8a8', fontSize: '0.95rem', lineHeight: '1.4' }}>
-              Add Twelo to your home screen for lightning-fast access and a better experience!
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '5px' }}>
-            <button 
-              onClick={() => setShowInstallPrompt(false)}
-              style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.95rem', transition: 'all 0.3s' }}
-            >
-              Later
-            </button>
-            <button 
-              onClick={handleInstallClick}
-              style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.95rem', boxShadow: '0 8px 20px rgba(0, 114, 255, 0.4)', transition: 'all 0.3s' }}
-            >
-              Install Now
-            </button>
-          </div>
-          <style>{`
-            @keyframes slideUpFade {
-              0% { transform: translate(-50%, 40px); opacity: 0; }
-              100% { transform: translate(-50%, 0); opacity: 1; }
-            }
-          `}</style>
         </div>
       )}
     </GoogleOAuthProvider>
