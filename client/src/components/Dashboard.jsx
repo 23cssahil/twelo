@@ -185,6 +185,7 @@ export default function Dashboard() {
 
   const [searchLoading, setSearchLoading] = useState(false);
   const [isFetchingSearchHistory, setIsFetchingSearchHistory] = useState(true);
+  const [isFetchingMessages, setIsFetchingMessages] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
   
   // Ad System State
@@ -873,10 +874,13 @@ export default function Dashboard() {
 
   const fetchMessages = async (otherId) => {
     try {
+      setIsFetchingMessages(true);
       const res = await fetch(`${API_URL}/api/messages/${otherId}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) setMessages(data);
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error(err); } finally {
+      setIsFetchingMessages(false);
+    }
   };
 
   const handleDeleteChat = async () => {
@@ -2478,7 +2482,16 @@ export default function Dashboard() {
                   </div>
 
                   <div className="chat-messages-area">
-                    {messages.map((msg) => (
+                    {isFetchingMessages && messages.length === 0 ? (
+                      <div className="messages-skeleton-loader" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
+                        <div className="msg-wrapper received" style={{ display: 'flex', justifyContent: 'flex-start' }}><div className="msg-bubble shimmer" style={{ width: '60%', height: '45px', borderRadius: '20px' }}></div></div>
+                        <div className="msg-wrapper sent" style={{ display: 'flex', justifyContent: 'flex-end' }}><div className="msg-bubble shimmer" style={{ width: '40%', height: '45px', borderRadius: '20px' }}></div></div>
+                        <div className="msg-wrapper received" style={{ display: 'flex', justifyContent: 'flex-start' }}><div className="msg-bubble shimmer" style={{ width: '75%', height: '60px', borderRadius: '20px' }}></div></div>
+                        <div className="msg-wrapper sent" style={{ display: 'flex', justifyContent: 'flex-end' }}><div className="msg-bubble shimmer" style={{ width: '50%', height: '45px', borderRadius: '20px' }}></div></div>
+                      </div>
+                    ) : (
+                      <>
+                        {messages.map((msg) => (
                       <div key={msg._id} className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`} 
                         onTouchStart={(e) => handleTouchStart(e, msg)}
                         onTouchMove={(e) => handleTouchMove(e, msg, msg.sender === user.id)}
@@ -2570,6 +2583,8 @@ export default function Dashboard() {
                           @{activeChatUser.username} is typing...
                         </div>
                       </div>
+                    )}
+                    </>
                     )}
                     <div ref={messagesEndRef} />
                   </div>
