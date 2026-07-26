@@ -184,7 +184,7 @@ export default function Dashboard() {
   };
 
   const [searchLoading, setSearchLoading] = useState(false);
-  const [isFetchingSearchHistory, setIsFetchingSearchHistory] = useState(false);
+  const [isFetchingSearchHistory, setIsFetchingSearchHistory] = useState(true);
   const [settingsLoading, setSettingsLoading] = useState(false);
   
   // Ad System State
@@ -2227,11 +2227,13 @@ export default function Dashboard() {
             {isFetchingSearchHistory && !searchQuery && searchResults.length === 0 ? (
               <div className="chats-skeleton-loader" style={{ padding: '10px' }}>
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="chat-list-item" style={{ cursor: 'default', borderBottom: '1px solid #333' }}>
-                    <div className="skeleton-avatar shimmer"></div>
-                    <div className="skeleton-details">
-                      <div className="skeleton-name shimmer"></div>
-                      <div className="skeleton-status shimmer" style={{ width: '30%' }}></div>
+                  <div key={i} className="user-card" style={{ cursor: 'default', borderBottom: '1px solid #1a1a1a' }}>
+                    <div className="user-card-info" style={{ width: '100%' }}>
+                      <div className="skeleton-avatar shimmer"></div>
+                      <div className="skeleton-details">
+                        <div className="skeleton-name shimmer"></div>
+                        <div className="skeleton-status shimmer" style={{ width: '30%' }}></div>
+                      </div>
                     </div>
                   </div>
                 ))}
