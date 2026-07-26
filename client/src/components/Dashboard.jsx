@@ -232,18 +232,20 @@ export default function Dashboard() {
     } catch (err) { console.error(err); }
   };
   
-  const getFlagEmoji = (countryName) => {
+  const getFlagEmoji = (countryName, countryCode) => {
+    if (countryCode && countryCode !== 'UN') {
+      try {
+        const codePoints = countryCode.toUpperCase().split('').map(char => 127397 + char.charCodeAt(0));
+        return String.fromCodePoint(...codePoints);
+      } catch (e) {}
+    }
     if (!countryName) return '🌍';
     const flags = {
-      'India': '🇮🇳',
-      'USA': '🇺🇸',
-      'UK': '🇬🇧',
-      'Canada': '🇨🇦',
-      'Australia': '🇦🇺',
-      'Germany': '🇩🇪',
-      'France': '🇫🇷',
-      'Japan': '🇯🇵',
-      'Brazil': '🇧🇷',
+      'India': '🇮🇳', 'USA': '🇺🇸', 'UK': '🇬🇧', 'Canada': '🇨🇦',
+      'Australia': '🇦🇺', 'Germany': '🇩🇪', 'France': '🇫🇷',
+      'Japan': '🇯🇵', 'Brazil': '🇧🇷', 'Indonesia': '🇮🇩',
+      'Pakistan': '🇵🇰', 'Bangladesh': '🇧🇩', 'Nepal': '🇳🇵',
+      'Sri Lanka': '🇱🇰', 'Russia': '🇷🇺', 'China': '🇨🇳'
     };
     return flags[countryName] || '🌍';
   };
@@ -2291,7 +2293,7 @@ export default function Dashboard() {
                 <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
                 {publicProfileData.country && (
                   <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
-                    {getFlagEmoji(publicProfileData.country)}
+                    {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
                   </div>
                 )}
               </div>
@@ -2685,7 +2687,7 @@ export default function Dashboard() {
                 </div>
                 {(profileStats?.country || user.country) && (
                   <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
-                    {getFlagEmoji(profileStats?.country || user.country)}
+                    {getFlagEmoji(profileStats?.country || user.country, profileStats?.countryCode || user.countryCode)}
                   </div>
                 )}
               </div>

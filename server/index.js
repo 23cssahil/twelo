@@ -641,7 +641,7 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
 // Get Public Profile
 app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => {
   try {
-    let user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests avatarUrl country age gender lastActive').lean();
+    let user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests avatarUrl country countryCode age gender lastActive').lean();
     if (!user) {
       return res.json({
         _id: req.params.id,
@@ -667,7 +667,7 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
 // Get Public Profile by Unique ID
 app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (req, res) => {
   try {
-    let user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests avatarUrl country age gender lastActive').lean();
+    let user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests avatarUrl country countryCode age gender lastActive').lean();
     if (!user) return res.status(404).json({ message: "User not found" });
     if (!user.avatarUrl || user.avatarUrl.includes('randomuser.me') || user.avatarUrl.includes('iran.liara.run') || user.avatarUrl.includes('top=')) {
       user.avatarUrl = generateAvatarUrl(user.gender);
@@ -1968,7 +1968,7 @@ io.on('connection', (socket) => {
           user2: { userId: fakeUser._id.toString(), socketId: socket.id }
         });
         
-        const targetDbUser = await User.findById(targetUserId).select('username avatarUrl country gender').lean();
+        const targetDbUser = await User.findById(targetUserId).select('username avatarUrl country countryCode gender').lean();
         
         const factData = await getRandomCountryFact('UN');
         io.to(targetUserSocket).emit('match_found', {
