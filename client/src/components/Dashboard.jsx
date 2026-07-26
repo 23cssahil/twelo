@@ -287,6 +287,7 @@ export default function Dashboard() {
 
   // Chat state
   const [recentChats, setRecentChats] = useState([]);
+  const [isFetchingChats, setIsFetchingChats] = useState(true);
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -864,7 +865,9 @@ export default function Dashboard() {
         });
         setUnreadMessages(unreads);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error(err); } finally {
+      setIsFetchingChats(false);
+    }
   };
 
   const fetchMessages = async (otherId) => {
@@ -2377,10 +2380,25 @@ export default function Dashboard() {
                     </div>
                   );
                 })}
-                {recentChats.length === 0 && (
-                  <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', fontSize: '0.9rem' }}>
-                    No recent chats. Search and follow users to start chatting!
+                {isFetchingChats && recentChats.length === 0 ? (
+                  <div className="chats-skeleton-loader" style={{ padding: '10px' }}>
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className="chat-list-item" style={{ cursor: 'default', borderBottom: '1px solid #333' }}>
+                        <div className="skeleton-avatar shimmer"></div>
+                        <div className="skeleton-details">
+                          <div className="skeleton-name shimmer"></div>
+                          <div className="skeleton-status shimmer"></div>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ textAlign: 'center', marginTop: '15px', color: '#888', fontSize: '0.85rem' }}>Loading chats...</div>
                   </div>
+                ) : (
+                  recentChats.length === 0 && (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', fontSize: '0.9rem' }}>
+                      No recent chats. Search and follow users to start chatting!
+                    </div>
+                  )
                 )}
               </div>
             </div>
