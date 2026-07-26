@@ -1973,7 +1973,7 @@ export default function Dashboard() {
                   <div className="user-names">
                     <span className="user-username" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {anonymousPartnerAvatar ? <div className='user-avatar-small' style={{ width: '28px', height: '28px', fontSize: '12px' }}><img src={anonymousPartnerAvatar} alt='avatar' /></div> : <div className='user-avatar-small' style={{ width: '28px', height: '28px', fontSize: '12px' }}>?</div>}
-                      {anonymousPartnerName}
+                      {anonymousPartnerName} {getFlagEmoji(anonymousPartnerCountry, anonymousPartnerCountryCode)}
                     </span>
                     <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>
                       {anonymousPartnerCountry}
@@ -3262,7 +3262,7 @@ export default function Dashboard() {
                 />
               )}
             </div>
-            <div className="match-found-name">{matchFoundData.partnerName || 'Stranger'}</div>
+            <div className="match-found-name">{matchFoundData.partnerName || 'Stranger'} {getFlagEmoji(matchFoundData.partnerCountry, matchFoundData.partnerCountryCode)}</div>
             <div className="match-found-country">📍 <strong>{matchFoundData.partnerCountry || 'Earth'}</strong></div>
             <div className="match-found-fact">
               {matchFoundData.partnerFact || 'A beautiful country with rich culture.'}
