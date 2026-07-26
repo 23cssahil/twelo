@@ -1973,18 +1973,29 @@ export default function Dashboard() {
           <div className="chat-container">
             <div className="chat-area" style={{ position: 'relative' }}>
               <div className="chat-room-header">
-                <div className="chat-header-info">
+                <div className="chat-header-info" style={{ display: 'flex', alignItems: 'center' }}>
                   <button 
                     className="back-btn" 
                     onClick={handleLeaveAnonymousChat}
-                    style={{ border: 'none', background: 'transparent', fontSize: '1.2rem', cursor: 'pointer', marginRight: '8px' }}
+                    style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', cursor: 'pointer', marginRight: '12px' }}
+                    title="Leave Chat"
                   >
-                    ←
+                    {getFlagEmoji(anonymousPartnerCountry, anonymousPartnerCountryCode) || '🌍'}
                   </button>
-                  <div className="user-names">
-                    <span className="user-username" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {anonymousPartnerAvatar ? <div className='user-avatar-small' style={{ width: '45px', height: '45px', minWidth: '45px', minHeight: '45px', flexShrink: 0, borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src={anonymousPartnerAvatar} alt='avatar' style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /></div> : <div className='user-avatar-small' style={{ width: '45px', height: '45px', minWidth: '45px', minHeight: '45px', flexShrink: 0, borderRadius: '50%', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>?</div>}
-                      {anonymousPartnerName} {getFlagEmoji(anonymousPartnerCountry, anonymousPartnerCountryCode)}
+                  
+                  {anonymousPartnerAvatar ? (
+                    <div className='user-avatar-small' style={{ width: '45px', height: '45px', minWidth: '45px', minHeight: '45px', flexShrink: 0, borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <img src={anonymousPartnerAvatar} alt='avatar' style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                    </div>
+                  ) : (
+                    <div className='user-avatar-small' style={{ width: '45px', height: '45px', minWidth: '45px', minHeight: '45px', flexShrink: 0, borderRadius: '50%', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#333' }}>
+                      ?
+                    </div>
+                  )}
+
+                  <div className="user-names" style={{ marginLeft: '12px', display: 'flex', flexDirection: 'column' }}>
+                    <span className="user-username" style={{ fontSize: '1rem', fontWeight: 'bold' }}>
+                      {anonymousPartnerName}
                     </span>
                     <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>
                       {anonymousPartnerCountry}
