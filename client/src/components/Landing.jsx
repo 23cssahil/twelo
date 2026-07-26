@@ -109,6 +109,56 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Mission & Safety Section */}
+      <section style={{ padding: '80px 20px', background: 'rgba(5,5,5,1)' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '60px' }}>
+          
+          <div>
+            <h3 style={{ fontSize: '2.5rem', marginBottom: '20px', color: '#0095f6' }}>Our Mission</h3>
+            <p style={{ fontSize: '1.1rem', color: '#a8a8a8', lineHeight: '1.8' }}>
+              At Twelo, we believe that the world becomes a smaller, friendlier place when people from diverse backgrounds can communicate without barriers. Our mission is to foster a global community where individuals can freely express themselves, share ideas, and build meaningful connections. By breaking down geographical limitations and prioritizing anonymity, we empower users to be their authentic selves. Whether you're looking to practice a new language, discuss your favorite hobbies, or simply have a lighthearted conversation after a long day, Twelo provides the perfect virtual environment.
+            </p>
+          </div>
+
+          <div>
+            <h3 style={{ fontSize: '2.5rem', marginBottom: '20px', color: '#2bd856' }}>Commitment to Safety & Privacy</h3>
+            <p style={{ fontSize: '1.1rem', color: '#a8a8a8', lineHeight: '1.8' }}>
+              We understand that interacting on the internet requires a high degree of trust. That's why your privacy and safety are at the core of Twelo's architecture. Unlike traditional social media platforms, we do not require you to link your phone number, share your location, or upload personal photos to chat with strangers. Our robust backend infrastructure ensures that your data is handled securely and responsibly. Furthermore, we provide you with the tools to block and report inappropriate behavior instantly, ensuring that our community remains a respectful and positive space for everyone involved.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section style={{ padding: '80px 20px', background: 'rgba(255,255,255,0.02)' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <h3 style={{ textAlign: 'center', fontSize: '2.5rem', marginBottom: '50px' }}>Frequently Asked Questions</h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '25px', borderRadius: '15px' }}>
+              <h5 style={{ fontSize: '1.2rem', marginBottom: '10px', color: '#fff' }}>Is Twelo completely free to use?</h5>
+              <p style={{ color: '#a8a8a8', margin: 0, lineHeight: '1.6' }}>Yes, the core features of Twelo, including finding random matches and chatting, are entirely free. We also offer a reward system where you can earn coins just by being active on the platform.</p>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '25px', borderRadius: '15px' }}>
+              <h5 style={{ fontSize: '1.2rem', marginBottom: '10px', color: '#fff' }}>How does the random chat matching work?</h5>
+              <p style={{ color: '#a8a8a8', margin: 0, lineHeight: '1.6' }}>When you click the globe icon, our algorithm connects you with another available user in real-time. The matching is completely random, giving you the chance to meet people from completely different walks of life.</p>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '25px', borderRadius: '15px' }}>
+              <h5 style={{ fontSize: '1.2rem', marginBottom: '10px', color: '#fff' }}>Can I add someone as a friend after a random chat?</h5>
+              <p style={{ color: '#a8a8a8', margin: 0, lineHeight: '1.6' }}>Absolutely! If you enjoy a conversation with a stranger, you can view their public profile and send them a follow request. Once accepted, you can chat with them anytime from your connections list.</p>
+            </div>
+            
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '25px', borderRadius: '15px' }}>
+              <h5 style={{ fontSize: '1.2rem', marginBottom: '10px', color: '#fff' }}>What should I do if someone is being inappropriate?</h5>
+              <p style={{ color: '#a8a8a8', margin: 0, lineHeight: '1.6' }}>We have zero tolerance for abuse. If you encounter any inappropriate behavior, you can immediately use the "Report" button located in the chat header. Our moderation team reviews these reports promptly.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer style={{ padding: '60px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center', background: '#020202' }}>
         <h2 className="gradient-text" style={{ fontSize: '2rem', marginBottom: '20px' }}>Twelo</h2>
