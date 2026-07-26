@@ -1023,19 +1023,25 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Get Messages Route
+// Get Messages Route (with Pagination)
 app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
   try {
     const { otherUserId } = req.params;
     const currentUserId = req.user.userId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
 
     // Mark messages sent by the other user to current user as viewed (Async in background)
-    Message.updateMany(
-      { sender: otherUserId, receiver: currentUserId, isViewed: false },
-      { $set: { isViewed: true, viewedAt: new Date() } }
-    ).catch(err => console.log('Error updating view status', err));
+    // Only update if it's the first page (latest messages) to avoid redundant DB calls on older pages
+    if (page === 1) {
+      Message.updateMany(
+        { sender: otherUserId, receiver: currentUserId, isViewed: false },
+        { $set: { isViewed: true, viewedAt: new Date() } }
+      ).catch(err => console.log('Error updating view status', err));
+    }
 
-    const messages = await Message.find({
+    const query = {
       $and: [
         {
           $or: [
@@ -1045,9 +1051,23 @@ app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
         },
         { deletedBy: { $ne: currentUserId } }
       ]
-    }).sort({ createdAt: 1 });
+    };
 
-    res.json(messages);
+    const messages = await Message.find(query)
+      .sort({ createdAt: -1 }) // Get newest first
+      .skip(skip)
+      .limit(limit);
+      
+    const totalMessages = await Message.countDocuments(query);
+    const hasMore = totalMessages > (skip + messages.length);
+
+    // Reverse the array so the frontend receives them in chronological order
+    const chronologicalMessages = messages.reverse();
+
+    res.json({
+      messages: chronologicalMessages,
+      hasMore: hasMore
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching messages', error: error.message });
   }

@@ -186,6 +186,8 @@ export default function Dashboard() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [isFetchingSearchHistory, setIsFetchingSearchHistory] = useState(true);
   const [isFetchingMessages, setIsFetchingMessages] = useState(false);
+  const [messagePage, setMessagePage] = useState(1);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [settingsLoading, setSettingsLoading] = useState(false);
   
   // Ad System State
@@ -852,7 +854,11 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (activeChatUser) fetchMessages(activeChatUser._id);
+    if (activeChatUser) {
+      setMessagePage(1);
+      setHasMoreMessages(true);
+      fetchMessages(activeChatUser._id, 1);
+    }
   }, [activeChatUser]);
 
   const fetchRecentChats = async () => {
@@ -872,14 +878,39 @@ export default function Dashboard() {
     }
   };
 
-  const fetchMessages = async (otherId) => {
+  const fetchMessages = async (otherId, page = 1) => {
     try {
-      setIsFetchingMessages(true);
-      const res = await fetch(`${API_URL}/api/messages/${otherId}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (page === 1) setIsFetchingMessages(true);
+      const res = await fetch(`${API_URL}/api/messages/${otherId}?page=${page}&limit=20`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (res.ok) setMessages(data);
+      if (res.ok) {
+        if (page === 1) {
+          setMessages(data.messages);
+        } else {
+          // Prepend older messages while maintaining the existing ones
+          setMessages(prev => [...data.messages, ...prev]);
+        }
+        setHasMoreMessages(data.hasMore);
+      }
     } catch (err) { console.error(err); } finally {
-      setIsFetchingMessages(false);
+      if (page === 1) setIsFetchingMessages(false);
+    }
+  };
+
+  const handleChatScroll = async (e) => {
+    if (e.target.scrollTop === 0 && hasMoreMessages && !isFetchingMessages) {
+      const oldScrollHeight = e.target.scrollHeight;
+      const nextPage = messagePage + 1;
+      setMessagePage(nextPage);
+      
+      await fetchMessages(activeChatUser._id, nextPage);
+      
+      // Restore scroll position after React renders the new messages
+      setTimeout(() => {
+        if (e.target) {
+          e.target.scrollTop = e.target.scrollHeight - oldScrollHeight;
+        }
+      }, 50);
     }
   };
 
@@ -2492,7 +2523,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="chat-messages-area">
+                  <div className="chat-messages-area" onScroll={handleChatScroll}>
                     {isFetchingMessages && messages.length === 0 ? (
                       <div className="messages-skeleton-loader" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
                         <div className="msg-wrapper received" style={{ display: 'flex', justifyContent: 'flex-start' }}><div className="msg-bubble shimmer" style={{ width: '60%', height: '45px', borderRadius: '20px' }}></div></div>
@@ -2502,6 +2533,9 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       <>
+                        {isFetchingMessages && messages.length > 0 && (
+                          <div style={{ textAlign: 'center', padding: '10px', color: '#888', fontSize: '0.85rem' }}>Loading older messages...</div>
+                        )}
                         {messages.map((msg) => (
                       <div key={msg._id} className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`} 
                         onTouchStart={(e) => handleTouchStart(e, msg)}
