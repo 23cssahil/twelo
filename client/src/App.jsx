@@ -64,7 +64,7 @@ export default function App() {
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowInstallPrompt(true);
+      // setShowInstallPrompt(true); // Temporarily disabled as per user request
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
