@@ -184,6 +184,7 @@ export default function Dashboard() {
   };
 
   const [searchLoading, setSearchLoading] = useState(false);
+  const [isFetchingSearchHistory, setIsFetchingSearchHistory] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
   
   // Ad System State
@@ -900,6 +901,7 @@ export default function Dashboard() {
 
   const fetchSearchHistory = async () => {
     if (searchHistoryCache) setSearchResults(searchHistoryCache);
+    else setIsFetchingSearchHistory(true);
     try {
       const res = await fetch(`${API_URL}/api/users/search-history`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
@@ -907,7 +909,9 @@ export default function Dashboard() {
         setSearchResults(data);
         setSearchHistoryCache(data);
       }
-    } catch (e) { console.error("Search history error", e); }
+    } catch (e) { console.error("Search history error", e); } finally {
+      setIsFetchingSearchHistory(false);
+    }
   };
 
   useEffect(() => {
@@ -2220,6 +2224,20 @@ export default function Dashboard() {
             
             {searchLoading && <div style={{ textAlign: 'center', color: '#a8a8a8' }}>Searching...</div>}
             
+            {isFetchingSearchHistory && !searchQuery && searchResults.length === 0 ? (
+              <div className="chats-skeleton-loader" style={{ padding: '10px' }}>
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="chat-list-item" style={{ cursor: 'default', borderBottom: '1px solid #333' }}>
+                    <div className="skeleton-avatar shimmer"></div>
+                    <div className="skeleton-details">
+                      <div className="skeleton-name shimmer"></div>
+                      <div className="skeleton-status shimmer" style={{ width: '30%' }}></div>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ textAlign: 'center', marginTop: '15px', color: '#888', fontSize: '0.85rem' }}>Loading recent searches...</div>
+              </div>
+            ) : (
             <div className="search-results">
               {searchResults.map((searchUser) => {
                 const isFollowing = profileStats?.following?.includes(searchUser._id);
@@ -2260,7 +2278,11 @@ export default function Dashboard() {
               {!searchLoading && searchQuery && searchResults.length === 0 && (
                 <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No users found</div>
               )}
+              {!searchLoading && !searchQuery && searchResults.length === 0 && (
+                <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No recent searches.</div>
+              )}
             </div>
+            )}
           </div>
         );
 
