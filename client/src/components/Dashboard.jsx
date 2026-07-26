@@ -1972,7 +1972,7 @@ export default function Dashboard() {
                   </button>
                   <div className="user-names">
                     <span className="user-username" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {anonymousPartnerAvatar ? <div className='user-avatar-small' style={{ width: '28px', height: '28px', fontSize: '12px' }}><img src={anonymousPartnerAvatar} alt='avatar' /></div> : <div className='user-avatar-small' style={{ width: '28px', height: '28px', fontSize: '12px' }}>?</div>}
+                      {anonymousPartnerAvatar ? <div className='user-avatar-small' style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', flexShrink: 0, borderRadius: '50%', fontSize: '14px' }}><img src={anonymousPartnerAvatar} alt='avatar' /></div> : <div className='user-avatar-small' style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', flexShrink: 0, borderRadius: '50%', fontSize: '14px' }}>?</div>}
                       {anonymousPartnerName} {getFlagEmoji(anonymousPartnerCountry, anonymousPartnerCountryCode)}
                     </span>
                     <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>
