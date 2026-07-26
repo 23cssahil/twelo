@@ -2194,7 +2194,7 @@ export default function Dashboard() {
                       <div className="user-card-info" onClick={() => viewPublicProfile(reqUser._id)} style={{ cursor: 'pointer' }}>
                         <div className="user-avatar-small">{reqUser.avatarUrl ? <img src={reqUser.avatarUrl} alt='avatar' /> : reqUser.username.charAt(0).toUpperCase()}</div>
                         <div className="user-names">
-                          <span className="user-username">@{reqUser.username}</span>
+                          <span className="user-username">@{reqUser.username?.length > 10 ? reqUser.username.substring(0, 10) + '...' : reqUser.username}</span>
                           <span className="user-id" style={{ fontSize: '0.8rem' }}>{text}</span>
                         </div>
                       </div>
@@ -2277,7 +2277,7 @@ export default function Dashboard() {
                         {searchUser.avatarUrl ? <img src={searchUser.avatarUrl} alt='avatar' /> : searchUser.username.charAt(0).toUpperCase()}
                       </div>
                       <div className="user-names">
-                        <span className="user-username">@{searchUser.username}</span>
+                        <span className="user-username">@{searchUser.username?.length > 10 ? searchUser.username.substring(0, 10) + '...' : searchUser.username}</span>
                         <span className="user-id">ID: {searchUser.uniqueId}</span>
                       </div>
                     </div>
@@ -3009,7 +3009,7 @@ export default function Dashboard() {
                 >
                   <div className="user-avatar-small">{u.avatarUrl ? <img src={u.avatarUrl} alt='avatar' /> : u.username.charAt(0).toUpperCase()}</div>
                   <div className="user-names">
-                    <span className="user-username">@{u.username}</span>
+                    <span className="user-username">@{u.username?.length > 10 ? u.username.substring(0, 10) + '...' : u.username}</span>
                   </div>
                 </div>
               ))}
