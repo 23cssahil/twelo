@@ -1688,3 +1688,8 @@ input, button, textarea {
   width: 40%;
   border-radius: 4px;
 }
+
+@keyframes pwaPopupSlideUp {
+  0% { transform: translateY(40px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}

@@ -172,7 +172,7 @@ export default function App() {
             width: '90%',
             maxWidth: '380px',
             boxSizing: 'border-box',
-            animation: 'slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+            animation: 'pwaPopupSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}>
             <div style={{ width: '60px', height: '60px', background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)', borderRadius: '15px', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 10px 20px rgba(0, 114, 255, 0.3)' }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -197,12 +197,6 @@ export default function App() {
                 Install Now
               </button>
             </div>
-            <style>{`
-              @keyframes slideUpFade {
-                0% { transform: translateY(40px); opacity: 0; }
-                100% { transform: translateY(0); opacity: 1; }
-              }
-            `}</style>
           </div>
         </div>
       )}
