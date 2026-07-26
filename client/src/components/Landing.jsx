@@ -159,6 +159,38 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Educational Guide Section for AdSense Value */}
+      <section style={{ padding: '80px 20px', background: 'rgba(5,5,5,1)' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <h3 style={{ textAlign: 'center', fontSize: '2.5rem', marginBottom: '20px', color: '#00c6ff' }}>Essential Guide: Tips for Safe Online Chatting</h3>
+          <p style={{ textAlign: 'center', fontSize: '1.1rem', color: '#a8a8a8', marginBottom: '50px', maxWidth: '700px', margin: '0 auto 50px' }}>
+            While making new friends online is an exciting experience, it's crucial to stay informed about digital safety. Here are our top expert recommendations for ensuring your online interactions remain secure and enjoyable.
+          </p>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '30px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <h4 style={{ fontSize: '1.3rem', marginBottom: '15px', color: '#fff' }}>1. Protect Personal Information</h4>
+              <p style={{ color: '#a8a8a8', lineHeight: '1.6' }}>Never share sensitive personal data such as your home address, financial details, or passwords with strangers. Even in anonymous chats, maintaining a strict boundary regarding personal identifiable information (PII) is your best defense against identity theft and digital fraud.</p>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '30px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <h4 style={{ fontSize: '1.3rem', marginBottom: '15px', color: '#fff' }}>2. Trust Your Instincts</h4>
+              <p style={{ color: '#a8a8a8', lineHeight: '1.6' }}>If a conversation makes you feel uncomfortable or a user behaves aggressively, trust your gut feeling. Disconnect immediately. You are never obligated to continue a chat that violates your personal boundaries or makes you feel unsafe.</p>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '30px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <h4 style={{ fontSize: '1.3rem', marginBottom: '15px', color: '#fff' }}>3. Beware of External Links</h4>
+              <p style={{ color: '#a8a8a8', lineHeight: '1.6' }}>Exercise extreme caution before clicking on links sent by unfamiliar users. Malicious links can lead to phishing websites designed to steal your credentials or download malware onto your device. When in doubt, simply ignore the link.</p>
+            </div>
+            
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '30px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <h4 style={{ fontSize: '1.3rem', marginBottom: '15px', color: '#fff' }}>4. Utilize Moderation Tools</h4>
+              <p style={{ color: '#a8a8a8', lineHeight: '1.6' }}>Familiarize yourself with the platform's reporting and blocking features. By actively reporting toxic behavior or spam, you not only protect yourself but also help maintain a healthy, welcoming community for everyone else.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer style={{ padding: '60px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center', background: '#020202' }}>
         <h2 className="gradient-text" style={{ fontSize: '2rem', marginBottom: '20px' }}>Twelo</h2>
