@@ -21,6 +21,32 @@ webpush.setVapidDetails(
 );
 
 const googleClient = new OAuth2Client('440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com');
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'insta_encryption_secret_key_1234567890123456';
+const IV_LENGTH = 16;
+
+function encryptEmail(text) {
+  if (!text) return text;
+  let iv = crypto.randomBytes(IV_LENGTH);
+  let cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY.slice(0, 32).padEnd(32, '0')), iv);
+  let encrypted = cipher.update(text);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return 'enc_' + iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+function decryptEmail(text) {
+  if (!text || !text.startsWith('enc_')) return text;
+  try {
+    let textParts = text.replace('enc_', '').split(':');
+    let iv = Buffer.from(textParts.shift(), 'hex');
+    let encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    let decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY.slice(0, 32).padEnd(32, '0')), iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  } catch (e) {
+    return text;
+  }
+}
 
 
 function generateAvatarUrl(gender) {
@@ -239,20 +265,20 @@ async function getRandomCountryFact(countryCode) {
 }
 const server = http.createServer(app);
 
-// Hash old emails on startup to ensure privacy
-setTimeout(async () => {
+// Encrypt old plaintext emails on startup to ensure privacy (Ignore already hashed/encrypted ones)
+mongoose.connection.once('open', async () => {
   try {
-    const users = await User.find({ email: { $not: /^hash_/ } });
+    const users = await User.find({ email: { $not: /^(hash_|enc_)/ } });
     for (let u of users) {
-      if (u.email && !u.email.startsWith('hash_')) {
-        u.email = 'hash_' + crypto.createHash('sha256').update(u.email).digest('hex');
+      if (u.email && !u.email.startsWith('hash_') && !u.email.startsWith('enc_')) {
+        u.email = encryptEmail(u.email);
         await u.save();
       }
     }
   } catch(e) {
-    console.error('Error hashing old emails:', e);
+    console.error('Error encrypting old emails:', e);
   }
-}, 5000);
+});
 
 const io = socketIo(server, {
   cors: {
@@ -412,7 +438,7 @@ app.post('/api/auth/google', async (req, res) => {
     const existingUser = await User.findOne({ googleId });
     if (existingUser) return res.status(400).json({ message: 'User already exists' });
 
-    const hashedEmail = 'hash_' + crypto.createHash('sha256').update(email).digest('hex');
+    const finalEmail = encryptEmail(email);
 
     let uniqueId = generateUniqueId();
     let idExists = await User.findOne({ uniqueId });
@@ -453,7 +479,7 @@ app.post('/api/auth/google', async (req, res) => {
     const newUser = new User({ 
       username, 
       name, 
-      email: hashedEmail, 
+      email: finalEmail, 
       googleId, 
       uniqueId, 
       age: Number(age), 
@@ -1518,7 +1544,12 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
       };
     }
     const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).limit(query ? 50 : 5000);
-    res.json(users);
+    const decryptedUsers = users.map(user => {
+      const userObj = user.toObject();
+      userObj.email = decryptEmail(userObj.email);
+      return userObj;
+    });
+    res.json(decryptedUsers);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching users' });
   }
