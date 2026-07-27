@@ -808,24 +808,31 @@ export default function Dashboard() {
 
   // Removed redundant popstate handler
 
-  const prevMessagesLength = useRef(0);
+  const prevLastMessageId = useRef(null);
+  const prevLastAnonId = useRef(null);
   const prevActiveChatId = useRef(null);
 
   useLayoutEffect(() => {
     if (messagesEndRef.current) {
       const parent = messagesEndRef.current.parentElement;
       if (parent) {
-        const isNewMessage = messages.length > prevMessagesLength.current;
-        const isRandomNewMessage = anonymousMessages.length > prevMessagesLength.current;
+        const currentLastMessage = messages.length > 0 ? messages[messages.length - 1]._id : null;
+        const currentLastAnon = anonymousMessages.length > 0 ? anonymousMessages[anonymousMessages.length - 1].id : null;
+        
+        const isNewMessageAtBottom = prevLastMessageId.current !== currentLastMessage && currentLastMessage !== null;
+        const isNewAnonAtBottom = prevLastAnonId.current !== currentLastAnon && currentLastAnon !== null;
+        
         const isTyping = partnerTyping || anonymousPartnerTyping;
         const isNewChat = prevActiveChatId.current !== (activeChatUser?._id || null);
 
-        if (isNewMessage || isRandomNewMessage || isTyping || isNewChat) {
+        if (isNewChat || isNewMessageAtBottom || isNewAnonAtBottom || isTyping) {
           parent.scrollTop = parent.scrollHeight;
         }
+        
+        prevLastMessageId.current = currentLastMessage;
+        prevLastAnonId.current = currentLastAnon;
       }
     }
-    prevMessagesLength.current = Math.max(messages.length, anonymousMessages.length);
     prevActiveChatId.current = activeChatUser?._id || null;
   }, [messages, anonymousMessages, partnerTyping, anonymousPartnerTyping, activeChatUser]);
 
