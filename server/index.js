@@ -508,14 +508,32 @@ app.post('/api/auth/google', async (req, res) => {
 app.get('/api/users/search', authenticateToken, async (req, res) => {
   try {
     const query = req.query.q;
-    if (!query) return res.json([]);
-    const users = await User.find({
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    if (!query) return res.json({ users: [], hasMore: false });
+
+    const skip = (page - 1) * limit;
+    
+    // Prefix regex to enable MongoDB Index Seek on B-Tree index
+    const regexQuery = new RegExp('^' + query, 'i');
+
+    const filter = {
       $or: [
-        { username: { $regex: query, $options: 'i' } },
-        { uniqueId: { $regex: query, $options: 'i' } }
+        { username: regexQuery },
+        { uniqueId: regexQuery }
       ]
-    }).limit(10).select('username uniqueId avatarUrl friendRequests followers');
-    res.json(users);
+    };
+
+    const users = await User.find(filter)
+      .skip(skip)
+      .limit(limit + 1)
+      .select('username uniqueId avatarUrl friendRequests followers');
+      
+    const hasMore = users.length > limit;
+    if (hasMore) users.pop();
+
+    res.json({ users, hasMore });
   } catch (error) {
     res.status(500).json({ message: 'Search error' });
   }

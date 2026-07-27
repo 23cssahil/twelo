@@ -184,6 +184,8 @@ export default function Dashboard() {
   };
 
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchPage, setSearchPage] = useState(1);
+  const [hasMoreSearch, setHasMoreSearch] = useState(true);
   const [isFetchingSearchHistory, setIsFetchingSearchHistory] = useState(true);
   const [isFetchingMessages, setIsFetchingMessages] = useState(false);
   const [messagePage, setMessagePage] = useState(1);
@@ -962,20 +964,44 @@ export default function Dashboard() {
     }
   }, [activeTab, searchQuery]);
 
-  const handleSearch = async (e) => {
-    const value = e.target.value;
-    setSearchQuery(value);
+  const handleSearch = async (eOrValue, page = 1) => {
+    let value = typeof eOrValue === 'string' ? eOrValue : eOrValue.target.value;
+    
+    if (page === 1) {
+      setSearchQuery(value);
+      setSearchPage(1);
+      setHasMoreSearch(true);
+    }
+
     if (!value.trim()) {
       fetchSearchHistory();
       return;
     }
-    setSearchLoading(true);
+    
+    if (page === 1) setSearchLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/users/search?q=${value}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/users/search?q=${value}&page=${page}&limit=20`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (res.ok) setSearchResults(data);
+      if (res.ok) {
+        if (page === 1) {
+          setSearchResults(data.users);
+        } else {
+          setSearchResults(prev => [...prev, ...data.users]);
+        }
+        setHasMoreSearch(data.hasMore);
+      }
     } catch (err) { console.error(err); } finally {
-      setSearchLoading(false);
+      if (page === 1) setSearchLoading(false);
+    }
+  };
+
+  const handleSearchResultsScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    // When scrolled to near bottom
+    if (scrollHeight - scrollTop - clientHeight < 50 && hasMoreSearch && !searchLoading) {
+      const nextPage = searchPage + 1;
+      setSearchPage(nextPage);
+      handleSearch(searchQuery, nextPage);
     }
   };
 
@@ -2293,7 +2319,7 @@ export default function Dashboard() {
                 <div style={{ textAlign: 'center', marginTop: '15px', color: '#888', fontSize: '0.85rem' }}>Loading recent searches...</div>
               </div>
             ) : (
-            <div className="search-results">
+            <div className="search-results" onScroll={handleSearchResultsScroll}>
               {searchResults.map((searchUser) => {
                 const isFollowing = profileStats?.following?.includes(searchUser._id);
                 const hasRequested = searchUser.friendRequests?.includes(user.id);
@@ -2330,6 +2356,11 @@ export default function Dashboard() {
                   </div>
                 );
               })}
+              
+              {searchLoading && searchPage > 1 && (
+                <div style={{ textAlign: 'center', padding: '15px', color: '#888', fontSize: '0.85rem' }}>Loading more...</div>
+              )}
+              
               {!searchLoading && searchQuery && searchResults.length === 0 && (
                 <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No users found</div>
               )}
