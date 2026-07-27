@@ -811,26 +811,33 @@ export default function Dashboard() {
   const prevLastMessageId = useRef(null);
   const prevLastAnonId = useRef(null);
   const prevActiveChatId = useRef(null);
+  const scrollHeightBeforeUpdate = useRef(0);
 
   useLayoutEffect(() => {
     if (messagesEndRef.current) {
       const parent = messagesEndRef.current.parentElement;
       if (parent) {
-        const currentLastMessage = messages.length > 0 ? messages[messages.length - 1]._id : null;
-        const currentLastAnon = anonymousMessages.length > 0 ? anonymousMessages[anonymousMessages.length - 1].id : null;
-        
-        const isNewMessageAtBottom = prevLastMessageId.current !== currentLastMessage && currentLastMessage !== null;
-        const isNewAnonAtBottom = prevLastAnonId.current !== currentLastAnon && currentLastAnon !== null;
-        
-        const isTyping = partnerTyping || anonymousPartnerTyping;
-        const isNewChat = prevActiveChatId.current !== (activeChatUser?._id || null);
+        if (scrollHeightBeforeUpdate.current > 0) {
+          // Prevent infinite scroll flicker by adjusting scroll synchronously before paint
+          parent.scrollTop = parent.scrollHeight - scrollHeightBeforeUpdate.current;
+          scrollHeightBeforeUpdate.current = 0;
+        } else {
+          const currentLastMessage = messages.length > 0 ? messages[messages.length - 1]._id : null;
+          const currentLastAnon = anonymousMessages.length > 0 ? anonymousMessages[anonymousMessages.length - 1].id : null;
+          
+          const isNewMessageAtBottom = prevLastMessageId.current !== currentLastMessage && currentLastMessage !== null;
+          const isNewAnonAtBottom = prevLastAnonId.current !== currentLastAnon && currentLastAnon !== null;
+          
+          const isTyping = partnerTyping || anonymousPartnerTyping;
+          const isNewChat = prevActiveChatId.current !== (activeChatUser?._id || null);
 
-        if (isNewChat || isNewMessageAtBottom || isNewAnonAtBottom || isTyping) {
-          parent.scrollTop = parent.scrollHeight;
+          if (isNewChat || isNewMessageAtBottom || isNewAnonAtBottom || isTyping) {
+            parent.scrollTop = parent.scrollHeight;
+          }
+          
+          prevLastMessageId.current = currentLastMessage;
+          prevLastAnonId.current = currentLastAnon;
         }
-        
-        prevLastMessageId.current = currentLastMessage;
-        prevLastAnonId.current = currentLastAnon;
       }
     }
     prevActiveChatId.current = activeChatUser?._id || null;
@@ -906,18 +913,11 @@ export default function Dashboard() {
 
   const handleChatScroll = async (e) => {
     if (e.target.scrollTop === 0 && hasMoreMessages && !isFetchingMessages) {
-      const oldScrollHeight = e.target.scrollHeight;
+      scrollHeightBeforeUpdate.current = e.target.scrollHeight;
       const nextPage = messagePage + 1;
       setMessagePage(nextPage);
       
       await fetchMessages(activeChatUser._id, nextPage);
-      
-      // Restore scroll position after React renders the new messages
-      setTimeout(() => {
-        if (e.target) {
-          e.target.scrollTop = e.target.scrollHeight - oldScrollHeight;
-        }
-      }, 50);
     }
   };
 
