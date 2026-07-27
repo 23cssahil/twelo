@@ -964,6 +964,8 @@ export default function Dashboard() {
     }
   }, [activeTab, searchQuery]);
 
+  const currentSearchId = useRef(0);
+
   const handleSearch = async (eOrValue, page = 1) => {
     let value = typeof eOrValue === 'string' ? eOrValue : eOrValue.target.value;
     
@@ -978,10 +980,15 @@ export default function Dashboard() {
       return;
     }
     
+    const searchId = ++currentSearchId.current;
+    
     if (page === 1) setSearchLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/users/search?q=${value}&page=${page}&limit=20`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
+      
+      if (searchId !== currentSearchId.current && page === 1) return; // Prevent race conditions on new searches
+      
       if (res.ok) {
         if (page === 1) {
           setSearchResults(data.users);
@@ -991,7 +998,7 @@ export default function Dashboard() {
         setHasMoreSearch(data.hasMore);
       }
     } catch (err) { console.error(err); } finally {
-      if (page === 1) setSearchLoading(false);
+      if (page === 1 && searchId === currentSearchId.current) setSearchLoading(false);
     }
   };
 

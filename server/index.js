@@ -516,7 +516,9 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
     const skip = (page - 1) * limit;
     
     // Prefix regex to enable MongoDB Index Seek on B-Tree index
-    const regexQuery = new RegExp('^' + query, 'i');
+    // Escape regex control characters to prevent invalid regex errors
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regexQuery = new RegExp('^' + escapedQuery, 'i');
 
     const filter = {
       $or: [
