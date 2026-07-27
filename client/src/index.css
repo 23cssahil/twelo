@@ -1480,7 +1480,7 @@ input, button, textarea {
 .sent-icon { right: -50px; }
 .received-icon { left: -50px; }
 /* Removed redundant .msg-wrapper */
-.replying-to-banner { display: flex; align-items: center; justify-content: space-between; background-color: #222; border-left: 4px solid var(--brand-blue); padding: 10px 14px; border-radius: 8px 8px 0 0; margin-bottom: 8px; }
+.replying-to-banner { display: flex; align-items: center; justify-content: space-between; background-color: #222; border-left: 4px solid var(--brand-blue); padding: 10px 14px; border-radius: 8px 8px 0 0; margin-bottom: 8px; touch-action: none; }
 .reply-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .reply-sender { color: var(--brand-blue); font-weight: 600; font-size: 0.85rem; margin-bottom: 2px; }
 .reply-text { color: #aaa; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
