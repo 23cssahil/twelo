@@ -44,7 +44,7 @@ const CoinSVG = ({ size = 18, style = {} }) => (
   <span style={{ fontSize: `${size}px`, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', ...style }}>🪙</span>
 );
 import { Capacitor } from '@capacitor/core';
-import { AdMob, RewardAdPluginEvents } from '@capacitor-community/admob';
+import { AdMob, RewardAdPluginEvents, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
 
 const COUNTRY_DATA = {
   "India": { lat: 20.5937, lng: 78.9629, fact: "Did you know? India has the world's largest postal network." },
@@ -210,6 +210,30 @@ export default function Dashboard() {
     }
     return () => clearTimeout(timer);
   }, [showAdModal, adTimeLeft, adCompleted]);
+
+  // Handle Banner Ad logic based on activeTab
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      const manageBannerAd = async () => {
+        try {
+          if (activeTab === 'home') {
+            await AdMob.showBanner({
+              adId: 'ca-app-pub-7775487062260313/9254448143',
+              adSize: BannerAdSize.BANNER,
+              position: BannerAdPosition.TOP_CENTER,
+              margin: 60, // margin to push it below the top header
+              isTesting: true // Enabled test ads so it actually shows up
+            });
+          } else {
+            await AdMob.hideBanner().catch(() => {});
+          }
+        } catch (e) {
+          console.error("Banner ad error", e);
+        }
+      };
+      manageBannerAd();
+    }
+  }, [activeTab]);
 
   const handleWatchAd = async () => {
     if (Capacitor.isNativePlatform()) {
@@ -1761,24 +1785,78 @@ export default function Dashboard() {
     if (!isVideoCall || !localStreamRef.current || !connectionRef.current) return;
     try {
       const newMode = currentFacingMode === 'user' ? 'environment' : 'user';
-      const newStream = await requestMediaPermissions(true, newMode);
-      
+
+      // ✅ FIX: Pehle purana track stop karo, PHIR naya stream maango
+      // Agar purana track chal raha hai to browser NotReadableError deta hai
       const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
-      const newVideoTrack = newStream.getVideoTracks()[0];
-      
-      if (oldVideoTrack && newVideoTrack) {
-        connectionRef.current.replaceTrack(oldVideoTrack, newVideoTrack, localStreamRef.current);
-        oldVideoTrack.stop();
+      if (oldVideoTrack) {
+        oldVideoTrack.stop(); // Hardware release karo pehle
         localStreamRef.current.removeTrack(oldVideoTrack);
+      }
+
+      // Hardware properly release ho sake isliye thoda wait karo
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      let newStream;
+      try {
+        // Pehle ideal facingMode ke saath try karo
+        newStream = await navigator.mediaDevices.getUserMedia({
+          audio: false, // Audio track pehle se hai, dobara mat lo
+          video: { facingMode: { ideal: newMode } }
+        });
+      } catch (err) {
+        // Agar ideal constraint fail ho to exact try karo
+        try {
+          newStream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: { facingMode: { exact: newMode } }
+          });
+        } catch (err2) {
+          // Last resort: bina facingMode ke maango
+          newStream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: true
+          });
+        }
+      }
+
+      const newVideoTrack = newStream.getVideoTracks()[0];
+
+      if (newVideoTrack) {
+        // Naya track existing stream mein add karo
         localStreamRef.current.addTrack(newVideoTrack);
-        
+
+        // WebRTC connection mein track replace karo
+        const sender = connectionRef.current._pc &&
+          connectionRef.current._pc.getSenders &&
+          connectionRef.current._pc.getSenders().find(s => s.track && s.track.kind === 'video');
+
+        if (sender) {
+          await sender.replaceTrack(newVideoTrack);
+        } else {
+          // Fallback: simple-peer replaceTrack
+          try {
+            connectionRef.current.replaceTrack(
+              localStreamRef.current.getVideoTracks().find(t => t !== newVideoTrack) || newVideoTrack,
+              newVideoTrack,
+              localStreamRef.current
+            );
+          } catch (replaceErr) {
+            console.warn('replaceTrack fallback also failed:', replaceErr);
+          }
+        }
+
         if (myVideoRef.current) {
           myVideoRef.current.srcObject = localStreamRef.current;
         }
         setCurrentFacingMode(newMode);
       }
     } catch (e) {
-      console.error('Failed to switch camera', e);
+      console.error('Failed to switch camera:', e);
+      // User ko friendly message dikhao sirf agar zaruri ho
+      if (e.name === 'NotReadableError' || e.name === 'NotAllowedError') {
+        alert(`Camera switch failed: ${e.name} — Please check camera permissions or try again.`);
+      }
     }
   };
 
@@ -1973,6 +2051,17 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
+
+            {Capacitor.isNativePlatform() && (
+              <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginBottom: '20px' }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Watch Video</h3>
+                <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Watch a short ad to earn free coins immediately!</p>
+                <button onClick={handleWatchAd} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', border: 'none', borderRadius: '8px', color: '#000', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+                  Watch Ad & Earn
+                </button>
+              </div>
+            )}
+
           </div>
         );
       case 'home':
