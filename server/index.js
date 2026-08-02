@@ -87,6 +87,51 @@ function createAiCompanion(userGender, userCountry = 'Earth', userCountryCode = 
   };
 }
 
+async function generateBotRuleFallback(chat, messageText) {
+  const text = (messageText || '').trim().toLowerCase();
+  const cleanText = text.replace(/[.,!?]/g, '');
+  const textWords = cleanText.split(/\s+/).filter(Boolean);
+  const textWordCount = Math.max(1, textWords.length);
+
+  try {
+    const BotRule = require('./models/BotRule');
+    const rules = await BotRule.find({ isActive: true }).lean();
+    let matchedRule = null;
+    let maxMatchScore = 0;
+
+    for (const rule of rules) {
+      if (rule.botGender !== 'both' && rule.botGender !== chat.companion.gender) continue;
+      rule.userMessageTriggers.forEach((trigger, idx) => {
+        const t = trigger.toLowerCase().trim();
+        if (!t) return;
+        let isMatch = false;
+        try {
+          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          isMatch = new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+        } catch(e) { isMatch = text.includes(t); }
+        if (isMatch) {
+          const tWords = t.split(/\s+/).filter(Boolean);
+          const ratio = tWords.filter(w => textWords.includes(w)).length / textWordCount;
+          if (ratio > 0.25 || cleanText === t) {
+            const score = ratio + (1 - (cleanText.indexOf(t) / Math.max(1, cleanText.length))) * 0.001;
+            if (score > maxMatchScore) { matchedRule = rule; maxMatchScore = score; matchedRule.matchedTriggerIndex = idx; }
+          }
+        }
+      });
+    }
+
+    if (!matchedRule) {
+      return { reply: pickOne(['hmm', 'achha', 'nice', 'sahi hai', 'aur batao 😊', 'haan bolo']), action: 'continue' };
+    }
+
+    const response = (matchedRule.botResponses && matchedRule.botResponses.length > 0) ? pickOne(matchedRule.botResponses) : 'hmm';
+    const followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > 0) ? pickOne(matchedRule.botFollowUps) : '';
+    return { reply: response, followUp, action: matchedRule.action || 'continue', followUpResponses: matchedRule.botFollowUpResponses || [] };
+  } catch(e) {
+    return { reply: 'haan bolo 😊', followUp: '', action: 'continue' };
+  }
+}
+
 async function generateAiCompanionReply(chat, messageText, roomId) {
   const botName = chat.companion.name || 'Riya';
   const botGender = chat.companion.gender || 'female';
@@ -118,12 +163,10 @@ Otherwise just chat normally and be yourself.`;
     // Build messages array for Groq (OpenAI format)
     const messages = [
       { role: 'system', content: systemPrompt },
-      // Add previous conversation history
       ...session.chatHistory.map(turn => ({
         role: turn.role === 'model' ? 'assistant' : 'user',
         content: turn.parts[0]?.text || ''
       })),
-      // Add current user message
       { role: 'user', content: messageText }
     ];
 
@@ -154,10 +197,18 @@ Otherwise just chat normally and be yourself.`;
     await session.save();
 
     return { reply: replyText, followUp: '', action: 'continue' };
+
   } catch (error) {
+    const isQuotaError = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('quota') || error?.message?.includes('rate limit');
+    if (isQuotaError) {
+      console.warn('Groq quota exceeded — falling back to BotRule trained bot');
+      return await generateBotRuleFallback(chat, messageText);
+    }
     console.error('Groq AI error:', error?.message || error);
     return { reply: 'hmm... 😅', followUp: '', action: 'continue' };
   }
+}
+
 }
 
 
