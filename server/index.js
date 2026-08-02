@@ -73,8 +73,15 @@ const pickOne = (items) => items[Math.floor(Math.random() * items.length)];
 const FEMALE_BOT_NAMES = ['Riya', 'Ananya', 'Priya', 'Neha', 'Pooja', 'Sanya', 'Diya', 'Nisha', 'Mehak', 'Tanya', 'Simran', 'Aisha'];
 const MALE_BOT_NAMES = ['Aryan', 'Rohan', 'Kabir', 'Virat', 'Aarav', 'Karan', 'Sahil', 'Dev', 'Nikhil', 'Rahul', 'Aman', 'Siddharth'];
 
-function createAiCompanion(userGender, userCountry = 'Earth', userCountryCode = 'UN') {
-  const gender = userGender === 'female' ? 'male' : 'female';
+function createAiCompanion(userGender, userCountry = 'Earth', userCountryCode = 'UN', genderFilter = 'any') {
+  // If user has set a gender filter, bot matches that filter gender
+  // If no filter (any), bot is opposite gender by default
+  let gender;
+  if (genderFilter && genderFilter !== 'any') {
+    gender = genderFilter; // bot = what user wanted to chat with
+  } else {
+    gender = userGender === 'female' ? 'male' : 'female'; // opposite by default
+  }
   const namePool = gender === 'female' ? FEMALE_BOT_NAMES : MALE_BOT_NAMES;
   const botName = pickOne(namePool);
   return {
@@ -2242,7 +2249,8 @@ io.on('connection', (socket) => {
 
         randomChatQueue = randomChatQueue.filter(entry => !(entry.userId === userId && entry.socketId === socket.id));
         // Spoof location using queuedUser's country!
-        const companion = createAiCompanion(userGender, queuedUser.userCountry, queuedUser.userCountryCode);
+        // Bot gender follows user's gender filter (or opposite if no filter)
+        const companion = createAiCompanion(userGender, queuedUser.userCountry, queuedUser.userCountryCode, queuedUser.genderFilter);
         const roomId = `ai_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
         activeRandomChats.set(roomId, {
           user1: queuedUser,
