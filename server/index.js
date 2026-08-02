@@ -238,8 +238,6 @@ Your name is ${botName}. Never change it.`;
   }
 }
 
-}
-
 
 const User = require('./models/User');
 const DeletedUser = require('./models/DeletedUser');
