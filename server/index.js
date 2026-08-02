@@ -1,4 +1,7 @@
 require('dotenv').config();
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const AiBotSession = require('./models/AiBotSession');
 const express = require('express');
 const http = require('http');
 const mongoose = require('mongoose');
@@ -67,11 +70,16 @@ function generateAvatarUrl(gender) {
 const AI_COMPANION_FALLBACK_DELAY_MS = 2200;
 const pickOne = (items) => items[Math.floor(Math.random() * items.length)];
 
+const FEMALE_BOT_NAMES = ['Riya', 'Ananya', 'Priya', 'Neha', 'Pooja', 'Sanya', 'Diya', 'Nisha', 'Mehak', 'Tanya', 'Simran', 'Aisha'];
+const MALE_BOT_NAMES = ['Aryan', 'Rohan', 'Kabir', 'Virat', 'Aarav', 'Karan', 'Sahil', 'Dev', 'Nikhil', 'Rahul', 'Aman', 'Siddharth'];
+
 function createAiCompanion(userGender, userCountry = 'Earth', userCountryCode = 'UN') {
   const gender = userGender === 'female' ? 'male' : 'female';
+  const namePool = gender === 'female' ? FEMALE_BOT_NAMES : MALE_BOT_NAMES;
+  const botName = pickOne(namePool);
   return {
     id: `ai-companion-${crypto.randomUUID()}`,
-    name: 'Stranger',
+    name: botName,
     gender,
     avatarUrl: generateAvatarUrl(gender),
     country: userCountry,
@@ -79,148 +87,61 @@ function createAiCompanion(userGender, userCountry = 'Earth', userCountryCode = 
   };
 }
 
-async function generateAiCompanionReply(chat, messageText) {
-  if (chat.pendingFollowUpReaction && chat.pendingFollowUpReaction.length > 0) {
-    const reaction = pickOne(chat.pendingFollowUpReaction);
-    chat.pendingFollowUpReaction = null;
-    return {
-      reply: reaction,
-      followUp: '',
-      action: 'continue'
-    };
-  }
+async function generateAiCompanionReply(chat, messageText, roomId) {
+  const botName = chat.companion.name || 'Riya';
+  const botGender = chat.companion.gender || 'female';
+  const userId = chat.user1?.userId || 'unknown';
 
-  const text = (messageText || '').trim().toLowerCase();
-  
-  if (!chat.ruleHistory) chat.ruleHistory = {};
-  
   try {
-    const BotRule = require('./models/BotRule');
-    const rules = await BotRule.find({ isActive: true }).lean();
-    
-    let matchedRule = null;
-    let maxMatchScore = 0;
-    
-    const cleanText = text.replace(/[.,!?]/g, '');
-    const textWords = cleanText.split(/\s+/).filter(Boolean);
-    const textWordCount = Math.max(1, textWords.length);
-    
-    for (const rule of rules) {
-      if (rule.botGender !== 'both' && rule.botGender !== chat.companion.gender) continue;
-      
-      rule.userMessageTriggers.forEach((trigger, idx) => {
-        const t = trigger.toLowerCase().trim();
-        if (!t) return;
-        
-        let isMatch = false;
-        try {
-          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-          isMatch = regex.test(text);
-        } catch(e) {
-          isMatch = text.includes(t);
-        }
-        
-        if (isMatch) {
-          const tWords = t.split(/\s+/).filter(Boolean);
-          const matchedWords = tWords.filter(w => textWords.includes(w)).length;
-          
-          // Ratio of trigger words to total message words
-          const ratio = matchedWords / textWordCount;
-          
-          // Increase threshold to > 0.25 so 1-word triggers fail on 5+ word sentences (fixes false positives)
-          if (ratio > 0.25 || cleanText === t) {
-            // Favor triggers that appear earlier in the user's text to handle multi-keyword inputs intuitively
-            const indexBoost = (1 - (cleanText.indexOf(t) / Math.max(1, cleanText.length))) * 0.001;
-            const score = ratio + indexBoost;
-            
-            if (score > maxMatchScore) {
-              matchedRule = rule;
-              maxMatchScore = score;
-              matchedRule.matchedTriggerIndex = idx;
-            }
-          }
-        }
+    // Load session from DB
+    let session = await AiBotSession.findOne({ sessionId: roomId });
+    if (!session) {
+      // Create new session if not exists
+      const systemMessage = `You are ${botName}, a young ${botGender} Indian college student chatting on a random chat app called Twelo.
+Always speak in casual Hinglish (mix of Hindi and English words naturally). Keep replies short, 1-2 sentences max.
+Be friendly, fun and natural. NEVER say you are an AI or bot.
+Your name is ${botName} - never change it or forget it.
+If the user says anything sexual, vulgar, very abusive or asks for illegal things:
+- First reply with something like "yaar ye sahi nahi hai" or "aise mat bolo" (stay in character)
+- On the VERY next message after that warning, end the chat by responding ONLY with this exact text: ACTION:DISCONNECT
+Otherwise just chat normally and be yourself.`;
+
+      session = await AiBotSession.create({
+        sessionId: roomId,
+        userId,
+        botName,
+        botGender,
+        userGender: chat.user1?.userGender || 'male',
+        chatHistory: [{ role: 'user', parts: [{ text: systemMessage }] }, { role: 'model', parts: [{ text: `Hi! Main ${botName} hoon 😊 kya haal hai?` }] }]
       });
     }
-    
-    if (!matchedRule) {
-      return {
-         reply: pickOne(['hmm', 'achha', 'nice', 'sahi hai', 'aur batao']),
-         action: 'continue'
-      };
+
+    // Add user message to history
+    session.chatHistory.push({ role: 'user', parts: [{ text: messageText }] });
+
+    // Call Gemini with full history
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const chat_session = model.startChat({ history: session.chatHistory.slice(0, -1) });
+    const result = await chat_session.sendMessage(messageText);
+    const replyText = result.response.text().trim();
+
+    // Check for disconnect action
+    if (replyText === 'ACTION:DISCONNECT' || replyText.includes('ACTION:DISCONNECT')) {
+      session.chatHistory.push({ role: 'model', parts: [{ text: 'bye!' }] });
+      session.isActive = false;
+      session.endedAt = new Date();
+      await session.save();
+      return { reply: 'okay bye! take care 👋', followUp: '', action: 'disconnect' };
     }
-    
-    const ruleId = matchedRule._id.toString();
-    
-    // Check if consistent and already cached
-    if (matchedRule.isConsistent !== false && chat.ruleHistory[ruleId]) {
-      const cachedResult = chat.ruleHistory[ruleId];
-      let returnResult = { ...cachedResult };
-      
-      if (matchedRule.disableFollowUpOnRepeat) {
-        returnResult.followUp = '';
-        returnResult.followUpResponses = [];
-      }
-      
-      if (returnResult.followUp && returnResult.followUpResponses && returnResult.followUpResponses.length > 0) {
-        chat.pendingFollowUpReaction = returnResult.followUpResponses;
-      } else {
-        chat.pendingFollowUpReaction = null;
-      }
-      return returnResult;
-    }
-    
-    let response = '';
-    let followUp = '';
-    
-    if (matchedRule.responseMode === 'sequential' && typeof matchedRule.matchedTriggerIndex === 'number') {
-      const idx = matchedRule.matchedTriggerIndex;
-      response = matchedRule.botResponses[idx] || '';
-      followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > idx) ? matchedRule.botFollowUps[idx] : '';
-    } else {
-      if (matchedRule.isConsistent === false) {
-        // Round-robin selection for repeated questions
-        if (!chat.ruleHistory[ruleId]) chat.ruleHistory[ruleId] = { nextIndex: 0 };
-        const idx = chat.ruleHistory[ruleId].nextIndex % (matchedRule.botResponses.length || 1);
-        response = matchedRule.botResponses[idx] || '';
-        followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > idx) ? matchedRule.botFollowUps[idx] : '';
-        chat.ruleHistory[ruleId].nextIndex = idx + 1;
-      } else {
-        response = (matchedRule.botResponses && matchedRule.botResponses.length > 0) ? pickOne(matchedRule.botResponses) : '';
-        followUp = (matchedRule.botFollowUps && matchedRule.botFollowUps.length > 0) ? pickOne(matchedRule.botFollowUps) : '';
-      }
-    }
-                       
-    const result = { 
-      reply: response, 
-      followUp: followUp, 
-      action: matchedRule.action,
-      followUpResponses: matchedRule.botFollowUpResponses || []
-    };
-    
-    // Check if this rule has been used before (for non-consistent rules or first time cache)
-    if (matchedRule.disableFollowUpOnRepeat && chat.ruleHistory[ruleId] && chat.ruleHistory[ruleId].hasMatchedOnce) {
-        result.followUp = '';
-        result.followUpResponses = [];
-    }
-    
-    if (result.followUp && result.followUpResponses.length > 0) {
-      chat.pendingFollowUpReaction = result.followUpResponses;
-    } else {
-      chat.pendingFollowUpReaction = null;
-    }
-    
-    if (matchedRule.isConsistent !== false) {
-      chat.ruleHistory[ruleId] = result;
-      chat.ruleHistory[ruleId].hasMatchedOnce = true;
-    } else {
-      chat.ruleHistory[ruleId].hasMatchedOnce = true;
-    }
-    return result;
+
+    // Save model reply to history
+    session.chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
+    await session.save();
+
+    return { reply: replyText, followUp: '', action: 'continue' };
   } catch (error) {
-    console.error('Error generating AI reply from DB:', error);
-    return { reply: 'hmm', followUp: '', action: 'continue' };
+    console.error('Gemini AI error:', error);
+    return { reply: 'hmm... 😅', followUp: '', action: 'continue' };
   }
 }
 
@@ -2252,7 +2173,7 @@ io.on('connection', (socket) => {
           partnerCountry: finalCompanionCountry,
           partnerCountryCode: finalCompanionCode, 
           partnerFact: factData.fact,
-          partnerName: 'Stranger',
+          partnerName: companion.name,
           isAiCompanion: true
         });
       }, AI_COMPANION_FALLBACK_DELAY_MS);
@@ -2268,7 +2189,7 @@ io.on('connection', (socket) => {
 
     if (chat.isAiCompanion) {
       (async () => {
-        const { reply, followUp, action } = await generateAiCompanionReply(chat, messageText);
+        const { reply, followUp, action } = await generateAiCompanionReply(chat, messageText, roomId);
         if (!activeRandomChats.has(roomId)) return;
 
         if (action === 'disconnect_immediately') {
@@ -2364,6 +2285,11 @@ io.on('connection', (socket) => {
     const chat = activeRandomChats.get(roomId);
     if (chat) {
       if (chat.isAiCompanion) {
+         // Mark session as ended in DB (keep data for analytics, don't delete)
+         AiBotSession.findOneAndUpdate(
+           { sessionId: roomId },
+           { isActive: false, endedAt: new Date() }
+         ).catch(e => console.error('AiBotSession end error:', e));
          activeRandomChats.delete(roomId);
          return;
       }
