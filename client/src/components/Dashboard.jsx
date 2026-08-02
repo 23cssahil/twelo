@@ -859,6 +859,10 @@ export default function Dashboard() {
 
           if (isNewChat || isNewMessageAtBottom || isNewAnonAtBottom || isTyping) {
             parent.scrollTop = parent.scrollHeight;
+            // Add a small delay to ensure DOM is painted, especially on mobile
+            setTimeout(() => {
+              if (parent) parent.scrollTop = parent.scrollHeight;
+            }, 100);
           }
           
           prevLastMessageId.current = currentLastMessage;
