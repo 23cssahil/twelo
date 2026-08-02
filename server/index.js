@@ -206,6 +206,19 @@ Your name is ${botName}. Never change it.`;
       { role: 'user', content: messageText }
     ];
 
+    // Check if user is saying bye
+    const textLower = messageText.toLowerCase().replace(/[^a-z]/g, '');
+    if (textLower === 'bye' || textLower === 'byee' || textLower === 'okbye' || textLower === 'chalobye' || textLower === 'by') {
+      const leaveMessages = ['bye yar', 'chalo bye', 'ok bye 👋', 'phir milte h', 'bye bye'];
+      const leaveMsg = leaveMessages[Math.floor(Math.random() * leaveMessages.length)];
+      session.chatHistory.push({ role: 'user', parts: [{ text: messageText }] });
+      session.chatHistory.push({ role: 'model', parts: [{ text: leaveMsg }] });
+      session.isActive = false;
+      session.endedAt = new Date();
+      await session.save();
+      return { reply: leaveMsg, followUp: '', action: 'disconnect' };
+    }
+
     // Call Groq API
     const completion = await groqClient.chat.completions.create({
       messages,
