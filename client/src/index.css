@@ -477,7 +477,7 @@ input, button, textarea {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain; /* Prevent scroll chaining */
-  padding: 16px;
+  padding: 16px 16px 64px 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
