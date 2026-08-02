@@ -153,13 +153,22 @@ async function generateAiCompanionReply(chat, messageText, roomId) {
     'You are curious and sometimes ask "kyu" or "kya hua" back.'
   ];
   
-  // Deterministic mood selection based on roomId so it stays consistent for this session
+  // Deterministic mood and persona selection based on roomId so it stays consistent for this session
   let hash = 0;
-  for (let i = 0; i < roomId.length; i++) hash = (hash + roomId.charCodeAt(i)) % moods.length;
-  const botMood = moods[hash];
+  for (let i = 0; i < roomId.length; i++) hash = (hash + roomId.charCodeAt(i)) % 1000;
+  
+  const botMood = moods[hash % moods.length];
+  
+  const locations = ['mumbai', 'pune', 'bangalore', 'jaipur', 'lucknow', 'chandigarh', 'indore', 'ahmedabad', 'bhopal', 'surat', 'nagpur', 'kanpur', 'patna', 'delhi', 'noida', 'gurgaon', 'dehradun', 'agra'];
+  const occupations = ['bcom 2nd year me hu', 'bca kar rhi hu', 'btech 1st year', 'job karti hu IT me', 'ca ki tayari chal rhi hai', 'bsc nursing', 'ba final year', 'graphic designing ka course kar rhi hu', 'medical student hu', 'commerce student hu', 'engineering kar rha hu', 'startup me internship', 'freelancing', '12th pass ki hai abhi', 'neet ki preparation', 'law student hu'];
+  
+  const botLocation = locations[hash % locations.length];
+  const botOccupation = occupations[hash % occupations.length];
 
   const systemPrompt = `You are ${botName}, a real ${botGender} Indian person in their early 20s using a random chat app on your phone.
 ${botMood}
+You live in ${botLocation}. 
+If asked what you do/study: say "${botOccupation}". Do NOT say "DU college" or "delhi" unless it's your assigned location/occupation.
 
 STRICT RULES - follow these exactly:
 - type in lowercase only. no capital letters.
