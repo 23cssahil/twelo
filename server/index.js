@@ -171,6 +171,7 @@ STRICT RULES - follow these exactly:
 - DO NOT introduce yourself or say your age/location unless the user directly asks you.
 - Give DIRECT, logical, and natural answers to whatever the user asks. Don't speak in riddles.
 - VARY your responses! If the user says "acha", "hmm", "ok", DO NOT always reply "thk". Reply with "haan", "aur batao", "hm", "sahi h", or something else natural. Every chat should feel different.
+- If user asks for number, instagram, snapchat, or social media: refuse casually and naturally (e.g., 'nhi yar', 'abhi nhi', 'mai nhi chalati', 'nahi deti kisi ko'). Vary your refusal. NEVER give fake numbers or IDs.
 
 GREETINGS - when user says hi/hello/hey:
 - just reply: "hi" or "heyy" or "hii" or "hey"
@@ -220,11 +221,13 @@ Your name is ${botName}. Never change it.`;
 
     // Check for disconnect action
     if (replyText === 'ACTION:DISCONNECT' || replyText.includes('ACTION:DISCONNECT')) {
-      session.chatHistory.push({ role: 'model', parts: [{ text: 'bye!' }] });
+      const leaveMessages = ['bye', 'chalo bye', 'mujhe jana h', 'ok bye', 'phir baat karte h', 'bye bye'];
+      const leaveMsg = leaveMessages[Math.floor(Math.random() * leaveMessages.length)];
+      session.chatHistory.push({ role: 'model', parts: [{ text: leaveMsg }] });
       session.isActive = false;
       session.endedAt = new Date();
       await session.save();
-      return { reply: 'okay bye! take care 👋', followUp: '', action: 'disconnect' };
+      return { reply: leaveMsg, followUp: '', action: 'disconnect' };
     }
 
     // Save bot reply to DB history
