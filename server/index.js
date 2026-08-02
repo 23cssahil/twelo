@@ -2283,6 +2283,20 @@ io.on('connection', (socket) => {
         const finalCompanionCountry = factData.countryCode !== 'UN' ? factData.countryName : companion.country;
         const finalCompanionCode = factData.countryCode !== 'UN' ? factData.countryCode : companion.countryCode;
 
+        // Deduct 2 coins if gender filter was applied
+        if (queuedUser.genderFilter && queuedUser.genderFilter !== 'any') {
+          try {
+            const dbU = await User.findById(queuedUser.userId);
+            if (dbU && dbU.coins >= 2) {
+              dbU.coins -= 2;
+              await dbU.save();
+              io.to(queuedUser.socketId).emit('coins_deducted', { amount: 2, balance: dbU.coins });
+            }
+          } catch(e) {
+            console.error('AI filter coin deduction error:', e);
+          }
+        }
+
         io.to(socket.id).emit('match_found', {
           roomId,
           partnerId: companion.id,

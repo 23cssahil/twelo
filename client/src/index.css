@@ -1693,3 +1693,30 @@ input, button, textarea {
   0% { transform: translateY(40px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
 }
+
+.coin-deduction-popup {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.85);
+  color: #ff3b3b;
+  padding: 10px 20px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 59, 59, 0.4);
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 9999;
+  box-shadow: 0 4px 15px rgba(255, 59, 59, 0.2);
+  animation: slideDownFadeOut 3s forwards;
+}
+
+@keyframes slideDownFadeOut {
+  0% { opacity: 0; transform: translate(-50%, -20px); }
+  10% { opacity: 1; transform: translate(-50%, 0); }
+  80% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}

@@ -125,6 +125,7 @@ export default function Dashboard() {
   const [searchHistoryCache, setSearchHistoryCache] = useState(null);
   const [longPressTarget, setLongPressTarget] = useState(null);
   const pressTimer = useRef(null);
+  const [coinPopup, setCoinPopup] = useState({ show: false, amount: 0 });
 
   const handleSearchHistoryTouchStart = (user) => {
     if (searchQuery) return; // Only on history
@@ -681,6 +682,8 @@ export default function Dashboard() {
 
     socket.on('coins_deducted', ({ amount, balance }) => {
       setCoins(balance);
+      setCoinPopup({ show: true, amount });
+      setTimeout(() => setCoinPopup({ show: false, amount: 0 }), 3000);
     });
 
     socket.on('message_viewed', ({ messageId, viewedAt }) => {
@@ -3008,6 +3011,14 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-container">
+      {/* Coin Deduction Popup */}
+      {coinPopup.show && (
+        <div className="coin-deduction-popup">
+          <span className="coin-icon">🪙</span>
+          -{coinPopup.amount} Coins (Filter Applied)
+        </div>
+      )}
+
       {/* Globe always mounted to prevent WebGL context loss / black screen */}
       <div style={{
         position: 'fixed', top: '-5vh', left: '0', width: '100%', height: '130vh', zIndex: 0,
