@@ -2277,7 +2277,7 @@ io.on('connection', (socket) => {
           partnerCountry: finalCompanionCountry,
           partnerCountryCode: finalCompanionCode, 
           partnerFact: factData.fact,
-          partnerName: companion.name,
+          partnerName: 'Stranger',
           isAiCompanion: true
         });
       }, AI_COMPANION_FALLBACK_DELAY_MS);
