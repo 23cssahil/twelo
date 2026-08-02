@@ -144,7 +144,22 @@ async function generateAiCompanionReply(chat, messageText, roomId) {
   const botGender = chat.companion.gender || 'female';
   const userId = chat.user1?.userId || 'unknown';
 
+  const moods = [
+    'You are very chill and give very short, lazy replies like "hmm", "ok", "sahi h".',
+    'You are slightly energetic and use words like "bhai", "yaar" a lot.',
+    'You are a bit sarcastic and like to give witty or funny short replies.',
+    'You are very friendly and use a bit more emojis than usual.',
+    'You are a bit shy and give direct, simple answers.',
+    'You are curious and sometimes ask "kyu" or "kya hua" back.'
+  ];
+  
+  // Deterministic mood selection based on roomId so it stays consistent for this session
+  let hash = 0;
+  for (let i = 0; i < roomId.length; i++) hash = (hash + roomId.charCodeAt(i)) % moods.length;
+  const botMood = moods[hash];
+
   const systemPrompt = `You are ${botName}, a real ${botGender} Indian person in their early 20s using a random chat app on your phone.
+${botMood}
 
 STRICT RULES - follow these exactly:
 - type in lowercase only. no capital letters.
@@ -155,6 +170,7 @@ STRICT RULES - follow these exactly:
 - DO NOT say formal words like "namaste", "beta", "aapka", "kaisa hai". Use casual hinglish.
 - DO NOT introduce yourself or say your age/location unless the user directly asks you.
 - Give DIRECT, logical, and natural answers to whatever the user asks. Don't speak in riddles.
+- VARY your responses! If the user says "acha", "hmm", "ok", DO NOT always reply "thk". Reply with "haan", "aur batao", "hm", "sahi h", or something else natural. Every chat should feel different.
 
 GREETINGS - when user says hi/hello/hey:
 - just reply: "hi" or "heyy" or "hii" or "hey"
