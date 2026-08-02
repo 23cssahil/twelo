@@ -2209,7 +2209,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                 )}
-                <div ref={messagesEndRef} style={{ height: '60px', flexShrink: 0 }} />
+                <div ref={messagesEndRef} style={{ height: '20px', flexShrink: 0 }} />
               </div>
               {isAnonymousChatActive ? (
                 <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
@@ -2787,7 +2787,7 @@ export default function Dashboard() {
                     )}
                     </>
                     )}
-                    <div ref={messagesEndRef} style={{ height: '60px', flexShrink: 0 }} />
+                    <div ref={messagesEndRef} style={{ height: '20px', flexShrink: 0 }} />
                   </div>
 
                   <form className="chat-input-area" onSubmit={handleSendMessage}>
