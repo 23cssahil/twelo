@@ -202,9 +202,9 @@ Your name is ${botName}. Never change it.`;
     // Call Groq API
     const completion = await groqClient.chat.completions.create({
       messages,
-      model: 'llama-3.1-8b-instant',
+      model: 'llama-3.3-70b-versatile',
       temperature: 0.85,
-      max_tokens: 150
+      max_tokens: 100
     });
 
     const replyText = completion.choices[0]?.message?.content?.trim() || 'hmm';
