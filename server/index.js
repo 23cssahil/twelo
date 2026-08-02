@@ -1,6 +1,6 @@
 require('dotenv').config();
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const Groq = require('groq-sdk');
+const groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const AiBotSession = require('./models/AiBotSession');
 const express = require('express');
 const http = require('http');
@@ -92,14 +92,14 @@ async function generateAiCompanionReply(chat, messageText, roomId) {
   const botGender = chat.companion.gender || 'female';
   const userId = chat.user1?.userId || 'unknown';
 
-  const systemInstruction = `You are ${botName}, a young ${botGender} Indian college student chatting on a random chat app called Twelo.
-Always speak in casual Hinglish (mix of Hindi and English). Keep replies short, 1-2 sentences max.
-Be friendly, fun and natural. NEVER say you are an AI or bot.
-Your name is ${botName} - never change it.
-If the user says anything sexual, vulgar, abusive or illegal:
-- First reply naturally like "yaar ye sahi nahi hai" or "aise mat bolo"
-- On the very next message after that warning, respond ONLY with: ACTION:DISCONNECT
-Otherwise just chat normally.`;
+  const systemPrompt = `You are ${botName}, a young ${botGender} Indian college student chatting on a random chat app called Twelo.
+Always speak in casual Hinglish (mix of Hindi and English naturally). Keep replies short, 1-2 sentences max.
+Be friendly, fun and natural like a real person. NEVER say you are an AI or bot.
+Your name is ${botName} - never change it during this chat.
+If the user says anything sexual, vulgar, abusive or asks for illegal things:
+- First reply naturally like "yaar ye sahi nahi hai" or "aise mat bolo yaar"
+- On the very next message after that warning, respond ONLY with exactly: ACTION:DISCONNECT
+Otherwise just chat normally and be yourself.`;
 
   try {
     // Load existing session from DB
@@ -115,26 +115,29 @@ Otherwise just chat normally.`;
       });
     }
 
-    // Build conversation history (only real turns, no system prompt in history)
-    const conversationHistory = session.chatHistory.map(turn => ({
-      role: turn.role,
-      parts: turn.parts
-    }));
+    // Build messages array for Groq (OpenAI format)
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      // Add previous conversation history
+      ...session.chatHistory.map(turn => ({
+        role: turn.role === 'model' ? 'assistant' : 'user',
+        content: turn.parts[0]?.text || ''
+      })),
+      // Add current user message
+      { role: 'user', content: messageText }
+    ];
 
-    // Add current user message to history array for this call
-    const historyForCall = conversationHistory; // everything before this message
-    
-    // Call Gemini with systemInstruction as separate param (correct Gemini API way)
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      systemInstruction: systemInstruction
+    // Call Groq API
+    const completion = await groqClient.chat.completions.create({
+      messages,
+      model: 'llama-3.1-8b-instant',
+      temperature: 0.85,
+      max_tokens: 150
     });
 
-    const geminiChat = model.startChat({ history: historyForCall });
-    const result = await geminiChat.sendMessage(messageText);
-    const replyText = result.response.text().trim();
+    const replyText = completion.choices[0]?.message?.content?.trim() || 'hmm';
 
-    // Save both user message and model reply to DB
+    // Save user message to DB history
     session.chatHistory.push({ role: 'user', parts: [{ text: messageText }] });
 
     // Check for disconnect action
@@ -146,15 +149,17 @@ Otherwise just chat normally.`;
       return { reply: 'okay bye! take care 👋', followUp: '', action: 'disconnect' };
     }
 
+    // Save bot reply to DB history
     session.chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
     await session.save();
 
     return { reply: replyText, followUp: '', action: 'continue' };
   } catch (error) {
-    console.error('Gemini AI error details:', JSON.stringify(error?.message || error));
+    console.error('Groq AI error:', error?.message || error);
     return { reply: 'hmm... 😅', followUp: '', action: 'continue' };
   }
 }
+
 
 const User = require('./models/User');
 const DeletedUser = require('./models/DeletedUser');
