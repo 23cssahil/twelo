@@ -92,38 +92,50 @@ async function generateAiCompanionReply(chat, messageText, roomId) {
   const botGender = chat.companion.gender || 'female';
   const userId = chat.user1?.userId || 'unknown';
 
+  const systemInstruction = `You are ${botName}, a young ${botGender} Indian college student chatting on a random chat app called Twelo.
+Always speak in casual Hinglish (mix of Hindi and English). Keep replies short, 1-2 sentences max.
+Be friendly, fun and natural. NEVER say you are an AI or bot.
+Your name is ${botName} - never change it.
+If the user says anything sexual, vulgar, abusive or illegal:
+- First reply naturally like "yaar ye sahi nahi hai" or "aise mat bolo"
+- On the very next message after that warning, respond ONLY with: ACTION:DISCONNECT
+Otherwise just chat normally.`;
+
   try {
-    // Load session from DB
+    // Load existing session from DB
     let session = await AiBotSession.findOne({ sessionId: roomId });
     if (!session) {
-      // Create new session if not exists
-      const systemMessage = `You are ${botName}, a young ${botGender} Indian college student chatting on a random chat app called Twelo.
-Always speak in casual Hinglish (mix of Hindi and English words naturally). Keep replies short, 1-2 sentences max.
-Be friendly, fun and natural. NEVER say you are an AI or bot.
-Your name is ${botName} - never change it or forget it.
-If the user says anything sexual, vulgar, very abusive or asks for illegal things:
-- First reply with something like "yaar ye sahi nahi hai" or "aise mat bolo" (stay in character)
-- On the VERY next message after that warning, end the chat by responding ONLY with this exact text: ACTION:DISCONNECT
-Otherwise just chat normally and be yourself.`;
-
       session = await AiBotSession.create({
         sessionId: roomId,
         userId,
         botName,
         botGender,
         userGender: chat.user1?.userGender || 'male',
-        chatHistory: [{ role: 'user', parts: [{ text: systemMessage }] }, { role: 'model', parts: [{ text: `Hi! Main ${botName} hoon 😊 kya haal hai?` }] }]
+        chatHistory: []
       });
     }
 
-    // Add user message to history
-    session.chatHistory.push({ role: 'user', parts: [{ text: messageText }] });
+    // Build conversation history (only real turns, no system prompt in history)
+    const conversationHistory = session.chatHistory.map(turn => ({
+      role: turn.role,
+      parts: turn.parts
+    }));
 
-    // Call Gemini with full history
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const chat_session = model.startChat({ history: session.chatHistory.slice(0, -1) });
-    const result = await chat_session.sendMessage(messageText);
+    // Add current user message to history array for this call
+    const historyForCall = conversationHistory; // everything before this message
+    
+    // Call Gemini with systemInstruction as separate param (correct Gemini API way)
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      systemInstruction: systemInstruction
+    });
+
+    const geminiChat = model.startChat({ history: historyForCall });
+    const result = await geminiChat.sendMessage(messageText);
     const replyText = result.response.text().trim();
+
+    // Save both user message and model reply to DB
+    session.chatHistory.push({ role: 'user', parts: [{ text: messageText }] });
 
     // Check for disconnect action
     if (replyText === 'ACTION:DISCONNECT' || replyText.includes('ACTION:DISCONNECT')) {
@@ -134,13 +146,12 @@ Otherwise just chat normally and be yourself.`;
       return { reply: 'okay bye! take care 👋', followUp: '', action: 'disconnect' };
     }
 
-    // Save model reply to history
     session.chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
     await session.save();
 
     return { reply: replyText, followUp: '', action: 'continue' };
   } catch (error) {
-    console.error('Gemini AI error:', error);
+    console.error('Gemini AI error details:', JSON.stringify(error?.message || error));
     return { reply: 'hmm... 😅', followUp: '', action: 'continue' };
   }
 }
