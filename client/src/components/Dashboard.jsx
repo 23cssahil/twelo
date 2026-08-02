@@ -2202,13 +2202,15 @@ export default function Dashboard() {
                     {/* Context Menu for Delete removed from anonymous chats (not supported) */}
                   </div>
                 ))}
-                <div ref={messagesEndRef} />
-              </div>
                 {anonymousPartnerTyping && (
-                  <div style={{ padding: '0 20px', fontSize: '0.85rem', color: '#a8a8a8', fontStyle: 'italic', marginBottom: '10px' }}>
-                    Stranger is typing...
+                  <div className="msg-wrapper received">
+                    <div className="msg-bubble" style={{ opacity: 0.7, padding: '8px 12px', fontSize: '0.85rem', color: '#a8a8a8', fontStyle: 'italic', background: 'rgba(255,255,255,0.05)' }}>
+                      Stranger is typing...
+                    </div>
                   </div>
                 )}
+                <div ref={messagesEndRef} style={{ height: '60px', flexShrink: 0 }} />
+              </div>
               {isAnonymousChatActive ? (
                 <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
                   <div className="chat-input-wrapper">
@@ -2785,7 +2787,7 @@ export default function Dashboard() {
                     )}
                     </>
                     )}
-                    <div ref={messagesEndRef} />
+                    <div ref={messagesEndRef} style={{ height: '60px', flexShrink: 0 }} />
                   </div>
 
                   <form className="chat-input-area" onSubmit={handleSendMessage}>
