@@ -2497,12 +2497,6 @@ io.on('connection', (socket) => {
             clearTimeout(chat.aiTypingLeaveTimer);
             chat.aiTypingLeaveTimer = null;
          }
-         chat.aiIdleTimer = setTimeout(() => {
-           if (activeRandomChats.has(roomId)) {
-              io.to(socket.id).emit('anonymous_chat_ended');
-              activeRandomChats.delete(roomId);
-           }
-         }, 8000);
       }
       return;
     }
