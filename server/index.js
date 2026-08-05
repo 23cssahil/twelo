@@ -2284,12 +2284,20 @@ io.on('connection', (socket) => {
         // Bot gender follows user's gender filter (or opposite if no filter)
         const companion = createAiCompanion(userGender, queuedUser.userCountry, queuedUser.userCountryCode, queuedUser.genderFilter);
         const roomId = `ai_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-        activeRandomChats.set(roomId, {
+        const chatData = {
           user1: queuedUser,
           user2: { userId: companion.id, socketId: null },
           isAiCompanion: true,
           companion
-        });
+        };
+        activeRandomChats.set(roomId, chatData);
+
+        chatData.aiIdleTimer = setTimeout(() => {
+          if (activeRandomChats.has(roomId)) {
+             io.to(socket.id).emit('stranger_disconnected');
+             activeRandomChats.delete(roomId);
+          }
+        }, 5000);
 
         const factData = await getRandomCountryFact(queuedUser.userCountryCode);
         const finalCompanionCountry = factData.countryCode !== 'UN' ? factData.countryName : companion.country;
@@ -2331,6 +2339,13 @@ io.on('connection', (socket) => {
     if (!chat) return;
 
     if (chat.isAiCompanion) {
+      if (chat.aiIdleTimer) clearTimeout(chat.aiIdleTimer);
+      if (chat.aiTypingHiTimer) clearTimeout(chat.aiTypingHiTimer);
+      if (chat.aiTypingLeaveTimer) {
+        clearTimeout(chat.aiTypingLeaveTimer);
+        chat.aiTypingLeaveTimer = null;
+      }
+      
       (async () => {
         const { reply, followUp, action } = await generateAiCompanionReply(chat, messageText, roomId);
         if (!activeRandomChats.has(roomId)) return;
@@ -2418,7 +2433,43 @@ io.on('connection', (socket) => {
   socket.on('send_anonymous_typing', ({ roomId, isTyping }) => {
     const chat = activeRandomChats.get(roomId);
     if (!chat) return;
-    if (chat.isAiCompanion) return;
+    
+    if (chat.isAiCompanion) {
+      if (isTyping) {
+         if (chat.aiIdleTimer) clearTimeout(chat.aiIdleTimer);
+         if (!chat.aiTypingLeaveTimer) {
+            chat.aiTypingHiTimer = setTimeout(() => {
+               if (activeRandomChats.has(roomId)) {
+                 io.to(socket.id).emit('receive_anonymous_message', {
+                   _id: `anon-${Date.now()}`,
+                   message: 'hii',
+                   senderSocket: 'ai',
+                   createdAt: new Date().toISOString()
+                 });
+               }
+            }, 3500);
+            chat.aiTypingLeaveTimer = setTimeout(() => {
+               if (activeRandomChats.has(roomId)) {
+                 io.to(socket.id).emit('stranger_disconnected');
+                 activeRandomChats.delete(roomId);
+               }
+            }, 5500);
+         }
+      } else {
+         if (chat.aiTypingHiTimer) clearTimeout(chat.aiTypingHiTimer);
+         if (chat.aiTypingLeaveTimer) {
+            clearTimeout(chat.aiTypingLeaveTimer);
+            chat.aiTypingLeaveTimer = null;
+         }
+         chat.aiIdleTimer = setTimeout(() => {
+           if (activeRandomChats.has(roomId)) {
+              io.to(socket.id).emit('stranger_disconnected');
+              activeRandomChats.delete(roomId);
+           }
+         }, 5000);
+      }
+      return;
+    }
 
     const receiverSocketId = chat.user1.socketId === socket.id ? chat.user2.socketId : chat.user1.socketId;
     io.to(receiverSocketId).emit('receive_anonymous_typing', { isTyping });
