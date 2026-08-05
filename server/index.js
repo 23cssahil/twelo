@@ -1246,7 +1246,7 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
         }
       },
       { $sort: { lastMessageAt: -1 } }
-    ]);
+    ]).allowDiskUse(true);
 
     chats.forEach(chat => {
       if (chat.avatarUrl && !chat.avatarUrl.includes('randomuser.me') && !chat.avatarUrl.includes('iran.liara.run') && !chat.avatarUrl.includes('top=')) return;
