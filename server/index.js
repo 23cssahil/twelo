@@ -182,8 +182,9 @@ STRICT RULES - follow these exactly:
 - VARY your responses! If the user says "acha", "hmm", "ok", DO NOT always reply "thk". Reply with "haan", "aur batao", "hm", "sahi h", or something else natural. Every chat should feel different.
 - If user says something weird, confusing, or gibberish, VARY your confused reaction (e.g. "kya?", "samjhi nhi", "hein", "kya likh rhe ho", "kuch bhi", "hain?"). DO NOT keep repeating "kya bolu yaar".
 - If user asks for number, instagram, snapchat, or social media: refuse casually and naturally (e.g., 'nhi yar', 'abhi nhi', 'mai nhi chalati', 'nahi deti kisi ko'). Vary your refusal. NEVER give fake numbers or IDs.
-GREETINGS - when user says hi/hello/hey:
-- just reply: "hi" or "heyy" or "hii" or "hey"
+GREETINGS AND START OF CHAT:
+- If the user says hi/hello/hey at the start of the chat, ALWAYS ask where they are from naturally (e.g. "kaha se ho?", "aur kidhar se ho?", "kaha rehte ho?"). DO NOT just say "hi".
+- If they tell you where they are from (a location), ALWAYS reply with "acha", "okay", or "sahi hai" before continuing naturally.
 
 If user says something sexual, vulgar, or illegal:
 - reply ONCE warning them casually (e.g. "kya bol rha h yar", "aisi batein mat karo", "bhai tameez se", "ye sab nhi", "kuch bhi bol rhe ho"). VARY your warning every time!
@@ -2296,16 +2297,38 @@ io.on('connection', (socket) => {
           user1: queuedUser,
           user2: { userId: companion.id, socketId: null },
           isAiCompanion: true,
-          companion
+          companion,
+          hasUserInteracted: false
         };
         activeRandomChats.set(roomId, chatData);
 
         chatData.aiIdleTimer = setTimeout(() => {
-          if (activeRandomChats.has(roomId)) {
-             io.to(socket.id).emit('anonymous_chat_ended');
-             activeRandomChats.delete(roomId);
+          if (activeRandomChats.has(roomId) && !chatData.hasUserInteracted) {
+             io.to(socket.id).emit('receive_anonymous_message', {
+               _id: `ai-sys-${Date.now()}`,
+               message: ['hi', 'hii', 'hello', 'hey'][Math.floor(Math.random() * 4)],
+               senderSocket: 'ai-companion',
+               createdAt: new Date().toISOString()
+             });
+             
+             chatData.aiPatienceTimer = setTimeout(() => {
+               if (activeRandomChats.has(roomId) && !chatData.hasUserInteracted) {
+                 io.to(socket.id).emit('receive_anonymous_message', {
+                   _id: `ai-sys2-${Date.now()}`,
+                   message: ['hello?', 'hello', 'hi?'][Math.floor(Math.random() * 3)],
+                   senderSocket: 'ai-companion',
+                   createdAt: new Date().toISOString()
+                 });
+                 setTimeout(() => {
+                   if (activeRandomChats.has(roomId)) {
+                      io.to(socket.id).emit('anonymous_chat_ended');
+                      activeRandomChats.delete(roomId);
+                   }
+                 }, 1000);
+               }
+             }, 5000);
           }
-        }, 5000);
+        }, 3000);
 
         const factData = await getRandomCountryFact(queuedUser.userCountryCode);
         const finalCompanionCountry = factData.countryCode !== 'UN' ? factData.countryName : companion.country;
@@ -2347,7 +2370,9 @@ io.on('connection', (socket) => {
     if (!chat) return;
 
     if (chat.isAiCompanion) {
+      chat.hasUserInteracted = true;
       if (chat.aiIdleTimer) clearTimeout(chat.aiIdleTimer);
+      if (chat.aiPatienceTimer) clearTimeout(chat.aiPatienceTimer);
       if (chat.aiTypingHiTimer) clearTimeout(chat.aiTypingHiTimer);
       if (chat.aiTypingLeaveTimer) {
         clearTimeout(chat.aiTypingLeaveTimer);
@@ -2444,7 +2469,10 @@ io.on('connection', (socket) => {
     
     if (chat.isAiCompanion) {
       if (isTyping) {
+         chat.hasUserInteracted = true;
          if (chat.aiIdleTimer) clearTimeout(chat.aiIdleTimer);
+         if (chat.aiPatienceTimer) clearTimeout(chat.aiPatienceTimer);
+         
          if (!chat.aiTypingLeaveTimer) {
             chat.aiTypingHiTimer = setTimeout(() => {
                if (activeRandomChats.has(roomId)) {
@@ -2474,7 +2502,7 @@ io.on('connection', (socket) => {
               io.to(socket.id).emit('anonymous_chat_ended');
               activeRandomChats.delete(roomId);
            }
-         }, 5000);
+         }, 8000);
       }
       return;
     }
