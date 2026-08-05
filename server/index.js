@@ -635,8 +635,8 @@ app.post('/api/users/search-history/:id', authenticateToken, async (req, res) =>
 
 app.get('/api/users/search-history', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).populate('searchHistory', 'username uniqueId avatarUrl friendRequests followers');
-    res.json(user.searchHistory);
+    const user = await User.findById(req.user.userId).populate('searchHistory', 'username uniqueId avatarUrl gender friendRequests followers');
+    res.json(user.searchHistory.filter(u => u != null));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching search history' });
   }
@@ -1097,19 +1097,22 @@ app.post('/api/users/delete_account', authenticateToken, async (req, res) => {
 app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
-      .populate('followers', 'username uniqueId')
-      .populate('following', 'username uniqueId');
+      .populate('followers', 'username uniqueId avatarUrl gender')
+      .populate('following', 'username uniqueId avatarUrl gender');
     if (!user) return res.status(404).json({ message: "User not found" });
     
     // Privacy check: only allow viewing if mutually connected or viewing own profile
     const isOwnProfile = req.params.id === req.user.userId;
-    const isFollowing = user.followers.some(f => f._id.toString() === req.user.userId);
+    const isFollowing = user.followers.some(f => f && f._id && f._id.toString() === req.user.userId);
     
     if (!isOwnProfile && !isFollowing) {
       return res.status(403).json({ message: "Not authorized to view connections" });
     }
 
-    res.json({ followers: user.followers, following: user.following });
+    res.json({ 
+      followers: user.followers.filter(u => u != null), 
+      following: user.following.filter(u => u != null) 
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching connections' });
   }
