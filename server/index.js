@@ -2302,7 +2302,7 @@ io.on('connection', (socket) => {
 
         chatData.aiIdleTimer = setTimeout(() => {
           if (activeRandomChats.has(roomId)) {
-             io.to(socket.id).emit('stranger_disconnected');
+             io.to(socket.id).emit('anonymous_chat_ended');
              activeRandomChats.delete(roomId);
           }
         }, 5000);
@@ -2458,7 +2458,7 @@ io.on('connection', (socket) => {
             }, 3500);
             chat.aiTypingLeaveTimer = setTimeout(() => {
                if (activeRandomChats.has(roomId)) {
-                 io.to(socket.id).emit('stranger_disconnected');
+                 io.to(socket.id).emit('anonymous_chat_ended');
                  activeRandomChats.delete(roomId);
                }
             }, 5500);
@@ -2471,7 +2471,7 @@ io.on('connection', (socket) => {
          }
          chat.aiIdleTimer = setTimeout(() => {
            if (activeRandomChats.has(roomId)) {
-              io.to(socket.id).emit('stranger_disconnected');
+              io.to(socket.id).emit('anonymous_chat_ended');
               activeRandomChats.delete(roomId);
            }
          }, 5000);
