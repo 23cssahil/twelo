@@ -3246,14 +3246,14 @@ export default function Dashboard() {
                       {!swapVideo && <div className="video-label">@{callerName}</div>}
                     </div>
                     <div className={!swapVideo ? "local-video-container clickable-video" : "remote-video-container"} onClick={() => !swapVideo && setSwapVideo(true)}>
-                      <video playsInline webkit-playsinline="true" muted ref={myVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover' }} />
+                      <video playsInline webkit-playsinline="true" muted ref={myVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover', transform: currentFacingMode === 'user' ? 'scaleX(-1)' : 'none' }} />
                       {swapVideo && <div className="video-label">You</div>}
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="remote-video-container">
-                      <video playsInline webkit-playsinline="true" muted ref={myVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover' }} />
+                      <video playsInline webkit-playsinline="true" muted ref={myVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover', transform: currentFacingMode === 'user' ? 'scaleX(-1)' : 'none' }} />
                       <div className="video-label">You</div>
                     </div>
                     <div className="local-video-container" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
