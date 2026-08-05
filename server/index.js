@@ -2302,33 +2302,45 @@ io.on('connection', (socket) => {
         };
         activeRandomChats.set(roomId, chatData);
 
+        const shouldBotInitiate = Math.random() > 0.5;
+
         chatData.aiIdleTimer = setTimeout(() => {
           if (activeRandomChats.has(roomId) && !chatData.hasUserInteracted) {
-             io.to(socket.id).emit('receive_anonymous_message', {
-               _id: `ai-sys-${Date.now()}`,
-               message: ['hi', 'hii', 'hello', 'hey'][Math.floor(Math.random() * 4)],
-               senderSocket: 'ai-companion',
-               createdAt: new Date().toISOString()
-             });
-             
-             chatData.aiPatienceTimer = setTimeout(() => {
-               if (activeRandomChats.has(roomId) && !chatData.hasUserInteracted) {
+             if (shouldBotInitiate) {
                  io.to(socket.id).emit('receive_anonymous_message', {
-                   _id: `ai-sys2-${Date.now()}`,
-                   message: ['hello?', 'hello', 'hi?'][Math.floor(Math.random() * 3)],
+                   _id: `ai-sys-${Date.now()}`,
+                   message: ['hi', 'hii', 'hello', 'hey'][Math.floor(Math.random() * 4)],
                    senderSocket: 'ai-companion',
                    createdAt: new Date().toISOString()
                  });
-                 setTimeout(() => {
-                   if (activeRandomChats.has(roomId)) {
+                 
+                 chatData.aiPatienceTimer = setTimeout(() => {
+                   if (activeRandomChats.has(roomId) && !chatData.hasUserInteracted) {
+                     io.to(socket.id).emit('receive_anonymous_message', {
+                       _id: `ai-sys2-${Date.now()}`,
+                       message: ['hello?', 'hello', 'hi?'][Math.floor(Math.random() * 3)],
+                       senderSocket: 'ai-companion',
+                       createdAt: new Date().toISOString()
+                     });
+                     setTimeout(() => {
+                       if (activeRandomChats.has(roomId)) {
+                          io.to(socket.id).emit('anonymous_chat_ended');
+                          activeRandomChats.delete(roomId);
+                       }
+                     }, 1000);
+                   }
+                 }, 5000);
+             } else {
+                 // If the bot doesn't say hi, just quietly leave after another 5 seconds of silence
+                 chatData.aiPatienceTimer = setTimeout(() => {
+                   if (activeRandomChats.has(roomId) && !chatData.hasUserInteracted) {
                       io.to(socket.id).emit('anonymous_chat_ended');
                       activeRandomChats.delete(roomId);
                    }
-                 }, 1000);
-               }
-             }, 5000);
+                 }, 5000);
+             }
           }
-        }, 3000);
+        }, 3500);
 
         const factData = await getRandomCountryFact(queuedUser.userCountryCode);
         const finalCompanionCountry = factData.countryCode !== 'UN' ? factData.countryName : companion.country;
