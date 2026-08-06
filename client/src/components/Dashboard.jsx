@@ -1310,7 +1310,7 @@ export default function Dashboard() {
             messageText: '', 
             messageType: 'image', 
             fileUrl: url, 
-            replyTo: replyToMessage?._id || null,
+            replyTo: replyingTo?._id || null,
             isViewOnce: isViewOnce
           });
           
@@ -1321,17 +1321,17 @@ export default function Dashboard() {
             message: '', 
             messageType: 'image',
             fileUrl: url,
-            replyTo: replyToMessage ? {
-              messageId: replyToMessage._id,
-              messageText: replyToMessage.message,
-              senderName: replyToMessage.sender === user.id ? 'You' : activeChatUser.username
+            replyTo: replyingTo ? {
+              messageId: replyingTo._id,
+              messageText: replyingTo.message,
+              senderName: replyingTo.sender === user.id ? 'You' : activeChatUser.username
             } : null,
             isViewOnce: isViewOnce,
             isViewed: false,
             createdAt: new Date().toISOString() 
           }]);
           
-          setReplyToMessage(null);
+          setReplyingTo(null);
           fetchRecentChats();
         }
       } catch (error) {
