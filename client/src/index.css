@@ -916,6 +916,8 @@ input, button, textarea {
   .sidebar {
     display: flex !important;
     width: 250px;
+    min-width: 250px;
+    flex-shrink: 0;
     border-right: 1px solid var(--border-color);
     flex-direction: column;
     padding: 24px 16px;
@@ -931,10 +933,18 @@ input, button, textarea {
   }
   
   .nav-item {
+    display: flex;
+    align-items: center;
     justify-content: flex-start;
     padding: 12px 16px;
     border-radius: 12px;
     gap: 16px;
+    cursor: pointer;
+    color: var(--text-primary);
+  }
+  
+  .nav-item:hover {
+    background-color: var(--panel-hover);
   }
   
   .nav-item span {
