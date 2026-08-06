@@ -16,6 +16,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const os = require('os');
 const webpush = require('web-push');
+const cloudinary = require('cloudinary').v2;
 
 webpush.setVapidDetails(
   'mailto:admin@twelo.com',
@@ -375,32 +376,43 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-// Setup Uploads directory
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
-app.use('/uploads', express.static(uploadsDir));
-
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/')
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname))
-  }
+// Setup Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-const upload = multer({ storage: storage });
 
-// Upload Endpoint
-app.post('/api/upload', upload.single('file'), (req, res) => {
+// Configure multer to use memory storage (no disk write)
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+// Upload Endpoint - uploads to Cloudinary
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
-  const fileUrl = `/uploads/${req.file.filename}`;
-  res.json({ url: fileUrl });
+  try {
+    // Upload buffer directly to Cloudinary
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'twelo_messages', resource_type: 'auto' },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      stream.end(req.file.buffer);
+    });
+    res.json({ url: result.secure_url });
+  } catch (err) {
+    console.error('Cloudinary upload error:', err);
+    res.status(500).json({ message: 'Upload failed', error: err.message });
+  }
 });
+
 
 // Database Connection
 let cachedGlobeStatus = { isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null };
