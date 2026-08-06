@@ -926,7 +926,10 @@ export default function Dashboard() {
         });
         setUnreadMessages(unreads);
       }
-    } catch (err) { console.error(err); } finally {
+    } catch (err) { 
+      console.error(err); 
+      setRecentChats([]); // Fallback
+    } finally {
       setIsFetchingChats(false);
     }
   };

@@ -914,29 +914,33 @@ input, button, textarea {
     display: none;
   }
   .sidebar {
-    display: flex;
-    width: 80px;
+    display: flex !important;
+    width: 250px;
     border-right: 1px solid var(--border-color);
     flex-direction: column;
-    align-items: center;
-    padding: 24px 0;
-    gap: 32px;
+    padding: 24px 16px;
+    justify-content: space-between;
   }
-  .sidebar-logo-icon {
-    font-size: 2rem;
-    font-weight: bold;
-    background: var(--insta-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+  
+  .nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    margin-top: 30px;
   }
+  
   .nav-item {
-    padding: 16px;
-    position: relative;
-    cursor: pointer;
-  }
-  .nav-item:hover {
-    background-color: var(--panel-hover);
+    justify-content: flex-start;
+    padding: 12px 16px;
     border-radius: 12px;
+    gap: 16px;
+  }
+  
+  .nav-item span {
+    display: inline-block; /* Show text on desktop */
+    font-size: 1.1rem;
+    font-weight: 500;
   }
   .main-content {
     padding-bottom: 0;
