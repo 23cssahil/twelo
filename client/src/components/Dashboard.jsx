@@ -522,10 +522,10 @@ export default function Dashboard() {
   }, [token]);
 
   useEffect(() => {
-    if (token && activeTab === 'messages') {
+    if (token) {
       fetchRecentChats();
     }
-  }, [activeTab, token]);
+  }, [token, activeTab]);
 
   useEffect(() => {
     const handleResize = () => {
