@@ -3048,9 +3048,10 @@ export default function Dashboard() {
       {/* Globe always mounted to prevent WebGL context loss / black screen */}
       <div style={{
         position: 'fixed', top: '-5vh', left: '0', width: '100%', height: '130vh', zIndex: 0,
-        opacity: activeTab === 'home' ? 1 : 0.5,
+        opacity: activeTab === 'home' ? 1 : 0,
+        visibility: activeTab === 'home' ? 'visible' : 'hidden',
         pointerEvents: activeTab === 'home' && !activeChatUser ? 'auto' : 'none',
-        transition: 'opacity 0.5s ease-in-out'
+        transition: 'opacity 0.3s ease-in-out'
       }}>
         {globeComponent}
       </div>
