@@ -889,6 +889,11 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
       });
     }
 
+    const targetSocketId = onlineUsers.get(targetUserId.toString());
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('new_notification');
+    }
+
     res.json({ message: "Request sent successfully" });
   } catch (error) {
     res.status(500).json({ message: 'Error sending request' });
@@ -937,6 +942,11 @@ app.post('/api/users/anonymous_follow/:id', authenticateToken, async (req, res) 
       });
     }
 
+    const targetSocketId = onlineUsers.get(targetUserId.toString());
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('new_notification');
+    }
+
     res.json({ message: "Request sent successfully", coinsLeft: currentUser.coins });
   } catch (error) {
     console.error(error);
@@ -979,6 +989,11 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
       requester.notifications = (requester.notifications || []).filter(n => !(n.type === acceptType && n.user && n.user.toString() === req.user.userId));
       requester.notifications.push({ type: acceptType, user: req.user.userId });
       await requester.save();
+    }
+
+    const reqSocketId = onlineUsers.get(requesterId.toString());
+    if (reqSocketId) {
+      io.to(reqSocketId).emit('new_notification');
     }
 
     res.json({ message: "Request accepted" });
@@ -1931,7 +1946,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle incoming private message
-  socket.on('send_message', async ({ senderId, receiverId, messageText, replyTo, messageType = 'text', fileUrl = null, isViewOnce = false }) => {
+  socket.on('send_message', async ({ tempId, senderId, receiverId, messageText, replyTo, messageType = 'text', fileUrl = null, isViewOnce = false }) => {
     try {
       if (activeSessions.has(socket.id)) {
         activeSessions.get(socket.id).messagesSent += 1;
@@ -1967,7 +1982,11 @@ io.on('connection', (socket) => {
       if (receiverSocketId) {
         io.to(receiverSocketId).emit('receive_message', payload);
       }
-      // Only echo to sender if they are on a different device/tab
+      
+      // Echo real message ID back to sender to update their UI
+      io.to(socket.id).emit('message_sent', { tempId, message: payload });
+      
+      // Also echo to sender's OTHER devices/tabs
       if (senderSocketId && senderSocketId !== socket.id) {
         io.to(senderSocketId).emit('receive_message', payload);
       }
@@ -2297,50 +2316,9 @@ io.on('connection', (socket) => {
           user1: queuedUser,
           user2: { userId: companion.id, socketId: null },
           isAiCompanion: true,
-          companion,
-          hasUserInteracted: false
+          companion
         };
         activeRandomChats.set(roomId, chatData);
-
-        const shouldBotInitiate = Math.random() > 0.5;
-
-        chatData.aiIdleTimer = setTimeout(() => {
-          if (activeRandomChats.has(roomId) && !chatData.hasUserInteracted) {
-             if (shouldBotInitiate) {
-                 io.to(socket.id).emit('receive_anonymous_message', {
-                   _id: `ai-sys-${Date.now()}`,
-                   message: ['hi', 'hii', 'hello', 'hey'][Math.floor(Math.random() * 4)],
-                   senderSocket: 'ai-companion',
-                   createdAt: new Date().toISOString()
-                 });
-                 
-                 chatData.aiPatienceTimer = setTimeout(() => {
-                   if (activeRandomChats.has(roomId) && !chatData.hasUserInteracted) {
-                     io.to(socket.id).emit('receive_anonymous_message', {
-                       _id: `ai-sys2-${Date.now()}`,
-                       message: ['hello?', 'hello', 'hi?'][Math.floor(Math.random() * 3)],
-                       senderSocket: 'ai-companion',
-                       createdAt: new Date().toISOString()
-                     });
-                     setTimeout(() => {
-                       if (activeRandomChats.has(roomId)) {
-                          io.to(socket.id).emit('anonymous_chat_ended');
-                          activeRandomChats.delete(roomId);
-                       }
-                     }, 1000);
-                   }
-                 }, 5000);
-             } else {
-                 // If the bot doesn't say hi, just quietly leave after another 5 seconds of silence
-                 chatData.aiPatienceTimer = setTimeout(() => {
-                   if (activeRandomChats.has(roomId) && !chatData.hasUserInteracted) {
-                      io.to(socket.id).emit('anonymous_chat_ended');
-                      activeRandomChats.delete(roomId);
-                   }
-                 }, 5000);
-             }
-          }
-        }, 3500);
 
         const factData = await getRandomCountryFact(queuedUser.userCountryCode);
         const finalCompanionCountry = factData.countryCode !== 'UN' ? factData.countryName : companion.country;
@@ -2382,15 +2360,6 @@ io.on('connection', (socket) => {
     if (!chat) return;
 
     if (chat.isAiCompanion) {
-      chat.hasUserInteracted = true;
-      if (chat.aiIdleTimer) clearTimeout(chat.aiIdleTimer);
-      if (chat.aiPatienceTimer) clearTimeout(chat.aiPatienceTimer);
-      if (chat.aiTypingHiTimer) clearTimeout(chat.aiTypingHiTimer);
-      if (chat.aiTypingLeaveTimer) {
-        clearTimeout(chat.aiTypingLeaveTimer);
-        chat.aiTypingLeaveTimer = null;
-      }
-      
       (async () => {
         const { reply, followUp, action } = await generateAiCompanionReply(chat, messageText, roomId);
         if (!activeRandomChats.has(roomId)) return;
@@ -2480,36 +2449,6 @@ io.on('connection', (socket) => {
     if (!chat) return;
     
     if (chat.isAiCompanion) {
-      if (isTyping) {
-         chat.hasUserInteracted = true;
-         if (chat.aiIdleTimer) clearTimeout(chat.aiIdleTimer);
-         if (chat.aiPatienceTimer) clearTimeout(chat.aiPatienceTimer);
-         
-         if (!chat.aiTypingLeaveTimer) {
-            chat.aiTypingHiTimer = setTimeout(() => {
-               if (activeRandomChats.has(roomId)) {
-                 io.to(socket.id).emit('receive_anonymous_message', {
-                   _id: `anon-${Date.now()}`,
-                   message: 'hii',
-                   senderSocket: 'ai',
-                   createdAt: new Date().toISOString()
-                 });
-               }
-            }, 3500);
-            chat.aiTypingLeaveTimer = setTimeout(() => {
-               if (activeRandomChats.has(roomId)) {
-                 io.to(socket.id).emit('anonymous_chat_ended');
-                 activeRandomChats.delete(roomId);
-               }
-            }, 5500);
-         }
-      } else {
-         if (chat.aiTypingHiTimer) clearTimeout(chat.aiTypingHiTimer);
-         if (chat.aiTypingLeaveTimer) {
-            clearTimeout(chat.aiTypingLeaveTimer);
-            chat.aiTypingLeaveTimer = null;
-         }
-      }
       return;
     }
 

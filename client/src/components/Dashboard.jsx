@@ -564,6 +564,11 @@ export default function Dashboard() {
       fetchRecentChats();
     });
 
+    socket.on('message_sent', ({ tempId, message }) => {
+      setMessages(prev => prev.map(m => m._id === tempId ? message : m));
+      fetchRecentChats();
+    });
+
     socket.on('message_deleted', ({ messageId, type }) => {
       setMessages(prev => {
         if (type === 'everyone') {
@@ -711,6 +716,7 @@ export default function Dashboard() {
     return () => {
       socket.off('online_users');
       socket.off('receive_message');
+      socket.off('message_sent');
       socket.off('message_deleted');
       socket.off('new_notification');
       socket.off('request_accepted_alert');
@@ -1261,7 +1267,9 @@ export default function Dashboard() {
         setPreviewImage(null);
         
         if (url) {
+          const tempId = `temp-${Date.now()}`;
           socket.emit('send_message', { 
+            tempId,
             senderId: user.id, 
             receiverId: activeChatUser._id, 
             messageText: '', 
@@ -1272,7 +1280,7 @@ export default function Dashboard() {
           });
           
           setMessages(prev => [...prev, { 
-            _id: `temp-${Date.now()}`,
+            _id: tempId,
             sender: user.id, 
             receiver: activeChatUser._id, 
             message: '', 
@@ -1328,9 +1336,10 @@ export default function Dashboard() {
         const url = await uploadFile(file);
         setIsUploading(false);
         if (url) {
-          socket.emit('send_message', { senderId: user.id, receiverId: activeChatUser._id, messageText: '', messageType: 'audio', fileUrl: url, replyTo: null });
+          const tempId = `temp-${Date.now()}`;
+          socket.emit('send_message', { tempId, senderId: user.id, receiverId: activeChatUser._id, messageText: '', messageType: 'audio', fileUrl: url, replyTo: null });
           setMessages(prev => [...prev, { 
-            _id: `temp-${Date.now()}`,
+            _id: tempId,
             sender: user.id, 
             receiver: activeChatUser._id, 
             message: '', 
@@ -1443,12 +1452,13 @@ export default function Dashboard() {
       senderName: replyingTo.sender === user.id ? 'You' : activeChatUser.username
     } : null;
 
-    const msgData = { senderId: user.id, receiverId: activeChatUser._id, messageText: textToSend, messageType: 'text', fileUrl: null, replyTo: replyToObj };
+    const tempId = `temp-${Date.now()}`;
+    const msgData = { tempId, senderId: user.id, receiverId: activeChatUser._id, messageText: textToSend, messageType: 'text', fileUrl: null, replyTo: replyToObj };
     socket.emit('send_message', msgData);
     
     // Optimistic UI update
     setMessages(prev => [...prev, { 
-      _id: `temp-${Date.now()}`,
+      _id: tempId,
       sender: user.id, 
       receiver: activeChatUser._id, 
       message: textToSend, 
@@ -1539,7 +1549,9 @@ export default function Dashboard() {
   };
 
   const logCallMessage = (targetId, messageText) => {
+    const tempId = `temp-call-${Date.now()}`;
     const msgData = {
+      tempId,
       senderId: user.id,
       receiverId: targetId,
       messageText: messageText
@@ -1548,7 +1560,7 @@ export default function Dashboard() {
     
     if (activeChatUser && activeChatUser._id === targetId) {
       setMessages(prev => [...prev, {
-        _id: `temp-call-${Date.now()}`,
+        _id: tempId,
         sender: user.id,
         receiver: targetId,
         message: messageText,
