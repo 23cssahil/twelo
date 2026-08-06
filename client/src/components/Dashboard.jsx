@@ -1211,9 +1211,15 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
       const data = await res.json();
+      if (!res.ok) {
+        console.error('Upload failed:', data);
+        return null;
+      }
+      console.log('Upload success, URL:', data.url);
       return data.url;
     } catch (err) {
       console.error('Upload failed', err);
@@ -2754,7 +2760,7 @@ export default function Dashboard() {
                             </div>
                           )}
 
-                          {msg.messageType === 'image' && (
+                          {msg.messageType === 'image' && msg.fileUrl && (
                             <div className="msg-image-container" style={{ marginTop: '5px', marginBottom: '5px' }}>
                               {msg.isViewOnce ? (
                                 msg.isViewed ? (
@@ -2765,7 +2771,7 @@ export default function Dashboard() {
                                   <button onClick={() => {
                                     if (msg.sender !== user.id) {
                                       socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id, senderId: msg.sender });
-                                      msg.isViewed = true; // Optimistic update
+                                      msg.isViewed = true;
                                     }
                                     setFullScreenMedia(msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`);
                                   }} style={{ padding: '10px 20px', background: 'var(--brand-blue)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', border: 'none', cursor: 'pointer' }}>

@@ -391,6 +391,7 @@ const upload = multer({
 
 // Upload Endpoint - uploads to Cloudinary
 app.post('/api/upload', upload.single('file'), async (req, res) => {
+  console.log('Upload request received, file:', req.file?.originalname, 'size:', req.file?.size);
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
@@ -406,6 +407,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       );
       stream.end(req.file.buffer);
     });
+    console.log('Cloudinary upload success, URL:', result.secure_url);
     res.json({ url: result.secure_url });
   } catch (err) {
     console.error('Cloudinary upload error:', err);
