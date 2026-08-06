@@ -318,6 +318,7 @@ export default function Dashboard() {
 
   // Chat state
   const [recentChats, setRecentChats] = useState([]);
+  const [chatsError, setChatsError] = useState(null);
   const [isFetchingChats, setIsFetchingChats] = useState(true);
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -916,6 +917,7 @@ export default function Dashboard() {
 
   const fetchRecentChats = async () => {
     try {
+      setChatsError(null);
       const res = await fetch(`${API_URL}/api/chats/recent`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
@@ -925,9 +927,12 @@ export default function Dashboard() {
           unreads[chat._id] = chat.unreadCount || 0;
         });
         setUnreadMessages(unreads);
+      } else {
+        setChatsError(`API Error: ${data.message || res.status}`);
       }
     } catch (err) { 
       console.error(err); 
+      setChatsError(`Network Error: ${err.message}`);
       setRecentChats([]); // Fallback
     } finally {
       setIsFetchingChats(false);
