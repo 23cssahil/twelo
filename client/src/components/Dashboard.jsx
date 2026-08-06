@@ -1212,7 +1212,7 @@ export default function Dashboard() {
     formData.append('folder', 'twelo_messages');
     try {
       // Direct upload to Cloudinary - no server needed!
-      const res = await fetch(`https://api.cloudinary.com/v1_1/wda7nysx/image/upload`, {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/wda7nysx/auto/upload`, {
         method: 'POST',
         body: formData
       });
