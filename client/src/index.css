@@ -407,7 +407,8 @@ input, button, textarea {
   left: 0;
   width: 100%;
   height: var(--vvp-height, 100dvh);
-  background: var(--bg-color);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
   z-index: 40;
   display: flex;
   flex-direction: column;
