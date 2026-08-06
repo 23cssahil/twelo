@@ -1208,19 +1208,21 @@ export default function Dashboard() {
   const uploadFile = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('upload_preset', 'twelo_unsigned'); // Cloudinary unsigned preset
+    formData.append('folder', 'twelo_messages');
     try {
-      const res = await fetch(`${API_URL}/api/upload`, {
+      // Direct upload to Cloudinary - no server needed!
+      const res = await fetch(`https://api.cloudinary.com/v1_1/wda7nysx/image/upload`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
       const data = await res.json();
-      if (!res.ok) {
-        console.error('Upload failed:', data);
+      if (!res.ok || data.error) {
+        console.error('Cloudinary upload failed:', data.error || data);
         return null;
       }
-      console.log('Upload success, URL:', data.url);
-      return data.url;
+      console.log('Direct Cloudinary upload success, URL:', data.secure_url);
+      return data.secure_url;
     } catch (err) {
       console.error('Upload failed', err);
       return null;
