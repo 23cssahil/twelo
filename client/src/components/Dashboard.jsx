@@ -552,21 +552,31 @@ export default function Dashboard() {
     socket.on('online_users', (users) => setOnlineUsers(users));
     
     socket.on('receive_message', (msg) => {
-      if ((activeChatUserRef.current && msg.sender === activeChatUserRef.current._id) || msg.sender === user.id) {
-        setMessages((prev) => [...prev, msg]);
-        if (msg.sender !== user.id) {
+      // Only add messages from OTHER users here.
+      // Own sent messages are already added optimistically in handleSendMessage
+      // and are properly confirmed via the 'message_sent' event.
+      if (msg.sender !== user.id) {
+        if (activeChatUserRef.current && msg.sender === activeChatUserRef.current._id) {
+          // Message from active chat partner - add to view and mark viewed
+          setMessages((prev) => {
+            // Prevent duplicates
+            if (prev.some(m => m._id === msg._id)) return prev;
+            return [...prev, msg];
+          });
           socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id, senderId: msg.sender });
-        }
-      } else {
-        if (msg.sender !== user.id) {
+        } else {
+          // Message from someone else - update unread count
           setUnreadMessages(prev => ({...prev, [msg.sender]: (prev[msg.sender] || 0) + 1}));
         }
+        // Only fetch recent chats for incoming messages from others
+        fetchRecentChats();
       }
-      fetchRecentChats();
     });
 
     socket.on('message_sent', ({ tempId, message }) => {
+      // Replace the optimistic temp message with the confirmed server message
       setMessages(prev => prev.map(m => m._id === tempId ? message : m));
+      // Update recent chats after message is confirmed
       fetchRecentChats();
     });
 
