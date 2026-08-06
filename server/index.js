@@ -2513,9 +2513,15 @@ io.on('connection', (socket) => {
         { sender: senderId, receiver: receiverId, isViewed: false },
         { $set: { isViewed: true, viewedAt: now } }
       );
+      // Notify the ORIGINAL SENDER that their messages were read (seen status)
       const senderSocketId = onlineUsers.get(senderId);
       if (senderSocketId) {
         io.to(senderSocketId).emit('messages_marked_read', { readerId: receiverId, viewedAt: now });
+      }
+      // Also notify the RECEIVER's own socket so their chat list updates instantly
+      const receiverSocketId = onlineUsers.get(receiverId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('messages_marked_read', { readerId: receiverId, viewedAt: now });
       }
     } catch (error) {
       console.error('Error marking all read:', error);

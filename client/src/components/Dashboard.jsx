@@ -703,14 +703,23 @@ export default function Dashboard() {
     });
 
     socket.on('message_viewed', ({ messageId, viewedAt }) => {
-      setMessages(prev => prev.map(msg => msg._id === messageId ? { ...msg, isViewed: true, viewedAt } : msg));
+      // Update the specific message to show 'seen' in real-time
+      setMessages(prev => prev.map(msg =>
+        msg._id === messageId ? { ...msg, isViewed: true, viewedAt } : msg
+      ));
+      // Also update the recent chats list to reflect seen status
       fetchRecentChats();
     });
 
     socket.on('messages_marked_read', ({ readerId, viewedAt }) => {
       if (activeChatUserRef.current && activeChatUserRef.current._id === readerId) {
-        setMessages(prev => prev.map(msg => msg.sender === user.id ? { ...msg, isViewed: true, viewedAt } : msg));
+        // Mark ALL messages in the active chat as seen
+        setMessages(prev => prev.map(msg =>
+          msg.sender === user.id ? { ...msg, isViewed: true, viewedAt } : msg
+        ));
       }
+      // Update the recent chats list
+      fetchRecentChats();
     });
 
     socket.on('typing_status_received', ({ senderId, isTyping }) => {
