@@ -2634,6 +2634,10 @@ export default function Dashboard() {
                     ))}
                     <div style={{ textAlign: 'center', marginTop: '15px', color: '#888', fontSize: '0.85rem' }}>Loading chats...</div>
                   </div>
+                ) : chatsError ? (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#ff4444', fontSize: '0.9rem' }}>
+                    {chatsError}
+                  </div>
                 ) : (
                   recentChats.length === 0 && (
                     <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', fontSize: '0.9rem' }}>
