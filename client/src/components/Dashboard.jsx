@@ -414,6 +414,7 @@ export default function Dashboard() {
 
   const [selectedImage, setSelectedImage] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showGalleryPermissionPopup, setShowGalleryPermissionPopup] = useState(false);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   
@@ -2935,7 +2936,7 @@ export default function Dashboard() {
 
                       {!isRecording && (
                         <div id="main-chat-media-actions" className="media-actions" style={{ display: 'flex', gap: '10px', paddingRight: '10px', alignItems: 'center' }}>
-                          <button type="button" className="media-btn" onClick={() => fileInputRef.current.click()} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                          <button type="button" className="media-btn" onClick={() => setShowGalleryPermissionPopup(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
                             <ImageIcon size={20} color="#a8a8a8" />
                           </button>
                           <input 
