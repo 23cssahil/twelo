@@ -467,7 +467,7 @@ export default function Dashboard() {
         });
         
         if (res.ok) {
-          showToastMsg('Push notifications enabled!', 'coin'); // 'coin' type gives a nice success look
+          showToastMsg('Push notifications enabled!', 'info'); // 'info' type gives a normal toast
         } else {
           showToastMsg('Failed to enable push notifications on server.', 'error');
         }
@@ -605,7 +605,7 @@ export default function Dashboard() {
       // Only add messages from OTHER users here.
       // Own sent messages are already added optimistically in handleSendMessage
       // and are properly confirmed via the 'message_sent' event.
-      if (String(msg.sender) !== String(user.id)) {
+      if (String(msg.sender) !== String(user._id || user.id)) {
         
         // Play notification sound
         try {

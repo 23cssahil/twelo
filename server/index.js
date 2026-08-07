@@ -2022,8 +2022,9 @@ io.on('connection', (socket) => {
       const receiverObj = await User.findById(receiverId).select('pushSubscriptions followers following');
       
       if (senderObj && receiverObj) {
-        const isMutual = senderObj.followers.includes(receiverId) && senderObj.following.includes(receiverId);
-        if (isMutual && receiverObj.pushSubscriptions && receiverObj.pushSubscriptions.length > 0) {
+        const isMutual = senderObj.followers.some(id => id.toString() === receiverId.toString()) && 
+                         senderObj.following.some(id => id.toString() === receiverId.toString());
+        if (isMutual && !receiverObj.ownedByAdmin && receiverObj.pushSubscriptions && receiverObj.pushSubscriptions.length > 0) {
           const pushPayload = JSON.stringify({
             title: `New message from ${senderObj.username}`,
             body: messageType === 'text' ? messageText : `Sent a ${messageType}`,
