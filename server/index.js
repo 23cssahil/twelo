@@ -1196,7 +1196,17 @@ app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
   try {
     const currentUserId = req.user.userId;
     const storyId = req.params.id;
-    await Story.findByIdAndUpdate(storyId, { $addToSet: { viewedBy: currentUserId } });
+    const story = await Story.findByIdAndUpdate(storyId, { $addToSet: { viewedBy: currentUserId } }, { new: true });
+    
+    if (story) {
+      // Notify the story owner
+      const ownerId = story.user.toString();
+      const ownerSocketId = getSocketIdByUserId(ownerId);
+      if (ownerSocketId) {
+        io.to(ownerSocketId).emit('story_interaction');
+      }
+    }
+    
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: 'Error marking story viewed' });
@@ -1337,6 +1347,14 @@ app.post('/api/stories/:id/like', authenticateToken, async (req, res) => {
       story.likedBy.push(userId);
     }
     await story.save();
+    
+    // Notify the story owner
+    const ownerId = story.user.toString();
+    const ownerSocketId = getSocketIdByUserId(ownerId);
+    if (ownerSocketId) {
+      io.to(ownerSocketId).emit('story_interaction');
+    }
+    
     res.json({ likedBy: story.likedBy });
   } catch (error) {
     console.error('Error toggling story like:', error);

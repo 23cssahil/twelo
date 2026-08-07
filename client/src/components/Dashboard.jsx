@@ -998,6 +998,10 @@ export default function Dashboard() {
     socket.on('new_story', () => {
       fetchStories();
     });
+    
+    socket.on('story_interaction', () => {
+      fetchStories();
+    });
 
     return () => {
       socket.off('online_users');
@@ -1006,6 +1010,7 @@ export default function Dashboard() {
       socket.off('message_deleted');
       socket.off('new_notification');
       socket.off('new_story');
+      socket.off('story_interaction');
       socket.off('request_accepted_alert');
       socket.off('request_rejected_alert');
       socket.off('incoming_call');
