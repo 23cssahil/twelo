@@ -2056,7 +2056,7 @@ io.on('connection', (socket) => {
   
   // Call User (Initiate call)
   socket.on('call_user', ({ userToCall, signalData, from, fromUsername, isVideo }) => {
-    const receiverSocketId = onlineUsers.get(userToCall);
+    const receiverSocketId = onlineUsers.get(userToCall.toString());
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('incoming_call', {
         signal: signalData,
@@ -2064,6 +2064,9 @@ io.on('connection', (socket) => {
         fromUsername,
         isVideo
       });
+    } else {
+      // Receiver is not online — notify caller immediately
+      socket.emit('call_failed', { reason: 'User is offline or unavailable' });
     }
   });
 

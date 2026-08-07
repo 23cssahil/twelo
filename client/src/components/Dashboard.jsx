@@ -735,6 +735,11 @@ export default function Dashboard() {
       setGlobeStatus(status);
     });
 
+    socket.on('call_failed', ({ reason }) => {
+      alert(`Call could not connect: ${reason}`);
+      handleEndCallQuietly();
+    });
+
     return () => {
       socket.off('online_users');
       socket.off('receive_message');
@@ -756,6 +761,7 @@ export default function Dashboard() {
       socket.off('messages_marked_read');
       socket.off('typing_status_received');
       socket.off('globe_status_update');
+      socket.off('call_failed');
     };
   }, [socket, user]);
 
@@ -1717,13 +1723,16 @@ export default function Dashboard() {
       logCallMessage(targetUserId, isVideo ? '📞 Started a Video Call' : '📞 Started a Voice Call');
 
       peer.on('signal', (data) => {
-        socket.emit('call_user', {
-          userToCall: targetUserId,
-          signalData: data,
-          from: user.id,
-          fromUsername: user.username,
-          isVideo: isVideo
-        });
+        // Small delay ensures receiver socket is registered before emit
+        setTimeout(() => {
+          socket.emit('call_user', {
+            userToCall: targetUserId,
+            signalData: data,
+            from: user.id,
+            fromUsername: user.username,
+            isVideo: isVideo
+          });
+        }, 300);
       });
 
       peer.on('stream', (remoteStream) => {
@@ -2727,8 +2736,8 @@ export default function Dashboard() {
                       >
                         <Flag size={20} />
                       </button>
-                      <button className="action-icon-btn call-audio" onClick={() => callUser(activeChatUser._id, activeChatUser.username, false)}><Phone size={22} /></button>
-                      <button className="action-icon-btn call-video" onClick={() => callUser(activeChatUser._id, activeChatUser.username, true)}><Video size={22} /></button>
+                      <button className="action-icon-btn call-audio" onClick={() => callUser(String(activeChatUser._id), activeChatUser.username, false)}><Phone size={22} /></button>
+                      <button className="action-icon-btn call-video" onClick={() => callUser(String(activeChatUser._id), activeChatUser.username, true)}><Video size={22} /></button>
                     </div>
                   </div>
 
