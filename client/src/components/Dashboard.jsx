@@ -433,6 +433,55 @@ export default function Dashboard() {
 
 
 
+  const handleEnableNotifications = async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          const vapidPublicKey = 'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA';
+          const convertedVapidKey = (base64String => {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+            return outputArray;
+          })(vapidPublicKey);
+
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: convertedVapidKey
+          });
+        }
+        
+        // Send to backend
+        const res = await fetch(`${API_URL}/api/users/subscribe`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          },
+          body: JSON.stringify(subscription)
+        });
+        
+        if (res.ok) {
+          showToastMsg('Push notifications enabled!', 'coin'); // 'coin' type gives a nice success look
+        } else {
+          showToastMsg('Failed to enable push notifications on server.', 'error');
+        }
+      } else if (permission === 'denied') {
+        showToastMsg('Notifications blocked. Please allow them in your browser settings.', 'error');
+      } else {
+        showToastMsg('Push notifications are not supported in this browser.', 'error');
+      }
+    } catch (err) {
+      console.error('Web Push Setup Error:', err);
+      showToastMsg('An error occurred while enabling notifications.', 'error');
+    }
+  };
+
   const handleUpdateUsername = async () => {
     setUsernameError('');
     if (newUsernameInput.trim().length < 3) {
@@ -557,6 +606,13 @@ export default function Dashboard() {
       // Own sent messages are already added optimistically in handleSendMessage
       // and are properly confirmed via the 'message_sent' event.
       if (String(msg.sender) !== String(user.id)) {
+        
+        // Play notification sound
+        try {
+          const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+          audio.play().catch(e => console.log('Audio blocked', e));
+        } catch (e) {}
+
         if (activeChatUserRef.current && String(msg.sender) === String(activeChatUserRef.current._id)) {
           // Message from active chat partner - add to view and mark viewed
           setMessages((prev) => {
@@ -568,6 +624,7 @@ export default function Dashboard() {
         } else {
           // Message from someone else - update unread count
           setUnreadMessages(prev => ({...prev, [msg.sender]: (prev[msg.sender] || 0) + 1}));
+          showToastMsg('New message received!', 'info');
         }
         // Only fetch recent chats for incoming messages from others
         fetchRecentChats();
@@ -3202,6 +3259,11 @@ export default function Dashboard() {
                   Change Username
                 </button>
               )}
+              
+              <button className="settings-item-btn" onClick={handleEnableNotifications}>
+                Enable Push Notifications
+              </button>
+
               
               <button className="settings-item-btn" onClick={() => navigate('/about-us')}>
                 About Us

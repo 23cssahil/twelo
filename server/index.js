@@ -1123,6 +1123,26 @@ app.post('/api/users/delete_account', authenticateToken, async (req, res) => {
 });
 
 // Get User Connections (Followers & Following)
+// Web Push Subscription Endpoint for Users
+app.post('/api/users/subscribe', authenticateToken, async (req, res) => {
+  try {
+    const subscription = req.body;
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    // Check if subscription already exists
+    const exists = user.pushSubscriptions.some(sub => sub.endpoint === subscription.endpoint);
+    if (!exists) {
+      user.pushSubscriptions.push(subscription);
+      await user.save();
+    }
+    res.status(201).json({ message: 'Subscription saved' });
+  } catch (error) {
+    console.error('Error saving subscription:', error);
+    res.status(500).json({ message: 'Error saving subscription' });
+  }
+});
+
 app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
@@ -1995,6 +2015,26 @@ io.on('connection', (socket) => {
       // Also echo to sender's OTHER devices/tabs
       if (senderSocketId && senderSocketId !== socket.id) {
         io.to(senderSocketId).emit('receive_message', payload);
+      }
+
+      // Check if they are mutual followers (friends) to send a push notification
+      const senderObj = await User.findById(senderId).select('username followers following');
+      const receiverObj = await User.findById(receiverId).select('pushSubscriptions followers following');
+      
+      if (senderObj && receiverObj) {
+        const isMutual = senderObj.followers.includes(receiverId) && senderObj.following.includes(receiverId);
+        if (isMutual && receiverObj.pushSubscriptions && receiverObj.pushSubscriptions.length > 0) {
+          const pushPayload = JSON.stringify({
+            title: `New message from ${senderObj.username}`,
+            body: messageType === 'text' ? messageText : `Sent a ${messageType}`,
+            icon: '/icon-192.png',
+            url: `/?chat=${senderId}`
+          });
+          const pushes = receiverObj.pushSubscriptions.map(sub => 
+            webpush.sendNotification(sub, pushPayload).catch(e => console.log('Push error:', e))
+          );
+          await Promise.all(pushes);
+        }
       }
     } catch (error) {
       console.error(error);
