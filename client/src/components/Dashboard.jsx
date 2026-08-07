@@ -33,7 +33,10 @@ import {
   Flag,
   Loader2,
   Share2,
-  Lock
+  Lock,
+  PlusCircle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -320,6 +323,17 @@ export default function Dashboard() {
   // Chat state
   const [recentChats, setRecentChats] = useState([]);
   const [chatsError, setChatsError] = useState(null);
+  
+  // Stories State
+  const [groupedStories, setGroupedStories] = useState([]);
+  const [storyViewerActive, setStoryViewerActive] = useState(false);
+  const [currentStoryUserIndex, setCurrentStoryUserIndex] = useState(0);
+  const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
+  const [storyUploading, setStoryUploading] = useState(false);
+  const storyFileInputRef = useRef(null);
+  const [activeStoryTimeout, setActiveStoryTimeout] = useState(null);
+  const [storyProgress, setStoryProgress] = useState(0);
+
   const [isFetchingChats, setIsFetchingChats] = useState(true);
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -590,8 +604,53 @@ export default function Dashboard() {
       fetchRecentChats();
       fetchProfile();
       fetchNotifications();
+      fetchStories();
     }
   }, [token]);
+
+  const fetchStories = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/stories`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('twelo_token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGroupedStories(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch stories', err);
+    }
+  };
+
+  useEffect(() => {
+    let interval;
+    if (storyViewerActive && groupedStories[currentStoryUserIndex]) {
+      const currentStory = groupedStories[currentStoryUserIndex].stories[currentStoryIndex];
+      if (currentStory.mediaType === 'image') {
+        interval = setInterval(() => {
+          setStoryProgress(prev => {
+            if (prev >= 100) {
+              clearInterval(interval);
+              // Auto advance
+              if (currentStoryIndex < groupedStories[currentStoryUserIndex].stories.length - 1) {
+                setCurrentStoryIndex(c => c + 1);
+                return 0;
+              } else if (currentStoryUserIndex < groupedStories.length - 1) {
+                setCurrentStoryUserIndex(c => c + 1);
+                setCurrentStoryIndex(0);
+                return 0;
+              } else {
+                setStoryViewerActive(false);
+                return 100;
+              }
+            }
+            return prev + 2; // 5 seconds to complete 100%
+          });
+        }, 100);
+      }
+    }
+    return () => clearInterval(interval);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories]);
 
   useEffect(() => {
     if (token) {
@@ -1310,6 +1369,47 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Upload failed', err);
       return null;
+    }
+  };
+
+  const handleStorySelect = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setStoryUploading(true);
+      // Determine type
+      let mediaType = 'image';
+      if (file.type.startsWith('video/')) mediaType = 'video';
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'twelo_unsigned');
+      formData.append('folder', 'twelo_stories');
+      
+      try {
+        const res = await fetch(`https://api.cloudinary.com/v1_1/wda7nysx/auto/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok && data.secure_url) {
+          // Send to backend
+          const storyRes = await fetch(`${API_URL}/api/stories`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ mediaUrl: data.secure_url, mediaType })
+          });
+          if (storyRes.ok) {
+            fetchStories(); // refresh stories list
+          }
+        }
+      } catch (err) {
+        console.error('Story upload failed', err);
+      } finally {
+        setStoryUploading(false);
+      }
     }
   };
 
@@ -2705,6 +2805,49 @@ export default function Dashboard() {
               <div className="chat-list-header">
                 <h2>Chats</h2>
               </div>
+              
+              <div className="story-bar-container" style={{
+                display: 'flex', gap: '15px', padding: '15px', 
+                overflowX: 'auto', borderBottom: '1px solid #1a1a1a', 
+                scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch'
+              }}>
+                <style>{`.story-bar-container::-webkit-scrollbar { display: none; }`}</style>
+                <input type="file" accept="image/*,video/*" style={{ display: 'none' }} ref={storyFileInputRef} onChange={handleStorySelect} />
+                
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 }} onClick={() => storyFileInputRef.current?.click()}>
+                  <div style={{ position: 'relative' }}>
+                    <div className="user-avatar-small" style={{ width: '56px', height: '56px', border: '2px solid #333' }}>
+                      {storyUploading ? <Loader2 className="rotating" size={24} color="#fff" /> : (user.avatarUrl ? <img src={user.avatarUrl} alt='me' /> : user.username.charAt(0).toUpperCase())}
+                    </div>
+                    <div style={{ position: 'absolute', bottom: '-2px', right: '-2px', background: 'var(--brand-blue)', borderRadius: '50%', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <PlusCircle size={14} color="#fff" />
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>{storyUploading ? 'Posting...' : 'Your Story'}</span>
+                </div>
+                
+                {groupedStories.map((group, idx) => (
+                  <div key={group.user._id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 }} onClick={() => {
+                    setCurrentStoryUserIndex(idx);
+                    setCurrentStoryIndex(0);
+                    setStoryProgress(0);
+                    setStoryViewerActive(true);
+                  }}>
+                    <div className="user-avatar-small" style={{ 
+                      width: '56px', height: '56px', 
+                      background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+                      padding: '2px', // gap for border
+                      borderRadius: '50%'
+                    }}>
+                      <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: '2px solid #000' }}>
+                        {group.user.avatarUrl ? <img src={group.user.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}}/> : <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#333'}}>{group.user.username.charAt(0).toUpperCase()}</div>}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#fff' }}>{group.user.username.length > 8 ? group.user.username.substring(0, 8) + '...' : group.user.username}</span>
+                  </div>
+                ))}
+              </div>
+
               <div className="chat-users-scroll">
                 {recentChats.map((chatUser) => {
                   const isOnline = onlineUsers.includes(chatUser._id);
@@ -3887,6 +4030,117 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Story Viewer Overlay */}
+      {storyViewerActive && groupedStories[currentStoryUserIndex] && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          background: '#000', zIndex: 11000, display: 'flex', flexDirection: 'column'
+        }}>
+          {/* Progress Bars */}
+          <div style={{ display: 'flex', gap: '5px', padding: '15px 10px 5px', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+            {groupedStories[currentStoryUserIndex].stories.map((story, i) => (
+              <div key={story._id} style={{ height: '3px', background: 'rgba(255,255,255,0.3)', flex: 1, borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{ 
+                  height: '100%', 
+                  background: '#fff', 
+                  width: i < currentStoryIndex ? '100%' : i === currentStoryIndex ? `${storyProgress}%` : '0%',
+                  transition: i === currentStoryIndex ? 'width 0.1s linear' : 'none'
+                }}></div>
+              </div>
+            ))}
+          </div>
+
+          {/* User Info Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '25px 15px 15px', position: 'absolute', top: '10px', left: 0, right: 0, zIndex: 10, background: 'linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)' }}>
+            <div className="user-avatar-small" style={{ width: '36px', height: '36px', border: '1px solid #fff' }}>
+               {groupedStories[currentStoryUserIndex].user.avatarUrl ? <img src={groupedStories[currentStoryUserIndex].user.avatarUrl} alt="user" /> : groupedStories[currentStoryUserIndex].user.username.charAt(0).toUpperCase()}
+            </div>
+            <span style={{ color: '#fff', fontWeight: 'bold' }}>{groupedStories[currentStoryUserIndex].user.username}</span>
+            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', marginLeft: 'auto' }}>
+              {new Date(groupedStories[currentStoryUserIndex].stories[currentStoryIndex].createdAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+            </span>
+            {groupedStories[currentStoryUserIndex].user._id === user.id && (
+              <button style={{ background: 'transparent', border: 'none', color: '#fff', padding: '5px', marginLeft: '10px', cursor: 'pointer' }} onClick={async () => {
+                const sId = groupedStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
+                try {
+                  await fetch(`${API_URL}/api/stories/${sId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }});
+                  fetchStories();
+                  setStoryViewerActive(false);
+                } catch(e) {}
+              }}><Trash2 size={20}/></button>
+            )}
+            <button style={{ background: 'transparent', border: 'none', color: '#fff', padding: '5px', cursor: 'pointer' }} onClick={() => setStoryViewerActive(false)}><X size={28}/></button>
+          </div>
+
+          {/* Media Container */}
+          <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {groupedStories[currentStoryUserIndex].stories[currentStoryIndex].mediaType === 'video' ? (
+              <video 
+                src={groupedStories[currentStoryUserIndex].stories[currentStoryIndex].mediaUrl} 
+                autoPlay 
+                playsInline 
+                onEnded={() => {
+                  if (currentStoryIndex < groupedStories[currentStoryUserIndex].stories.length - 1) {
+                    setCurrentStoryIndex(prev => prev + 1);
+                    setStoryProgress(0);
+                  } else if (currentStoryUserIndex < groupedStories.length - 1) {
+                    setCurrentStoryUserIndex(prev => prev + 1);
+                    setCurrentStoryIndex(0);
+                    setStoryProgress(0);
+                  } else {
+                    setStoryViewerActive(false);
+                  }
+                }}
+                onTimeUpdate={(e) => {
+                  setStoryProgress((e.target.currentTime / e.target.duration) * 100);
+                }}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            ) : (
+              <img 
+                src={groupedStories[currentStoryUserIndex].stories[currentStoryIndex].mediaUrl} 
+                alt="story" 
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+              />
+            )}
+
+            {/* Click Navigation Areas */}
+            <div 
+              style={{ position: 'absolute', top: 0, left: 0, width: '30%', height: '100%', zIndex: 5, cursor: 'w-resize' }} 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (currentStoryIndex > 0) {
+                  setCurrentStoryIndex(prev => prev - 1);
+                  setStoryProgress(0);
+                } else if (currentStoryUserIndex > 0) {
+                  setCurrentStoryUserIndex(prev => prev - 1);
+                  setCurrentStoryIndex(groupedStories[currentStoryUserIndex - 1].stories.length - 1);
+                  setStoryProgress(0);
+                }
+              }}
+            />
+            <div 
+              style={{ position: 'absolute', top: 0, right: 0, width: '70%', height: '100%', zIndex: 5, cursor: 'e-resize' }} 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (currentStoryIndex < groupedStories[currentStoryUserIndex].stories.length - 1) {
+                  setCurrentStoryIndex(prev => prev + 1);
+                  setStoryProgress(0);
+                } else if (currentStoryUserIndex < groupedStories.length - 1) {
+                  setCurrentStoryUserIndex(prev => prev + 1);
+                  setCurrentStoryIndex(0);
+                  setStoryProgress(0);
+                } else {
+                  setStoryViewerActive(false);
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+
+export default Dashboard;

@@ -285,6 +285,7 @@ const User = require('./models/User');
 const DeletedUser = require('./models/DeletedUser');
 const Message = require('./models/Message');
 const Report = require('./models/Report');
+const Story = require('./models/Story');
 const AdminData = require('./models/AdminData');
 const BotRule = require('./models/BotRule');
 const UserSession = require('./models/UserSession');
@@ -1166,6 +1167,95 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error fetching connections' });
   }
 });
+
+// --- Status/Story Routes ---
+
+// Create a new story
+app.post('/api/stories', authenticateToken, async (req, res) => {
+  try {
+    const { mediaUrl, mediaType } = req.body;
+    if (!mediaUrl) return res.status(400).json({ message: 'Media URL is required' });
+    
+    const newStory = new Story({
+      user: req.user.userId,
+      mediaUrl,
+      mediaType: mediaType || 'image'
+    });
+    
+    await newStory.save();
+    await newStory.populate('user', 'username avatarUrl uniqueId');
+    
+    res.status(201).json(newStory);
+  } catch (error) {
+    console.error('Error creating story:', error);
+    res.status(500).json({ message: 'Error creating story' });
+  }
+});
+
+// Get stories from followed users and self
+app.get('/api/stories', authenticateToken, async (req, res) => {
+  try {
+    const currentUserId = req.user.userId;
+    const currentUser = await User.findById(currentUserId).select('following');
+    
+    if (!currentUser) return res.status(404).json({ message: 'User not found' });
+    
+    // Get stories of current user + users they follow
+    const userIds = [currentUserId, ...currentUser.following];
+    
+    const stories = await Story.find({ user: { $in: userIds } })
+      .populate('user', 'username avatarUrl uniqueId')
+      .sort({ createdAt: 1 })
+      .lean();
+      
+    // Group stories by user
+    const groupedStoriesMap = new Map();
+    
+    stories.forEach(story => {
+      if (!story.user) return; // ignore if user was deleted
+      const uId = story.user._id.toString();
+      if (!groupedStoriesMap.has(uId)) {
+        groupedStoriesMap.set(uId, {
+          user: story.user,
+          stories: []
+        });
+      }
+      groupedStoriesMap.get(uId).stories.push(story);
+    });
+    
+    // Convert to array and put current user first if they have stories
+    let groupedStories = Array.from(groupedStoriesMap.values());
+    const currentUserStoriesIndex = groupedStories.findIndex(g => g.user._id.toString() === currentUserId);
+    if (currentUserStoriesIndex > 0) {
+      const cuStories = groupedStories.splice(currentUserStoriesIndex, 1)[0];
+      groupedStories.unshift(cuStories);
+    }
+    
+    res.json(groupedStories);
+  } catch (error) {
+    console.error('Error fetching stories:', error);
+    res.status(500).json({ message: 'Error fetching stories' });
+  }
+});
+
+// Delete a story
+app.delete('/api/stories/:id', authenticateToken, async (req, res) => {
+  try {
+    const story = await Story.findById(req.params.id);
+    if (!story) return res.status(404).json({ message: 'Story not found' });
+    
+    // Ensure the user owns the story or is admin (if we had admin auth here)
+    if (story.user.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Not authorized to delete this story' });
+    }
+    
+    await Story.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting story' });
+  }
+});
+
 
 // Get Messages Route (with Pagination)
 app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
