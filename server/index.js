@@ -2281,7 +2281,7 @@ io.on('connection', (socket) => {
             partnerId: user2.userId,
             partnerAvatar: user2Record?.avatarUrl,
             partnerCountry: (user2Record?.countryCode && user2Record.countryCode !== 'UN') ? user2Record.country : factForUser1.countryName,
-            partnerCountryCode: factForUser1.countryCode,
+            partnerCountryCode: (user2Record?.countryCode && user2Record.countryCode !== 'UN') ? user2Record.countryCode : factForUser1.countryCode,
             partnerFact: factForUser1.fact
           });
           io.to(user2.socketId).emit('match_found', { 
@@ -2289,7 +2289,7 @@ io.on('connection', (socket) => {
             partnerId: user1.userId,
             partnerAvatar: user1Record?.avatarUrl,
             partnerCountry: (user1Record?.countryCode && user1Record.countryCode !== 'UN') ? user1Record.country : factForUser2.countryName,
-            partnerCountryCode: factForUser2.countryCode,
+            partnerCountryCode: (user1Record?.countryCode && user1Record.countryCode !== 'UN') ? user1Record.countryCode : factForUser2.countryCode,
             partnerFact: factForUser2.fact
           });
         } catch (err) {
