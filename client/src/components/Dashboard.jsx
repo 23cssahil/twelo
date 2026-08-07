@@ -287,6 +287,7 @@ export default function Dashboard() {
   const [editUsernameMode, setEditUsernameMode] = useState(false);
   const [newUsernameInput, setNewUsernameInput] = useState('');
   const [usernameError, setUsernameError] = useState('');
+  const [pushNotifEnabled, setPushNotifEnabled] = useState(false);
 
   // Profile & Social State
   const [profileStats, setProfileStats] = useState(null);
@@ -433,52 +434,72 @@ export default function Dashboard() {
 
 
 
-  const handleEnableNotifications = async () => {
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
-        const registration = await navigator.serviceWorker.ready;
-        let subscription = await registration.pushManager.getSubscription();
-        if (!subscription) {
-          const vapidPublicKey = 'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA';
-          const convertedVapidKey = (base64String => {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-            return outputArray;
-          })(vapidPublicKey);
+  // Check push notification status on mount
+  useEffect(() => {
+    const checkPushStatus = async () => {
+      try {
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+          setPushNotifEnabled(!!subscription && Notification.permission === 'granted');
+        }
+      } catch (e) { console.log('Push check error:', e); }
+    };
+    checkPushStatus();
+  }, []);
 
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: convertedVapidKey
-          });
+  const handleToggleNotifications = async () => {
+    try {
+      if (pushNotifEnabled) {
+        // Turn OFF - unsubscribe
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+          if (subscription) {
+            await subscription.unsubscribe();
+          }
         }
-        
-        // Send to backend
-        const res = await fetch(`${API_URL}/api/users/subscribe`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
-          },
-          body: JSON.stringify(subscription)
-        });
-        
-        if (res.ok) {
-          showToastMsg('Push notifications enabled!', 'info'); // 'info' type gives a normal toast
-        } else {
-          showToastMsg('Failed to enable push notifications on server.', 'error');
-        }
-      } else if (permission === 'denied') {
-        showToastMsg('Notifications blocked. Please allow them in your browser settings.', 'error');
+        setPushNotifEnabled(false);
+        showToastMsg('Push notifications disabled', 'info');
       } else {
-        showToastMsg('Push notifications are not supported in this browser.', 'error');
+        // Turn ON - subscribe
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
+          const registration = await navigator.serviceWorker.ready;
+          let subscription = await registration.pushManager.getSubscription();
+          if (!subscription) {
+            const vapidPublicKey = 'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA';
+            const convertedVapidKey = (base64String => {
+              const padding = '='.repeat((4 - base64String.length % 4) % 4);
+              const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+              const rawData = window.atob(base64);
+              const outputArray = new Uint8Array(rawData.length);
+              for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+              return outputArray;
+            })(vapidPublicKey);
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: convertedVapidKey
+            });
+          }
+          const res = await fetch(`${API_URL}/api/users/subscribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(subscription)
+          });
+          if (res.ok) {
+            setPushNotifEnabled(true);
+            showToastMsg('Push notifications enabled!', 'info');
+          } else {
+            showToastMsg('Failed to enable notifications.', 'error');
+          }
+        } else if (permission === 'denied') {
+          showToastMsg('Notifications blocked by browser. Allow in browser settings.', 'error');
+        }
       }
     } catch (err) {
-      console.error('Web Push Setup Error:', err);
-      showToastMsg('An error occurred while enabling notifications.', 'error');
+      console.error('Push toggle error:', err);
+      showToastMsg('Error toggling notifications.', 'error');
     }
   };
 
@@ -3258,9 +3279,23 @@ export default function Dashboard() {
                 </button>
               )}
               
-              <button className="settings-item-btn" onClick={handleEnableNotifications}>
-                Enable Push Notifications
-              </button>
+              <div className="settings-item-btn" onClick={handleToggleNotifications} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                <span>Push Notifications</span>
+                <div style={{
+                  width: '46px', height: '26px', borderRadius: '13px',
+                  background: pushNotifEnabled ? '#2bd856' : 'rgba(255,255,255,0.15)',
+                  position: 'relative', transition: 'background 0.3s ease',
+                  flexShrink: 0
+                }}>
+                  <div style={{
+                    width: '22px', height: '22px', borderRadius: '50%',
+                    background: '#fff', position: 'absolute', top: '2px',
+                    left: pushNotifEnabled ? '22px' : '2px',
+                    transition: 'left 0.3s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                  }} />
+                </div>
+              </div>
 
               
               <button className="settings-item-btn" onClick={() => navigate('/about-us')}>
