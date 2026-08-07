@@ -1429,7 +1429,15 @@ export default function Dashboard() {
     let finalFile = storyFile;
     
     let mediaType = 'image';
-    if (storyFile.type.startsWith('video/')) mediaType = 'video';
+    if (storyFile && storyFile.type && storyFile.type.startsWith('video/')) mediaType = 'video';
+    
+    if (mediaType === 'image') {
+      try {
+        finalFile = await compressImage(storyFile);
+      } catch (err) {
+        console.error('Compression failed, using original', err);
+      }
+    }
     
     const formData = new FormData();
     formData.append('file', finalFile);
@@ -4065,7 +4073,7 @@ export default function Dashboard() {
           top: '20px',
           left: '50%',
           transform: 'translateX(-50%)',
-          zIndex: 10000,
+          zIndex: 99999,
           background: toast.type === 'coin' ? 'linear-gradient(145deg, #1e1e1e, #111)' : toast.type === 'error' ? '#ef4444' : '#10b981',
           border: toast.type === 'coin' ? '1px solid #333' : 'none',
           color: '#fff',
