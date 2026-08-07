@@ -15,6 +15,18 @@ const storySchema = new mongoose.Schema({
     enum: ['image', 'video'],
     default: 'image'
   },
+  visibility: {
+    type: String,
+    enum: ['everyone', 'followers', 'custom'],
+    default: 'everyone'
+  },
+  allowedUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  songUrl: {
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now,

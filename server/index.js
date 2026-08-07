@@ -1173,13 +1173,16 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
 // Create a new story
 app.post('/api/stories', authenticateToken, async (req, res) => {
   try {
-    const { mediaUrl, mediaType } = req.body;
+    const { mediaUrl, mediaType, visibility, allowedUsers, songUrl } = req.body;
     if (!mediaUrl) return res.status(400).json({ message: 'Media URL is required' });
     
     const newStory = new Story({
       user: req.user.userId,
       mediaUrl,
-      mediaType: mediaType || 'image'
+      mediaType: mediaType || 'image',
+      visibility: visibility || 'everyone',
+      allowedUsers: allowedUsers || [],
+      songUrl: songUrl || null
     });
     
     await newStory.save();
@@ -1200,10 +1203,16 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
     
     if (!currentUser) return res.status(404).json({ message: 'User not found' });
     
-    // Get stories of current user + users they follow
-    const userIds = [currentUserId, ...currentUser.following];
+    // Get stories of current user + users they follow + custom visible
+    const followingIds = currentUser.following || [];
     
-    const stories = await Story.find({ user: { $in: userIds } })
+    const stories = await Story.find({
+      $or: [
+        { user: currentUserId }, // Self
+        { user: { $in: followingIds }, visibility: { $in: ['everyone', 'followers'] } },
+        { visibility: 'custom', allowedUsers: currentUserId }
+      ]
+    })
       .populate('user', 'username avatarUrl uniqueId')
       .sort({ createdAt: 1 })
       .lean();

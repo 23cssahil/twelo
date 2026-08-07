@@ -41,7 +41,14 @@ import {
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
 import * as THREE from 'three';
+import Cropper from 'react-easy-crop';
 import { AuthContext, SocketContext } from '../App';
+
+const SAMPLE_SONGS = [
+  { id: '1', name: 'Chill Vibes', url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3' },
+  { id: '2', name: 'Upbeat Pop', url: 'https://cdn.pixabay.com/download/audio/2022/10/18/audio_31c2730e64.mp3?filename=good-night-160166.mp3' },
+  { id: '3', name: 'Lofi Study', url: 'https://cdn.pixabay.com/download/audio/2022/03/09/audio_9ec14115eb.mp3?filename=lofi-chill-140858.mp3' }
+];
 
 const CoinSVG = ({ size = 18, style = {} }) => (
   <span style={{ fontSize: `${size}px`, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', ...style }}>🪙</span>
@@ -329,6 +336,18 @@ export default function Dashboard() {
   const [storyViewerActive, setStoryViewerActive] = useState(false);
   const [currentStoryUserIndex, setCurrentStoryUserIndex] = useState(0);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
+
+  // Story Editor State
+  const [storyEditorOpen, setStoryEditorOpen] = useState(false);
+  const [storyFile, setStoryFile] = useState(null);
+  const [storyPreviewUrl, setStoryPreviewUrl] = useState('');
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [storyVisibility, setStoryVisibility] = useState('everyone');
+  const [selectedSongUrl, setSelectedSongUrl] = useState('');
+  const [showMusicPicker, setShowMusicPicker] = useState(false);
+  const [musicPlayerRef, setMusicPlayerRef] = useState(null);
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef(null);
   const [activeStoryTimeout, setActiveStoryTimeout] = useState(null);
@@ -651,6 +670,26 @@ export default function Dashboard() {
     }
     return () => clearInterval(interval);
   }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories]);
+
+  useEffect(() => {
+    let audio = null;
+    if (storyViewerActive && groupedStories[currentStoryUserIndex]) {
+      const currentStory = groupedStories[currentStoryUserIndex].stories[currentStoryIndex];
+      if (currentStory.songUrl) {
+        audio = new Audio(currentStory.songUrl);
+        audio.loop = true;
+        audio.play().catch(e => console.error("Audio play blocked", e));
+      }
+    }
+    
+    return () => {
+      if (audio) {
+        audio.pause();
+        audio = null;
+      }
+    };
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories]);
+
 
   useEffect(() => {
     if (token) {
@@ -1372,44 +1411,111 @@ export default function Dashboard() {
     }
   };
 
-  const handleStorySelect = async (e) => {
+  const createImage = (url) =>
+    new Promise((resolve, reject) => {
+      const image = new Image();
+      image.addEventListener('load', () => resolve(image));
+      image.addEventListener('error', (error) => reject(error));
+      image.setAttribute('crossOrigin', 'anonymous');
+      image.src = url;
+    });
+
+  const getCroppedImg = async (imageSrc, pixelCrop) => {
+    const image = await createImage(imageSrc);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
+
+    ctx.drawImage(
+      image,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
+      pixelCrop.width,
+      pixelCrop.height
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob((file) => {
+        resolve(file);
+      }, 'image/jpeg');
+    });
+  };
+
+  const handleStorySelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setStoryUploading(true);
-      // Determine type
-      let mediaType = 'image';
-      if (file.type.startsWith('video/')) mediaType = 'video';
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', 'twelo_unsigned');
-      formData.append('folder', 'twelo_stories');
-      
+      setStoryFile(file);
+      setStoryPreviewUrl(URL.createObjectURL(file));
+      setStoryEditorOpen(true);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setStoryVisibility('everyone');
+      setSelectedSongUrl('');
+    }
+    e.target.value = '';
+  };
+
+  const handleStoryUpload = async () => {
+    setStoryUploading(true);
+    let finalFile = storyFile;
+    
+    let mediaType = 'image';
+    if (storyFile.type.startsWith('video/')) mediaType = 'video';
+    else if (croppedAreaPixels) {
       try {
-        const res = await fetch(`https://api.cloudinary.com/v1_1/wda7nysx/auto/upload`, {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
-        if (res.ok && data.secure_url) {
-          // Send to backend
-          const storyRes = await fetch(`${API_URL}/api/stories`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ mediaUrl: data.secure_url, mediaType })
-          });
-          if (storyRes.ok) {
-            fetchStories(); // refresh stories list
-          }
-        }
-      } catch (err) {
-        console.error('Story upload failed', err);
-      } finally {
-        setStoryUploading(false);
+        finalFile = await getCroppedImg(storyPreviewUrl, croppedAreaPixels);
+      } catch (e) {
+        console.error('Crop failed', e);
       }
+    }
+    
+    const formData = new FormData();
+    formData.append('file', finalFile);
+    formData.append('upload_preset', 'twelo_unsigned');
+    formData.append('folder', 'twelo_stories');
+    
+    try {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/wda7nysx/auto/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (res.ok && data.secure_url) {
+        const storyRes = await fetch(`${API_URL}/api/stories`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            mediaUrl: data.secure_url, 
+            mediaType,
+            visibility: storyVisibility,
+            songUrl: selectedSongUrl
+          })
+        });
+        if (storyRes.ok) {
+          fetchStories();
+          setStoryEditorOpen(false);
+          setStoryFile(null);
+          showToast('Status added successfully!');
+        } else {
+          showToast('Failed to save status on server', 'error');
+        }
+      } else {
+        showToast('Image upload failed', 'error');
+      }
+    } catch (err) {
+      console.error('Story upload failed', err);
+      showToast('Status upload failed', 'error');
+    } finally {
+      setStoryUploading(false);
     }
   };
 
@@ -4027,6 +4133,95 @@ export default function Dashboard() {
               100% { top: -50px; opacity: 0; }
             }
           `}</style>
+        </div>
+      )}
+
+      {/* Story Editor Overlay */}
+      {storyEditorOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          background: '#000', zIndex: 11000, display: 'flex', flexDirection: 'column'
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px', background: 'rgba(0,0,0,0.5)', zIndex: 10 }}>
+            <button style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }} onClick={() => setStoryEditorOpen(false)}>
+              <X size={28} />
+            </button>
+            <button style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }} onClick={() => setShowMusicPicker(!showMusicPicker)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: selectedSongUrl ? 'var(--brand-blue)' : 'rgba(255,255,255,0.2)', padding: '5px 10px', borderRadius: '20px' }}>
+                <span style={{ fontSize: '1.2rem' }}>🎵</span>
+                <span style={{ fontSize: '0.85rem' }}>{selectedSongUrl ? 'Song Added' : 'Music'}</span>
+              </div>
+            </button>
+          </div>
+
+          {/* Music Picker Drawer */}
+          {showMusicPicker && (
+            <div style={{ position: 'absolute', top: '70px', right: '15px', width: '200px', background: '#1a1a1a', borderRadius: '12px', padding: '10px', zIndex: 20, boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
+              <div style={{ color: '#888', fontSize: '0.8rem', marginBottom: '10px', paddingLeft: '5px' }}>Select a track</div>
+              {SAMPLE_SONGS.map(song => (
+                <div 
+                  key={song.id}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 5px', cursor: 'pointer', borderRadius: '8px', background: selectedSongUrl === song.url ? 'rgba(59, 130, 246, 0.2)' : 'transparent' }}
+                  onClick={() => {
+                    setSelectedSongUrl(song.url);
+                    setShowMusicPicker(false);
+                  }}
+                >
+                  <span style={{ color: '#fff', fontSize: '0.9rem' }}>{song.name}</span>
+                  {selectedSongUrl === song.url && <Check size={16} color="var(--brand-blue)" />}
+                </div>
+              ))}
+              <div 
+                style={{ padding: '10px 5px', cursor: 'pointer', color: '#ef4444', fontSize: '0.9rem', marginTop: '5px', borderTop: '1px solid #333' }}
+                onClick={() => { setSelectedSongUrl(''); setShowMusicPicker(false); }}
+              >
+                None (Remove Music)
+              </div>
+            </div>
+          )}
+
+          {/* Cropper Area */}
+          <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {storyFile?.type?.startsWith('video/') ? (
+              <video src={storyPreviewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} controls autoPlay loop />
+            ) : (
+              <Cropper
+                image={storyPreviewUrl}
+                crop={crop}
+                zoom={zoom}
+                aspect={9 / 16}
+                onCropChange={setCrop}
+                onCropComplete={(croppedArea, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
+                onZoomChange={setZoom}
+              />
+            )}
+          </div>
+
+          {/* Footer Controls */}
+          <div style={{ padding: '20px 15px', background: 'rgba(0,0,0,0.8)', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#222', padding: '10px 15px', borderRadius: '12px' }}>
+              <span style={{ color: '#a8a8a8', fontSize: '0.9rem' }}>Who can see this?</span>
+              <select 
+                value={storyVisibility} 
+                onChange={(e) => setStoryVisibility(e.target.value)}
+                style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                <option value="everyone" style={{ color: '#000' }}>Everyone</option>
+                <option value="followers" style={{ color: '#000' }}>Followers Only</option>
+                <option value="custom" style={{ color: '#000' }}>Close Friends</option>
+              </select>
+            </div>
+            
+            <button 
+              onClick={handleStoryUpload}
+              disabled={storyUploading}
+              style={{ width: '100%', padding: '15px', background: storyUploading ? '#555' : 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: '#fff', border: 'none', borderRadius: '30px', fontSize: '1rem', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', cursor: storyUploading ? 'not-allowed' : 'pointer' }}
+            >
+              {storyUploading ? <Loader2 className="rotating" size={20} /> : <Check size={20} />}
+              {storyUploading ? 'Posting...' : 'Share to Status'}
+            </button>
+          </div>
         </div>
       )}
 
