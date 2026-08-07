@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Allow: /about-us
+Allow: /privacy-policy
+Allow: /terms
+Allow: /contact-us
+
+Disallow: /twelo-admin-6006390989
+Disallow: /admin/
+
+Sitemap: https://nexgenrewards.store/sitemap.xml
