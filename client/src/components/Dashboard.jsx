@@ -2858,11 +2858,14 @@ export default function Dashboard() {
                                   </div>
                                 ) : (
                                   <button onClick={() => {
-                                    if (msg.sender !== user.id) {
-                                      socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id, senderId: msg.sender });
-                                      msg.isViewed = true;
+                                    if (String(msg.sender) !== String(user._id || user.id)) {
+                                      socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id || user._id, senderId: msg.sender });
+                                      setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, isViewed: true } : m));
+                                    } else {
+                                      msg.isViewed = true; // sender can just view it once locally and have it marked
+                                      setMessages([...messages]); // trigger re-render
                                     }
-                                    setFullScreenMedia(msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`);
+                                    setFullScreenMedia({ url: msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`, isViewOnce: true });
                                   }} style={{ padding: '10px 20px', background: 'var(--brand-blue)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', border: 'none', cursor: 'pointer' }}>
                                     <ImageIcon size={18} /> View Photo
                                   </button>
@@ -2872,7 +2875,7 @@ export default function Dashboard() {
                                   src={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`} 
                                   alt="Sent Photo" 
                                   style={{ maxWidth: '100%', borderRadius: '10px', cursor: 'pointer' }} 
-                                  onClick={() => setFullScreenMedia(msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`)}
+                                  onClick={() => setFullScreenMedia({ url: msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`, isViewOnce: false })}
                                 />
                               )}
                             </div>
@@ -3469,14 +3472,16 @@ export default function Dashboard() {
           background: 'rgba(0,0,0,0.9)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
           <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '15px' }}>
-            <button onClick={() => downloadMedia(fullScreenMedia)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            </button>
+            {!fullScreenMedia.isViewOnce && (
+              <button onClick={() => downloadMedia(fullScreenMedia.url)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              </button>
+            )}
             <button onClick={() => setFullScreenMedia(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
               <X size={28} />
             </button>
           </div>
-          <img src={fullScreenMedia} alt="Full Screen" style={{ maxWidth: '95%', maxHeight: '90%', objectFit: 'contain' }} />
+          <img src={fullScreenMedia.url} alt="Full Screen" style={{ maxWidth: '95%', maxHeight: '90%', objectFit: 'contain' }} />
         </div>
       )}
 
