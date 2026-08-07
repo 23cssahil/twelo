@@ -1195,10 +1195,14 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
 app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
   try {
     const currentUserId = req.user.userId;
-    const storyId = req.params.id;
-    const story = await Story.findByIdAndUpdate(storyId, { $addToSet: { viewedBy: currentUserId } }, { new: true });
+    const story = await Story.findById(storyId);
+    if (!story) return res.status(404).json({ message: 'Story not found' });
     
-    if (story) {
+    // Don't count owner's own views
+    if (story.user.toString() !== currentUserId && !story.viewedBy.includes(currentUserId)) {
+      story.viewedBy.push(currentUserId);
+      await story.save();
+      
       // Notify the story owner
       const ownerId = story.user.toString();
       const ownerSocketId = getSocketIdByUserId(ownerId);

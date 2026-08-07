@@ -671,12 +671,14 @@ export default function Dashboard() {
     if (storyViewerActive && groupedStories[currentStoryUserIndex]) {
       const currentStory = groupedStories[currentStoryUserIndex].stories[currentStoryIndex];
       const myId = user?._id || user?.id;
-      if (currentStory && myId && (!currentStory.viewedBy || !currentStory.viewedBy.some(v => (v._id || v) === myId))) {
+      const isOwner = groupedStories[currentStoryUserIndex].user._id === myId;
+      if (currentStory && myId && !isOwner && (!currentStory.viewedBy || !currentStory.viewedBy.some(v => (v._id || v) === myId))) {
         // Optimistically update local state
         setGroupedStories(prev => {
           const newGroups = [...prev];
           if (newGroups[currentStoryUserIndex] && newGroups[currentStoryUserIndex].stories[currentStoryIndex]) {
-             newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy = [...(newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy || []), myId];
+             // Add viewer as object so modal doesn't break if it opens immediately
+             newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy = [...(newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy || []), { _id: myId, username: user.username, avatarUrl: user.avatarUrl }];
           }
           return newGroups;
         });
