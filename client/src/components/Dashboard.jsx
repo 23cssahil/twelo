@@ -2936,7 +2936,13 @@ export default function Dashboard() {
 
                       {!isRecording && (
                         <div id="main-chat-media-actions" className="media-actions" style={{ display: 'flex', gap: '10px', paddingRight: '10px', alignItems: 'center' }}>
-                          <button type="button" className="media-btn" onClick={() => setShowGalleryPermissionPopup(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                          <button type="button" className="media-btn" onClick={() => {
+                            if (localStorage.getItem('twelo_gallery_access_granted') === 'true') {
+                              fileInputRef.current?.click();
+                            } else {
+                              setShowGalleryPermissionPopup(true);
+                            }
+                          }} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
                             <ImageIcon size={20} color="#a8a8a8" />
                           </button>
                           <input 
@@ -3566,30 +3572,31 @@ export default function Dashboard() {
 
       {/* Gallery Permission Popup */}
       {showGalleryPermissionPopup && (
-        <div className="modal-overlay" onClick={() => setShowGalleryPermissionPopup(false)} style={{ zIndex: 10000 }}>
-          <div className="modal-content" style={{ textAlign: 'center', padding: '30px 25px', maxWidth: '350px', background: '#1e1e1e', border: '1px solid #333', borderRadius: '16px' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-               <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '15px', borderRadius: '50%', color: '#3b82f6' }}>
-                  <ImageIcon size={40} />
+        <div className="modal-overlay" onClick={() => setShowGalleryPermissionPopup(false)} style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-content" style={{ padding: '24px', maxWidth: '320px', width: '90%', background: 'linear-gradient(145deg, #1e1e1e, #111)', border: '1px solid #333', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+               <div style={{ background: 'var(--brand-blue)', padding: '10px', borderRadius: '10px', color: '#fff', display: 'flex' }}>
+                  <ImageIcon size={24} />
                </div>
+               <h2 style={{ fontSize: '1.2rem', margin: 0, color: '#fff', fontWeight: '600' }}>Gallery Access</h2>
             </div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '10px', color: '#fff' }}>Access Gallery</h2>
-            <p style={{ color: '#a8a8a8', marginBottom: '25px', fontSize: '0.95rem', lineHeight: '1.5' }}>
-              Allow Twelo to access your device's photo gallery to select and send images?
+            <p style={{ color: '#a8a8a8', marginBottom: '24px', fontSize: '0.95rem', lineHeight: '1.4' }}>
+              Allow Twelo to access your photos? You only need to do this once.
             </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button 
                 onClick={() => setShowGalleryPermissionPopup(false)}
-                style={{ flex: 1, padding: '12px', fontSize: '1rem', background: '#2a2a2a', border: 'none', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}
+                style={{ padding: '8px 16px', fontSize: '0.95rem', background: 'transparent', border: '1px solid #444', color: '#ccc', borderRadius: '8px', cursor: 'pointer', transition: 'background 0.2s' }}
               >
-                Deny
+                Cancel
               </button>
               <button 
                 onClick={() => {
+                  localStorage.setItem('twelo_gallery_access_granted', 'true');
                   setShowGalleryPermissionPopup(false);
                   fileInputRef.current?.click();
                 }}
-                style={{ flex: 1, padding: '12px', fontSize: '1rem', background: 'var(--brand-blue)', border: 'none', color: '#fff', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}
+                style={{ padding: '8px 16px', fontSize: '0.95rem', background: 'var(--brand-blue)', border: 'none', color: '#fff', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', transition: 'background 0.2s' }}
               >
                 Allow
               </button>
