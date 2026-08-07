@@ -7,7 +7,7 @@ self.addEventListener('fetch', (e) => {
 });
 
 self.addEventListener('push', function(e) {
-  let payload = { title: 'Notification', body: 'You have a new message', icon: '/icon-192.png' };
+  let payload = { title: 'Notification', body: 'You have a new message', icon: 'https://nexgenrewards.store/icon-192.png' };
   
   if (e.data) {
     try {
@@ -27,14 +27,25 @@ self.addEventListener('push', function(e) {
       // If there's already an unread notification from this person, append the message
       if (notifications && notifications.length > 0) {
         const existingBody = notifications[0].body;
-        newBody = existingBody + '\n' + payload.body;
+        
+        // Prevent duplicate appending if the exact same message was just received
+        // (This handles duplicate push events triggered by duplicate valid subscriptions on the backend)
+        const messages = existingBody.split('\n');
+        const lastMessage = messages[messages.length - 1];
+        
+        if (lastMessage !== payload.body) {
+          newBody = existingBody + '\n' + payload.body;
+        } else {
+          newBody = existingBody; // Do not append duplicate
+        }
+        
         notifications[0].close(); // Close old one to cleanly replace
       }
 
       const options = {
         body: newBody,
-        icon: payload.icon || '/icon-192.png',
-        badge: '/icon-192.png',
+        icon: payload.icon || 'https://nexgenrewards.store/icon-192.png',
+        badge: 'https://nexgenrewards.store/icon-192.png',
         tag: notificationTag,
         vibrate: [200, 100, 200, 100, 200, 100, 200],
         requireInteraction: true,

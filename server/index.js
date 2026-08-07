@@ -2025,18 +2025,30 @@ io.on('connection', (socket) => {
         const isMutual = senderObj.followers.some(id => id.toString() === receiverId.toString()) && 
                          senderObj.following.some(id => id.toString() === receiverId.toString());
         if (isMutual && !receiverObj.ownedByAdmin && receiverObj.pushSubscriptions && receiverObj.pushSubscriptions.length > 0) {
-          const pushPayload = JSON.stringify({
-            title: `New message from ${senderObj.username}`,
-            body: messageType === 'text' ? messageText : `Sent a ${messageType}`,
-            icon: '/icon-192.png',
-            url: `/?chat=${senderId}`
-          });
-          const pushes = receiverObj.pushSubscriptions.map(sub => 
-            webpush.sendNotification(sub, pushPayload).catch(e => console.log('Push error:', e))
-          );
-          await Promise.all(pushes);
+            const pushPayload = JSON.stringify({
+              title: `New message from ${senderObj.username}`,
+              body: messageType === 'text' ? messageText : `Sent a ${messageType}`,
+              icon: 'https://nexgenrewards.store/icon-192.png',
+              url: `/?chat=${senderId}`
+            });
+            const pushes = receiverObj.pushSubscriptions.map(async (sub) => {
+              try {
+                await webpush.sendNotification(sub, pushPayload);
+              } catch (e) {
+                if (e.statusCode === 410 || e.statusCode === 404) {
+                  // Subscription is dead or no longer valid, remove it
+                  await User.updateOne(
+                    { _id: receiverObj._id },
+                    { $pull: { pushSubscriptions: { endpoint: sub.endpoint } } }
+                  );
+                } else {
+                  console.log('Push error:', e);
+                }
+              }
+            });
+            await Promise.all(pushes);
+          }
         }
-      }
     } catch (error) {
       console.error(error);
     }
