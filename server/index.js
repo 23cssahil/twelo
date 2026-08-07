@@ -1262,6 +1262,8 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
       ]
     })
       .populate('user', 'username avatarUrl uniqueId')
+      .populate('viewedBy', 'username avatarUrl')
+      .populate('likedBy', 'username avatarUrl')
       .sort({ createdAt: 1 })
       .lean();
       
@@ -1315,6 +1317,30 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching stories:', error);
     res.status(500).json({ message: 'Error fetching stories' });
+  }
+});
+
+// Toggle like on a story
+app.post('/api/stories/:id/like', authenticateToken, async (req, res) => {
+  try {
+    const storyId = req.params.id;
+    const userId = req.user.userId;
+    const story = await Story.findById(storyId);
+    if (!story) return res.status(404).json({ message: 'Story not found' });
+    
+    const likedIndex = story.likedBy.indexOf(userId);
+    if (likedIndex > -1) {
+      // Unlike
+      story.likedBy.splice(likedIndex, 1);
+    } else {
+      // Like
+      story.likedBy.push(userId);
+    }
+    await story.save();
+    res.json({ likedBy: story.likedBy });
+  } catch (error) {
+    console.error('Error toggling story like:', error);
+    res.status(500).json({ message: 'Error toggling story like' });
   }
 });
 

@@ -37,7 +37,9 @@ import {
   PlusCircle,
   ChevronLeft,
   ChevronRight,
-  Users
+  Users,
+  Heart,
+  Eye
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -352,6 +354,9 @@ export default function Dashboard() {
   // Swipe handling state
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
+  
+  // Story Views Modal
+  const [showStoryViewsModal, setShowStoryViewsModal] = useState(false);
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef(null);
   const [activeStoryTimeout, setActiveStoryTimeout] = useState(null);
@@ -684,6 +689,38 @@ export default function Dashboard() {
       }
     }
   }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, user, token]);
+
+  const handleStoryLike = async (storyId, userIndex, storyIndex) => {
+    const myId = user?._id || user?.id;
+    if (!myId) return;
+
+    // Optimistic update
+    setGroupedStories(prev => {
+      const newGroups = [...prev];
+      if (newGroups[userIndex] && newGroups[userIndex].stories[storyIndex]) {
+        const story = newGroups[userIndex].stories[storyIndex];
+        const likedBy = story.likedBy || [];
+        const isLiked = likedBy.some(u => u._id === myId || u === myId);
+        
+        if (isLiked) {
+          story.likedBy = likedBy.filter(u => u._id !== myId && u !== myId);
+        } else {
+          story.likedBy = [...likedBy, { _id: myId, username: user.username, avatarUrl: user.avatarUrl }];
+        }
+      }
+      return newGroups;
+    });
+
+    try {
+      await fetch(`${API_URL}/api/stories/${storyId}/like`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      // Optionally fetchStories() to get real data, but optimistic update is enough
+    } catch (err) {
+      console.error('Failed to toggle like', err);
+    }
+  };
 
   useEffect(() => {
     let interval;
@@ -1019,14 +1056,16 @@ export default function Dashboard() {
 
   // SPA Back Button Handling for Overlays & Chats
   useEffect(() => {
-    const isOverlayOpen = showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || storyViewerActive || storyEditorOpen || showCloseFriendsModal;
+    const isOverlayOpen = showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || storyViewerActive || storyEditorOpen || showCloseFriendsModal || showStoryViewsModal;
     
     if (isOverlayOpen) {
       window.history.pushState({ overlayOpen: true }, '');
     }
 
     const handlePopState = (e) => {
-      if (showCloseFriendsModal) {
+      if (showStoryViewsModal) {
+        setShowStoryViewsModal(false);
+      } else if (showCloseFriendsModal) {
         setShowCloseFriendsModal(false);
       } else if (storyEditorOpen) {
         setStoryEditorOpen(false);
@@ -1054,7 +1093,7 @@ export default function Dashboard() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal]);
+  }, [showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal]);
 
   // Lock document scroll when chat is active to prevent keyboard from pushing header out of view
   useEffect(() => {
@@ -4462,6 +4501,80 @@ export default function Dashboard() {
                 }
               }}
             />
+          </div>
+
+          {/* Bottom Controls */}
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
+            {groupedStories[currentStoryUserIndex].user._id === (user?._id || user?.id) ? (
+              // Creator View
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: 'rgba(255,255,255,0.2)', padding: '8px 15px', borderRadius: '20px' }}
+                onClick={(e) => { e.stopPropagation(); setShowStoryViewsModal(true); }}
+              >
+                <Eye size={18} color="#fff" />
+                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                  {groupedStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy?.length || 0}
+                </span>
+                <Heart size={16} color="#fff" style={{ marginLeft: '10px' }} />
+                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                  {groupedStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.length || 0}
+                </span>
+              </div>
+            ) : (
+              // Viewer View (Like Button)
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+                <button 
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', zIndex: 15 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const sId = groupedStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
+                    handleStoryLike(sId, currentStoryUserIndex, currentStoryIndex);
+                  }}
+                >
+                  <Heart 
+                    size={32} 
+                    fill={groupedStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : 'transparent'} 
+                    color={groupedStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : '#fff'} 
+                  />
+                </button>
+              </div>
+            )}
+          </div>
+          
+        </div>
+      )}
+
+      {/* Story Views Modal */}
+      {showStoryViewsModal && storyViewerActive && groupedStories[currentStoryUserIndex] && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 12000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div style={{ width: '100%', maxWidth: '500px', height: '60vh', background: '#121212', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #333' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Eye size={20} color="#fff" />
+                <span style={{ color: '#fff', fontSize: '1rem', fontWeight: 'bold' }}>{groupedStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy?.length || 0} Views</span>
+              </div>
+              <button onClick={() => window.history.back()} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
+              {(groupedStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy?.length || 0) === 0 ? (
+                <div style={{ textAlign: 'center', color: '#888', marginTop: '40px' }}>No views yet.</div>
+              ) : (
+                groupedStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy.map(viewer => {
+                  const hasLiked = groupedStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => (u._id || u) === (viewer._id || viewer));
+                  return (
+                    <div key={viewer._id || viewer} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid #222' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div className="user-avatar-small" style={{ width: '40px', height: '40px', background: '#333', borderRadius: '50%', overflow: 'hidden' }}>
+                          {viewer.avatarUrl ? <img src={viewer.avatarUrl} alt="avatar" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff'}}>{(viewer.username || '?').charAt(0).toUpperCase()}</div>}
+                        </div>
+                        <span style={{ color: '#fff', fontSize: '1rem' }}>{viewer.username || 'Unknown'}</span>
+                      </div>
+                      {hasLiked && <Heart size={20} fill="#ff2a2a" color="#ff2a2a" />}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       )}
