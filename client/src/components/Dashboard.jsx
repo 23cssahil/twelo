@@ -3046,13 +3046,30 @@ export default function Dashboard() {
                 {recentChats.map((chatUser) => {
                   const isOnline = onlineUsers.includes(chatUser._id);
                   const unreadCount = unreadMessages[chatUser._id] || 0;
+                  
+                  // Check if this chat user has a story
+                  const chatUserStoryGroup = groupedStories.find(g => g.user._id === chatUser._id);
+                  let ringStyle = 'none';
+                  if (chatUserStoryGroup) {
+                    const myId = user?._id || user?.id;
+                    const unseenStories = chatUserStoryGroup.stories.filter(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
+                    const hasUnseen = unseenStories.length > 0;
+                    const isCloseFriend = hasUnseen ? unseenStories.some(s => s.visibility === 'custom') : chatUserStoryGroup.stories.some(s => s.visibility === 'custom');
+                    
+                    if (hasUnseen) {
+                      ringStyle = isCloseFriend ? '3px solid #2bd856' : '3px solid #00f2fe';
+                    } else {
+                      ringStyle = '3px solid #444';
+                    }
+                  }
+
                   return (
                     <div 
                       key={chatUser._id} 
                       className={`chat-user-item ${activeChatUser?._id === chatUser._id ? 'active' : ''}`}
                       onClick={() => startChatWithUser(chatUser)}
                     >
-                      <div className="user-avatar-small">
+                      <div className="user-avatar-small" style={{ border: ringStyle, padding: ringStyle !== 'none' ? '2px' : '0', boxSizing: 'border-box' }}>
                         {chatUser.avatarUrl ? <img src={chatUser.avatarUrl} alt='avatar' /> : chatUser.username.charAt(0).toUpperCase()}
                       </div>
                       <div className="user-names">

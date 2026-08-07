@@ -1205,7 +1205,7 @@ app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
       
       // Notify the story owner
       const ownerId = story.user.toString();
-      const ownerSocketId = getSocketIdByUserId(ownerId);
+      const ownerSocketId = onlineUsers.get(ownerId);
       if (ownerSocketId) {
         io.to(ownerSocketId).emit('story_interaction');
       }
@@ -1354,7 +1354,7 @@ app.post('/api/stories/:id/like', authenticateToken, async (req, res) => {
     
     // Notify the story owner
     const ownerId = story.user.toString();
-    const ownerSocketId = getSocketIdByUserId(ownerId);
+    const ownerSocketId = onlineUsers.get(ownerId);
     if (ownerSocketId) {
       io.to(ownerSocketId).emit('story_interaction');
     }
