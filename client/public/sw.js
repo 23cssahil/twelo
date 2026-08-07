@@ -45,7 +45,7 @@ self.addEventListener('push', function(e) {
       const options = {
         body: newBody,
         icon: payload.icon || 'https://nexgenrewards.store/icon-192.png',
-        badge: 'https://nexgenrewards.store/icon-192.png',
+        badge: 'https://nexgenrewards.store/badge.png',
         tag: notificationTag,
         vibrate: [200, 100, 200, 100, 200, 100, 200],
         requireInteraction: true,
