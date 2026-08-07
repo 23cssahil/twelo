@@ -556,12 +556,12 @@ export default function Dashboard() {
       // Only add messages from OTHER users here.
       // Own sent messages are already added optimistically in handleSendMessage
       // and are properly confirmed via the 'message_sent' event.
-      if (msg.sender !== user.id) {
-        if (activeChatUserRef.current && msg.sender === activeChatUserRef.current._id) {
+      if (String(msg.sender) !== String(user.id)) {
+        if (activeChatUserRef.current && String(msg.sender) === String(activeChatUserRef.current._id)) {
           // Message from active chat partner - add to view and mark viewed
           setMessages((prev) => {
             // Prevent duplicates
-            if (prev.some(m => m._id === msg._id)) return prev;
+            if (prev.some(m => String(m._id) === String(msg._id))) return prev;
             return [...prev, msg];
           });
           socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id, senderId: msg.sender });
@@ -573,6 +573,7 @@ export default function Dashboard() {
         fetchRecentChats();
       }
     });
+
 
     socket.on('message_sent', ({ tempId, message }) => {
       // Replace the optimistic temp message with the confirmed server message

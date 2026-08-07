@@ -1972,9 +1972,9 @@ io.on('connection', (socket) => {
       const senderSocketId = onlineUsers.get(senderId);
 
       const payload = {
-        _id: message._id,
-        sender: senderId,
-        receiver: receiverId,
+        _id: message._id.toString(),
+        sender: senderId.toString(),
+        receiver: receiverId.toString(),
         message: messageText,
         replyTo: replyTo,
         messageType: messageType,
