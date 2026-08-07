@@ -2288,26 +2288,7 @@ io.on('connection', (socket) => {
       const adminSockets = io.sockets.adapter.rooms.get('admin_room') || new Set();
       const availableAdmins = Array.from(adminSockets).filter(sid => !adminBusySockets.has(sid));
 
-      // Send web push notification with 5-minute cooldown to avoid spam
-      (async () => {
-        try {
-          const now = Date.now();
-          const PUSH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
-          if (now - lastGlobePushTime < PUSH_COOLDOWN_MS) return; // throttled
-          lastGlobePushTime = now;
-
-          const adminData = await AdminData.findOne();
-          if (adminData && adminData.pushSubscriptions && adminData.pushSubscriptions.length > 0) {
-            const payload = JSON.stringify({
-              title: 'Globe Touched!',
-              body: `A new user is looking for a chat. Intercept now!`,
-              icon: '/icon-192.png'
-            });
-            const pushes = adminData.pushSubscriptions.map(sub => webpush.sendNotification(sub, payload).catch(e => console.log('Push error:', e)));
-            await Promise.all(pushes);
-          }
-        } catch (e) { console.error('Error sending push', e); }
-      })();
+      // Push notifications disabled by admin preference
 
       if (availableAdmins.length > 0 && targetDbUser) {
         // Alert ALL available admins.
