@@ -2433,13 +2433,12 @@ export default function Dashboard() {
                       }}>
                         <div className="user-card-info" style={{ cursor: 'default', alignItems: 'flex-start', gap: '15px' }}>
                           <div className="user-avatar-small" style={{ 
-                            background: 'linear-gradient(135deg, #f59e0b, #d97706)', 
+                            background: 'transparent',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 0 15px rgba(245, 158, 11, 0.5)',
                             border: 'none',
-                            width: '45px', height: '45px', borderRadius: '50%', flexShrink: 0
+                            width: '45px', height: '45px', borderRadius: '12px', flexShrink: 0
                           }}>
-                             <Bell size={22} color="#fff" strokeWidth={2.5} />
+                             <img src="/icon-192.png" alt="Twelo" style={{ width: '40px', height: '40px', borderRadius: '10px' }} />
                           </div>
                           <div className="user-names">
                             <span className="user-username" style={{ 
