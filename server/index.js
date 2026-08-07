@@ -345,6 +345,9 @@ const io = socketIo(server, {
   }
 });
 
+const onlineUsers = new Map();
+const activeSessions = new Map(); // socket.id -> { userId, startTime, messagesSent, matchesMade }
+
 const { createAdapter } = require('@socket.io/redis-adapter');
 const Redis = require('ioredis');
 
@@ -1195,6 +1198,7 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
 app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
   try {
     const currentUserId = req.user.userId;
+    const storyId = req.params.id;
     const story = await Story.findById(storyId);
     if (!story) return res.status(404).json({ message: 'Story not found' });
     
@@ -1533,8 +1537,6 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
 
 
 // Socket.io Real-time Setup
-const onlineUsers = new Map();
-const activeSessions = new Map(); // socket.id -> { userId, startTime, messagesSent, matchesMade }
 // ==========================================
 // REPORTS ROUTES (USER)
 // ==========================================
