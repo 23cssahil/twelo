@@ -731,6 +731,29 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Get User Connections (Followers & Following populated)
+app.get('/api/users/connections', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId)
+      .populate('followers', 'username avatarUrl')
+      .populate('following', 'username avatarUrl')
+      .lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    // Combine unique users from both
+    const connectionsMap = new Map();
+    const addUsers = (arr) => {
+      if (arr) arr.forEach(u => connectionsMap.set(u._id.toString(), u));
+    };
+    addUsers(user.followers);
+    addUsers(user.following);
+    
+    res.json(Array.from(connectionsMap.values()));
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching connections' });
+  }
+});
+
 // Change Username
 app.post('/api/users/change_username', authenticateToken, async (req, res) => {
   try {
@@ -1165,6 +1188,18 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching connections' });
+  }
+});
+
+// Mark story as viewed
+app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
+  try {
+    const currentUserId = req.user.userId;
+    const storyId = req.params.id;
+    await Story.findByIdAndUpdate(storyId, { $addToSet: { viewedBy: currentUserId } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking story viewed' });
   }
 });
 

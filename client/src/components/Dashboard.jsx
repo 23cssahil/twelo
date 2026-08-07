@@ -341,6 +341,9 @@ export default function Dashboard() {
   const [storyFile, setStoryFile] = useState(null);
   const [storyPreviewUrl, setStoryPreviewUrl] = useState('');
   const [storyVisibility, setStoryVisibility] = useState('everyone');
+  const [showCloseFriendsModal, setShowCloseFriendsModal] = useState(false);
+  const [selectedCloseFriends, setSelectedCloseFriends] = useState([]);
+  const [userConnections, setUserConnections] = useState([]);
   const [selectedSongUrl, setSelectedSongUrl] = useState('');
   const [showMusicPicker, setShowMusicPicker] = useState(false);
   const [musicPlayerRef, setMusicPlayerRef] = useState(null);
@@ -600,6 +603,18 @@ export default function Dashboard() {
     } catch (e) { console.error(e); }
   };
 
+  const fetchConnections = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/connections`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setUserConnections(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch connections', e);
+    }
+  };
+
   const fetchNotifications = async () => {
     try {
       const res = await fetch(`${API_URL}/api/users/notifications`, { headers: { Authorization: `Bearer ${token}` } });
@@ -618,6 +633,7 @@ export default function Dashboard() {
     if (token) {
       fetchRecentChats();
       fetchProfile();
+      fetchConnections();
       fetchNotifications();
       fetchStories();
     }
@@ -640,6 +656,29 @@ export default function Dashboard() {
       showToastMsg('Network error loading stories', 'error');
     }
   };
+
+  useEffect(() => {
+    if (storyViewerActive && groupedStories[currentStoryUserIndex]) {
+      const currentStory = groupedStories[currentStoryUserIndex].stories[currentStoryIndex];
+      const myId = user?._id || user?.id;
+      if (currentStory && myId && (!currentStory.viewedBy || !currentStory.viewedBy.includes(myId))) {
+        // Optimistically update local state
+        setGroupedStories(prev => {
+          const newGroups = [...prev];
+          if (newGroups[currentStoryUserIndex] && newGroups[currentStoryUserIndex].stories[currentStoryIndex]) {
+             newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy = [...(newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy || []), myId];
+          }
+          return newGroups;
+        });
+        
+        // Fire API call
+        fetch(`${API_URL}/api/stories/${currentStory._id}/view`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(e => console.error("Error marking story viewed", e));
+      }
+    }
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, user, token]);
 
   useEffect(() => {
     let interval;
@@ -1465,6 +1504,7 @@ export default function Dashboard() {
             mediaUrl: data.secure_url, 
             mediaType,
             visibility: storyVisibility,
+            allowedUsers: storyVisibility === 'custom' ? selectedCloseFriends : [],
             songUrl: selectedSongUrl
           })
         });
@@ -2900,16 +2940,33 @@ export default function Dashboard() {
                   <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>{storyUploading ? 'Posting...' : 'Your Story'}</span>
                 </div>
                 
-                {groupedStories.map((group, idx) => (
+                {groupedStories.map((group, idx) => {
+                  const myId = user?._id || user?.id;
+                  const unseenStories = group.stories.filter(s => !s.viewedBy || !s.viewedBy.includes(myId));
+                  const hasUnseen = unseenStories.length > 0;
+                  const isCloseFriend = hasUnseen ? unseenStories.some(s => s.visibility === 'custom') : group.stories.some(s => s.visibility === 'custom');
+                  
+                  let ringBackground = '#444'; // grey for seen
+                  if (hasUnseen) {
+                    if (isCloseFriend) {
+                      ringBackground = '#1cf23b'; // green for close friends
+                    } else {
+                      ringBackground = 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
+                    }
+                  }
+
+                  return (
                   <div key={group.user._id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 }} onClick={() => {
+                    let firstUnseenIdx = group.stories.findIndex(s => !s.viewedBy || !s.viewedBy.includes(myId));
+                    if (firstUnseenIdx === -1) firstUnseenIdx = 0;
                     setCurrentStoryUserIndex(idx);
-                    setCurrentStoryIndex(0);
+                    setCurrentStoryIndex(firstUnseenIdx);
                     setStoryProgress(0);
                     setStoryViewerActive(true);
                   }}>
                     <div className="user-avatar-small" style={{ 
                       width: '56px', height: '56px', 
-                      background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+                      background: ringBackground,
                       padding: '2px', // gap for border
                       borderRadius: '50%'
                     }}>
@@ -2919,7 +2976,7 @@ export default function Dashboard() {
                     </div>
                     <span style={{ fontSize: '0.75rem', color: '#fff' }}>{group.user.username.length > 8 ? group.user.username.substring(0, 8) + '...' : group.user.username}</span>
                   </div>
-                ))}
+                )})}
               </div>
 
               <div className="chat-users-scroll">
@@ -4173,6 +4230,18 @@ export default function Dashboard() {
               </select>
             </div>
             
+            {storyVisibility === 'custom' && (
+              <div 
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#222', padding: '10px 15px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #1cf23b' }}
+                onClick={() => setShowCloseFriendsModal(true)}
+              >
+                <span style={{ color: '#1cf23b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={16} /> Select Friends
+                </span>
+                <span style={{ color: '#fff', fontSize: '0.9rem' }}>{selectedCloseFriends.length} selected &gt;</span>
+              </div>
+            )}
+            
             <button 
               onClick={handleStoryUpload}
               disabled={storyUploading}
@@ -4181,6 +4250,53 @@ export default function Dashboard() {
               {storyUploading ? <Loader2 className="rotating" size={20} /> : <Check size={20} />}
               {storyUploading ? 'Posting...' : 'Share to Status'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Close Friends Modal */}
+      {showCloseFriendsModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 12000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div style={{ width: '100%', maxWidth: '500px', height: '70vh', background: '#121212', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #333' }}>
+              <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Close Friends</h3>
+              <button onClick={() => setShowCloseFriendsModal(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
+              {userConnections.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#888', marginTop: '40px' }}>No friends found to select.</div>
+              ) : (
+                userConnections.map(conn => {
+                  const isSelected = selectedCloseFriends.includes(conn._id);
+                  return (
+                    <div 
+                      key={conn._id} 
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 10px', cursor: 'pointer', borderRadius: '8px', background: isSelected ? 'rgba(28, 242, 59, 0.1)' : 'transparent' }}
+                      onClick={() => {
+                        setSelectedCloseFriends(prev => 
+                          prev.includes(conn._id) ? prev.filter(id => id !== conn._id) : [...prev, conn._id]
+                        );
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', background: '#333' }}>
+                          {conn.avatarUrl ? <img src={conn.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>{conn.username.charAt(0).toUpperCase()}</div>}
+                        </div>
+                        <span style={{ color: '#fff', fontSize: '1rem' }}>{conn.username}</span>
+                      </div>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: isSelected ? 'none' : '2px solid #555', background: isSelected ? '#1cf23b' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {isSelected && <Check size={16} color="#000" />}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div style={{ padding: '20px', borderTop: '1px solid #333' }}>
+              <button onClick={() => setShowCloseFriendsModal(false)} style={{ width: '100%', padding: '14px', background: '#1cf23b', color: '#000', border: 'none', borderRadius: '30px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' }}>
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
