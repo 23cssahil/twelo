@@ -671,7 +671,7 @@ export default function Dashboard() {
     if (storyViewerActive && groupedStories[currentStoryUserIndex]) {
       const currentStory = groupedStories[currentStoryUserIndex].stories[currentStoryIndex];
       const myId = user?._id || user?.id;
-      if (currentStory && myId && (!currentStory.viewedBy || !currentStory.viewedBy.includes(myId))) {
+      if (currentStory && myId && (!currentStory.viewedBy || !currentStory.viewedBy.some(v => (v._id || v) === myId))) {
         // Optimistically update local state
         setGroupedStories(prev => {
           const newGroups = [...prev];
@@ -759,7 +759,12 @@ export default function Dashboard() {
       if (currentStory.songUrl) {
         audio = new Audio(currentStory.songUrl);
         audio.loop = true;
-        audio.play().catch(e => console.error("Audio play blocked", e));
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => {
+            if (e.name !== 'AbortError') console.error("Audio play blocked", e);
+          });
+        }
       }
     }
     
@@ -2998,7 +3003,7 @@ export default function Dashboard() {
                 
                 {groupedStories.map((group, idx) => {
                   const myId = user?._id || user?.id;
-                  const unseenStories = group.stories.filter(s => !s.viewedBy || !s.viewedBy.includes(myId));
+                  const unseenStories = group.stories.filter(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
                   const hasUnseen = unseenStories.length > 0;
                   const isCloseFriend = hasUnseen ? unseenStories.some(s => s.visibility === 'custom') : group.stories.some(s => s.visibility === 'custom');
                   
@@ -3013,7 +3018,7 @@ export default function Dashboard() {
 
                   return (
                   <div key={group.user._id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 }} onClick={() => {
-                    let firstUnseenIdx = group.stories.findIndex(s => !s.viewedBy || !s.viewedBy.includes(myId));
+                    let firstUnseenIdx = group.stories.findIndex(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
                     if (firstUnseenIdx === -1) firstUnseenIdx = 0;
                     setCurrentStoryUserIndex(idx);
                     setCurrentStoryIndex(firstUnseenIdx);

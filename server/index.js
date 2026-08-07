@@ -1298,7 +1298,7 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
     // Determine the latest story timestamp for each group, and whether they have any unseen stories
     groupedStories.forEach(group => {
       group.latestStoryTime = new Date(group.stories[group.stories.length - 1].createdAt).getTime();
-      group.hasUnseen = group.stories.some(s => !s.viewedBy || !s.viewedBy.includes(currentUserId));
+      group.hasUnseen = group.stories.some(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v).toString() === currentUserId));
     });
 
     // Sort grouped stories
