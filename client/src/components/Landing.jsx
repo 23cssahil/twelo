@@ -1,9 +1,32 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Shield, Globe, Gift, ArrowRight } from 'lucide-react';
+import { MessageSquare, Shield, Globe, Gift, ArrowRight, Users, Zap, Heart, BookOpen } from 'lucide-react';
 
 export default function Landing() {
   const navigate = useNavigate();
+
+  // Load AdSense only on this content page
+  useEffect(() => {
+    document.title = 'Twelo - Anonymous Chat Platform | Meet New People Globally';
+    
+    // Set meta description
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.name = 'description';
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = 'Twelo is a secure anonymous chatting platform where you can meet new people from around the world. Chat freely, make friends, earn rewards, and enjoy safe online conversations.';
+
+    // Load AdSense script dynamically
+    if (!document.querySelector('script[src*="adsbygoogle"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7775487062260313';
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+      document.head.appendChild(script);
+    }
+  }, []);
 
   return (
     <div style={{ backgroundColor: '#050505', color: '#fff', minHeight: '100vh', fontFamily: 'var(--font-sans)', overflowX: 'hidden' }}>
@@ -186,6 +209,130 @@ export default function Landing() {
             <div style={{ background: 'rgba(255,255,255,0.02)', padding: '30px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
               <h4 style={{ fontSize: '1.3rem', marginBottom: '15px', color: '#fff' }}>4. Utilize Moderation Tools</h4>
               <p style={{ color: '#a8a8a8', lineHeight: '1.6' }}>Familiarize yourself with the platform's reporting and blocking features. By actively reporting toxic behavior or spam, you not only protect yourself but also help maintain a healthy, welcoming community for everyone else.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Blog / Articles Section - High Value Content for AdSense */}
+      <section style={{ padding: '80px 20px', background: 'rgba(255,255,255,0.02)' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(0,149,246,0.1)', padding: '8px 20px', borderRadius: '30px', color: '#0095f6', fontSize: '0.9rem', fontWeight: '600', marginBottom: '20px' }}>
+              <BookOpen size={16} /> Latest Insights
+            </span>
+            <h3 style={{ fontSize: '2.5rem', marginBottom: '15px' }}>From Our Blog</h3>
+            <p style={{ color: '#a8a8a8', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Expert insights on digital communication, online safety, and the future of social interaction.</p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px' }}>
+            
+            <article style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+              <div style={{ height: '180px', background: 'linear-gradient(135deg, #0095f6 0%, #00c6ff 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Shield size={60} color="rgba(255,255,255,0.3)" />
+              </div>
+              <div style={{ padding: '25px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#0095f6', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Digital Safety</span>
+                <h4 style={{ fontSize: '1.3rem', marginTop: '10px', marginBottom: '15px', lineHeight: '1.4' }}>The Complete Guide to Staying Safe While Chatting Online in 2026</h4>
+                <p style={{ color: '#a8a8a8', lineHeight: '1.7', fontSize: '0.95rem' }}>
+                  The internet has revolutionized how we communicate. With over 4.9 billion internet users worldwide, online chatting has become a primary mode of social interaction. However, this convenience comes with unique challenges. Cybersecurity experts recommend following the principle of "minimum necessary disclosure" — sharing only information that is absolutely essential for the conversation. This means avoiding revealing your full name, home address, workplace, or daily routine to people you've just met online. Additionally, using platforms that prioritize encryption and anonymity, like Twelo, adds an extra layer of protection. Always verify the identity of people you interact with before moving conversations to other platforms, and never feel pressured to share personal details.
+                </p>
+              </div>
+            </article>
+
+            <article style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+              <div style={{ height: '180px', background: 'linear-gradient(135deg, #2bd856 0%, #a8e063 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Globe size={60} color="rgba(255,255,255,0.3)" />
+              </div>
+              <div style={{ padding: '25px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#2bd856', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Cross-Cultural Communication</span>
+                <h4 style={{ fontSize: '1.3rem', marginTop: '10px', marginBottom: '15px', lineHeight: '1.4' }}>How Anonymous Chat Platforms Are Breaking Cultural Barriers Worldwide</h4>
+                <p style={{ color: '#a8a8a8', lineHeight: '1.7', fontSize: '0.95rem' }}>
+                  In a world that is increasingly connected yet paradoxically divided, anonymous chat platforms are emerging as powerful tools for cross-cultural understanding. When you remove the visual biases of race, nationality, and appearance, conversations become more genuine and empathetic. Research from the University of Oxford has shown that anonymous interactions can reduce social prejudice by up to 40%. Platforms like Twelo enable users from 190+ countries to have meaningful conversations without preconceived notions. Whether you're a student in Tokyo connecting with an artist in São Paulo, or a professional in Lagos exchanging ideas with someone in Berlin, anonymous chat creates a level playing field where ideas matter more than identity.
+                </p>
+              </div>
+            </article>
+
+            <article style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+              <div style={{ height: '180px', background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Heart size={60} color="rgba(255,255,255,0.3)" />
+              </div>
+              <div style={{ padding: '25px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#FFD700', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Mental Wellness</span>
+                <h4 style={{ fontSize: '1.3rem', marginTop: '10px', marginBottom: '15px', lineHeight: '1.4' }}>The Psychology Behind Anonymous Conversations and Mental Health Benefits</h4>
+                <p style={{ color: '#a8a8a8', lineHeight: '1.7', fontSize: '0.95rem' }}>
+                  Psychologists have long recognized the therapeutic value of anonymous expression. The concept of the "online disinhibition effect," first described by psychologist John Suler, explains why people tend to be more open and honest in anonymous settings. This openness can be incredibly beneficial for mental health. Many users find that talking to a stranger about their day, their struggles, or their dreams provides a sense of relief similar to journaling. Unlike social media, where the pressure to maintain a curated image can increase anxiety, anonymous platforms allow for authentic self-expression. Studies published in the Journal of Social and Clinical Psychology suggest that anonymous peer support can complement professional mental health treatment, offering a judgement-free space for emotional processing.
+                </p>
+              </div>
+            </article>
+
+          </div>
+        </div>
+      </section>
+
+      {/* Statistics / Social Proof Section */}
+      <section style={{ padding: '60px 20px', background: 'rgba(5,5,5,1)' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '30px', textAlign: 'center' }}>
+          <div>
+            <div style={{ fontSize: '3rem', fontWeight: '800', color: '#0095f6' }}>190+</div>
+            <p style={{ color: '#a8a8a8', marginTop: '5px' }}>Countries Connected</p>
+          </div>
+          <div>
+            <div style={{ fontSize: '3rem', fontWeight: '800', color: '#2bd856' }}>100%</div>
+            <p style={{ color: '#a8a8a8', marginTop: '5px' }}>Anonymous & Secure</p>
+          </div>
+          <div>
+            <div style={{ fontSize: '3rem', fontWeight: '800', color: '#FFD700' }}>24/7</div>
+            <p style={{ color: '#a8a8a8', marginTop: '5px' }}>Active Community</p>
+          </div>
+          <div>
+            <div style={{ fontSize: '3rem', fontWeight: '800', color: '#ff6b6b' }}>0</div>
+            <p style={{ color: '#a8a8a8', marginTop: '5px' }}>Personal Data Required</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Detailed Feature Deep-Dive */}
+      <section style={{ padding: '80px 20px', background: 'rgba(255,255,255,0.02)' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          <h3 style={{ fontSize: '2.5rem', marginBottom: '20px', textAlign: 'center' }}>Platform Features In Depth</h3>
+          <p style={{ textAlign: 'center', color: '#a8a8a8', marginBottom: '50px', fontSize: '1.1rem' }}>Discover the powerful features that make Twelo the preferred choice for anonymous social interaction.</p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+            <div style={{ display: 'flex', gap: '25px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div style={{ width: '50px', height: '50px', minWidth: '50px', background: 'rgba(0,149,246,0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0095f6' }}>
+                <Zap size={24} />
+              </div>
+              <div style={{ flex: 1, minWidth: '250px' }}>
+                <h4 style={{ fontSize: '1.3rem', marginBottom: '10px' }}>Instant Random Matching</h4>
+                <p style={{ color: '#a8a8a8', lineHeight: '1.7' }}>
+                  Our proprietary matching algorithm connects you with a random user in under 3 seconds. Unlike other platforms that use basic queue systems, Twelo's matching engine considers multiple factors including user activity patterns and connection history to ensure you get fresh, engaging conversations every time. The matching system uses a WebSocket-based real-time queue that provides instant connections without any page reloads or waiting screens.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '25px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div style={{ width: '50px', height: '50px', minWidth: '50px', background: 'rgba(43,216,86,0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2bd856' }}>
+                <Users size={24} />
+              </div>
+              <div style={{ flex: 1, minWidth: '250px' }}>
+                <h4 style={{ fontSize: '1.3rem', marginBottom: '10px' }}>Smart Connection System</h4>
+                <p style={{ color: '#a8a8a8', lineHeight: '1.7' }}>
+                  When you find someone interesting during a random chat, you can seamlessly transition from an anonymous conversation to a lasting friendship. Our connection system allows you to send follow requests, and once mutually accepted, you can chat privately anytime. The system supports real-time messaging with read receipts, typing indicators, message replies, voice notes, image sharing, and even video and audio calls — all built with privacy at the core.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '25px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div style={{ width: '50px', height: '50px', minWidth: '50px', background: 'rgba(255,215,0,0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFD700' }}>
+                <Gift size={24} />
+              </div>
+              <div style={{ flex: 1, minWidth: '250px' }}>
+                <h4 style={{ fontSize: '1.3rem', marginBottom: '10px' }}>Gamified Reward System</h4>
+                <p style={{ color: '#a8a8a8', lineHeight: '1.7' }}>
+                  Twelo introduces a unique gamification layer to online chatting. Every user starts with virtual coins that can be earned through platform engagement — watching reward videos, daily logins, and maintaining active conversations. These coins serve as a currency for premium interactions like sending friend requests to users you meet. This system not only incentivizes positive behavior but also adds an exciting, game-like dimension to social networking that keeps users engaged and invested in the community.
+                </p>
+              </div>
             </div>
           </div>
         </div>
