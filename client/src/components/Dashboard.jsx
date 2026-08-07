@@ -606,15 +606,9 @@ export default function Dashboard() {
       // Own sent messages are already added optimistically in handleSendMessage
       // and are properly confirmed via the 'message_sent' event.
       if (String(msg.sender) !== String(user._id || user.id)) {
-        
-        // Play notification sound
-        try {
-          const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-          audio.play().catch(e => console.log('Audio blocked', e));
-        } catch (e) {}
 
         if (activeChatUserRef.current && String(msg.sender) === String(activeChatUserRef.current._id)) {
-          // Message from active chat partner - add to view and mark viewed
+          // Message from active chat partner - add to view and mark viewed (NO sound)
           setMessages((prev) => {
             // Prevent duplicates
             if (prev.some(m => String(m._id) === String(msg._id))) return prev;
@@ -622,7 +616,11 @@ export default function Dashboard() {
           });
           socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id, senderId: msg.sender });
         } else {
-          // Message from someone else - update unread count
+          // Message from someone else (not in active chat) - play sound + update unread
+          try {
+            const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+            audio.play().catch(e => console.log('Audio blocked', e));
+          } catch (e) {}
           setUnreadMessages(prev => ({...prev, [msg.sender]: (prev[msg.sender] || 0) + 1}));
           showToastMsg('New message received!', 'info');
         }
