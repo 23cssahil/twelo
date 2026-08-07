@@ -633,11 +633,11 @@ export default function Dashboard() {
         setGroupedStories(data);
       } else {
         const errData = await res.json();
-        showToast(`Failed to load stories: ${errData.message}`, 'error');
+        showToastMsg(`Failed to load stories: ${errData.message}`, 'error');
       }
     } catch (err) {
       console.error('Failed to fetch stories', err);
-      showToast('Network error loading stories', 'error');
+      showToastMsg('Network error loading stories', 'error');
     }
   };
 
@@ -1472,16 +1472,16 @@ export default function Dashboard() {
           fetchStories();
           setStoryEditorOpen(false);
           setStoryFile(null);
-          showToast('Status added successfully!');
+          showToastMsg('Status added successfully!', 'success');
         } else {
-          showToast('Failed to save status on server', 'error');
+          showToastMsg('Failed to save status on server', 'error');
         }
       } else {
-        showToast('Image upload failed', 'error');
+        showToastMsg('Image upload failed', 'error');
       }
     } catch (err) {
       console.error('Story upload failed', err);
-      showToast('Status upload failed', 'error');
+      showToastMsg('Status upload failed', 'error');
     } finally {
       setStoryUploading(false);
     }
