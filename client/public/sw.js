@@ -17,19 +17,35 @@ self.addEventListener('push', function(e) {
     }
   }
 
-  const options = {
-    body: payload.body,
-    icon: payload.icon || '/icon-192.png',
-    badge: '/icon-192.png',
-    vibrate: [200, 100, 200, 100, 200, 100, 200],
-    requireInteraction: true,
-    data: {
-      url: '/dev'
-    }
-  };
+  // Use the title (Sender Name) as the tag to group notifications from the same person
+  const notificationTag = 'chat-' + payload.title;
 
   e.waitUntil(
-    self.registration.showNotification(payload.title, options)
+    self.registration.getNotifications({ tag: notificationTag }).then((notifications) => {
+      let newBody = payload.body;
+      
+      // If there's already an unread notification from this person, append the message
+      if (notifications && notifications.length > 0) {
+        const existingBody = notifications[0].body;
+        newBody = existingBody + '\n' + payload.body;
+        notifications[0].close(); // Close old one to cleanly replace
+      }
+
+      const options = {
+        body: newBody,
+        icon: payload.icon || '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: notificationTag,
+        vibrate: [200, 100, 200, 100, 200, 100, 200],
+        requireInteraction: true,
+        renotify: true, // Alert the user again even if we are replacing an existing notification
+        data: {
+          url: '/dev'
+        }
+      };
+
+      return self.registration.showNotification(payload.title, options);
+    })
   );
 });
 
