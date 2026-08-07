@@ -36,7 +36,8 @@ import {
   Lock,
   PlusCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Users
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -698,7 +699,7 @@ export default function Dashboard() {
                 setCurrentStoryIndex(0);
                 return 0;
               } else {
-                setStoryViewerActive(false);
+                window.history.back();
                 return 100;
               }
             }
@@ -1014,14 +1015,20 @@ export default function Dashboard() {
 
   // SPA Back Button Handling for Overlays & Chats
   useEffect(() => {
-    const isOverlayOpen = showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen;
+    const isOverlayOpen = showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || storyViewerActive || storyEditorOpen || showCloseFriendsModal;
     
     if (isOverlayOpen) {
       window.history.pushState({ overlayOpen: true }, '');
     }
 
     const handlePopState = (e) => {
-      if (showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || showLogoutConfirm) {
+      if (showCloseFriendsModal) {
+        setShowCloseFriendsModal(false);
+      } else if (storyEditorOpen) {
+        setStoryEditorOpen(false);
+      } else if (storyViewerActive) {
+        setStoryViewerActive(false);
+      } else if (showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || showLogoutConfirm) {
         setShowSettingsModal(false);
         setShowLogoutConfirm(false);
         setPublicProfileData(null);
@@ -1042,7 +1049,7 @@ export default function Dashboard() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, showLogoutConfirm]);
+  }, [showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal]);
 
   // Lock document scroll when chat is active to prevent keyboard from pushing header out of view
   useEffect(() => {
@@ -4336,11 +4343,14 @@ export default function Dashboard() {
                 try {
                   await fetch(`${API_URL}/api/stories/${sId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }});
                   fetchStories();
-                  setStoryViewerActive(false);
+                  window.history.back();
                 } catch(e) {}
               }}><Trash2 size={20}/></button>
             )}
-            <button style={{ background: 'transparent', border: 'none', color: '#fff', padding: '5px', cursor: 'pointer' }} onClick={() => setStoryViewerActive(false)}><X size={28}/></button>
+            <button style={{ background: 'transparent', border: 'none', color: '#fff', padding: '5px', cursor: 'pointer' }} onClick={() => {
+              // Instead of manually closing, simulate a back button press to cleanly pop the history state
+              window.history.back();
+            }}><X size={28}/></button>
           </div>
 
           {/* Media Container */}
@@ -4363,7 +4373,7 @@ export default function Dashboard() {
                     setCurrentStoryIndex(0);
                     setStoryProgress(0);
                   } else {
-                    setStoryViewerActive(false);
+                    window.history.back();
                   }
                 }}
                 onTimeUpdate={(e) => {
@@ -4406,7 +4416,7 @@ export default function Dashboard() {
                   setCurrentStoryIndex(0);
                   setStoryProgress(0);
                 } else {
-                  setStoryViewerActive(false);
+                  window.history.back();
                 }
               }}
             />
