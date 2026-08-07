@@ -2140,7 +2140,7 @@ io.on('connection', (socket) => {
             const pushPayload = JSON.stringify({
               title: `New message from ${senderObj.username}`,
               body: messageType === 'text' ? messageText : `Sent a ${messageType}`,
-              icon: 'https://nexgenrewards.store/icon-192.png',
+              icon: '/icon-192.png',
               url: `/?chat=${senderId}`
             });
             const pushes = receiverObj.pushSubscriptions.map(async (sub) => {

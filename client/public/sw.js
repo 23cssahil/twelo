@@ -7,7 +7,7 @@ self.addEventListener('fetch', (e) => {
 });
 
 self.addEventListener('push', function(e) {
-  let payload = { title: 'Notification', body: 'You have a new message', icon: 'https://nexgenrewards.store/icon-192.png' };
+  let payload = { title: 'Notification', body: 'You have a new message', icon: '/icon-192.png' };
   
   if (e.data) {
     try {
@@ -44,8 +44,8 @@ self.addEventListener('push', function(e) {
 
       const options = {
         body: newBody,
-        icon: payload.icon || 'https://nexgenrewards.store/icon-192.png',
-        badge: 'https://nexgenrewards.store/badge.png',
+        icon: payload.icon || '/icon-192.png',
+        badge: '/badge.png',
         tag: notificationTag,
         vibrate: [200, 100, 200, 100, 200, 100, 200],
         requireInteraction: true,

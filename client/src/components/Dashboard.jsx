@@ -4228,7 +4228,11 @@ export default function Dashboard() {
           </div>
 
           {/* Media Container */}
-          <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div 
+            key={currentStoryUserIndex} 
+            className="story-user-enter"
+            style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
             {groupedStories[currentStoryUserIndex].stories[currentStoryIndex].mediaType === 'video' ? (
               <video 
                 src={groupedStories[currentStoryUserIndex].stories[currentStoryIndex].mediaUrl} 
