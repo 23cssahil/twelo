@@ -626,7 +626,7 @@ export default function Dashboard() {
   const fetchStories = async () => {
     try {
       const res = await fetch(`${API_URL}/api/stories`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('twelo_token')}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
