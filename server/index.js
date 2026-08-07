@@ -1188,6 +1188,9 @@ app.post('/api/stories', authenticateToken, async (req, res) => {
     await newStory.save();
     await newStory.populate('user', 'username avatarUrl uniqueId');
     
+    // Emit socket event to notify all connected clients
+    io.emit('new_story');
+    
     res.status(201).json(newStory);
   } catch (error) {
     console.error('Error creating story:', error);
@@ -1209,8 +1212,9 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
     const stories = await Story.find({
       $or: [
         { user: currentUserId }, // Self
-        { user: { $in: followingIds }, visibility: { $in: ['everyone', 'followers'] } },
-        { visibility: 'custom', allowedUsers: currentUserId }
+        { visibility: 'everyone' }, // Everyone on the app
+        { user: { $in: followingIds }, visibility: 'followers' }, // Followers only
+        { visibility: 'custom', allowedUsers: currentUserId } // Close friends
       ]
     })
       .populate('user', 'username avatarUrl uniqueId')

@@ -910,12 +910,17 @@ export default function Dashboard() {
       handleEndCallQuietly();
     });
 
+    socket.on('new_story', () => {
+      fetchStories();
+    });
+
     return () => {
       socket.off('online_users');
       socket.off('receive_message');
       socket.off('message_sent');
       socket.off('message_deleted');
       socket.off('new_notification');
+      socket.off('new_story');
       socket.off('request_accepted_alert');
       socket.off('request_rejected_alert');
       socket.off('incoming_call');
