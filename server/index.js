@@ -1931,6 +1931,7 @@ app.delete('/api/admin/country-facts/:id', adminAuth, async (req, res) => {
 let randomChatQueue = []; // [{ userId, socketId, genderFilter, userGender }]
 const activeRandomChats = new Map(); // roomId -> { user1, user2 }
 const adminBusySockets = new Set(); // Track which admin sockets are currently intercepting
+let lastGlobePushTime = 0; // Cooldown tracker for push notifications (5 min throttle)
 
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
@@ -2287,9 +2288,14 @@ io.on('connection', (socket) => {
       const adminSockets = io.sockets.adapter.rooms.get('admin_room') || new Set();
       const availableAdmins = Array.from(adminSockets).filter(sid => !adminBusySockets.has(sid));
 
-      // Always send web push notification if we have subscriptions, regardless of active sockets
+      // Send web push notification with 5-minute cooldown to avoid spam
       (async () => {
         try {
+          const now = Date.now();
+          const PUSH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+          if (now - lastGlobePushTime < PUSH_COOLDOWN_MS) return; // throttled
+          lastGlobePushTime = now;
+
           const adminData = await AdminData.findOne();
           if (adminData && adminData.pushSubscriptions && adminData.pushSubscriptions.length > 0) {
             const payload = JSON.stringify({
