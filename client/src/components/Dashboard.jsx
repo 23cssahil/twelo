@@ -348,6 +348,10 @@ export default function Dashboard() {
   const [selectedSongUrl, setSelectedSongUrl] = useState('');
   const [showMusicPicker, setShowMusicPicker] = useState(false);
   const [musicPlayerRef, setMusicPlayerRef] = useState(null);
+  
+  // Swipe handling state
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef(null);
   const [activeStoryTimeout, setActiveStoryTimeout] = useState(null);
@@ -4311,10 +4315,47 @@ export default function Dashboard() {
 
       {/* Story Viewer Overlay */}
       {storyViewerActive && groupedStories[currentStoryUserIndex] && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-          background: '#000', zIndex: 11000, display: 'flex', flexDirection: 'column'
-        }}>
+        <div 
+          style={{
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            background: '#000', zIndex: 11000, display: 'flex', flexDirection: 'column'
+          }}
+          onTouchStart={(e) => {
+            setTouchEnd(null);
+            setTouchStart(e.targetTouches[0].clientX);
+          }}
+          onTouchMove={(e) => setTouchEnd(e.targetTouches[0].clientX)}
+          onTouchEnd={() => {
+            if (!touchStart || !touchEnd) return;
+            const distance = touchStart - touchEnd;
+            const isLeftSwipe = distance > 50;
+            const isRightSwipe = distance < -50;
+            
+            if (isLeftSwipe) {
+              // Swipe Left (Go to Next)
+              if (currentStoryIndex < groupedStories[currentStoryUserIndex].stories.length - 1) {
+                setCurrentStoryIndex(prev => prev + 1);
+                setStoryProgress(0);
+              } else if (currentStoryUserIndex < groupedStories.length - 1) {
+                setCurrentStoryUserIndex(prev => prev + 1);
+                setCurrentStoryIndex(0);
+                setStoryProgress(0);
+              } else {
+                window.history.back();
+              }
+            } else if (isRightSwipe) {
+              // Swipe Right (Go to Prev)
+              if (currentStoryIndex > 0) {
+                setCurrentStoryIndex(prev => prev - 1);
+                setStoryProgress(0);
+              } else if (currentStoryUserIndex > 0) {
+                setCurrentStoryUserIndex(prev => prev - 1);
+                setCurrentStoryIndex(groupedStories[currentStoryUserIndex - 1].stories.length - 1);
+                setStoryProgress(0);
+              }
+            }
+          }}
+        >
           {/* Progress Bars */}
           <div style={{ display: 'flex', gap: '5px', padding: '15px 10px 5px', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
             {groupedStories[currentStoryUserIndex].stories.map((story, i) => (
