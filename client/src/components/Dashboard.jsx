@@ -1028,6 +1028,7 @@ export default function Dashboard() {
         setStoryEditorOpen(false);
       } else if (storyViewerActive) {
         setStoryViewerActive(false);
+        fetchStories();
       } else if (showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || showLogoutConfirm) {
         setShowSettingsModal(false);
         setShowLogoutConfirm(false);

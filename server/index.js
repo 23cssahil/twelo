@@ -1280,13 +1280,36 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
       groupedStoriesMap.get(uId).stories.push(story);
     });
     
-    // Convert to array and put current user first if they have stories
+    // Convert to array
     let groupedStories = Array.from(groupedStoriesMap.values());
-    const currentUserStoriesIndex = groupedStories.findIndex(g => g.user._id.toString() === currentUserId);
-    if (currentUserStoriesIndex > 0) {
-      const cuStories = groupedStories.splice(currentUserStoriesIndex, 1)[0];
-      groupedStories.unshift(cuStories);
-    }
+    
+    // Determine the latest story timestamp for each group, and whether they have any unseen stories
+    groupedStories.forEach(group => {
+      group.latestStoryTime = new Date(group.stories[group.stories.length - 1].createdAt).getTime();
+      group.hasUnseen = group.stories.some(s => !s.viewedBy || !s.viewedBy.includes(currentUserId));
+    });
+
+    // Sort grouped stories
+    groupedStories.sort((a, b) => {
+      // 1. Current user always first
+      const isACurrentUser = a.user._id.toString() === currentUserId;
+      const isBCurrentUser = b.user._id.toString() === currentUserId;
+      if (isACurrentUser) return -1;
+      if (isBCurrentUser) return 1;
+
+      // 2. Unseen stories before seen stories
+      if (a.hasUnseen && !b.hasUnseen) return -1;
+      if (!a.hasUnseen && b.hasUnseen) return 1;
+
+      // 3. Sort by latest story time (descending)
+      return b.latestStoryTime - a.latestStoryTime;
+    });
+
+    // Clean up temporary fields before sending
+    groupedStories.forEach(group => {
+      delete group.latestStoryTime;
+      delete group.hasUnseen;
+    });
     
     res.json(groupedStories);
   } catch (error) {
