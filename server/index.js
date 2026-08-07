@@ -1170,6 +1170,15 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
 
 // --- Status/Story Routes ---
 
+app.get('/api/test-stories', async (req, res) => {
+  try {
+    const stories = await Story.find().sort({createdAt: -1}).limit(10).lean();
+    res.json(stories);
+  } catch(e) {
+    res.status(500).json({error: e.message});
+  }
+});
+
 // Create a new story
 app.post('/api/stories', authenticateToken, async (req, res) => {
   try {

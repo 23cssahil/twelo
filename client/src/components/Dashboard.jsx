@@ -631,9 +631,13 @@ export default function Dashboard() {
       if (res.ok) {
         const data = await res.json();
         setGroupedStories(data);
+      } else {
+        const errData = await res.json();
+        showToast(`Failed to load stories: ${errData.message}`, 'error');
       }
     } catch (err) {
       console.error('Failed to fetch stories', err);
+      showToast('Network error loading stories', 'error');
     }
   };
 
