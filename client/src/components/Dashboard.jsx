@@ -3564,6 +3564,40 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Gallery Permission Popup */}
+      {showGalleryPermissionPopup && (
+        <div className="modal-overlay" onClick={() => setShowGalleryPermissionPopup(false)} style={{ zIndex: 10000 }}>
+          <div className="modal-content" style={{ textAlign: 'center', padding: '30px 25px', maxWidth: '350px', background: '#1e1e1e', border: '1px solid #333', borderRadius: '16px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+               <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '15px', borderRadius: '50%', color: '#3b82f6' }}>
+                  <ImageIcon size={40} />
+               </div>
+            </div>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '10px', color: '#fff' }}>Access Gallery</h2>
+            <p style={{ color: '#a8a8a8', marginBottom: '25px', fontSize: '0.95rem', lineHeight: '1.5' }}>
+              Allow Twelo to access your device's photo gallery to select and send images?
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                onClick={() => setShowGalleryPermissionPopup(false)}
+                style={{ flex: 1, padding: '12px', fontSize: '1rem', background: '#2a2a2a', border: 'none', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}
+              >
+                Deny
+              </button>
+              <button 
+                onClick={() => {
+                  setShowGalleryPermissionPopup(false);
+                  fileInputRef.current?.click();
+                }}
+                style={{ flex: 1, padding: '12px', fontSize: '1rem', background: 'var(--brand-blue)', border: 'none', color: '#fff', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Allow
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Match Found Overlay - placed at root for correct z-index and centering */}
       {showMatchCard && matchFoundData && (
         <div className="match-found-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
