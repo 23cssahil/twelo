@@ -1610,6 +1610,12 @@ export default function Dashboard() {
       canvas.width = storyLiveCameraRef.current.videoWidth;
       canvas.height = storyLiveCameraRef.current.videoHeight;
       const ctx = canvas.getContext('2d');
+      
+      if (storyCameraFacingMode === 'user') {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      
       ctx.drawImage(storyLiveCameraRef.current, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
       setStoryCapturedImage(dataUrl);
@@ -4608,7 +4614,13 @@ export default function Dashboard() {
               autoPlay 
               playsInline 
               muted 
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: storyCapturedImage ? 'none' : 'block' }} 
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'cover', 
+                display: storyCapturedImage ? 'none' : 'block',
+                transform: storyCameraFacingMode === 'user' ? 'scaleX(-1)' : 'none'
+              }} 
             />
             {storyCapturedImage && (
               <img src={storyCapturedImage} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Captured" />
