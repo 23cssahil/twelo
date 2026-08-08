@@ -44,8 +44,7 @@ import {
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
 import * as THREE from 'three';
-import * as tf from '@tensorflow/tfjs';
-import * as tf from '@tensorflow/tfjs';
+
 import { AuthContext, SocketContext } from '../App';
 
 const SAMPLE_SONGS = [
