@@ -1566,18 +1566,23 @@ export default function Dashboard() {
       
       if (file.type.startsWith('image/')) {
         setStoryPreviewSafety('checking');
-        const formData = new FormData();
-        formData.append('file', file);
-        fetch(`${API_URL}/api/check`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData
-        })
-        .then(res => {
-          if (res.ok) setStoryPreviewSafety('safe');
+        
+        try {
+          const compressedFile = await compressImage(file);
+          const formData = new FormData();
+          formData.append('file', compressedFile);
+          
+          const checkRes = await fetch(`${API_URL}/api/check`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData
+          });
+          
+          if (checkRes.ok) setStoryPreviewSafety('safe');
           else setStoryPreviewSafety('unsafe');
-        })
-        .catch(() => setStoryPreviewSafety('safe'));
+        } catch (err) {
+          setStoryPreviewSafety('unsafe');
+        }
       } else {
         setStoryPreviewSafety('safe');
       }
@@ -1666,18 +1671,23 @@ export default function Dashboard() {
       
       if (file.type.startsWith('image/')) {
         setPreviewSafety('checking');
-        const formData = new FormData();
-        formData.append('file', file);
-        fetch(`${API_URL}/api/check`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData
-        })
-        .then(res => {
-          if (res.ok) setPreviewSafety('safe');
+        
+        try {
+          const compressedFile = await compressImage(file);
+          const formData = new FormData();
+          formData.append('file', compressedFile);
+          
+          const checkRes = await fetch(`${API_URL}/api/check`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData
+          });
+          
+          if (checkRes.ok) setPreviewSafety('safe');
           else setPreviewSafety('unsafe');
-        })
-        .catch(() => setPreviewSafety('safe'));
+        } catch (err) {
+          setPreviewSafety('unsafe');
+        }
       } else {
         setPreviewSafety('safe');
       }
