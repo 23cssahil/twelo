@@ -821,7 +821,10 @@ export default function Dashboard() {
             if (prev.some(m => String(m._id) === String(msg._id))) return prev;
             return [...prev, msg];
           });
-          socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id, senderId: msg.sender });
+          // Do NOT auto-mark view-once messages as viewed — user must click "View Photo" first
+          if (!msg.isViewOnce) {
+            socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id, senderId: msg.sender });
+          }
         } else {
           // Message from someone else (not in active chat) - play sound + update unread
           try {
@@ -2090,9 +2093,19 @@ export default function Dashboard() {
 
       peer.on('stream', (remoteStream) => {
         setRemoteStreamState(remoteStream);
+        // Try immediately — may be null if callAccepted state hasn't caused React to render yet
         if (userVideoRef.current) {
           userVideoRef.current.srcObject = remoteStream;
           userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
+        } else {
+          // React hasn't rendered the <video> element yet (callAccepted was just set).
+          // Retry after a short delay to allow the DOM to update.
+          setTimeout(() => {
+            if (userVideoRef.current) {
+              userVideoRef.current.srcObject = remoteStream;
+              userVideoRef.current.play().catch(e => console.error('Remote video play retry error:', e));
+            }
+          }, 300);
         }
       });
 
@@ -2135,9 +2148,18 @@ export default function Dashboard() {
 
       peer.on('stream', (remoteStream) => {
         setRemoteStreamState(remoteStream);
+        // Try immediately — may be null if React hasn't rendered the <video> element yet
         if (userVideoRef.current) {
           userVideoRef.current.srcObject = remoteStream;
           userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
+        } else {
+          // callAccepted was just set; give React a tick to mount the <video> element
+          setTimeout(() => {
+            if (userVideoRef.current) {
+              userVideoRef.current.srcObject = remoteStream;
+              userVideoRef.current.play().catch(e => console.error('Remote video play retry error:', e));
+            }
+          }, 300);
         }
       });
 
@@ -2322,12 +2344,14 @@ export default function Dashboard() {
         myVideoRef.current.srcObject = localStreamRef.current;
         myVideoRef.current.play().catch(e => {});
       }
+      // callAccepted is in the dep array so this re-runs after the remote <video>
+      // element mounts (it's conditionally rendered inside {callAccepted ? ...})
       if (userVideoRef.current && remoteStreamState) {
         userVideoRef.current.srcObject = remoteStreamState;
         userVideoRef.current.play().catch(e => {});
       }
     }
-  }, [swapVideo, callActive, remoteStreamState]);
+  }, [swapVideo, callActive, callAccepted, remoteStreamState]);
 
   const handleGlobeClick = useCallback(() => {
     // Add light haptic feedback (vibration) for mobile users
@@ -3210,7 +3234,9 @@ export default function Dashboard() {
                                     <ImageIcon size={18} /> Opened
                                   </div>
                                 ) : (
-                                  <button onClick={() => {
+                                  <button onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
                                     if (String(msg.sender) !== String(user._id || user.id)) {
                                       socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id || user._id, senderId: msg.sender });
                                       setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, isViewed: true } : m));

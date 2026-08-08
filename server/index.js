@@ -1400,9 +1400,10 @@ app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
 
     // Mark messages sent by the other user to current user as viewed (Async in background)
     // Only update if it's the first page (latest messages) to avoid redundant DB calls on older pages
+    // IMPORTANT: Skip view-once messages — they must only be marked viewed when explicitly opened by user
     if (page === 1) {
       Message.updateMany(
-        { sender: otherUserId, receiver: currentUserId, isViewed: false },
+        { sender: otherUserId, receiver: currentUserId, isViewed: false, isViewOnce: { $ne: true } },
         { $set: { isViewed: true, viewedAt: new Date() } }
       ).catch(err => console.log('Error updating view status', err));
     }
@@ -2769,7 +2770,7 @@ io.on('connection', (socket) => {
     try {
       const now = new Date();
       await Message.updateMany(
-        { sender: senderId, receiver: receiverId, isViewed: false },
+        { sender: senderId, receiver: receiverId, isViewed: false, isViewOnce: { $ne: true } },
         { $set: { isViewed: true, viewedAt: now } }
       );
       // Notify the ORIGINAL SENDER that their messages were read (seen status)
