@@ -50,16 +50,18 @@ const nudityCheck = async (req, res, next) => {
       console.log('Image Blocked by Moderation');
       return res.status(400).json({
         success: false,
-        message: 'Image blocked! Nudity or explicit content is strictly prohibited on Twelo.'
+        message: 'Image blocked! Nudity or explicit content is strictly prohibited on Twelo.',
+        debug: nudity
       });
     }
 
     // Image is safe, proceed
+    req.sightengineResponse = nudity;
     next();
   } catch (err) {
     console.error('Sightengine AI Error:', err.response?.data || err.message);
     // If moderation API fails, block to be safe or pass. Blocking is safer.
-    return res.status(500).json({ success: false, message: 'AI moderation check failed. Please try again.' });
+    return res.status(500).json({ success: false, message: 'AI moderation check failed. Please try again.', debugError: err.response?.data || err.message });
   }
 };
 
