@@ -25,12 +25,15 @@ const nudityCheck = async (req, res, next) => {
 
     const nudity = response.data.nudity;
     
-    // Check strict moderation thresholds
+    console.log(`Sightengine Scores - Sexual Display: ${nudity.sexual_display}, Sexual Activity: ${nudity.sexual_activity}, Erotica: ${nudity.erotica}`);
+
+    // Check strict moderation thresholds (Adjusted to avoid false positives on normal images)
     if (
-      nudity.sexual_display > 0.15 || 
-      nudity.sexual_activity > 0.15 || 
-      nudity.erotica > 0.25
+      nudity.sexual_display > 0.50 || 
+      nudity.sexual_activity > 0.50 || 
+      nudity.erotica > 0.60
     ) {
+      console.log('Image Blocked by Moderation');
       return res.status(400).json({
         success: false,
         message: 'Image blocked! Nudity or explicit content is strictly prohibited on Twelo.'
