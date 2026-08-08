@@ -23,7 +23,7 @@ export default function Terms() {
         <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>2. User Guidelines & Acceptable Use</h2>
         <p>You agree to use our platform responsibly. You must not use our services to:</p>
         <ul style={{ marginLeft: '20px', marginBottom: '16px' }}>
-          <li>Share illegal, harmful, or sexually explicit content.</li>
+          <li>Share illegal, harmful, sexually explicit, or NSFW content. (<strong>Note:</strong> All image uploads are strictly monitored in real-time by an AI moderation system. Any attempt to upload prohibited content will result in immediate and permanent account termination).</li>
           <li>Harass, abuse, or threaten other users.</li>
           <li>Engage in spamming or unauthorized advertising.</li>
         </ul>
