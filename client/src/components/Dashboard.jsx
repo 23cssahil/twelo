@@ -1581,10 +1581,14 @@ export default function Dashboard() {
           img.src = URL.createObjectURL(file);
           await new Promise(resolve => { img.onload = resolve; });
           
-          img.width = img.naturalWidth;
-          img.height = img.naturalHeight;
+          // Downscale to 224x224 Canvas to prevent WebGL Out of Memory crash on mobile cameras
+          const canvas = document.createElement('canvas');
+          canvas.width = 224;
+          canvas.height = 224;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, 224, 224);
           
-          const predictions = await nsfwModel.classify(img);
+          const predictions = await nsfwModel.classify(canvas);
           const adultScore = predictions.reduce((sum, p) => {
             if (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') {
               return sum + p.probability;
@@ -1690,10 +1694,14 @@ export default function Dashboard() {
         img.src = URL.createObjectURL(file);
         await new Promise(resolve => { img.onload = resolve; });
         
-        img.width = img.naturalWidth;
-        img.height = img.naturalHeight;
+        // Downscale to 224x224 Canvas to prevent WebGL Out of Memory crash on mobile cameras
+        const canvas = document.createElement('canvas');
+        canvas.width = 224;
+        canvas.height = 224;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 224, 224);
         
-        const predictions = await nsfwModel.classify(img);
+        const predictions = await nsfwModel.classify(canvas);
         const adultScore = predictions.reduce((sum, p) => {
           if (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') {
             return sum + p.probability;
