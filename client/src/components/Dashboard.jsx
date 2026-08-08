@@ -1627,10 +1627,44 @@ export default function Dashboard() {
     }
   };
 
-  const handleImageSelect = (e) => {
+  const handleImageSelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Force preview first so the AI check runs on "Send"
+      if (!nsfwModel) {
+        showToastMsg('AI Moderation model is still loading... Please wait.', 'info');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (cameraInputRef.current) cameraInputRef.current.value = '';
+        return;
+      }
+
+      try {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        await new Promise(resolve => { img.onload = resolve; });
+        
+        img.width = img.naturalWidth;
+        img.height = img.naturalHeight;
+        
+        const predictions = await nsfwModel.classify(img);
+        const adultScore = predictions.reduce((sum, p) => {
+          if (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') {
+            return sum + p.probability;
+          }
+          return sum;
+        }, 0);
+
+        const isNSFW = adultScore > 0.07;
+        if (isNSFW) {
+          showToastMsg('🚨 STRICT WARNING: NSFW content detected! Image blocked.', 'error');
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          if (cameraInputRef.current) cameraInputRef.current.value = '';
+          return; 
+        }
+      } catch (err) {
+        console.error('NSFW classification failed:', err);
+      }
+
+      // Safe image, show preview
       setPreviewImage(file);
       setIsViewOnce(false);
       
@@ -1692,52 +1726,6 @@ export default function Dashboard() {
   const confirmSendImage = async () => {
     if (previewImage) {
       setIsUploading(true);
-
-      // AI NSFW Moderation Check
-      if (!nsfwModel) {
-        showToastMsg('AI Moderation model is still loading... Please wait a few seconds before sending a photo.', 'info');
-        setIsUploading(false);
-        return;
-      }
-
-      if (nsfwModel) {
-        try {
-          const img = new Image();
-          img.src = URL.createObjectURL(previewImage);
-          await new Promise(resolve => { img.onload = resolve; });
-          
-          // Explicitly set width and height for TensorFlow to parse correctly
-          img.width = img.naturalWidth;
-          img.height = img.naturalHeight;
-          
-          const predictions = await nsfwModel.classify(img);
-          console.log('🔍 [TEST MODE] AI Predictions:', predictions);
-          
-          // Check if it's Porn or Hentai with a high probability
-          const topPrediction = predictions[0];
-          
-          // Strict NSFW check: Combine probabilities of adult categories
-          const adultScore = predictions.reduce((sum, p) => {
-            if (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') {
-              return sum + p.probability;
-            }
-            return sum;
-          }, 0);
-
-          // Absolute Zero Tolerance: If adult score is > 7% (0.07), block it!
-          const isNSFW = adultScore > 0.07;
-
-          if (isNSFW) {
-            showToastMsg('🚨 STRICT WARNING: NSFW content detected! Upload blocked.', 'error');
-            setIsUploading(false);
-            setPreviewImage(null);
-            setIsViewOnce(false);
-            return;
-          }
-        } catch (err) {
-          console.error('NSFW classification failed:', err);
-        }
-      }
 
       try {
         let fileToUpload = previewImage;
