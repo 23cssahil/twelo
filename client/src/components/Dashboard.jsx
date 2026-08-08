@@ -1605,6 +1605,10 @@ export default function Dashboard() {
       if (storyCameraStream) {
         storyCameraStream.getTracks().forEach(track => track.stop());
       }
+      
+      // Wait for hardware to release the camera fully before requesting new one
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       let stream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: newMode } } });
