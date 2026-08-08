@@ -4637,7 +4637,8 @@ export default function Dashboard() {
                 width: '100%', 
                 height: '100%', 
                 objectFit: 'cover',
-                transform: storyCameraFacingMode === 'user' ? 'scaleX(-1)' : 'none'
+                transform: storyCameraFacingMode === 'user' ? 'rotateY(180deg)' : 'none',
+                WebkitTransform: storyCameraFacingMode === 'user' ? 'rotateY(180deg)' : 'none'
               }} 
             />
             {storyCapturedImage && (
