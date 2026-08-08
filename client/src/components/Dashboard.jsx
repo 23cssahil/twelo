@@ -1528,6 +1528,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (!res.ok || data.error) {
         console.error('Cloudinary upload failed:', data.error || data);
+        alert(`Upload Failed: ${data.error?.message || 'Unknown error'}`);
         return null;
       }
       console.log('Direct Cloudinary upload success, URL:', data.secure_url);
