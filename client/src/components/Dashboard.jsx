@@ -4735,13 +4735,17 @@ export default function Dashboard() {
               {new Date(groupedStories[currentStoryUserIndex].stories[currentStoryIndex].createdAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
             </span>
             {groupedStories[currentStoryUserIndex].user._id === user.id && (
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', padding: '5px', marginLeft: '10px', cursor: 'pointer' }} onClick={async () => {
+              <button style={{ background: 'transparent', border: 'none', color: '#fff', padding: '5px', marginLeft: '10px', cursor: 'pointer' }} onClick={(e) => {
+                e.currentTarget.style.display = 'none';
                 const sId = groupedStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
-                try {
-                  await fetch(`${API_URL}/api/stories/${sId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }});
-                  fetchStories();
-                  window.history.back();
-                } catch(e) {}
+                
+                // Optimistically close viewer immediately
+                window.history.back();
+                
+                // Perform deletion in background
+                fetch(`${API_URL}/api/stories/${sId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }})
+                  .then(() => fetchStories())
+                  .catch(() => {});
               }}><Trash2 size={20}/></button>
             )}
             <button style={{ background: 'transparent', border: 'none', color: '#fff', padding: '5px', cursor: 'pointer' }} onClick={() => {
