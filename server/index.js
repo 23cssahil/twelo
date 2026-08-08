@@ -260,28 +260,33 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-// Upload Endpoint - uploads to Cloudinary
+// Upload Endpoint - uploads to Cloudinary via unsigned HTTP request
 app.post('/api/upload', upload.single('file'), nudityCheck, async (req, res) => {
   console.log('Upload request received, file:', req.file?.originalname, 'size:', req.file?.size);
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
   try {
-    // Upload buffer directly to Cloudinary
-    const result = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: 'twelo_messages', resource_type: 'auto' },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      stream.end(req.file.buffer);
+    const FormData = require('form-data');
+    const axios = require('axios');
+    
+    const formData = new FormData();
+    formData.append('file', req.file.buffer, {
+      filename: req.file.originalname,
+      contentType: req.file.mimetype
     });
-    console.log('Cloudinary upload success, URL:', result.secure_url);
-    res.json({ url: result.secure_url });
+    formData.append('upload_preset', 'twelo_unsigned');
+    
+    const cloudinaryRes = await axios.post(
+      'https://api.cloudinary.com/v1_1/srgyaihc/auto/upload', 
+      formData, 
+      { headers: formData.getHeaders() }
+    );
+    
+    console.log('Cloudinary upload success, URL:', cloudinaryRes.data.secure_url);
+    res.json({ url: cloudinaryRes.data.secure_url });
   } catch (err) {
-    console.error('Cloudinary upload error:', err);
+    console.error('Cloudinary upload error:', err.response?.data || err.message);
     res.status(500).json({ message: 'Upload failed', error: err.message });
   }
 });
