@@ -44,6 +44,10 @@ export default function DeveloperAdmin() {
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState([]);
   const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastTopic, setBroadcastTopic] = useState('');
+  const [broadcastType, setBroadcastType] = useState('info');
+  const [autoFooter, setAutoFooter] = useState(true);
   const [showBlockedOnly, setShowBlockedOnly] = useState(false);
 
   const [activeTab, setActiveTab] = useState('users');
@@ -368,15 +372,34 @@ export default function DeveloperAdmin() {
 
   const handleBroadcast = async (e) => {
     e.preventDefault();
-    if (!broadcastMessage.trim()) return;
+    if (!broadcastMessage.trim() || !broadcastTopic.trim()) {
+      alert("Topic and message are required.");
+      return;
+    }
+
+    const typeIcons = {
+      info: 'ℹ️',
+      warning: '⚠️',
+      success: '✅',
+      urgent: '🚨'
+    };
+    
+    const icon = typeIcons[broadcastType] || '📢';
+    let finalMessage = `${icon} **${broadcastTopic.toUpperCase()}**\n\n${broadcastMessage}`;
+    
+    if (autoFooter) {
+      finalMessage += `\n\nThank you,\nTwelo Administration`;
+    }
 
     try {
       await fetch(`${API_URL}/api/admin/broadcast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
-        body: JSON.stringify({ message: broadcastMessage })
+        body: JSON.stringify({ message: finalMessage })
       });
       setBroadcastMessage('');
+      setBroadcastTopic('');
+      setShowBroadcastModal(false);
       alert("Broadcast sent successfully!");
     } catch (err) {
       alert("Error sending broadcast");
@@ -702,17 +725,13 @@ export default function DeveloperAdmin() {
           <div className="dev-panel">
             <h3><Send size={18} style={{ marginRight: '8px' }}/> Global Broadcast</h3>
             <p className="panel-desc">Send a real-time notification to all connected users.</p>
-            <form onSubmit={handleBroadcast} style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-              <input 
-                type="text" 
-                placeholder="Type system alert..."
-                value={broadcastMessage}
-                onChange={(e) => setBroadcastMessage(e.target.value)}
-                className="dev-input"
-                style={{ flex: 1 }}
-              />
-              <button type="submit" className="dev-btn-primary" style={{ background: '#f59e0b', color: '#000' }}>Broadcast</button>
-            </form>
+            <button 
+              className="dev-btn-primary" 
+              style={{ background: '#f59e0b', color: '#000', width: '100%', marginTop: '15px' }}
+              onClick={() => setShowBroadcastModal(true)}
+            >
+              Open Broadcast Hub
+            </button>
           </div>
 
           {/* Globe Control System */}
@@ -1436,7 +1455,76 @@ export default function DeveloperAdmin() {
           </div>
         </div>
       )}
+      {/* Broadcast Hub Modal */}
+      {showBroadcastModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ background: '#111', border: '1px solid #333', padding: '30px', borderRadius: '15px', width: '90%', maxWidth: '500px', boxShadow: '0 15px 35px rgba(0,0,0,0.5)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}><Send size={24} color="#f59e0b" /> Broadcast Hub</h2>
+              <button onClick={() => setShowBroadcastModal(false)} style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer' }}><X size={24} /></button>
+            </div>
+            
+            <form onSubmit={handleBroadcast}>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#ccc' }}>Alert Type</label>
+                <select 
+                  value={broadcastType} 
+                  onChange={(e) => setBroadcastType(e.target.value)}
+                  className="dev-input"
+                  style={{ width: '100%' }}
+                >
+                  <option value="info">ℹ️ Information</option>
+                  <option value="warning">⚠️ Warning</option>
+                  <option value="success">✅ Success</option>
+                  <option value="urgent">🚨 Urgent</option>
+                </select>
+              </div>
 
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#ccc' }}>Topic / Subject</label>
+                <input 
+                  type="text" 
+                  value={broadcastTopic} 
+                  onChange={(e) => setBroadcastTopic(e.target.value)}
+                  placeholder="e.g. SYSTEM MAINTENANCE"
+                  className="dev-input"
+                  style={{ width: '100%' }}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#ccc' }}>Message Body</label>
+                <textarea 
+                  value={broadcastMessage} 
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  placeholder="Enter multi-line message here..."
+                  className="dev-input"
+                  style={{ width: '100%', minHeight: '120px', resize: 'vertical', fontFamily: 'inherit' }}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input 
+                  type="checkbox" 
+                  id="autoFooter"
+                  checked={autoFooter}
+                  onChange={(e) => setAutoFooter(e.target.checked)}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                />
+                <label htmlFor="autoFooter" style={{ color: '#ccc', cursor: 'pointer', fontSize: '0.9rem' }}>
+                  Add Professional Footer ("Thank you, Twelo Administration")
+                </label>
+              </div>
+
+              <button type="submit" className="dev-btn-primary" style={{ width: '100%', background: '#f59e0b', color: '#000', padding: '12px', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
+                <Send size={20} /> Send Global Broadcast
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
