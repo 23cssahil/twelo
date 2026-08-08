@@ -1572,7 +1572,7 @@ export default function Dashboard() {
           const formData = new FormData();
           formData.append('file', compressedFile);
           
-          const checkRes = await fetch(`${API_URL}/api/check`, {
+          const checkRes = await fetch(`${API_URL}/api/check?t=${Date.now()}`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
             body: formData
@@ -1677,7 +1677,7 @@ export default function Dashboard() {
           const formData = new FormData();
           formData.append('file', compressedFile);
           
-          const checkRes = await fetch(`${API_URL}/api/check`, {
+          const checkRes = await fetch(`${API_URL}/api/check?t=${Date.now()}`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
             body: formData

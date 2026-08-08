@@ -46,6 +46,11 @@ const nudityCheck = async (req, res, next) => {
       if ((nudity.sexual_display || 0) > 0.25 || (nudity.sexual_activity || 0) > 0.25 || (nudity.erotica || 0) > 0.60) isNude = true;
     }
 
+    // Foolproof catch-all: if 'safe' class exists and is less than 50%
+    if (nudity.safe !== undefined && nudity.safe < 0.50) {
+      isNude = true;
+    }
+
     if (isNude) {
       console.log('Image Blocked by Moderation');
       return res.status(400).json({
