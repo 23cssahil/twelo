@@ -3311,8 +3311,8 @@ export default function Dashboard() {
                                       socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id || user._id, senderId: msg.sender });
                                       setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, isViewed: true } : m));
                                     } else {
-                                      msg.isViewed = true; // sender can just view it once locally and have it marked
-                                      setMessages([...messages]); // trigger re-render
+                                      // Sender can view their own view-once image as many times as they want
+                                      // It will be locked when the receiver opens it and triggers a message_viewed socket event
                                     }
                                     setFullScreenMedia({ url: msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_URL}${msg.fileUrl}`, isViewOnce: true });
                                   }} style={{ padding: '10px 20px', background: 'var(--brand-blue)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', border: 'none', cursor: 'pointer' }}>
