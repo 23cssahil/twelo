@@ -1713,6 +1713,10 @@ export default function Dashboard() {
           img.src = URL.createObjectURL(previewImage);
           await new Promise(resolve => { img.onload = resolve; });
           
+          // Explicitly set width and height for TensorFlow to parse correctly
+          img.width = img.naturalWidth;
+          img.height = img.naturalHeight;
+          
           const predictions = await nsfwModel.classify(img);
           console.log('🔍 [TEST MODE] AI Predictions:', predictions);
           
@@ -1727,8 +1731,8 @@ export default function Dashboard() {
             return sum;
           }, 0);
 
-          // If the AI thinks there is even a 20% total chance of it being Adult/Sexy, block it!
-          const isNSFW = adultScore > 0.20;
+          // Absolute Zero Tolerance: If adult score is > 5% (0.05), block it!
+          const isNSFW = adultScore > 0.05;
 
           // Show the user the total adult score during testing
           showToastMsg(`AI Top Guess: ${topPrediction.className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
