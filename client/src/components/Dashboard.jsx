@@ -792,9 +792,26 @@ export default function Dashboard() {
       if (currentStory.songUrl) {
         audio = new Audio(currentStory.songUrl);
         audio.loop = true;
+        
+        // Suppress Android Chrome media notification via MediaSession API
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.metadata = null;
+          navigator.mediaSession.playbackState = 'none';
+          // Override all action handlers so OS can't show controls
+          ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach(action => {
+            try { navigator.mediaSession.setActionHandler(action, () => {}); } catch(e) {}
+          });
+        }
+        
         const playPromise = audio.play();
         if (playPromise !== undefined) {
-          playPromise.catch(e => {
+          playPromise.then(() => {
+            // After play starts, immediately clear session again (Chrome re-creates it on play)
+            if ('mediaSession' in navigator) {
+              navigator.mediaSession.metadata = null;
+              navigator.mediaSession.playbackState = 'none';
+            }
+          }).catch(e => {
             if (e.name !== 'AbortError') console.error("Audio play blocked", e);
           });
         }
@@ -805,6 +822,11 @@ export default function Dashboard() {
       if (audio) {
         audio.pause();
         audio = null;
+      }
+      // Clean up media session on exit
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = null;
+        navigator.mediaSession.playbackState = 'none';
       }
     };
   }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories]);
