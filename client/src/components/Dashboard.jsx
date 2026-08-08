@@ -375,6 +375,8 @@ export default function Dashboard() {
   const storyFileInputRef = useRef(null);
   const [activeStoryTimeout, setActiveStoryTimeout] = useState(null);
   const [storyProgress, setStoryProgress] = useState(0);
+  const [storyPaused, setStoryPaused] = useState(false);
+  const storyPausedRef = useRef(false);
 
   const [isFetchingChats, setIsFetchingChats] = useState(true);
   const [activeChatUser, setActiveChatUser] = useState(null);
@@ -748,6 +750,7 @@ export default function Dashboard() {
       const currentStory = groupedStories[currentStoryUserIndex].stories[currentStoryIndex];
       if (currentStory.mediaType === 'image') {
         interval = setInterval(() => {
+          if (storyPausedRef.current) return; // Don't advance while held
           setStoryProgress(prev => {
             if (prev >= 100) {
               clearInterval(interval);
@@ -4876,6 +4879,30 @@ export default function Dashboard() {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             background: '#000', zIndex: 11000, display: 'flex', flexDirection: 'column'
           }}
+          onPointerDown={(e) => {
+            // Hold to pause
+            storyPausedRef.current = true;
+            setStoryPaused(true);
+            if (storyVideoRef.current) storyVideoRef.current.pause();
+            // Also track swipe start
+            if (e.touches) {
+              setTouchEnd(null);
+              setTouchStart(e.touches[0].clientX);
+            } else {
+              setTouchEnd(null);
+              setTouchStart(e.clientX);
+            }
+          }}
+          onPointerUp={(e) => {
+            storyPausedRef.current = false;
+            setStoryPaused(false);
+            if (storyVideoRef.current) storyVideoRef.current.play().catch(() => {});
+          }}
+          onPointerLeave={() => {
+            storyPausedRef.current = false;
+            setStoryPaused(false);
+            if (storyVideoRef.current) storyVideoRef.current.play().catch(() => {});
+          }}
           onTouchStart={(e) => {
             setTouchEnd(null);
             setTouchStart(e.targetTouches[0].clientX);
@@ -4920,7 +4947,7 @@ export default function Dashboard() {
                   height: '100%', 
                   background: '#fff', 
                   width: i < currentStoryIndex ? '100%' : i === currentStoryIndex ? `${storyProgress}%` : '0%',
-                  transition: i === currentStoryIndex ? 'width 0.1s linear' : 'none'
+                  transition: i === currentStoryIndex && !storyPaused ? 'width 0.1s linear' : 'none'
                 }}></div>
               </div>
             ))}
