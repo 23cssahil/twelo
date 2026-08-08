@@ -25,14 +25,28 @@ const nudityCheck = async (req, res, next) => {
 
     const nudity = response.data.nudity;
     
-    console.log(`Sightengine Scores - Sexual Display: ${nudity.sexual_display}, Sexual Activity: ${nudity.sexual_activity}, Erotica: ${nudity.erotica}`);
+    console.log('Sightengine Nudity Response:', JSON.stringify(nudity));
 
-    // Check strict moderation thresholds (Balanced for catching screens but allowing normal selfies)
-    if (
-      nudity.sexual_display > 0.25 || 
-      nudity.sexual_activity > 0.25 || 
-      nudity.erotica > 0.35
-    ) {
+    let isNude = false;
+
+    // Sightengine nudity-2.0 response format
+    if (nudity.raw !== undefined) {
+      if (nudity.raw > 0.25 || nudity.partial > 0.60) isNude = true;
+    }
+    
+    // Fallback for fine-grained classes if format differs
+    if (nudity.classes) {
+      const explicit = nudity.classes.sexual_explicit || nudity.classes.sexual_activity || nudity.classes.sexual_display || 0;
+      const suggestive = nudity.classes.suggestive || nudity.classes.erotica || 0;
+      if (explicit > 0.25 || suggestive > 0.60) isNude = true;
+    }
+    
+    // Fallback for old direct format
+    if (nudity.sexual_display !== undefined || nudity.sexual_activity !== undefined) {
+      if ((nudity.sexual_display || 0) > 0.25 || (nudity.sexual_activity || 0) > 0.25 || (nudity.erotica || 0) > 0.60) isNude = true;
+    }
+
+    if (isNude) {
       console.log('Image Blocked by Moderation');
       return res.status(400).json({
         success: false,
