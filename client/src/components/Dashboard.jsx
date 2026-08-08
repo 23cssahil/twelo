@@ -304,6 +304,7 @@ export default function Dashboard() {
   // Profile & Social State
   const [profileStats, setProfileStats] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [expandedAlerts, setExpandedAlerts] = useState(new Set());
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [publicProfileData, setPublicProfileData] = useState(null);
   const [connectionsModal, setConnectionsModal] = useState({ isOpen: false, title: '', users: [] });
@@ -2776,8 +2777,32 @@ export default function Dashboard() {
                                 marginTop: '6px',
                                 lineHeight: '1.5',
                                 display: 'block',
-                                wordBreak: 'break-word'
-                            }}>{notif.message}</span>
+                                wordBreak: 'break-word',
+                                whiteSpace: 'pre-wrap'
+                            }}>
+                              {notif.message.length > 100 && !expandedAlerts.has(notif._id) 
+                                ? notif.message.substring(0, 100) + '...' 
+                                : notif.message}
+                            </span>
+                            {notif.message.length > 100 && (
+                              <button 
+                                onClick={() => {
+                                  setExpandedAlerts(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(notif._id)) next.delete(notif._id);
+                                    else next.add(notif._id);
+                                    return next;
+                                  });
+                                }}
+                                style={{ 
+                                  background: 'none', border: 'none', color: 'var(--brand-blue)', 
+                                  fontSize: '0.85rem', cursor: 'pointer', padding: 0, marginTop: '4px',
+                                  fontWeight: 'bold'
+                                }}
+                              >
+                                {expandedAlerts.has(notif._id) ? 'Show Less' : 'Read More'}
+                              </button>
+                            )}
                             <span style={{ fontSize: '0.75rem', color: 'rgba(245, 158, 11, 0.8)', marginTop: '8px', display: 'block', fontWeight: '500' }}>
                               {new Date(notif.createdAt).toLocaleString()}
                             </span>
