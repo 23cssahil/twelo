@@ -1714,13 +1714,19 @@ export default function Dashboard() {
           // Check if it's Porn or Hentai with a high probability
           const topPrediction = predictions[0];
           
-          // Show the user what the AI saw during testing
-          showToastMsg(`AI Top Guess: ${topPrediction.className} (${(topPrediction.probability * 100).toFixed(1)}%)`, 'info');
+          // Strict NSFW check: Combine probabilities of adult categories
+          const adultScore = predictions.reduce((sum, p) => {
+            if (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') {
+              return sum + p.probability;
+            }
+            return sum;
+          }, 0);
 
-          // Strict NSFW check: If Porn, Hentai, or Sexy has > 35% probability, block it!
-          const isNSFW = predictions.some(p => 
-            (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') && p.probability > 0.35
-          );
+          // If the AI thinks there is even a 20% total chance of it being Adult/Sexy, block it!
+          const isNSFW = adultScore > 0.20;
+
+          // Show the user the total adult score during testing
+          showToastMsg(`AI Top Guess: ${topPrediction.className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
 
           if (isNSFW) {
             showToastMsg('🚨 STRICT WARNING: NSFW content detected! Upload blocked.', 'error');
