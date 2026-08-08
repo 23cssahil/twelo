@@ -2115,17 +2115,6 @@ export default function Dashboard() {
 
       peer.on('stream', (remoteStream) => {
         setRemoteStreamState(remoteStream);
-        const attachStream = () => {
-          if (userVideoRef.current) {
-            if (userVideoRef.current.srcObject !== remoteStream) {
-              userVideoRef.current.srcObject = remoteStream;
-            }
-            userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
-          } else {
-            setTimeout(attachStream, 200);
-          }
-        };
-        attachStream();
       });
 
       peer.on('close', () => {
@@ -2186,17 +2175,6 @@ export default function Dashboard() {
 
       peer.on('stream', (remoteStream) => {
         setRemoteStreamState(remoteStream);
-        const attachStream = () => {
-          if (userVideoRef.current) {
-            if (userVideoRef.current.srcObject !== remoteStream) {
-              userVideoRef.current.srcObject = remoteStream;
-            }
-            userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
-          } else {
-            setTimeout(attachStream, 200);
-          }
-        };
-        attachStream();
       });
 
       peer.on('close', () => {
@@ -2396,13 +2374,11 @@ export default function Dashboard() {
         if (myVideoRef.current.srcObject !== localStreamRef.current) {
           myVideoRef.current.srcObject = localStreamRef.current;
         }
-        myVideoRef.current.play().catch(e => {});
       }
       if (userVideoRef.current && remoteStreamState) {
         if (userVideoRef.current.srcObject !== remoteStreamState) {
           userVideoRef.current.srcObject = remoteStreamState;
         }
-        userVideoRef.current.play().catch(e => {});
       }
     }
   }, [swapVideo, callActive, callAccepted, remoteStreamState]);
