@@ -371,6 +371,7 @@ export default function Dashboard() {
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
   const chatTypingTimeoutRef = useRef(null);
+  const [showNudityWarning, setShowNudityWarning] = useState(false);
   const [timeTick, setTimeTick] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => setTimeTick(t => t + 1), 60000);
@@ -1536,7 +1537,11 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (!res.ok) {
-        showToastMsg(data.message || 'Upload blocked by moderation policy.', 'error');
+        if (res.status === 400 && data.message && data.message.includes('Nudity')) {
+          setShowNudityWarning(true);
+        } else {
+          showToastMsg(data.message || 'Upload blocked by moderation policy.', 'error');
+        }
         return null;
       }
       return data.url;
@@ -1587,7 +1592,11 @@ export default function Dashboard() {
       const data = await res.json();
       
       if (!res.ok) {
-        showToastMsg(data.message || 'Upload blocked by moderation policy.', 'error');
+        if (res.status === 400 && data.message && data.message.includes('Nudity')) {
+          setShowNudityWarning(true);
+        } else {
+          showToastMsg(data.message || 'Upload blocked by moderation policy.', 'error');
+        }
         setStoryUploading(false);
         return;
       }
@@ -4728,6 +4737,39 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Nudity Warning Modal */}
+      {showNudityWarning && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999
+        }}>
+          <div style={{
+            background: 'linear-gradient(145deg, #1e1e1e, #111)', border: '1px solid #ef4444', borderRadius: '24px',
+            padding: '40px', maxWidth: '400px', width: '90%', textAlign: 'center',
+            boxShadow: '0 20px 50px rgba(239, 68, 68, 0.25)',
+            animation: 'popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}>
+            <div style={{ fontSize: '64px', marginBottom: '15px' }}>⚠️</div>
+            <h2 style={{ color: '#ef4444', fontSize: '24px', fontWeight: '800', marginBottom: '15px', textTransform: 'uppercase', letterSpacing: '1px' }}>Action Blocked</h2>
+            <p style={{ color: '#cbd5e1', fontSize: '15px', lineHeight: '1.6', marginBottom: '30px' }}>
+              Nudity or explicit content is strictly prohibited on Twelo. Continued violations will result in permanent account termination.
+            </p>
+            <button 
+              onClick={() => setShowNudityWarning(false)}
+              style={{
+                background: 'linear-gradient(135deg, #ef4444, #b91c1c)', color: 'white',
+                border: 'none', padding: '14px 32px', borderRadius: '30px', fontSize: '16px',
+                fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 5px 15px rgba(239, 68, 68, 0.4)',
+                transition: 'transform 0.2s'
+              }}
+              onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
+              onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+            >
+              I Understand
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
