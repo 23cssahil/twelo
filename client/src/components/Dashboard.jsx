@@ -1581,6 +1581,10 @@ export default function Dashboard() {
           img.src = URL.createObjectURL(file);
           await new Promise(resolve => { img.onload = resolve; });
           
+          // Explicitly set width/height so drawImage doesn't silently fail and output a blank (Drawing 0.0%) canvas
+          img.width = img.naturalWidth;
+          img.height = img.naturalHeight;
+          
           // Downscale to 224x224 Canvas to prevent WebGL Out of Memory crash on mobile cameras
           const canvas = document.createElement('canvas');
           canvas.width = 224;
@@ -1596,7 +1600,7 @@ export default function Dashboard() {
             return sum;
           }, 0);
 
-          const isNSFW = adultScore > 0.07;
+          const isNSFW = adultScore > 0.05;
           
           showToastMsg(`AI Guess: ${predictions[0].className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
 
@@ -1694,6 +1698,10 @@ export default function Dashboard() {
         img.src = URL.createObjectURL(file);
         await new Promise(resolve => { img.onload = resolve; });
         
+        // Explicitly set width/height so drawImage doesn't silently fail and output a blank (Drawing 0.0%) canvas
+        img.width = img.naturalWidth;
+        img.height = img.naturalHeight;
+        
         // Downscale to 224x224 Canvas to prevent WebGL Out of Memory crash on mobile cameras
         const canvas = document.createElement('canvas');
         canvas.width = 224;
@@ -1709,7 +1717,7 @@ export default function Dashboard() {
           return sum;
         }, 0);
 
-        const isNSFW = adultScore > 0.07;
+        const isNSFW = adultScore > 0.05;
 
         showToastMsg(`AI Guess: ${predictions[0].className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
 
