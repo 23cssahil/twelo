@@ -377,6 +377,7 @@ export default function Dashboard() {
   const [storyProgress, setStoryProgress] = useState(0);
   const [storyPaused, setStoryPaused] = useState(false);
   const storyPausedRef = useRef(false);
+  const storyAudioRef = useRef(null); // Holds the current story background song
 
   const [isFetchingChats, setIsFetchingChats] = useState(true);
   const [activeChatUser, setActiveChatUser] = useState(null);
@@ -792,6 +793,7 @@ export default function Dashboard() {
       if (currentStory.songUrl) {
         audio = new Audio(currentStory.songUrl);
         audio.loop = true;
+        storyAudioRef.current = audio; // Store ref for pause/resume from pointer events
         
         // Suppress Android Chrome media notification via MediaSession API
         if ('mediaSession' in navigator) {
@@ -822,6 +824,7 @@ export default function Dashboard() {
       if (audio) {
         audio.pause();
         audio = null;
+        storyAudioRef.current = null;
       }
       // Clean up media session on exit
       if ('mediaSession' in navigator) {
@@ -4906,6 +4909,7 @@ export default function Dashboard() {
             storyPausedRef.current = true;
             setStoryPaused(true);
             if (storyVideoRef.current) storyVideoRef.current.pause();
+            if (storyAudioRef.current) storyAudioRef.current.pause(); // Pause song too
             // Also track swipe start
             if (e.touches) {
               setTouchEnd(null);
@@ -4919,11 +4923,13 @@ export default function Dashboard() {
             storyPausedRef.current = false;
             setStoryPaused(false);
             if (storyVideoRef.current) storyVideoRef.current.play().catch(() => {});
+            if (storyAudioRef.current) storyAudioRef.current.play().catch(() => {}); // Resume song
           }}
           onPointerLeave={() => {
             storyPausedRef.current = false;
             setStoryPaused(false);
             if (storyVideoRef.current) storyVideoRef.current.play().catch(() => {});
+            if (storyAudioRef.current) storyAudioRef.current.play().catch(() => {}); // Resume song
           }}
           onTouchStart={(e) => {
             setTouchEnd(null);
