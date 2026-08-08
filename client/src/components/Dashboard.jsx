@@ -1568,8 +1568,9 @@ export default function Dashboard() {
         setStoryPreviewSafety('checking');
         
         try {
+          const compressedFile = await compressImage(file);
           const formData = new FormData();
-          formData.append('file', file);
+          formData.append('file', compressedFile);
           
           const checkRes = await fetch(`${API_URL}/api/check`, {
             method: 'POST',
@@ -1672,8 +1673,9 @@ export default function Dashboard() {
         setPreviewSafety('checking');
         
         try {
+          const compressedFile = await compressImage(file);
           const formData = new FormData();
-          formData.append('file', file);
+          formData.append('file', compressedFile);
           
           const checkRes = await fetch(`${API_URL}/api/check`, {
             method: 'POST',
@@ -1682,16 +1684,11 @@ export default function Dashboard() {
           });
           
           if (checkRes.ok) {
-            const data = await checkRes.json();
-            alert('SIGHTENGINE SAFE: ' + JSON.stringify(data.debug || data));
             setPreviewSafety('safe');
           } else {
-            const data = await checkRes.json().catch(() => ({}));
-            alert('SIGHTENGINE UNSAFE: ' + JSON.stringify(data.debug || data));
             setPreviewSafety('unsafe');
           }
         } catch (err) {
-          alert('NETWORK ERROR: ' + err.message);
           setPreviewSafety('unsafe');
         }
       } else {
@@ -1707,7 +1704,7 @@ export default function Dashboard() {
   const compressImage = (file) => {
     return new Promise((resolve, reject) => {
       // Don't compress small files or non-images (like gifs if they somehow bypass accept)
-      if (file.size < 500000 || !file.type.startsWith('image/') || file.type === 'image/gif') {
+      if (file.size < 4000000 || !file.type.startsWith('image/') || file.type === 'image/gif') {
         return resolve(file);
       }
       const reader = new FileReader();
