@@ -44,6 +44,8 @@ import {
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
 import * as THREE from 'three';
+import * as tf from '@tensorflow/tfjs';
+import * as nsfwjs from 'nsfwjs';
 import { AuthContext, SocketContext } from '../App';
 
 const SAMPLE_SONGS = [
@@ -366,12 +368,26 @@ export default function Dashboard() {
   const [isFetchingChats, setIsFetchingChats] = useState(true);
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [nsfwModel, setNsfwModel] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
   const chatTypingTimeoutRef = useRef(null);
   
   const [timeTick, setTimeTick] = useState(0);
+  useEffect(() => {
+    const loadNsfwModel = async () => {
+      try {
+        const model = await nsfwjs.load();
+        setNsfwModel(model);
+        console.log('NSFW model loaded successfully');
+      } catch (err) {
+        console.error('Error loading NSFW model:', err);
+      }
+    };
+    loadNsfwModel();
+  }, []);
+
   useEffect(() => {
     const interval = setInterval(() => setTimeTick(t => t + 1), 60000);
     return () => clearInterval(interval);
@@ -1521,7 +1537,7 @@ export default function Dashboard() {
     formData.append('folder', 'twelo_messages');
     try {
       // Direct upload to Cloudinary - no server needed!
-      const res = await fetch(`https://api.cloudinary.com/v1_1/wda7nysx/auto/upload`, {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/srgyaihc/auto/upload`, {
         method: 'POST',
         body: formData
       });
@@ -1572,7 +1588,7 @@ export default function Dashboard() {
     formData.append('folder', 'twelo_stories');
     
     try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/wda7nysx/auto/upload`, {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/srgyaihc/auto/upload`, {
         method: 'POST',
         body: formData
       });
@@ -1671,6 +1687,33 @@ export default function Dashboard() {
   const confirmSendImage = async () => {
     if (previewImage) {
       setIsUploading(true);
+
+      // AI NSFW Moderation Check
+      if (nsfwModel) {
+        try {
+          const img = new Image();
+          img.src = URL.createObjectURL(previewImage);
+          await new Promise(resolve => { img.onload = resolve; });
+          
+          const predictions = await nsfwModel.classify(img);
+          console.log('NSFW Predictions:', predictions);
+          
+          // Check if it's Porn or Hentai with a high probability
+          const topPrediction = predictions[0];
+          const isNSFW = (topPrediction.className === 'Porn' || topPrediction.className === 'Hentai') && topPrediction.probability > 0.6;
+
+          if (isNSFW) {
+            alert('🚨 STRICT WARNING: NSFW (Adult) content detected! Your upload has been blocked by our AI. Further attempts may result in a permanent account ban.');
+            setIsUploading(false);
+            setPreviewImage(null);
+            setIsViewOnce(false);
+            return;
+          }
+        } catch (err) {
+          console.error('NSFW classification failed:', err);
+        }
+      }
+
       try {
         let fileToUpload = previewImage;
         try {
