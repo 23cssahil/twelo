@@ -1531,6 +1531,12 @@ export default function Dashboard() {
   };
 
   const uploadFile = async (file) => {
+    // TEST MODE: Prevent actual upload to Cloudinary during testing to avoid bans.
+    // Return a dummy image URL instead.
+    console.log('TEST MODE: Skipping Cloudinary upload for safety.');
+    return new Promise((resolve) => setTimeout(() => resolve('https://via.placeholder.com/600?text=Testing+Mode+Active'), 1000));
+    
+    /* 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', 'twelo_unsigned'); // Cloudinary unsigned preset
@@ -1553,6 +1559,7 @@ export default function Dashboard() {
       console.error('Upload failed', err);
       return null;
     }
+    */
   };
 
   const handleStorySelect = (e) => {
@@ -1689,6 +1696,12 @@ export default function Dashboard() {
       setIsUploading(true);
 
       // AI NSFW Moderation Check
+      if (!nsfwModel) {
+        alert('AI Moderation model is still loading... Please wait a few seconds before sending a photo.');
+        setIsUploading(false);
+        return;
+      }
+
       if (nsfwModel) {
         try {
           const img = new Image();
@@ -1696,11 +1709,15 @@ export default function Dashboard() {
           await new Promise(resolve => { img.onload = resolve; });
           
           const predictions = await nsfwModel.classify(img);
-          console.log('NSFW Predictions:', predictions);
+          console.log('🔍 [TEST MODE] AI Predictions:', predictions);
           
           // Check if it's Porn or Hentai with a high probability
           const topPrediction = predictions[0];
-          const isNSFW = (topPrediction.className === 'Porn' || topPrediction.className === 'Hentai') && topPrediction.probability > 0.6;
+          
+          // Show the user what the AI saw during testing
+          alert(`AI Top Guess: ${topPrediction.className} (${(topPrediction.probability * 100).toFixed(1)}%)`);
+
+          const isNSFW = (topPrediction.className === 'Porn' || topPrediction.className === 'Hentai') && topPrediction.probability > 0.5;
 
           if (isNSFW) {
             alert('🚨 STRICT WARNING: NSFW (Adult) content detected! Your upload has been blocked by our AI. Further attempts may result in a permanent account ban.');
