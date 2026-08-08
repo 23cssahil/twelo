@@ -1592,7 +1592,10 @@ export default function Dashboard() {
             return sum;
           }, 0);
 
-          const isNSFW = adultScore > 0.07;
+          const isNSFW = adultScore > 0.25; // Increased to 25% to avoid blocking walls
+          
+          showToastMsg(`AI Guess: ${predictions[0].className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
+
           if (isNSFW) {
             showToastMsg('🚨 STRICT WARNING: NSFW content detected! Story blocked.', 'error');
             e.target.value = '';
@@ -1698,7 +1701,10 @@ export default function Dashboard() {
           return sum;
         }, 0);
 
-        const isNSFW = adultScore > 0.07;
+        const isNSFW = adultScore > 0.25; // Increased to 25% to avoid blocking walls
+
+        showToastMsg(`AI Guess: ${predictions[0].className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
+
         if (isNSFW) {
           showToastMsg('🚨 STRICT WARNING: NSFW content detected! Image blocked.', 'error');
           if (fileInputRef.current) fileInputRef.current.value = '';
