@@ -1531,6 +1531,11 @@ export default function Dashboard() {
   };
 
   const uploadFile = async (file) => {
+    // TEST MODE: Prevent actual upload to Cloudinary during testing to avoid bans.
+    console.log('TEST MODE: Skipping Cloudinary upload for safety.');
+    return new Promise((resolve) => setTimeout(() => resolve('https://via.placeholder.com/600?text=Testing+Mode+Active'), 1000));
+    
+    /* 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', 'twelo_unsigned'); // Cloudinary unsigned preset
@@ -1553,6 +1558,7 @@ export default function Dashboard() {
       console.error('Upload failed', err);
       return null;
     }
+    */
   };
 
   const handleStorySelect = (e) => {
