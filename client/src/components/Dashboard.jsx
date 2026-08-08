@@ -1713,8 +1713,9 @@ export default function Dashboard() {
 
   const compressImage = (file) => {
     return new Promise((resolve, reject) => {
+      const fileType = file.type || '';
       // Don't compress small files or non-images (like gifs if they somehow bypass accept)
-      if (file.size < 4000000 || !file.type.startsWith('image/') || file.type === 'image/gif') {
+      if (file.size < 4000000 || !fileType.startsWith('image/') || fileType === 'image/gif') {
         return resolve(file);
       }
       const reader = new FileReader();
