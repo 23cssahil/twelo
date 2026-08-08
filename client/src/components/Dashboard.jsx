@@ -922,6 +922,8 @@ export default function Dashboard() {
         if (ringtoneOutRef.current) {
           ringtoneOutRef.current.pause();
           ringtoneOutRef.current.currentTime = 0;
+          ringtoneOutRef.current.src = '';
+          setTimeout(() => { if (ringtoneOutRef.current) ringtoneOutRef.current.src = '/ringtone.wav'; }, 500);
         }
       }
       // Pass both the answer and any subsequent ICE candidates directly to the peer
@@ -2237,13 +2239,13 @@ export default function Dashboard() {
       ringtoneInRef.current.pause(); 
       ringtoneInRef.current.currentTime = 0; 
       ringtoneInRef.current.src = '';
-      setTimeout(() => { if (ringtoneInRef.current) ringtoneInRef.current.src = '/ringtone.mp3'; }, 500);
+      setTimeout(() => { if (ringtoneInRef.current) ringtoneInRef.current.src = '/incoming.wav'; }, 500);
     }
     if (ringtoneOutRef.current) { 
       ringtoneOutRef.current.pause(); 
       ringtoneOutRef.current.currentTime = 0; 
       ringtoneOutRef.current.src = '';
-      setTimeout(() => { if (ringtoneOutRef.current) ringtoneOutRef.current.src = '/ringtone.mp3'; }, 500);
+      setTimeout(() => { if (ringtoneOutRef.current) ringtoneOutRef.current.src = '/ringtone.wav'; }, 500);
     }
     if (connectionRef.current) { connectionRef.current.destroy(); connectionRef.current = null; }
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
