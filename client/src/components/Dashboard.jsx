@@ -349,7 +349,7 @@ export default function Dashboard() {
   const [storyCameraOpen, setStoryCameraOpen] = useState(false);
   const [storyCameraStream, setStoryCameraStream] = useState(null);
   const [storyCapturedImage, setStoryCapturedImage] = useState(null);
-  const [storyCameraFacingMode, setStoryCameraFacingMode] = useState('environment');
+  const [storyCameraFacingMode, setStoryCameraFacingMode] = useState('user');
   const storyLiveCameraRef = useRef(null);
   const [storyFile, setStoryFile] = useState(null);
   const [storyPreviewUrl, setStoryPreviewUrl] = useState('');
@@ -1583,14 +1583,26 @@ export default function Dashboard() {
     setStoryCapturedImage(null);
   };
 
-  const openStoryCamera = async (mode = storyCameraFacingMode) => {
+  const openStoryCamera = async (mode = 'user') => {
     try {
       if (storyCameraStream) {
         storyCameraStream.getTracks().forEach(track => track.stop());
+        setStoryCameraStream(null);
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode } });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: mode } } });
+      } catch (e) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode } });
+      }
+      
+      // Read actual facing mode from track settings (most reliable on Android Chrome)
+      const track = stream.getVideoTracks()[0];
+      const settings = track && track.getSettings ? track.getSettings() : {};
+      const actualFacing = settings.facingMode || mode;
+      
       setStoryCameraStream(stream);
-      setStoryCameraFacingMode(mode);
+      setStoryCameraFacingMode(actualFacing);
       setStoryCameraOpen(true);
       setStoryCapturedImage(null);
     } catch (err) {
@@ -1615,8 +1627,14 @@ export default function Dashboard() {
       } catch (e) {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: newMode } });
       }
+      
+      // Read actual facing mode from track settings (most reliable on Android Chrome)
+      const track = stream.getVideoTracks()[0];
+      const settings = track && track.getSettings ? track.getSettings() : {};
+      const actualFacing = settings.facingMode || newMode;
+      
       setStoryCameraStream(stream);
-      setStoryCameraFacingMode(newMode);
+      setStoryCameraFacingMode(actualFacing);
     } catch (err) {
       console.error("Camera switch failed", err);
     }
