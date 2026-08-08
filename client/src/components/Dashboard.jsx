@@ -4490,7 +4490,7 @@ export default function Dashboard() {
           )}
 
           {/* Media Preview Area */}
-          <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}>
             {storyFile?.type?.startsWith('video/') ? (
               <video src={storyPreviewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} controls autoPlay loop />
             ) : (
