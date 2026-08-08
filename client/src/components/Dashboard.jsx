@@ -1697,7 +1697,7 @@ export default function Dashboard() {
 
       // AI NSFW Moderation Check
       if (!nsfwModel) {
-        alert('AI Moderation model is still loading... Please wait a few seconds before sending a photo.');
+        showToastMsg('AI Moderation model is still loading... Please wait a few seconds before sending a photo.', 'info');
         setIsUploading(false);
         return;
       }
@@ -1715,12 +1715,15 @@ export default function Dashboard() {
           const topPrediction = predictions[0];
           
           // Show the user what the AI saw during testing
-          alert(`AI Top Guess: ${topPrediction.className} (${(topPrediction.probability * 100).toFixed(1)}%)`);
+          showToastMsg(`AI Top Guess: ${topPrediction.className} (${(topPrediction.probability * 100).toFixed(1)}%)`, 'info');
 
-          const isNSFW = (topPrediction.className === 'Porn' || topPrediction.className === 'Hentai') && topPrediction.probability > 0.5;
+          // Strict NSFW check: If Porn, Hentai, or Sexy has > 35% probability, block it!
+          const isNSFW = predictions.some(p => 
+            (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') && p.probability > 0.35
+          );
 
           if (isNSFW) {
-            alert('🚨 STRICT WARNING: NSFW (Adult) content detected! Your upload has been blocked by our AI. Further attempts may result in a permanent account ban.');
+            showToastMsg('🚨 STRICT WARNING: NSFW content detected! Upload blocked.', 'error');
             setIsUploading(false);
             setPreviewImage(null);
             setIsViewOnce(false);
