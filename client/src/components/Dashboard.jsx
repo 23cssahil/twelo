@@ -4595,16 +4595,15 @@ export default function Dashboard() {
 
           {/* Main View Area */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            {storyCapturedImage ? (
+            <video 
+              ref={storyLiveCameraRef} 
+              autoPlay 
+              playsInline 
+              muted 
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: storyCapturedImage ? 'none' : 'block' }} 
+            />
+            {storyCapturedImage && (
               <img src={storyCapturedImage} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Captured" />
-            ) : (
-              <video 
-                ref={storyLiveCameraRef} 
-                autoPlay 
-                playsInline 
-                muted 
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-              />
             )}
           </div>
 
