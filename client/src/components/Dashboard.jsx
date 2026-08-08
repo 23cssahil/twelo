@@ -1730,8 +1730,8 @@ export default function Dashboard() {
             return sum;
           }, 0);
 
-          // Absolute Zero Tolerance: If adult score is > 20% (0.20), block it!
-          const isNSFW = adultScore > 0.20;
+          // Absolute Zero Tolerance: If adult score is > 10% (0.10), block it!
+          const isNSFW = adultScore > 0.10;
 
           // Show the user the total adult score during testing
           showToastMsg(`AI Top Guess: ${topPrediction.className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
