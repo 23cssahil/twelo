@@ -1724,8 +1724,8 @@ export default function Dashboard() {
             return sum;
           }, 0);
 
-          // Absolute Zero Tolerance: If adult score is > 5% (0.05), block it!
-          const isNSFW = adultScore > 0.05;
+          // If the AI thinks there is more than 35% total chance of it being Adult/Sexy, block it
+          const isNSFW = adultScore > 0.35;
 
           if (isNSFW) {
             showToastMsg('🚨 STRICT WARNING: NSFW content detected! Upload blocked.', 'error');
