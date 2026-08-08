@@ -2117,7 +2117,9 @@ export default function Dashboard() {
         setRemoteStreamState(remoteStream);
         const attachStream = () => {
           if (userVideoRef.current) {
-            userVideoRef.current.srcObject = remoteStream;
+            if (userVideoRef.current.srcObject !== remoteStream) {
+              userVideoRef.current.srcObject = remoteStream;
+            }
             userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
           } else {
             setTimeout(attachStream, 200);
@@ -2186,7 +2188,9 @@ export default function Dashboard() {
         setRemoteStreamState(remoteStream);
         const attachStream = () => {
           if (userVideoRef.current) {
-            userVideoRef.current.srcObject = remoteStream;
+            if (userVideoRef.current.srcObject !== remoteStream) {
+              userVideoRef.current.srcObject = remoteStream;
+            }
             userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
           } else {
             setTimeout(attachStream, 200);
@@ -2389,13 +2393,15 @@ export default function Dashboard() {
   useEffect(() => {
     if (callActive) {
       if (myVideoRef.current && localStreamRef.current) {
-        myVideoRef.current.srcObject = localStreamRef.current;
+        if (myVideoRef.current.srcObject !== localStreamRef.current) {
+          myVideoRef.current.srcObject = localStreamRef.current;
+        }
         myVideoRef.current.play().catch(e => {});
       }
-      // callAccepted is in the dep array so this re-runs after the remote <video>
-      // element mounts (it's conditionally rendered inside {callAccepted ? ...})
       if (userVideoRef.current && remoteStreamState) {
-        userVideoRef.current.srcObject = remoteStreamState;
+        if (userVideoRef.current.srcObject !== remoteStreamState) {
+          userVideoRef.current.srcObject = remoteStreamState;
+        }
         userVideoRef.current.play().catch(e => {});
       }
     }
