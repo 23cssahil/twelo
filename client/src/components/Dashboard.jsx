@@ -347,7 +347,8 @@ export default function Dashboard() {
   const [storyEditorOpen, setStoryEditorOpen] = useState(false);
   const [storyFile, setStoryFile] = useState(null);
   const [storyPreviewUrl, setStoryPreviewUrl] = useState('');
-  const [storyCrop, setStoryCrop] = useState();
+  const [storyCrop, setStoryCrop] = useState({ unit: '%', width: 90, height: 90, x: 5, y: 5 });
+  const [isCroppingStory, setIsCroppingStory] = useState(false);
   const [completedStoryCrop, setCompletedStoryCrop] = useState(null);
   const storyImgRef = useRef(null);
   const [storyVisibility, setStoryVisibility] = useState('everyone');
@@ -1568,8 +1569,9 @@ export default function Dashboard() {
         setStoryEditorOpen(true);
         setStoryVisibility('everyone');
         setSelectedSongUrl('');
-        setStoryCrop(null);
+        setStoryCrop({ unit: '%', width: 90, height: 90, x: 5, y: 5 });
         setCompletedStoryCrop(null);
+        setIsCroppingStory(true);
         
         const fileType = file.type || '';
         
@@ -1602,6 +1604,17 @@ export default function Dashboard() {
     e.target.value = '';
   };
 
+  const handleConfirmCrop = async () => {
+    if (completedStoryCrop?.width && completedStoryCrop?.height && storyImgRef.current) {
+      const croppedFile = await getCroppedImg(storyImgRef.current, completedStoryCrop, storyFile.name);
+      if (croppedFile) {
+        setStoryFile(croppedFile);
+        setStoryPreviewUrl(URL.createObjectURL(croppedFile));
+      }
+    }
+    setIsCroppingStory(false);
+  };
+
   const handleStoryUpload = async () => {
     setStoryUploading(true);
     let finalFile = storyFile;
@@ -1611,15 +1624,9 @@ export default function Dashboard() {
     
     if (mediaType === 'image') {
       try {
-        if (completedStoryCrop?.width && completedStoryCrop?.height && storyImgRef.current) {
-          const croppedFile = await getCroppedImg(storyImgRef.current, completedStoryCrop, storyFile.name);
-          if (croppedFile) {
-            finalFile = croppedFile;
-          }
-        }
         finalFile = await compressImage(finalFile);
       } catch (err) {
-        console.error('Compression or crop failed, using original', err);
+        console.error('Compression failed, using original', err);
       }
     }
     
@@ -4538,16 +4545,27 @@ export default function Dashboard() {
           <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}>
             {storyFile?.type?.startsWith('video/') ? (
               <video src={storyPreviewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} controls autoPlay loop />
+            ) : isCroppingStory ? (
+              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', alignItems: 'center' }}>
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                  <ReactCrop 
+                    crop={storyCrop} 
+                    onChange={c => setStoryCrop(c)} 
+                    onComplete={c => setCompletedStoryCrop(c)}
+                    style={{ maxHeight: '100%', maxWidth: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <img src={storyPreviewUrl} ref={storyImgRef} style={{ maxHeight: '70vh', maxWidth: '100%', objectFit: 'contain' }} alt="Story Preview" />
+                  </ReactCrop>
+                </div>
+                <button 
+                  onClick={handleConfirmCrop}
+                  style={{ padding: '10px 30px', margin: '15px', background: '#10B981', color: 'white', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                  Done Cropping
+                </button>
+              </div>
             ) : (
               <>
-                <ReactCrop 
-                  crop={storyCrop} 
-                  onChange={c => setStoryCrop(c)} 
-                  onComplete={c => setCompletedStoryCrop(c)}
-                  style={{ maxHeight: '100%', maxWidth: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <img src={storyPreviewUrl} ref={storyImgRef} style={{ maxHeight: '70vh', maxWidth: '100%', objectFit: 'contain' }} alt="Story Preview" />
-                </ReactCrop>
+                <img src={storyPreviewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Story Preview" />
                 <div style={{ 
                   position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)', padding: '8px 16px', borderRadius: '30px', 
                   fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px',
@@ -4556,14 +4574,15 @@ export default function Dashboard() {
                 }}>
                   {storyPreviewSafety === 'checking' && '⏳ AI Scanning...'}
                   {storyPreviewSafety === 'safe' && '✅ Image Safe'}
-                  {storyPreviewSafety === 'unsafe' && '⚠️ Nudity Detected (Cannot Send)'}
+                  {storyPreviewSafety === 'unsafe' && '🚫 Nudity Detected (Cannot Send)'}
                 </div>
               </>
             )}
           </div>
 
           {/* Footer Controls */}
-          <div style={{ padding: '20px 15px', background: 'rgba(0,0,0,0.8)', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          {!isCroppingStory && (
+            <div style={{ padding: '20px 15px', background: 'rgba(0,0,0,0.8)', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#222', padding: '10px 15px', borderRadius: '12px' }}>
               <span style={{ color: '#a8a8a8', fontSize: '0.9rem' }}>Who can see this?</span>
               <select 
@@ -4598,6 +4617,7 @@ export default function Dashboard() {
               {storyUploading ? 'Posting...' : 'Share to Status'}
             </button>
           </div>
+          )}
         </div>
       )}
 
