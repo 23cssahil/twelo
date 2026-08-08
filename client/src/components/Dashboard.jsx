@@ -1555,9 +1555,43 @@ export default function Dashboard() {
     }
   };
 
-  const handleStorySelect = (e) => {
+  const handleStorySelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.type.startsWith('image/')) {
+        if (!nsfwModel) {
+          showToastMsg('AI Moderation model is still loading... Please wait.', 'info');
+          e.target.value = '';
+          return;
+        }
+
+        try {
+          const img = new Image();
+          img.src = URL.createObjectURL(file);
+          await new Promise(resolve => { img.onload = resolve; });
+          
+          img.width = img.naturalWidth;
+          img.height = img.naturalHeight;
+          
+          const predictions = await nsfwModel.classify(img);
+          const adultScore = predictions.reduce((sum, p) => {
+            if (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') {
+              return sum + p.probability;
+            }
+            return sum;
+          }, 0);
+
+          const isNSFW = adultScore > 0.07;
+          if (isNSFW) {
+            showToastMsg('🚨 STRICT WARNING: NSFW content detected! Story blocked.', 'error');
+            e.target.value = '';
+            return; 
+          }
+        } catch (err) {
+          console.error('NSFW classification failed:', err);
+        }
+      }
+
       setStoryFile(file);
       setStoryPreviewUrl(URL.createObjectURL(file));
       setStoryEditorOpen(true);
