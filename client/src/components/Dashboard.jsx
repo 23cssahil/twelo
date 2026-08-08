@@ -1637,8 +1637,13 @@ export default function Dashboard() {
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Force preview first so the AI check runs on "Send"
       setPreviewImage(file);
       setIsViewOnce(false);
+      
+      // Clear inputs to allow re-selection
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
     }
   };
 
