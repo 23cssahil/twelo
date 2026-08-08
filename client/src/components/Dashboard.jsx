@@ -431,6 +431,7 @@ export default function Dashboard() {
 
   // Refs for media
   const myVideoRef = useRef(null);
+  const storyVideoRef = useRef(null);
   const userVideoRef = useRef(null);
   const connectionRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -744,7 +745,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     let interval;
-    if (storyViewerActive && groupedStories[currentStoryUserIndex]) {
+    if (storyViewerActive && groupedStories[currentStoryUserIndex] && !showStoryViewsModal) {
       const currentStory = groupedStories[currentStoryUserIndex].stories[currentStoryIndex];
       if (currentStory.mediaType === 'image') {
         interval = setInterval(() => {
@@ -770,7 +771,17 @@ export default function Dashboard() {
       }
     }
     return () => clearInterval(interval);
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories]);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, showStoryViewsModal]);
+
+  useEffect(() => {
+    if (storyVideoRef.current) {
+      if (showStoryViewsModal) {
+        storyVideoRef.current.pause();
+      } else {
+        storyVideoRef.current.play().catch(e => console.log('Auto-play prevented on resume', e));
+      }
+    }
+  }, [showStoryViewsModal, currentStoryIndex, currentStoryUserIndex]);
 
   useEffect(() => {
     let audio = null;
@@ -4658,6 +4669,7 @@ export default function Dashboard() {
           >
             {groupedStories[currentStoryUserIndex].stories[currentStoryIndex].mediaType === 'video' ? (
               <video 
+                ref={storyVideoRef}
                 src={groupedStories[currentStoryUserIndex].stories[currentStoryIndex].mediaUrl} 
                 autoPlay 
                 playsInline 
