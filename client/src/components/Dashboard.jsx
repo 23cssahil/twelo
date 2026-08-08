@@ -2089,39 +2089,32 @@ export default function Dashboard() {
         myVideoRef.current.play().catch(e => console.error('Local video play error:', e));
       }
 
-      const peer = new Peer({ initiator: true, trickle: true, stream: stream });
+      const peer = new Peer({ 
+        initiator: true, 
+        trickle: true, 
+        stream: stream,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478' }
+          ]
+        }
+      });
 
       logCallMessage(targetUserId, isVideo ? '📞 Started a Video Call' : '📞 Started a Voice Call');
 
       peer.on('signal', (data) => {
-        // Small delay ensures receiver socket is registered before emit
-        setTimeout(() => {
-          socket.emit('call_user', {
-            userToCall: targetUserId,
-            signalData: data,
-            from: user.id,
-            fromUsername: user.username,
-            isVideo: isVideo
-          });
-        }, 300);
+        socket.emit('call_user', {
+          userToCall: targetUserId,
+          signalData: data,
+          from: user.id,
+          fromUsername: user.username,
+          isVideo: isVideo
+        });
       });
 
       peer.on('stream', (remoteStream) => {
         setRemoteStreamState(remoteStream);
-        // Try immediately — may be null if callAccepted state hasn't caused React to render yet
-        if (userVideoRef.current) {
-          userVideoRef.current.srcObject = remoteStream;
-          userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
-        } else {
-          // React hasn't rendered the <video> element yet (callAccepted was just set).
-          // Retry after a short delay to allow the DOM to update.
-          setTimeout(() => {
-            if (userVideoRef.current) {
-              userVideoRef.current.srcObject = remoteStream;
-              userVideoRef.current.play().catch(e => console.error('Remote video play retry error:', e));
-            }
-          }, 300);
-        }
       });
 
       connectionRef.current = peer;
@@ -2155,7 +2148,17 @@ export default function Dashboard() {
         myVideoRef.current.play().catch(e => console.error('Local video play error:', e));
       }
 
-      const peer = new Peer({ initiator: false, trickle: true, stream: stream });
+      const peer = new Peer({ 
+        initiator: false, 
+        trickle: true, 
+        stream: stream,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478' }
+          ]
+        }
+      });
 
       peer.on('signal', (data) => {
         socket.emit('answer_call', { to: callerId, signal: data });
@@ -2163,19 +2166,6 @@ export default function Dashboard() {
 
       peer.on('stream', (remoteStream) => {
         setRemoteStreamState(remoteStream);
-        // Try immediately — may be null if React hasn't rendered the <video> element yet
-        if (userVideoRef.current) {
-          userVideoRef.current.srcObject = remoteStream;
-          userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
-        } else {
-          // callAccepted was just set; give React a tick to mount the <video> element
-          setTimeout(() => {
-            if (userVideoRef.current) {
-              userVideoRef.current.srcObject = remoteStream;
-              userVideoRef.current.play().catch(e => console.error('Remote video play retry error:', e));
-            }
-          }, 300);
-        }
       });
 
       peer.signal(callerSignal);
