@@ -39,7 +39,8 @@ import {
   ChevronRight,
   Users,
   Heart,
-  Eye
+  Eye,
+  Download
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -348,6 +349,7 @@ export default function Dashboard() {
   const [storyCameraOpen, setStoryCameraOpen] = useState(false);
   const [storyCameraStream, setStoryCameraStream] = useState(null);
   const [storyCapturedImage, setStoryCapturedImage] = useState(null);
+  const [storyCameraFacingMode, setStoryCameraFacingMode] = useState('environment');
   const storyLiveCameraRef = useRef(null);
   const [storyFile, setStoryFile] = useState(null);
   const [storyPreviewUrl, setStoryPreviewUrl] = useState('');
@@ -1573,17 +1575,25 @@ export default function Dashboard() {
     setStoryCapturedImage(null);
   };
 
-  const openStoryCamera = async () => {
+  const openStoryCamera = async (mode = storyCameraFacingMode) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      if (storyCameraStream) {
+        storyCameraStream.getTracks().forEach(track => track.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode } });
       setStoryCameraStream(stream);
+      setStoryCameraFacingMode(mode);
       setStoryCameraOpen(true);
       setStoryCapturedImage(null);
     } catch (err) {
       console.error("Camera access denied or unavailable", err);
-      // Fallback to native picker if camera fails
       if (storyFileInputRef.current) storyFileInputRef.current.click();
     }
+  };
+
+  const switchStoryCamera = () => {
+    const newMode = storyCameraFacingMode === 'user' ? 'environment' : 'user';
+    openStoryCamera(newMode);
   };
 
   const captureStoryPhoto = () => {
@@ -4572,8 +4582,13 @@ export default function Dashboard() {
           background: '#000', zIndex: 12000, display: 'flex', flexDirection: 'column'
         }}>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '15px', position: 'absolute', top: 0, width: '100%', zIndex: 10 }}>
-            <button onClick={closeStoryCamera} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '15px', padding: '15px', position: 'absolute', top: 0, width: '100%', zIndex: 10 }}>
+            {storyCapturedImage && (
+              <a href={storyCapturedImage} download="twelo_capture.jpg" style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex' }}>
+                <Download size={24} />
+              </a>
+            )}
+            <button onClick={closeStoryCamera} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex' }}>
               <X size={24} />
             </button>
           </div>
@@ -4606,7 +4621,7 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <button onClick={() => { closeStoryCamera(); if (storyFileInputRef.current) storyFileInputRef.current.click(); }} style={{ background: 'transparent', border: 'none', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                <button onClick={() => { closeStoryCamera(); if (storyFileInputRef.current) storyFileInputRef.current.click(); }} style={{ background: 'transparent', border: 'none', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', width: '60px' }}>
                   <div style={{ border: '2px solid #fff', borderRadius: '8px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <PlusCircle size={20} />
                   </div>
@@ -4615,7 +4630,11 @@ export default function Dashboard() {
                 <button onClick={captureStoryPhoto} style={{ width: '70px', height: '70px', borderRadius: '50%', border: '4px solid #fff', background: 'transparent', padding: '3px', cursor: 'pointer' }}>
                   <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#fff' }}></div>
                 </button>
-                <div style={{ width: '40px' }}></div> {/* Empty spacer for flex-between balance */}
+                <button onClick={switchStoryCamera} style={{ background: 'transparent', border: 'none', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', width: '60px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '50%', width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <SwitchCamera size={24} />
+                  </div>
+                </button>
               </>
             )}
           </div>
