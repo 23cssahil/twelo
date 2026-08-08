@@ -421,6 +421,7 @@ export default function Dashboard() {
   const [remoteStreamState, setRemoteStreamState] = useState(null);
   const ringtoneOutRef = useRef(null);
   const ringtoneInRef = useRef(null);
+  const callerCandidatesRef = useRef([]);
   const messagesEndRef = useRef(null);
   const globeEl = useRef(null);
 
@@ -887,29 +888,42 @@ export default function Dashboard() {
     });
 
     socket.on('incoming_call', ({ from, fromUsername, signal, isVideo }) => {
-      setReceivingCall(true);
-      setCallerId(from);
-      setCallerName(fromUsername);
-      setCallerSignal(signal);
-      setIsVideoCall(isVideo);
-      if (ringtoneInRef.current) {
-        ringtoneInRef.current.currentTime = 0;
-        ringtoneInRef.current.play().catch(e => console.log('Audio autoplay prevented'));
+      if (signal.type === 'offer') {
+        setReceivingCall(true);
+        setCallerId(from);
+        setCallerName(fromUsername);
+        setCallerSignal(signal);
+        setIsVideoCall(isVideo);
+        callerCandidatesRef.current = []; // reset for new call
+        if (ringtoneInRef.current) {
+          ringtoneInRef.current.currentTime = 0;
+          ringtoneInRef.current.play().catch(e => console.log('Audio autoplay prevented'));
+        }
+      } else if (signal.candidate) {
+        // It's a trickle ICE candidate
+        if (connectionRef.current) {
+          connectionRef.current.signal(signal);
+        } else {
+          callerCandidatesRef.current.push(signal);
+        }
       }
     });
 
     socket.on('call_accepted', (signal) => {
-      setCallAccepted(true);
-      setCalling(false);
-      callStartTimeRef.current = Date.now();
-      if (callTimeoutRef.current) {
-        clearTimeout(callTimeoutRef.current);
-        callTimeoutRef.current = null;
+      if (signal.type === 'answer') {
+        setCallAccepted(true);
+        setCalling(false);
+        callStartTimeRef.current = Date.now();
+        if (callTimeoutRef.current) {
+          clearTimeout(callTimeoutRef.current);
+          callTimeoutRef.current = null;
+        }
+        if (ringtoneOutRef.current) {
+          ringtoneOutRef.current.pause();
+          ringtoneOutRef.current.currentTime = 0;
+        }
       }
-      if (ringtoneOutRef.current) {
-        ringtoneOutRef.current.pause();
-        ringtoneOutRef.current.currentTime = 0;
-      }
+      // Pass both the answer and any subsequent ICE candidates directly to the peer
       if (connectionRef.current) connectionRef.current.signal(signal);
     });
 
@@ -2074,7 +2088,7 @@ export default function Dashboard() {
         myVideoRef.current.play().catch(e => console.error('Local video play error:', e));
       }
 
-      const peer = new Peer({ initiator: true, trickle: false, stream: stream });
+      const peer = new Peer({ initiator: true, trickle: true, stream: stream });
 
       logCallMessage(targetUserId, isVideo ? '📞 Started a Video Call' : '📞 Started a Voice Call');
 
@@ -2140,7 +2154,7 @@ export default function Dashboard() {
         myVideoRef.current.play().catch(e => console.error('Local video play error:', e));
       }
 
-      const peer = new Peer({ initiator: false, trickle: false, stream: stream });
+      const peer = new Peer({ initiator: false, trickle: true, stream: stream });
 
       peer.on('signal', (data) => {
         socket.emit('answer_call', { to: callerId, signal: data });
@@ -2164,6 +2178,11 @@ export default function Dashboard() {
       });
 
       peer.signal(callerSignal);
+      // Signal any ICE candidates that arrived before the call was accepted
+      if (callerCandidatesRef.current) {
+        callerCandidatesRef.current.forEach(c => peer.signal(c));
+        callerCandidatesRef.current = [];
+      }
       connectionRef.current = peer;
     } catch (error) {
       console.error(error);
@@ -2195,6 +2214,8 @@ export default function Dashboard() {
     setReceivingCall(false);
     setCallAccepted(false);
     setRemoteStreamState(null);
+    setCallerSignal(null);
+    callerCandidatesRef.current = [];
     if (ringtoneInRef.current) { 
       ringtoneInRef.current.pause(); 
       ringtoneInRef.current.currentTime = 0; 
