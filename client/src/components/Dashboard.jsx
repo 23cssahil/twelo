@@ -345,6 +345,10 @@ export default function Dashboard() {
 
   // Story Editor State
   const [storyEditorOpen, setStoryEditorOpen] = useState(false);
+  const [storyCameraOpen, setStoryCameraOpen] = useState(false);
+  const [storyCameraStream, setStoryCameraStream] = useState(null);
+  const [storyCapturedImage, setStoryCapturedImage] = useState(null);
+  const storyLiveCameraRef = useRef(null);
   const [storyFile, setStoryFile] = useState(null);
   const [storyPreviewUrl, setStoryPreviewUrl] = useState('');
   const [storyCrop, setStoryCrop] = useState({ unit: '%', width: 90, height: 90, x: 5, y: 5 });
@@ -1560,6 +1564,65 @@ export default function Dashboard() {
     }
   };
 
+  const closeStoryCamera = () => {
+    if (storyCameraStream) {
+      storyCameraStream.getTracks().forEach(track => track.stop());
+      setStoryCameraStream(null);
+    }
+    setStoryCameraOpen(false);
+    setStoryCapturedImage(null);
+  };
+
+  const openStoryCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      setStoryCameraStream(stream);
+      setStoryCameraOpen(true);
+      setStoryCapturedImage(null);
+    } catch (err) {
+      console.error("Camera access denied or unavailable", err);
+      // Fallback to native picker if camera fails
+      if (storyFileInputRef.current) storyFileInputRef.current.click();
+    }
+  };
+
+  const captureStoryPhoto = () => {
+    if (storyLiveCameraRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = storyLiveCameraRef.current.videoWidth;
+      canvas.height = storyLiveCameraRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(storyLiveCameraRef.current, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      setStoryCapturedImage(dataUrl);
+    }
+  };
+
+  const confirmStoryPhoto = () => {
+    if (storyCapturedImage) {
+      // Convert Data URL to File object
+      const arr = storyCapturedImage.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while(n--){
+          u8arr[n] = bstr.charCodeAt(n);
+      }
+      const file = new File([u8arr], `story_${Date.now()}.jpg`, {type:mime});
+      
+      // Simulate event object to pass to handleStorySelect
+      const simulatedEvent = {
+        target: {
+          files: [file]
+        }
+      };
+      
+      closeStoryCamera();
+      handleStorySelect(simulatedEvent);
+    }
+  };
+
   const handleStorySelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -2526,6 +2589,12 @@ export default function Dashboard() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (storyCameraOpen && storyCameraStream && storyLiveCameraRef.current) {
+      storyLiveCameraRef.current.srcObject = storyCameraStream;
+    }
+  }, [storyCameraOpen, storyCameraStream]);
+
+  useEffect(() => {
     if (callActive) {
       if (myVideoRef.current && localStreamRef.current) {
         if (myVideoRef.current.srcObject !== localStreamRef.current) {
@@ -3232,7 +3301,7 @@ export default function Dashboard() {
                 <style>{`.story-bar-container::-webkit-scrollbar { display: none; }`}</style>
                 <input type="file" accept="image/*,video/*" style={{ display: 'none' }} ref={storyFileInputRef} onChange={handleStorySelect} />
                 
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 }} onClick={() => storyFileInputRef.current?.click()}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 }} onClick={openStoryCamera}>
                   <div style={{ position: 'relative' }}>
                     <div className="user-avatar-small" style={{ width: '56px', height: '56px', border: '2px solid #333' }}>
                       {storyUploading ? <Loader2 className="rotating" size={24} color="#fff" /> : (user.avatarUrl ? <img src={user.avatarUrl} alt='me' /> : user.username.charAt(0).toUpperCase())}
@@ -4493,6 +4562,63 @@ export default function Dashboard() {
               100% { top: -50px; opacity: 0; }
             }
           `}</style>
+        </div>
+      )}
+
+      {/* Custom Story Camera Modal */}
+      {storyCameraOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          background: '#000', zIndex: 12000, display: 'flex', flexDirection: 'column'
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '15px', position: 'absolute', top: 0, width: '100%', zIndex: 10 }}>
+            <button onClick={closeStoryCamera} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer' }}>
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* Main View Area */}
+          <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            {storyCapturedImage ? (
+              <img src={storyCapturedImage} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Captured" />
+            ) : (
+              <video 
+                ref={storyLiveCameraRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+              />
+            )}
+          </div>
+
+          {/* Footer Controls */}
+          <div style={{ height: '120px', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 30px' }}>
+            {storyCapturedImage ? (
+              <>
+                <button onClick={() => setStoryCapturedImage(null)} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button onClick={confirmStoryPhoto} style={{ background: '#10B981', color: '#fff', border: 'none', borderRadius: '30px', padding: '12px 30px', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Okay
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => { closeStoryCamera(); if (storyFileInputRef.current) storyFileInputRef.current.click(); }} style={{ background: 'transparent', border: 'none', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                  <div style={{ border: '2px solid #fff', borderRadius: '8px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <PlusCircle size={20} />
+                  </div>
+                  <span style={{ fontSize: '0.8rem' }}>Gallery</span>
+                </button>
+                <button onClick={captureStoryPhoto} style={{ width: '70px', height: '70px', borderRadius: '50%', border: '4px solid #fff', background: 'transparent', padding: '3px', cursor: 'pointer' }}>
+                  <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#fff' }}></div>
+                </button>
+                <div style={{ width: '40px' }}></div> {/* Empty spacer for flex-between balance */}
+              </>
+            )}
+          </div>
         </div>
       )}
 
