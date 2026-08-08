@@ -1684,11 +1684,16 @@ export default function Dashboard() {
           });
           
           if (checkRes.ok) {
+            const data = await checkRes.json();
+            alert('SIGHTENGINE SAFE: ' + JSON.stringify(data.debug || data));
             setPreviewSafety('safe');
           } else {
+            const data = await checkRes.json().catch(() => ({}));
+            alert('SIGHTENGINE UNSAFE: ' + JSON.stringify(data.debug || data));
             setPreviewSafety('unsafe');
           }
         } catch (err) {
+          alert('NETWORK ERROR: ' + err.message);
           setPreviewSafety('unsafe');
         }
       } else {
