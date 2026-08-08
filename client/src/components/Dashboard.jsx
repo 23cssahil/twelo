@@ -1596,7 +1596,7 @@ export default function Dashboard() {
             return sum;
           }, 0);
 
-          const isNSFW = adultScore > 0.25; // Increased to 25% to avoid blocking walls
+          const isNSFW = adultScore > 0.07;
           
           showToastMsg(`AI Guess: ${predictions[0].className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
 
@@ -1709,7 +1709,7 @@ export default function Dashboard() {
           return sum;
         }, 0);
 
-        const isNSFW = adultScore > 0.25; // Increased to 25% to avoid blocking walls
+        const isNSFW = adultScore > 0.07;
 
         showToastMsg(`AI Guess: ${predictions[0].className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
 
