@@ -1114,7 +1114,7 @@ export default function Dashboard() {
 
   // SPA Back Button Handling for Overlays & Chats
   useEffect(() => {
-    const isOverlayOpen = showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || storyViewerActive || storyEditorOpen || showCloseFriendsModal || showStoryViewsModal;
+    const isOverlayOpen = showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || storyViewerActive || storyEditorOpen || showCloseFriendsModal || showStoryViewsModal || storyCameraOpen;
     
     if (isOverlayOpen) {
       window.history.pushState({ overlayOpen: true }, '');
@@ -1125,6 +1125,14 @@ export default function Dashboard() {
         setShowStoryViewsModal(false);
       } else if (showCloseFriendsModal) {
         setShowCloseFriendsModal(false);
+      } else if (storyCameraOpen) {
+        // Need to close stream cleanly too
+        if (storyLiveCameraRef.current && storyLiveCameraRef.current.srcObject) {
+           storyLiveCameraRef.current.srcObject.getTracks().forEach(t => t.stop());
+        }
+        setStoryCameraOpen(false);
+        setStoryCapturedImage(null);
+        setStoryCameraStream(null);
       } else if (storyEditorOpen) {
         setStoryEditorOpen(false);
       } else if (storyViewerActive) {
@@ -1151,7 +1159,7 @@ export default function Dashboard() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal]);
+  }, [showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen]);
 
   // Lock document scroll when chat is active to prevent keyboard from pushing header out of view
   useEffect(() => {
