@@ -1568,9 +1568,8 @@ export default function Dashboard() {
         setStoryPreviewSafety('checking');
         
         try {
-          const compressedFile = await compressImage(file);
           const formData = new FormData();
-          formData.append('file', compressedFile);
+          formData.append('file', file);
           
           const checkRes = await fetch(`${API_URL}/api/check`, {
             method: 'POST',
@@ -1673,9 +1672,8 @@ export default function Dashboard() {
         setPreviewSafety('checking');
         
         try {
-          const compressedFile = await compressImage(file);
           const formData = new FormData();
-          formData.append('file', compressedFile);
+          formData.append('file', file);
           
           const checkRes = await fetch(`${API_URL}/api/check`, {
             method: 'POST',
