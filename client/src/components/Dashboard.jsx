@@ -1703,6 +1703,7 @@ export default function Dashboard() {
             replyTo: replyingTo ? {
               messageId: replyingTo._id,
               messageText: replyingTo.message,
+              messageType: replyingTo.messageType,
               senderName: replyingTo.sender === user.id ? 'You' : activeChatUser.username
             } : null,
             isViewOnce: isViewOnce,
@@ -1863,6 +1864,7 @@ export default function Dashboard() {
     const replyToObj = replyingTo ? {
       messageId: replyingTo._id,
       messageText: replyingTo.message,
+      messageType: replyingTo.messageType,
       senderName: replyingTo.sender === user.id ? 'You' : activeChatUser.username
     } : null;
 
@@ -3377,7 +3379,7 @@ export default function Dashboard() {
                       <div className="replying-to-banner">
                         <div className="reply-content">
                           <div className="reply-sender">{replyingTo.sender === user.id ? 'You' : activeChatUser.username}</div>
-                          <div className="reply-text">{replyingTo.message}</div>
+                          <div className="reply-text">{replyingTo.message || (replyingTo.messageType === 'image' ? '📷 Photo' : '🎤 Voice Note')}</div>
                         </div>
                         <button type="button" className="close-reply-btn" onClick={() => setReplyingTo(null)}><X size={20} /></button>
                       </div>
