@@ -1599,9 +1599,23 @@ export default function Dashboard() {
     }
   };
 
-  const switchStoryCamera = () => {
+  const switchStoryCamera = async () => {
     const newMode = storyCameraFacingMode === 'user' ? 'environment' : 'user';
-    openStoryCamera(newMode);
+    try {
+      if (storyCameraStream) {
+        storyCameraStream.getTracks().forEach(track => track.stop());
+      }
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: newMode } } });
+      } catch (e) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: newMode } });
+      }
+      setStoryCameraStream(stream);
+      setStoryCameraFacingMode(newMode);
+    } catch (err) {
+      console.error("Camera switch failed", err);
+    }
   };
 
   const captureStoryPhoto = () => {
@@ -1635,14 +1649,12 @@ export default function Dashboard() {
       }
       const file = new File([u8arr], `story_${Date.now()}.jpg`, {type:mime});
       
-      // Simulate event object to pass to handleStorySelect
       const simulatedEvent = {
         target: {
           files: [file]
         }
       };
       
-      closeStoryCamera();
       handleStorySelect(simulatedEvent);
     }
   };
@@ -1650,6 +1662,9 @@ export default function Dashboard() {
   const handleStorySelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (storyCameraOpen) {
+        closeStoryCamera();
+      }
       try {
         setStoryFile(file);
         setStoryPreviewUrl(URL.createObjectURL(file));
@@ -4602,7 +4617,7 @@ export default function Dashboard() {
                 <Download size={24} />
               </a>
             )}
-            <button onClick={closeStoryCamera} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex' }}>
+            <button onClick={() => window.history.back()} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex' }}>
               <X size={24} />
             </button>
           </div>
@@ -4617,13 +4632,12 @@ export default function Dashboard() {
               style={{ 
                 width: '100%', 
                 height: '100%', 
-                objectFit: 'cover', 
-                display: storyCapturedImage ? 'none' : 'block',
+                objectFit: 'cover',
                 transform: storyCameraFacingMode === 'user' ? 'scaleX(-1)' : 'none'
               }} 
             />
             {storyCapturedImage && (
-              <img src={storyCapturedImage} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Captured" />
+              <img src={storyCapturedImage} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#000', zIndex: 5 }} alt="Captured" />
             )}
           </div>
 
@@ -4640,7 +4654,7 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <button onClick={() => { closeStoryCamera(); if (storyFileInputRef.current) storyFileInputRef.current.click(); }} style={{ background: 'transparent', border: 'none', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', width: '60px' }}>
+                <button onClick={() => { if (storyFileInputRef.current) storyFileInputRef.current.click(); }} style={{ background: 'transparent', border: 'none', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', width: '60px' }}>
                   <div style={{ border: '2px solid #fff', borderRadius: '8px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <PlusCircle size={20} />
                   </div>
