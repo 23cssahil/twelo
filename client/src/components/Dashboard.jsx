@@ -2115,6 +2115,24 @@ export default function Dashboard() {
 
       peer.on('stream', (remoteStream) => {
         setRemoteStreamState(remoteStream);
+        const attachStream = () => {
+          if (userVideoRef.current) {
+            userVideoRef.current.srcObject = remoteStream;
+            userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
+          } else {
+            setTimeout(attachStream, 200);
+          }
+        };
+        attachStream();
+      });
+
+      peer.on('close', () => {
+        handleEndCallQuietly();
+      });
+
+      peer.on('error', (err) => {
+        console.error('Peer error in callUser:', err);
+        handleEndCallQuietly();
       });
 
       connectionRef.current = peer;
@@ -2166,6 +2184,24 @@ export default function Dashboard() {
 
       peer.on('stream', (remoteStream) => {
         setRemoteStreamState(remoteStream);
+        const attachStream = () => {
+          if (userVideoRef.current) {
+            userVideoRef.current.srcObject = remoteStream;
+            userVideoRef.current.play().catch(e => console.error('Remote video play error:', e));
+          } else {
+            setTimeout(attachStream, 200);
+          }
+        };
+        attachStream();
+      });
+
+      peer.on('close', () => {
+        handleEndCallQuietly();
+      });
+
+      peer.on('error', (err) => {
+        console.error('Peer error in acceptCall:', err);
+        handleEndCallQuietly();
       });
 
       peer.signal(callerSignal);
