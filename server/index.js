@@ -291,6 +291,11 @@ app.post('/api/upload', upload.single('file'), nudityCheck, async (req, res) => 
   }
 });
 
+// AI Safety Check Endpoint (For preview tags, does NOT save to Cloudinary)
+app.post('/api/check', upload.single('file'), nudityCheck, (req, res) => {
+  res.json({ success: true, message: 'Image is safe' });
+});
+
 
 // Database Connection
 let cachedGlobeStatus = { isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null };

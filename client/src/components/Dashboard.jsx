@@ -372,6 +372,8 @@ export default function Dashboard() {
   const [typingUsers, setTypingUsers] = useState({});
   const chatTypingTimeoutRef = useRef(null);
   const [showNudityWarning, setShowNudityWarning] = useState(false);
+  const [previewSafety, setPreviewSafety] = useState('safe');
+  const [storyPreviewSafety, setStoryPreviewSafety] = useState('safe');
   const [timeTick, setTimeTick] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => setTimeTick(t => t + 1), 60000);
@@ -1561,6 +1563,24 @@ export default function Dashboard() {
       setStoryEditorOpen(true);
       setStoryVisibility('everyone');
       setSelectedSongUrl('');
+      
+      if (file.type.startsWith('image/')) {
+        setStoryPreviewSafety('checking');
+        const formData = new FormData();
+        formData.append('file', file);
+        fetch(`${API_URL}/api/check`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData
+        })
+        .then(res => {
+          if (res.ok) setStoryPreviewSafety('safe');
+          else setStoryPreviewSafety('unsafe');
+        })
+        .catch(() => setStoryPreviewSafety('safe'));
+      } else {
+        setStoryPreviewSafety('safe');
+      }
     }
     e.target.value = '';
   };
@@ -1642,6 +1662,25 @@ export default function Dashboard() {
       // Safe image, show preview
       setPreviewImage(file);
       setIsViewOnce(false);
+      setPreviewType('image');
+      
+      if (file.type.startsWith('image/')) {
+        setPreviewSafety('checking');
+        const formData = new FormData();
+        formData.append('file', file);
+        fetch(`${API_URL}/api/check`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData
+        })
+        .then(res => {
+          if (res.ok) setPreviewSafety('safe');
+          else setPreviewSafety('unsafe');
+        })
+        .catch(() => setPreviewSafety('safe'));
+      } else {
+        setPreviewSafety('safe');
+      }
       
       // Clear inputs to allow re-selection
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -3977,7 +4016,19 @@ export default function Dashboard() {
               <X size={28} />
             </button>
           </div>
-          <img src={URL.createObjectURL(previewImage)} alt="Preview" style={{ maxWidth: '90%', maxHeight: '70%', borderRadius: '10px', objectFit: 'contain' }} />
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <img src={URL.createObjectURL(previewImage)} alt="Preview" style={{ maxWidth: '90vw', maxHeight: '70vh', borderRadius: '10px', objectFit: 'contain' }} />
+            <div style={{ 
+              position: 'absolute', top: 10, left: 10, padding: '8px 16px', borderRadius: '30px', 
+              fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px',
+              background: previewSafety === 'checking' ? 'rgba(0,0,0,0.7)' : previewSafety === 'safe' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)',
+              color: 'white', backdropFilter: 'blur(5px)', border: '1px solid rgba(255,255,255,0.2)'
+            }}>
+              {previewSafety === 'checking' && '⏳ AI Scanning...'}
+              {previewSafety === 'safe' && '✅ Image Safe'}
+              {previewSafety === 'unsafe' && '⚠️ Nudity Detected (Cannot Send)'}
+            </div>
+          </div>
           
           <div style={{ marginTop: '30px', display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#fff', cursor: 'pointer', fontSize: '1.1rem' }}>
@@ -3989,7 +4040,7 @@ export default function Dashboard() {
               />
               Send as View Once (Disappears after opening)
             </label>
-            <button onClick={confirmSendImage} disabled={isUploading} style={{ background: 'var(--brand-blue)', color: '#fff', padding: '15px 40px', borderRadius: '30px', border: 'none', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button onClick={confirmSendImage} disabled={isUploading || previewSafety === 'checking' || previewSafety === 'unsafe'} style={{ background: 'var(--brand-blue)', color: '#fff', padding: '15px 40px', borderRadius: '30px', border: 'none', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', opacity: (isUploading || previewSafety === 'checking' || previewSafety === 'unsafe') ? 0.5 : 1 }}>
               {isUploading ? 'Sending...' : <><Send size={20} /> Send Photo</>}
             </button>
           </div>
@@ -4419,7 +4470,19 @@ export default function Dashboard() {
             {storyFile?.type?.startsWith('video/') ? (
               <video src={storyPreviewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} controls autoPlay loop />
             ) : (
-              <img src={storyPreviewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Story Preview" />
+              <>
+                <img src={storyPreviewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Story Preview" />
+                <div style={{ 
+                  position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)', padding: '8px 16px', borderRadius: '30px', 
+                  fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px',
+                  background: storyPreviewSafety === 'checking' ? 'rgba(0,0,0,0.7)' : storyPreviewSafety === 'safe' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)',
+                  color: 'white', backdropFilter: 'blur(5px)', border: '1px solid rgba(255,255,255,0.2)'
+                }}>
+                  {storyPreviewSafety === 'checking' && '⏳ AI Scanning...'}
+                  {storyPreviewSafety === 'safe' && '✅ Image Safe'}
+                  {storyPreviewSafety === 'unsafe' && '⚠️ Nudity Detected (Cannot Send)'}
+                </div>
+              </>
             )}
           </div>
 
@@ -4452,8 +4515,8 @@ export default function Dashboard() {
             
             <button 
               onClick={handleStoryUpload}
-              disabled={storyUploading}
-              style={{ width: '100%', padding: '15px', background: storyUploading ? '#555' : 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: '#fff', border: 'none', borderRadius: '30px', fontSize: '1rem', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', cursor: storyUploading ? 'not-allowed' : 'pointer' }}
+              disabled={storyUploading || storyPreviewSafety === 'checking' || storyPreviewSafety === 'unsafe'}
+              style={{ width: '100%', padding: '15px', background: storyUploading || storyPreviewSafety === 'checking' || storyPreviewSafety === 'unsafe' ? '#555' : 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: '#fff', border: 'none', borderRadius: '30px', fontSize: '1rem', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', cursor: (storyUploading || storyPreviewSafety === 'checking' || storyPreviewSafety === 'unsafe') ? 'not-allowed' : 'pointer', opacity: (storyUploading || storyPreviewSafety === 'checking' || storyPreviewSafety === 'unsafe') ? 0.5 : 1 }}
             >
               {storyUploading ? <Loader2 className="rotating" size={20} /> : <Check size={20} />}
               {storyUploading ? 'Posting...' : 'Share to Status'}
