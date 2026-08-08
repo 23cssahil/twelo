@@ -2093,12 +2093,14 @@ export default function Dashboard() {
 
       const peer = new Peer({ 
         initiator: true, 
-        trickle: false, 
+        trickle: true, 
         stream: stream,
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun.cloudflare.com:3478' },
             { urls: 'stun:global.stun.twilio.com:3478' }
           ]
         }
@@ -2162,12 +2164,14 @@ export default function Dashboard() {
 
       const peer = new Peer({ 
         initiator: false, 
-        trickle: false, 
+        trickle: true, 
         stream: stream,
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun.cloudflare.com:3478' },
             { urls: 'stun:global.stun.twilio.com:3478' }
           ]
         }
