@@ -787,50 +787,63 @@ export default function Dashboard() {
   }, [showStoryViewsModal, currentStoryIndex, currentStoryUserIndex]);
 
   useEffect(() => {
-    let audio = null;
+    let audioCtx = null;
+    let sourceNode = null;
+    let gainNode = null;
+    let abortController = null;
+    let stopped = false;
+
+    const playWithWebAudio = async (url) => {
+      try {
+        abortController = new AbortController();
+        // Fetch the audio file as ArrayBuffer (bypasses HTMLAudio/MediaSession)
+        const response = await fetch(url, { signal: abortController.signal });
+        if (stopped) return;
+        const arrayBuffer = await response.arrayBuffer();
+        if (stopped) return;
+
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        if (stopped) return;
+
+        gainNode = audioCtx.createGain();
+        gainNode.gain.value = 1;
+        gainNode.connect(audioCtx.destination);
+
+        const playLoop = () => {
+          if (stopped) return;
+          sourceNode = audioCtx.createBufferSource();
+          sourceNode.buffer = audioBuffer;
+          sourceNode.connect(gainNode);
+          sourceNode.loop = false;
+          sourceNode.onended = () => { if (!stopped) playLoop(); };
+          sourceNode.start(0);
+        };
+        playLoop();
+
+        // Expose pause/resume via storyAudioRef
+        storyAudioRef.current = {
+          pause: () => { if (audioCtx && audioCtx.state === 'running') audioCtx.suspend(); },
+          play: () => { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); },
+        };
+      } catch (e) {
+        if (e.name !== 'AbortError') console.error('Web Audio playback error', e);
+      }
+    };
+
     if (storyViewerActive && groupedStories[currentStoryUserIndex]) {
       const currentStory = groupedStories[currentStoryUserIndex].stories[currentStoryIndex];
       if (currentStory.songUrl) {
-        audio = new Audio(currentStory.songUrl);
-        audio.loop = true;
-        storyAudioRef.current = audio; // Store ref for pause/resume from pointer events
-        
-        // Suppress Android Chrome media notification via MediaSession API
-        if ('mediaSession' in navigator) {
-          navigator.mediaSession.metadata = null;
-          navigator.mediaSession.playbackState = 'none';
-          // Override all action handlers so OS can't show controls
-          ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach(action => {
-            try { navigator.mediaSession.setActionHandler(action, () => {}); } catch(e) {}
-          });
-        }
-        
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.then(() => {
-            // After play starts, immediately clear session again (Chrome re-creates it on play)
-            if ('mediaSession' in navigator) {
-              navigator.mediaSession.metadata = null;
-              navigator.mediaSession.playbackState = 'none';
-            }
-          }).catch(e => {
-            if (e.name !== 'AbortError') console.error("Audio play blocked", e);
-          });
-        }
+        playWithWebAudio(currentStory.songUrl);
       }
     }
-    
+
     return () => {
-      if (audio) {
-        audio.pause();
-        audio = null;
-        storyAudioRef.current = null;
-      }
-      // Clean up media session on exit
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = null;
-        navigator.mediaSession.playbackState = 'none';
-      }
+      stopped = true;
+      if (abortController) abortController.abort();
+      if (sourceNode) { try { sourceNode.stop(); } catch(e) {} }
+      if (audioCtx) { try { audioCtx.close(); } catch(e) {} }
+      storyAudioRef.current = null;
     };
   }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories]);
 
