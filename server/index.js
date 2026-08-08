@@ -1469,68 +1469,87 @@ app.delete('/api/messages/chat/:otherUserId', authenticateToken, async (req, res
 app.get('/api/chats/recent', authenticateToken, async (req, res) => {
   try {
     const currentUserId = new mongoose.Types.ObjectId(req.user.userId);
-    const chats = await Message.aggregate([
-      {
-        $match: {
-          $or: [{ sender: currentUserId }, { receiver: currentUserId }],
-          deletedBy: { $ne: currentUserId }
-        }
-      },
-      { $sort: { createdAt: -1 } },
-      {
-        $group: {
-          _id: {
-            $cond: [{ $eq: ['$sender', currentUserId] }, '$receiver', '$sender']
-          },
-          lastMessageAt: { $first: '$createdAt' },
-          unreadCount: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ['$receiver', currentUserId] },
-                    { $eq: ['$isViewed', false] }
-                  ]
-                },
-                1,
-                0
-              ]
-            }
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'user'
-        }
-      },
-      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          _id: 1,
-          username: { $ifNull: ['$user.username', 'Deleted Account'] },
-          uniqueId: { $ifNull: ['$user.uniqueId', 'none'] },
-          avatarUrl: { $ifNull: ['$user.avatarUrl', ''] },
-          gender: '$user.gender',
-          isDeleted: { $eq: ['$user._id', null] },
-          lastMessageAt: 1,
-          unreadCount: 1
-        }
-      },
-      { $sort: { lastMessageAt: -1 } }
-    ]).allowDiskUse(true);
+    
+    // Fetch latest sent and received messages using index-friendly separate queries
+    const [sentChats, receivedChats, unreadCounts] = await Promise.all([
+      Message.aggregate([
+        { $match: { sender: currentUserId, deletedBy: { $ne: currentUserId } } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: '$receiver', lastMessageAt: { $first: '$createdAt' } } }
+      ]),
+      Message.aggregate([
+        { $match: { receiver: currentUserId, deletedBy: { $ne: currentUserId } } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: '$sender', lastMessageAt: { $first: '$createdAt' } } }
+      ]),
+      Message.aggregate([
+        { $match: { receiver: currentUserId, isViewed: false, deletedBy: { $ne: currentUserId } } },
+        { $group: { _id: '$sender', count: { $sum: 1 } } }
+      ])
+    ]);
 
-    chats.forEach(chat => {
+    const chatMap = new Map();
+
+    sentChats.forEach(chat => {
+      chatMap.set(chat._id.toString(), {
+        _id: chat._id,
+        lastMessageAt: chat.lastMessageAt,
+        unreadCount: 0
+      });
+    });
+
+    receivedChats.forEach(chat => {
+      const idStr = chat._id.toString();
+      const existing = chatMap.get(idStr);
+      if (existing) {
+        if (chat.lastMessageAt > existing.lastMessageAt) {
+          existing.lastMessageAt = chat.lastMessageAt;
+        }
+      } else {
+        chatMap.set(idStr, {
+          _id: chat._id,
+          lastMessageAt: chat.lastMessageAt,
+          unreadCount: 0
+        });
+      }
+    });
+
+    unreadCounts.forEach(chat => {
+      const idStr = chat._id.toString();
+      const existing = chatMap.get(idStr);
+      if (existing) {
+        existing.unreadCount = chat.count;
+      }
+    });
+
+    const combinedChats = Array.from(chatMap.values()).sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+
+    const userIds = combinedChats.map(c => c._id);
+    const users = await User.find({ _id: { $in: userIds } }).select('username uniqueId avatarUrl gender').lean();
+    const usersMap = new Map(users.map(u => [u._id.toString(), u]));
+
+    const finalChats = combinedChats.map(chat => {
+      const u = usersMap.get(chat._id.toString());
+      return {
+        _id: chat._id,
+        username: u ? u.username : 'Deleted Account',
+        uniqueId: u && u.uniqueId ? u.uniqueId : 'none',
+        avatarUrl: u && u.avatarUrl ? u.avatarUrl : '',
+        gender: u ? u.gender : null,
+        isDeleted: !u,
+        lastMessageAt: chat.lastMessageAt,
+        unreadCount: chat.unreadCount
+      };
+    });
+
+    finalChats.forEach(chat => {
       if (chat.avatarUrl && !chat.avatarUrl.includes('randomuser.me') && !chat.avatarUrl.includes('iran.liara.run') && !chat.avatarUrl.includes('top=')) return;
       if (!chat.gender) return;
       chat.avatarUrl = generateAvatarUrl(chat.gender);
       User.updateOne({ _id: chat._id }, { $set: { avatarUrl: chat.avatarUrl } }).catch(console.error);
     });
 
-    res.json(chats);
+    res.json(finalChats);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching recent chats', error: error.message });
   }
