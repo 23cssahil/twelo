@@ -1557,34 +1557,39 @@ export default function Dashboard() {
   const handleStorySelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
-
-      setStoryFile(file);
-      setStoryPreviewUrl(URL.createObjectURL(file));
-      setStoryEditorOpen(true);
-      setStoryVisibility('everyone');
-      setSelectedSongUrl('');
-      
-      if (!file.type.startsWith('video/')) {
-        setStoryPreviewSafety('checking');
+      try {
+        setStoryFile(file);
+        setStoryPreviewUrl(URL.createObjectURL(file));
+        setStoryEditorOpen(true);
+        setStoryVisibility('everyone');
+        setSelectedSongUrl('');
         
-        try {
-          const compressedFile = await compressImage(file);
-          const formData = new FormData();
-          formData.append('file', compressedFile);
+        const fileType = file.type || '';
+        
+        if (!fileType.startsWith('video/')) {
+          setStoryPreviewSafety('checking');
           
-          const checkRes = await fetch(`${API_URL}/api/check?t=${Date.now()}`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData
-          });
-          
-          if (checkRes.ok) setStoryPreviewSafety('safe');
-          else setStoryPreviewSafety('unsafe');
-        } catch (err) {
-          setStoryPreviewSafety('unsafe');
+          try {
+            const compressedFile = await compressImage(file);
+            const formData = new FormData();
+            formData.append('file', compressedFile);
+            
+            const checkRes = await fetch(`${API_URL}/api/check?t=${Date.now()}`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+              body: formData
+            });
+            
+            if (checkRes.ok) setStoryPreviewSafety('safe');
+            else setStoryPreviewSafety('unsafe');
+          } catch (err) {
+            setStoryPreviewSafety('unsafe');
+          }
+        } else {
+          setStoryPreviewSafety('safe');
         }
-      } else {
-        setStoryPreviewSafety('safe');
+      } catch (err) {
+        setStoryPreviewSafety('unsafe');
       }
     }
     e.target.value = '';
@@ -1663,36 +1668,41 @@ export default function Dashboard() {
   const handleImageSelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
-
-      // Safe image, show preview
-      setPreviewImage(file);
-      setIsViewOnce(false);
-      setPreviewType('image');
-      
-      if (!file.type.startsWith('video/')) {
-        setPreviewSafety('checking');
+      try {
+        // Safe image, show preview
+        setPreviewImage(file);
+        setIsViewOnce(false);
+        setPreviewType('image');
         
-        try {
-          const compressedFile = await compressImage(file);
-          const formData = new FormData();
-          formData.append('file', compressedFile);
+        const fileType = file.type || '';
+        
+        if (!fileType.startsWith('video/')) {
+          setPreviewSafety('checking');
           
-          const checkRes = await fetch(`${API_URL}/api/check?t=${Date.now()}`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData
-          });
-          
-          if (checkRes.ok) {
-            setPreviewSafety('safe');
-          } else {
+          try {
+            const compressedFile = await compressImage(file);
+            const formData = new FormData();
+            formData.append('file', compressedFile);
+            
+            const checkRes = await fetch(`${API_URL}/api/check?t=${Date.now()}`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+              body: formData
+            });
+            
+            if (checkRes.ok) {
+              setPreviewSafety('safe');
+            } else {
+              setPreviewSafety('unsafe');
+            }
+          } catch (err) {
             setPreviewSafety('unsafe');
           }
-        } catch (err) {
-          setPreviewSafety('unsafe');
+        } else {
+          setPreviewSafety('safe');
         }
-      } else {
-        setPreviewSafety('safe');
+      } catch (err) {
+        setPreviewSafety('unsafe');
       }
       
       // Clear inputs to allow re-selection
