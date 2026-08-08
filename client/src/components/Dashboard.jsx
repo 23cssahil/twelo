@@ -2091,7 +2091,7 @@ export default function Dashboard() {
 
       const peer = new Peer({ 
         initiator: true, 
-        trickle: true, 
+        trickle: false, 
         stream: stream,
         config: {
           iceServers: [
@@ -2160,7 +2160,7 @@ export default function Dashboard() {
 
       const peer = new Peer({ 
         initiator: false, 
-        trickle: true, 
+        trickle: false, 
         stream: stream,
         config: {
           iceServers: [
