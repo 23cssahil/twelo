@@ -367,8 +367,11 @@ export default function Dashboard() {
   const [isFetchingChats, setIsFetchingChats] = useState(true);
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [messages, setMessages] = useState([]);
-
-
+  const [newMessage, setNewMessage] = useState('');
+  const [partnerTyping, setPartnerTyping] = useState(false);
+  const [typingUsers, setTypingUsers] = useState({});
+  const chatTypingTimeoutRef = useRef(null);
+  const [timeTick, setTimeTick] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => setTimeTick(t => t + 1), 60000);
     return () => clearInterval(interval);
