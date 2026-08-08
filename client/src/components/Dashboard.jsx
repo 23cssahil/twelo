@@ -1564,7 +1564,7 @@ export default function Dashboard() {
       setStoryVisibility('everyone');
       setSelectedSongUrl('');
       
-      if (file.type.startsWith('image/')) {
+      if (!file.type.startsWith('video/')) {
         setStoryPreviewSafety('checking');
         
         try {
@@ -1669,7 +1669,7 @@ export default function Dashboard() {
       setIsViewOnce(false);
       setPreviewType('image');
       
-      if (file.type.startsWith('image/')) {
+      if (!file.type.startsWith('video/')) {
         setPreviewSafety('checking');
         
         try {
@@ -1684,16 +1684,11 @@ export default function Dashboard() {
           });
           
           if (checkRes.ok) {
-            const data = await checkRes.json();
-            alert('DEBUG SIGHTENGINE (Safe): ' + JSON.stringify(data.debug || data));
             setPreviewSafety('safe');
           } else {
-            const data = await checkRes.json().catch(() => ({}));
-            alert('DEBUG SIGHTENGINE (Unsafe): ' + JSON.stringify(data.debug || data.debugError || data));
             setPreviewSafety('unsafe');
           }
         } catch (err) {
-          alert('DEBUG SIGHTENGINE (Error): ' + err.message);
           setPreviewSafety('unsafe');
         }
       } else {
