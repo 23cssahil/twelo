@@ -46,6 +46,8 @@ import Globe from 'react-globe.gl';
 import * as THREE from 'three';
 
 import { AuthContext, SocketContext } from '../App';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 const SAMPLE_SONGS = [
   { id: '1', name: 'Chill Vibes', url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3' },
@@ -345,6 +347,9 @@ export default function Dashboard() {
   const [storyEditorOpen, setStoryEditorOpen] = useState(false);
   const [storyFile, setStoryFile] = useState(null);
   const [storyPreviewUrl, setStoryPreviewUrl] = useState('');
+  const [storyCrop, setStoryCrop] = useState();
+  const [completedStoryCrop, setCompletedStoryCrop] = useState(null);
+  const storyImgRef = useRef(null);
   const [storyVisibility, setStoryVisibility] = useState('everyone');
   const [showCloseFriendsModal, setShowCloseFriendsModal] = useState(false);
   const [selectedCloseFriends, setSelectedCloseFriends] = useState([]);
@@ -1563,6 +1568,8 @@ export default function Dashboard() {
         setStoryEditorOpen(true);
         setStoryVisibility('everyone');
         setSelectedSongUrl('');
+        setStoryCrop(null);
+        setCompletedStoryCrop(null);
         
         const fileType = file.type || '';
         
@@ -1604,9 +1611,15 @@ export default function Dashboard() {
     
     if (mediaType === 'image') {
       try {
-        finalFile = await compressImage(storyFile);
+        if (completedStoryCrop?.width && completedStoryCrop?.height && storyImgRef.current) {
+          const croppedFile = await getCroppedImg(storyImgRef.current, completedStoryCrop, storyFile.name);
+          if (croppedFile) {
+            finalFile = croppedFile;
+          }
+        }
+        finalFile = await compressImage(finalFile);
       } catch (err) {
-        console.error('Compression failed, using original', err);
+        console.error('Compression or crop failed, using original', err);
       }
     }
     
@@ -1711,6 +1724,38 @@ export default function Dashboard() {
     }
   };
 
+  const getCroppedImg = (image, crop, fileName) => {
+    const canvas = document.createElement('canvas');
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    canvas.width = crop.width * scaleX;
+    canvas.height = crop.height * scaleY;
+    const ctx = canvas.getContext('2d');
+
+    ctx.drawImage(
+      image,
+      crop.x * scaleX,
+      crop.y * scaleY,
+      crop.width * scaleX,
+      crop.height * scaleY,
+      0,
+      0,
+      crop.width * scaleX,
+      crop.height * scaleY
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          resolve(null);
+          return;
+        }
+        blob.name = fileName;
+        const file = new File([blob], fileName, { type: blob.type });
+        resolve(file);
+      }, 'image/jpeg', 0.95);
+    });
+  };
   const compressImage = (file) => {
     return new Promise((resolve, reject) => {
       const fileType = file.type || '';
@@ -4495,7 +4540,14 @@ export default function Dashboard() {
               <video src={storyPreviewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} controls autoPlay loop />
             ) : (
               <>
-                <img src={storyPreviewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Story Preview" />
+                <ReactCrop 
+                  crop={storyCrop} 
+                  onChange={c => setStoryCrop(c)} 
+                  onComplete={c => setCompletedStoryCrop(c)}
+                  style={{ maxHeight: '100%', maxWidth: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <img src={storyPreviewUrl} ref={storyImgRef} style={{ maxHeight: '70vh', maxWidth: '100%', objectFit: 'contain' }} alt="Story Preview" />
+                </ReactCrop>
                 <div style={{ 
                   position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)', padding: '8px 16px', borderRadius: '30px', 
                   fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px',
