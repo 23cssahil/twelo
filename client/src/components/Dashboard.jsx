@@ -1531,11 +1531,6 @@ export default function Dashboard() {
   };
 
   const uploadFile = async (file) => {
-    // TEST MODE: Prevent actual upload to Cloudinary during testing to avoid bans.
-    console.log('TEST MODE: Skipping Cloudinary upload for safety.');
-    return new Promise((resolve) => setTimeout(() => resolve('https://via.placeholder.com/600?text=Testing+Mode+Active'), 1000));
-    
-    /* 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', 'twelo_unsigned'); // Cloudinary unsigned preset
@@ -1558,7 +1553,6 @@ export default function Dashboard() {
       console.error('Upload failed', err);
       return null;
     }
-    */
   };
 
   const handleStorySelect = (e) => {
@@ -1730,11 +1724,8 @@ export default function Dashboard() {
             return sum;
           }, 0);
 
-          // Absolute Zero Tolerance: If adult score is > 8% (0.08), block it!
-          const isNSFW = adultScore > 0.08;
-
-          // Show the user the total adult score during testing
-          showToastMsg(`AI Top Guess: ${topPrediction.className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
+          // Absolute Zero Tolerance: If adult score is > 7% (0.07), block it!
+          const isNSFW = adultScore > 0.07;
 
           if (isNSFW) {
             showToastMsg('🚨 STRICT WARNING: NSFW content detected! Upload blocked.', 'error');
