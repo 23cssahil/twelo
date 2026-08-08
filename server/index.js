@@ -17,6 +17,7 @@ const crypto = require('crypto');
 const os = require('os');
 const webpush = require('web-push');
 const cloudinary = require('cloudinary').v2;
+const { nudityCheck } = require('./middleware/nudityCheck');
 
 webpush.setVapidDetails(
   'mailto:admin@twelo.com',
@@ -260,7 +261,7 @@ const upload = multer({
 });
 
 // Upload Endpoint - uploads to Cloudinary
-app.post('/api/upload', upload.single('file'), async (req, res) => {
+app.post('/api/upload', upload.single('file'), nudityCheck, async (req, res) => {
   console.log('Upload request received, file:', req.file?.originalname, 'size:', req.file?.size);
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });

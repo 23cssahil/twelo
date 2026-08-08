@@ -45,7 +45,7 @@ import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
 import * as THREE from 'three';
 import * as tf from '@tensorflow/tfjs';
-import * as nsfwjs from 'nsfwjs';
+import * as tf from '@tensorflow/tfjs';
 import { AuthContext, SocketContext } from '../App';
 
 const SAMPLE_SONGS = [
@@ -368,25 +368,7 @@ export default function Dashboard() {
   const [isFetchingChats, setIsFetchingChats] = useState(true);
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [nsfwModel, setNsfwModel] = useState(null);
-  const [newMessage, setNewMessage] = useState('');
-  const [partnerTyping, setPartnerTyping] = useState(false);
-  const [typingUsers, setTypingUsers] = useState({});
-  const chatTypingTimeoutRef = useRef(null);
-  
-  const [timeTick, setTimeTick] = useState(0);
-  useEffect(() => {
-    const loadNsfwModel = async () => {
-      try {
-        const model = await nsfwjs.load();
-        setNsfwModel(model);
-        console.log('NSFW model loaded successfully');
-      } catch (err) {
-        console.error('Error loading NSFW model:', err);
-      }
-    };
-    loadNsfwModel();
-  }, []);
+
 
   useEffect(() => {
     const interval = setInterval(() => setTimeTick(t => t + 1), 60000);
@@ -1544,24 +1526,21 @@ export default function Dashboard() {
   const uploadFile = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', 'twelo_unsigned'); // Cloudinary unsigned preset
-    formData.append('folder', 'twelo_messages');
     try {
-      // Direct upload to Cloudinary - no server needed!
-      const res = await fetch(`https://api.cloudinary.com/v1_1/srgyaihc/auto/upload`, {
+      const res = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
       const data = await res.json();
-      if (!res.ok || data.error) {
-        console.error('Cloudinary upload failed:', data.error || data);
-        alert(`Upload Failed: ${data.error?.message || 'Unknown error'}`);
+      if (!res.ok) {
+        showToastMsg(data.message || 'Upload blocked by moderation policy.', 'error');
         return null;
       }
-      console.log('Direct Cloudinary upload success, URL:', data.secure_url);
-      return data.secure_url;
+      return data.url;
     } catch (err) {
       console.error('Upload failed', err);
+      showToastMsg('Upload failed. Please try again.', 'error');
       return null;
     }
   };
@@ -1569,50 +1548,6 @@ export default function Dashboard() {
   const handleStorySelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.type.startsWith('image/')) {
-        if (!nsfwModel) {
-          showToastMsg('AI Moderation model is still loading... Please wait.', 'info');
-          e.target.value = '';
-          return;
-        }
-
-        try {
-          const img = new Image();
-          img.src = URL.createObjectURL(file);
-          await new Promise(resolve => { img.onload = resolve; });
-          
-          // Explicitly set width/height so drawImage doesn't silently fail and output a blank (Drawing 0.0%) canvas
-          img.width = img.naturalWidth;
-          img.height = img.naturalHeight;
-          
-          // Downscale to 224x224 Canvas to prevent WebGL Out of Memory crash on mobile cameras
-          const canvas = document.createElement('canvas');
-          canvas.width = 224;
-          canvas.height = 224;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, 224, 224);
-          
-          const predictions = await nsfwModel.classify(canvas);
-          const adultScore = predictions.reduce((sum, p) => {
-            if (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') {
-              return sum + p.probability;
-            }
-            return sum;
-          }, 0);
-
-          const isNSFW = adultScore > 0.05;
-          
-          showToastMsg(`AI Guess: ${predictions[0].className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
-
-          if (isNSFW) {
-            showToastMsg('🚨 STRICT WARNING: NSFW content detected! Story blocked.', 'error');
-            e.target.value = '';
-            return; 
-          }
-        } catch (err) {
-          console.error('NSFW classification failed:', err);
-        }
-      }
 
       setStoryFile(file);
       setStoryPreviewUrl(URL.createObjectURL(file));
@@ -1640,16 +1575,22 @@ export default function Dashboard() {
     
     const formData = new FormData();
     formData.append('file', finalFile);
-    formData.append('upload_preset', 'twelo_unsigned');
-    formData.append('folder', 'twelo_stories');
     
     try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/srgyaihc/auto/upload`, {
+      const res = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
       const data = await res.json();
-      if (res.ok && data.secure_url) {
+      
+      if (!res.ok) {
+        showToastMsg(data.message || 'Upload blocked by moderation policy.', 'error');
+        setStoryUploading(false);
+        return;
+      }
+      
+      if (res.ok && data.url) {
         const storyRes = await fetch(`${API_URL}/api/stories`, {
           method: 'POST',
           headers: {
@@ -1657,7 +1598,7 @@ export default function Dashboard() {
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ 
-            mediaUrl: data.secure_url, 
+            mediaUrl: data.url, 
             mediaType,
             visibility: storyVisibility,
             allowedUsers: storyVisibility === 'custom' ? selectedCloseFriends : [],
@@ -1686,50 +1627,6 @@ export default function Dashboard() {
   const handleImageSelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (!nsfwModel) {
-        showToastMsg('AI Moderation model is still loading... Please wait.', 'info');
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        if (cameraInputRef.current) cameraInputRef.current.value = '';
-        return;
-      }
-
-      try {
-        const img = new Image();
-        img.src = URL.createObjectURL(file);
-        await new Promise(resolve => { img.onload = resolve; });
-        
-        // Explicitly set width/height so drawImage doesn't silently fail and output a blank (Drawing 0.0%) canvas
-        img.width = img.naturalWidth;
-        img.height = img.naturalHeight;
-        
-        // Downscale to 224x224 Canvas to prevent WebGL Out of Memory crash on mobile cameras
-        const canvas = document.createElement('canvas');
-        canvas.width = 224;
-        canvas.height = 224;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, 224, 224);
-        
-        const predictions = await nsfwModel.classify(canvas);
-        const adultScore = predictions.reduce((sum, p) => {
-          if (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') {
-            return sum + p.probability;
-          }
-          return sum;
-        }, 0);
-
-        const isNSFW = adultScore > 0.05;
-
-        showToastMsg(`AI Guess: ${predictions[0].className} (Adult Score: ${(adultScore * 100).toFixed(1)}%)`, 'info');
-
-        if (isNSFW) {
-          showToastMsg('🚨 STRICT WARNING: NSFW content detected! Image blocked.', 'error');
-          if (fileInputRef.current) fileInputRef.current.value = '';
-          if (cameraInputRef.current) cameraInputRef.current.value = '';
-          return; 
-        }
-      } catch (err) {
-        console.error('NSFW classification failed:', err);
-      }
 
       // Safe image, show preview
       setPreviewImage(file);
