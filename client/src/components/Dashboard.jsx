@@ -103,7 +103,8 @@ const StorySlide = ({
   storyPaused, setStoryPaused, storyPausedRef,
   storyVideoRef, storyAudioRef,
   user, activeTab, fetchStories, API_URL, token,
-  handleStoryLike, setShowShareModal, setShowStoryViewsModal, viewerStoriesLength
+  handleStoryLike, setShowShareModal, setShowStoryViewsModal, viewerStoriesLength,
+  viewPublicProfile, setActiveTab
 }) => {
   const story = group.stories[isActiveSlide ? currentStoryIndex : 0];
   if (!story) return null;
@@ -176,26 +177,41 @@ const StorySlide = ({
 
       {/* User Info Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '25px 15px 15px', position: 'absolute', top: '10px', left: 0, right: 0, zIndex: 10, background: 'linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)' }}>
-        <div className="user-avatar-small" style={{ width: '36px', height: '36px', border: '1px solid #fff' }}>
-           {group.user.avatarUrl ? <img src={group.user.avatarUrl} alt="user" /> : group.user.username.charAt(0).toUpperCase()}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ color: '#fff', fontSize: '1rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-              {group.user.username}
-            </span>
-            {group.user.countryCode && (
-              <span style={{ fontSize: '1rem', flexShrink: 0 }}>
-                {getFlagEmoji(group.user.country, group.user.countryCode)}
-              </span>
-            )}
+        <div 
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, cursor: 'pointer' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.history.back(); // close story viewer
+            setTimeout(() => {
+              if (group.user._id === user?.id) {
+                setActiveTab('profile');
+              } else if (viewPublicProfile && group.user._id) {
+                viewPublicProfile(group.user._id);
+              }
+            }, 50);
+          }}
+        >
+          <div className="user-avatar-small" style={{ width: '36px', height: '36px', border: '1px solid #fff' }}>
+             {group.user.avatarUrl ? <img src={group.user.avatarUrl} alt="user" /> : group.user.username.charAt(0).toUpperCase()}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
-            <span style={{ color: '#ddd', fontSize: '0.8rem', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', flexShrink: 1 }}>{group.user.country || 'Earth'}</span>
-            <span style={{ color: '#aaa', fontSize: '0.8rem', flexShrink: 0 }}>•</span>
-            <span style={{ color: '#aaa', fontSize: '0.8rem', flexShrink: 0, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-              {new Date(story.createdAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
-            </span>
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ color: '#fff', fontSize: '1rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                {group.user.username}
+              </span>
+              {group.user.countryCode && (
+                <span style={{ fontSize: '1rem', flexShrink: 0 }}>
+                  {getFlagEmoji(group.user.country, group.user.countryCode)}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+              <span style={{ color: '#ddd', fontSize: '0.8rem', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', flexShrink: 1 }}>{group.user.country || 'Earth'}</span>
+              <span style={{ color: '#aaa', fontSize: '0.8rem', flexShrink: 0 }}>•</span>
+              <span style={{ color: '#aaa', fontSize: '0.8rem', flexShrink: 0, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                {new Date(story.createdAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+              </span>
+            </div>
           </div>
         </div>
         {group.user._id === user?.id && (
@@ -5837,6 +5853,8 @@ export default function Dashboard() {
                           setShowShareModal={setShowShareModal}
                           setShowStoryViewsModal={setShowStoryViewsModal}
                           viewerStoriesLength={viewerStories.length}
+                          viewPublicProfile={viewPublicProfile}
+                          setActiveTab={setActiveTab}
                       />
                    )}
                 </div>
@@ -5865,6 +5883,8 @@ export default function Dashboard() {
                    setShowShareModal={setShowShareModal}
                    setShowStoryViewsModal={setShowStoryViewsModal}
                    viewerStoriesLength={viewerStories.length}
+                   viewPublicProfile={viewPublicProfile}
+                   setActiveTab={setActiveTab}
                 />
              </div>
           )}
