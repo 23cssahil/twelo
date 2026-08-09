@@ -130,7 +130,7 @@ const StorySlide = ({
 
   return (
     <div 
-      style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px 10px', boxSizing: 'border-box', touchAction: 'pan-y' }}
+      style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px 10px', boxSizing: 'border-box', touchAction: 'none' }}
       onPointerDown={(e) => handlePointerDown(e.touches ? e.touches[0].clientX : e.clientX)}
       onPointerMove={(e) => handlePointerMove(e.touches ? e.touches[0].clientX : e.clientX)}
       onPointerUp={handlePointerUp}
@@ -5785,7 +5785,8 @@ export default function Dashboard() {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             background: '#000', zIndex: 11000, 
             overflowY: 'hidden',
-            scrollBehavior: 'smooth'
+            scrollBehavior: 'smooth',
+            touchAction: 'none'
           }}
           onWheel={handleStoryWheel}
           onTouchStart={handleStoryTouchStart}
