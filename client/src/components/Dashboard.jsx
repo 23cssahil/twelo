@@ -75,7 +75,7 @@ const COUNTRY_DATA = {
   "Other": { lat: 0, lng: 0, fact: "Did you know? Earth has over 195 countries!" }
 };
 
-export default function Dashboard({ onAdminStoryDone }) {
+export default function Dashboard() {
   const [activeTab, _setActiveTab] = useState('home');
   
   const setActiveTab = useCallback((tab) => {
@@ -1186,10 +1186,8 @@ export default function Dashboard({ onAdminStoryDone }) {
         setStoryCameraOpen(false);
         setStoryCapturedImage(null);
         setStoryCameraStream(null);
-        if (onAdminStoryDone) onAdminStoryDone();
       } else if (storyEditorOpen) {
         setStoryEditorOpen(false);
-        if (onAdminStoryDone) onAdminStoryDone();
       } else if (storyViewerActive) {
         setStoryViewerActive(false);
         fetchStories();
@@ -1636,7 +1634,6 @@ export default function Dashboard({ onAdminStoryDone }) {
     }
     setStoryCameraOpen(false);
     setStoryCapturedImage(null);
-    if (onAdminStoryDone) onAdminStoryDone();
   };
 
   const openStoryCamera = async (mode = 'user') => {
@@ -1832,46 +1829,26 @@ export default function Dashboard({ onAdminStoryDone }) {
       }
       
       if (res.ok && data.url) {
-        const adminPass = localStorage.getItem('admin_story_pass');
-        let storyRes;
-
-        if (adminPass) {
-          storyRes = await fetch(`${API_URL}/api/admin/stories`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-admin-pass': adminPass
-            },
-            body: JSON.stringify({ 
-              mediaUrl: data.url, 
-              mediaType,
-              songUrl: selectedSongUrl
-            })
-          });
-          localStorage.removeItem('admin_story_pass');
-        } else {
-          storyRes = await fetch(`${API_URL}/api/stories`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ 
-              mediaUrl: data.url, 
-              mediaType,
-              visibility: storyVisibility,
-              allowedUsers: storyVisibility === 'custom' ? selectedCloseFriends : [],
-              songUrl: selectedSongUrl
-            })
-          });
-        }
+        const storyRes = await fetch(`${API_URL}/api/stories`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            mediaUrl: data.url, 
+            mediaType,
+            visibility: storyVisibility,
+            allowedUsers: storyVisibility === 'custom' ? selectedCloseFriends : [],
+            songUrl: selectedSongUrl
+          })
+        });
         
         if (storyRes.ok) {
           fetchStories();
           setStoryEditorOpen(false);
           setStoryFile(null);
           showToastMsg('Status added successfully!', 'success');
-          if (onAdminStoryDone) onAdminStoryDone();
         } else {
           showToastMsg('Failed to save status on server', 'error');
         }
