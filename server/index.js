@@ -612,7 +612,11 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
       }
     }
 
-    const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } }).sort({ createdAt: -1 }).lean();
+    const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } })
+      .populate('viewedBy', 'username avatarUrl')
+      .populate('likedBy', 'username avatarUrl')
+      .sort({ createdAt: -1 })
+      .lean();
     user.globalStories = globalStories;
 
     res.json(user);
@@ -697,7 +701,11 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
       User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } }).catch(console.error);
     }
 
-    const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } }).sort({ createdAt: -1 }).lean();
+    const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } })
+      .populate('viewedBy', 'username avatarUrl')
+      .populate('likedBy', 'username avatarUrl')
+      .sort({ createdAt: -1 })
+      .lean();
     user.globalStories = globalStories;
 
     res.json(user);
@@ -716,7 +724,11 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
       await User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } });
     }
 
-    const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } }).sort({ createdAt: -1 }).lean();
+    const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } })
+      .populate('viewedBy', 'username avatarUrl')
+      .populate('likedBy', 'username avatarUrl')
+      .sort({ createdAt: -1 })
+      .lean();
     user.globalStories = globalStories;
 
     res.json(user);

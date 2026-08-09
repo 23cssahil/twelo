@@ -1207,6 +1207,8 @@ export default function Dashboard() {
                 setCurrentStoryIndex(0);
                 return 0;
               } else {
+                setStoryViewerActive(false);
+                setProfileStoryGroup(null);
                 window.history.back();
                 return 100;
               }
