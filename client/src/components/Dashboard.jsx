@@ -241,14 +241,14 @@ const StorySlide = ({
             {/* Like Button */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <button 
-                style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.4)', transition: 'transform 0.1s active' }}
+                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', transition: 'transform 0.1s active' }}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleStoryLike(story._id, groupIdx, (isActiveSlide ? currentStoryIndex : 0));
                 }}
               >
                 <Heart 
-                  size={24} 
+                  size={22} 
                   fill={story.likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : 'transparent'} 
                   color={story.likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : '#fff'} 
                 />
@@ -261,13 +261,13 @@ const StorySlide = ({
             {/* Comment Button */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <button 
-                style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}
+                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
                 onClick={(e) => {
                   e.stopPropagation();
                   window.alert('Comments feature coming soon!');
                 }}
               >
-                <MessageCircle size={24} color="#fff" />
+                <MessageCircle size={22} color="#fff" />
               </button>
               <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: '600', marginTop: '4px', textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}>
                 0
@@ -277,13 +277,13 @@ const StorySlide = ({
             {/* Share Button */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <button 
-                style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}
+                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowShareModal(true);
                 }}
               >
-                <Share2 size={24} color="#fff" />
+                <Share2 size={22} color="#fff" />
               </button>
               <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: '600', marginTop: '4px', textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}>
                 Share
