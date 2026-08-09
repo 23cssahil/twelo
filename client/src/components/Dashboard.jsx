@@ -3954,6 +3954,23 @@ export default function Dashboard() {
                     </div>
                   </div>
                 )}
+
+                {publicProfileData.globalStories && publicProfileData.globalStories.length > 0 && (
+                  <div style={{ marginTop: '20px', width: '100%' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      {publicProfileData.globalStories.map(story => (
+                        <div key={story._id} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333' }}>
+                          {story.mediaType === 'video' ? (
+                            <video src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                          ) : (
+                            <img src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -4481,6 +4498,23 @@ export default function Dashboard() {
                     </button>
                   </div>
                 </div>
+
+                {profileStats?.globalStories && profileStats.globalStories.length > 0 && (
+                  <div style={{ marginTop: '20px', width: '100%' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      {profileStats.globalStories.map(story => (
+                        <div key={story._id} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333' }}>
+                          {story.mediaType === 'video' ? (
+                            <video src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                          ) : (
+                            <img src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -5443,7 +5477,7 @@ export default function Dashboard() {
                 onChange={(e) => setStoryVisibility(e.target.value)}
                 style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.9rem', cursor: 'pointer' }}
               >
-                <option value="everyone" style={{ color: '#000' }}>Everyone</option>
+                <option value="global" style={{ color: '#000' }}>Global Story</option>
                 <option value="followers" style={{ color: '#000' }}>Followers Only</option>
                 <option value="custom" style={{ color: '#000' }}>Close Friends</option>
               </select>

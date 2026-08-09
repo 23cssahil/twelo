@@ -203,6 +203,13 @@ mongoose.connection.once('open', async () => {
   } catch(e) {
     console.error('Error encrypting old emails:', e);
   }
+
+  try {
+    await mongoose.connection.db.collection('stories').dropIndex('createdAt_1');
+    console.log('Dropped old TTL index on stories.createdAt');
+  } catch(e) {
+    // Ignore if index doesn't exist
+  }
 });
 
 const io = socketIo(server, {
@@ -605,6 +612,9 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
       }
     }
 
+    const globalStories = await Story.find({ user: user._id, visibility: 'global' }).sort({ createdAt: -1 }).lean();
+    user.globalStories = globalStories;
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching profile' });
@@ -686,6 +696,10 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
       user.avatarUrl = generateAvatarUrl(user.gender);
       User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } }).catch(console.error);
     }
+
+    const globalStories = await Story.find({ user: user._id, visibility: 'global' }).sort({ createdAt: -1 }).lean();
+    user.globalStories = globalStories;
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching public profile' });
@@ -701,6 +715,10 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
       user.avatarUrl = generateAvatarUrl(user.gender);
       await User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } });
     }
+
+    const globalStories = await Story.find({ user: user._id, visibility: 'global' }).sort({ createdAt: -1 }).lean();
+    user.globalStories = globalStories;
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching public profile' });
@@ -1130,6 +1148,10 @@ app.post('/api/stories', authenticateToken, async (req, res) => {
       songUrl: songUrl || null
     });
     
+    if (newStory.visibility !== 'global') {
+      newStory.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    }
+    
     await newStory.save();
     await newStory.populate('user', 'username avatarUrl uniqueId');
     
@@ -1225,9 +1247,10 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
 // Get everyone stories
 app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
   try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const stories = await Story.find({
       $or: [
-        { visibility: 'everyone' }, // Everyone on the app
+        { visibility: { $in: ['everyone', 'global'] }, createdAt: { $gt: twentyFourHoursAgo } }, // Global/Everyone on the app
         { isAdminStory: true } // Admin global stories
       ]
     })

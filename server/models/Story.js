@@ -21,7 +21,7 @@ const storySchema = new mongoose.Schema({
   },
   visibility: {
     type: String,
-    enum: ['everyone', 'followers', 'custom'],
+    enum: ['global', 'followers', 'custom', 'everyone'],
     default: 'everyone'
   },
   allowedUsers: [{
@@ -41,8 +41,11 @@ const storySchema = new mongoose.Schema({
   },
   createdAt: {
     type: Date,
-    default: Date.now,
-    expires: 86400 // TTL index: MongoDB will automatically delete documents after 24 hours (86400 seconds)
+    default: Date.now
+  },
+  expiresAt: {
+    type: Date,
+    expires: 0 // TTL index: documents expire at this specific date
   }
 });
 
