@@ -26,6 +26,7 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
   const [textPos, setTextPos] = useState({ x: 50, y: 50 });
   const [textScale, setTextScale] = useState(1);
   const [textColor, setTextColor] = useState('#ffffff');
+  const [textBgColor, setTextBgColor] = useState('#2563eb');
   const [textFont, setTextFont] = useState('Inter');
   const isDraggingText = useRef(false);
   const lastPosRef = useRef({ x: 0, y: 0 });
@@ -45,6 +46,18 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
 
   // Upload State
   const [uploading, setUploading] = useState(false);
+
+  const BG_COLORS = ['#2563eb', '#db2777', '#16a34a', '#d97706', '#7c3aed', '#000000', '#dc2626', '#0891b2'];
+
+  const generateSolidImage = (color) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1920;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.9);
+  };
 
   useEffect(() => {
     // Fetch songs for admin
@@ -435,7 +448,13 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
           
           <button 
             className={`admin-sc-tab ${mode === 'text' ? 'active' : ''}`}
-            onClick={() => setMode('text')}
+            onClick={() => {
+              setMode('text');
+              const defaultColor = '#2563eb';
+              setTextBgColor(defaultColor);
+              setPreviewUrl(generateSolidImage(defaultColor));
+              setCameraStage('editor');
+            }}
           >
             <Type size={20} />
             <span>Text</span>
@@ -510,6 +529,27 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
 
               {cameraStage === 'editor' && (
                 <div className="admin-sc-editor-view">
+                  
+                  {/* Background Color Picker for Text Mode */}
+                  {mode === 'text' && (
+                    <div style={{ position: 'absolute', top: '15px', left: '15px', display: 'flex', flexDirection: 'column', gap: '10px', zIndex: 10 }}>
+                      {BG_COLORS.map(color => (
+                        <button 
+                          key={color}
+                          onClick={() => {
+                            setTextBgColor(color);
+                            setPreviewUrl(generateSolidImage(color));
+                          }}
+                          style={{ 
+                            width: '30px', height: '30px', borderRadius: '50%', background: color, 
+                            border: textBgColor === color ? '3px solid white' : '2px solid transparent',
+                            boxShadow: '0 2px 5px rgba(0,0,0,0.5)', cursor: 'pointer', padding: 0
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
                   <div 
                     className="admin-sc-editor-preview" 
                     id="admin-sc-preview-container"
@@ -611,20 +651,6 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
                 </div>
               )}
             </>
-          )}
-
-          {mode === 'gallery' && (
-            <div className="admin-sc-placeholder-view">
-              <h3>Gallery Mode</h3>
-              <p>Coming in next phase...</p>
-            </div>
-          )}
-
-          {mode === 'text' && (
-            <div className="admin-sc-placeholder-view">
-              <h3>Text Mode</h3>
-              <p>Coming in next phase...</p>
-            </div>
           )}
 
         </div>
