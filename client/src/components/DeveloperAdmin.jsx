@@ -16,6 +16,7 @@ import {
   Legend,
   ArcElement
 } from 'chart.js';
+import Dashboard from './Dashboard';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(
@@ -49,6 +50,7 @@ export default function DeveloperAdmin() {
   const [broadcastType, setBroadcastType] = useState('info');
   const [autoFooter, setAutoFooter] = useState(true);
   const [showBlockedOnly, setShowBlockedOnly] = useState(false);
+  const [showAdminStoryUI, setShowAdminStoryUI] = useState(false);
 
   const [activeTab, setActiveTab] = useState('users');
   const [growthTimeframe, setGrowthTimeframe] = useState('monthly');
@@ -649,8 +651,26 @@ export default function DeveloperAdmin() {
   const handleAddGlobalStory = () => {
     localStorage.setItem('admin_story_pass', password);
     localStorage.setItem('admin_story_trigger', 'true');
-    navigate('/');
+    setShowAdminStoryUI(true);
   };
+
+  if (showAdminStoryUI) {
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 999999, background: '#000' }}>
+        <button 
+          onClick={() => {
+            localStorage.removeItem('admin_story_trigger');
+            localStorage.removeItem('admin_story_pass');
+            setShowAdminStoryUI(false);
+          }}
+          style={{ position: 'absolute', top: 15, right: 15, zIndex: 1000000, background: 'rgba(0,0,0,0.7)', color: 'white', padding: '10px 15px', borderRadius: '8px', border: '1px solid #333' }}
+        >
+          Close & Return to Admin
+        </button>
+        <Dashboard onAdminStoryDone={() => setShowAdminStoryUI(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="dev-dashboard">

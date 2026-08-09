@@ -75,7 +75,7 @@ const COUNTRY_DATA = {
   "Other": { lat: 0, lng: 0, fact: "Did you know? Earth has over 195 countries!" }
 };
 
-export default function Dashboard() {
+export default function Dashboard({ onAdminStoryDone }) {
   const [activeTab, _setActiveTab] = useState('home');
   
   const setActiveTab = useCallback((tab) => {
@@ -1186,8 +1186,10 @@ export default function Dashboard() {
         setStoryCameraOpen(false);
         setStoryCapturedImage(null);
         setStoryCameraStream(null);
+        if (onAdminStoryDone) onAdminStoryDone();
       } else if (storyEditorOpen) {
         setStoryEditorOpen(false);
+        if (onAdminStoryDone) onAdminStoryDone();
       } else if (storyViewerActive) {
         setStoryViewerActive(false);
         fetchStories();
@@ -1634,6 +1636,7 @@ export default function Dashboard() {
     }
     setStoryCameraOpen(false);
     setStoryCapturedImage(null);
+    if (onAdminStoryDone) onAdminStoryDone();
   };
 
   const openStoryCamera = async (mode = 'user') => {
@@ -1868,6 +1871,7 @@ export default function Dashboard() {
           setStoryEditorOpen(false);
           setStoryFile(null);
           showToastMsg('Status added successfully!', 'success');
+          if (onAdminStoryDone) onAdminStoryDone();
         } else {
           showToastMsg('Failed to save status on server', 'error');
         }
