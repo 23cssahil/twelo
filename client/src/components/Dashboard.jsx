@@ -1171,20 +1171,33 @@ export default function Dashboard() {
       const isOwner = viewerStories[currentStoryUserIndex].user._id === myId;
       if (currentStory && myId && !isOwner && (!currentStory.viewedBy || !currentStory.viewedBy.some(v => (v._id || v) === myId))) {
         // Optimistically update local state
-        const updateStories = prev => {
-          const newGroups = [...prev];
-          if (newGroups[currentStoryUserIndex] && newGroups[currentStoryUserIndex].stories[currentStoryIndex]) {
-             if (!newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy) {
-                newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy = [];
-             }
-             newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy.push({_id: myId, username: user.username, avatarUrl: user.avatarUrl });
-          }
-          return newGroups;
-        };
-        if (activeTab === 'everyone-stories') {
-          seteveryoneStories(updateStories);
+        if (profileStoryGroup) {
+          setProfileStoryGroup(prev => {
+            const newGroup = { ...prev };
+            if (newGroup.stories && newGroup.stories[currentStoryIndex]) {
+              if (!newGroup.stories[currentStoryIndex].viewedBy) {
+                newGroup.stories[currentStoryIndex].viewedBy = [];
+              }
+              newGroup.stories[currentStoryIndex].viewedBy.push({_id: myId, username: user.username, avatarUrl: user.avatarUrl });
+            }
+            return newGroup;
+          });
         } else {
-          setGroupedStories(updateStories);
+          const updateStories = prev => {
+            const newGroups = [...prev];
+            if (newGroups[currentStoryUserIndex] && newGroups[currentStoryUserIndex].stories[currentStoryIndex]) {
+               if (!newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy) {
+                  newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy = [];
+               }
+               newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy.push({_id: myId, username: user.username, avatarUrl: user.avatarUrl });
+            }
+            return newGroups;
+          };
+          if (activeTab === 'everyone-stories') {
+            seteveryoneStories(updateStories);
+          } else {
+            setGroupedStories(updateStories);
+          }
         }
         
         // Fire API call
@@ -1194,7 +1207,7 @@ export default function Dashboard() {
         }).catch(e => console.error("Error marking story viewed", e));
       }
     }
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, user, token]);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, user, token, profileStoryGroup]);
 
   const handleStoryLike = async (storyId, userIndex, storyIndex) => {
     const myId = user?._id || user?.id;
