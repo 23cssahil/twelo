@@ -3419,9 +3419,18 @@ export default function Dashboard() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' }}>
                     {[...Array(6)].map((_, i) => (
                       <div key={i} style={{ position: 'relative', paddingBottom: '150%', borderRadius: '15px', overflow: 'hidden', background: 'rgba(255,255,255,0.05)', animation: 'pulse 1.5s infinite ease-in-out' }}>
-                        <div style={{ position: 'absolute', bottom: '10px', left: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)' }} />
-                          <div style={{ width: '60px', height: '10px', borderRadius: '5px', background: 'rgba(255,255,255,0.1)' }} />
+                        <div style={{ position: 'absolute', top: '8px', left: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.4)', padding: '6px 8px', borderRadius: '10px' }}>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
+                          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <div style={{ width: '60%', height: '10px', borderRadius: '4px', background: 'rgba(255,255,255,0.2)' }}></div>
+                              <div style={{ width: '16px', height: '10px', borderRadius: '2px', background: 'rgba(255,255,255,0.1)' }}></div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <div style={{ width: '40%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)' }}></div>
+                              <div style={{ width: '30%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)' }}></div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}
