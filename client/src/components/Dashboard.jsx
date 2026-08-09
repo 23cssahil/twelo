@@ -357,6 +357,19 @@ export default function Dashboard() {
     }
   }, []);
   
+  const userGlobalStoriesObserverRef = useRef(null);
+  const loadMoreUserGlobalStoriesRef = useCallback((node) => {
+    if (userGlobalStoriesObserverRef.current) userGlobalStoriesObserverRef.current.disconnect();
+    if (node) {
+      userGlobalStoriesObserverRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMoreUserGlobalStories && !userGlobalStoriesLoading) {
+          fetchUserGlobalStories(userGlobalStoriesUserId, userGlobalStoriesPage + 1, true);
+        }
+      });
+      userGlobalStoriesObserverRef.current.observe(node);
+    }
+  }, [hasMoreUserGlobalStories, userGlobalStoriesLoading, userGlobalStoriesUserId, userGlobalStoriesPage]);
+
   const setActiveTab = useCallback((tab) => {
     _setActiveTab(prev => {
       if (prev !== tab) {
@@ -594,6 +607,14 @@ export default function Dashboard() {
   const [showAllGlobalStoriesPublic, setShowAllGlobalStoriesPublic] = useState(false);
   const [showAllGlobalStoriesMy, setShowAllGlobalStoriesMy] = useState(false);
   const [profileStoryGroup, setProfileStoryGroup] = useState(null);
+
+  // User Global Stories Pagination State
+  const [userGlobalStories, setUserGlobalStories] = useState([]);
+  const [userGlobalStoriesPage, setUserGlobalStoriesPage] = useState(1);
+  const [userGlobalStoriesLoading, setUserGlobalStoriesLoading] = useState(false);
+  const [hasMoreUserGlobalStories, setHasMoreUserGlobalStories] = useState(true);
+  const [userGlobalStoriesUserId, setUserGlobalStoriesUserId] = useState(null);
+  const [userGlobalStoriesUserInfo, setUserGlobalStoriesUserInfo] = useState(null);
 
   // Anonymous Matchmaking & Economy State
   const [coins, setCoins] = useState(0);
@@ -1043,6 +1064,28 @@ export default function Dashboard() {
         setCoins(data.coins || 0);
       }
     } catch (e) { console.error(e); }
+  };
+
+  const fetchUserGlobalStories = async (userId, page = 1, append = false) => {
+    if (!userId) return;
+    setUserGlobalStoriesLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/users/${userId}/global_stories?page=${page}&limit=12`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        if (append) {
+          setUserGlobalStories(prev => [...prev, ...data.stories]);
+        } else {
+          setUserGlobalStories(data.stories);
+        }
+        setUserGlobalStoriesPage(data.page);
+        setHasMoreUserGlobalStories(data.page < data.pages);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setUserGlobalStoriesLoading(false);
+    }
   };
 
   const fetchConnections = async () => {
@@ -3984,12 +4027,18 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
-                    {publicProfileData.globalStories.length > 3 && (
+                    {publicProfileData.globalStories.length === 3 && (
                       <button 
-                        onClick={() => setShowAllGlobalStoriesPublic(!showAllGlobalStoriesPublic)}
+                        onClick={() => {
+                          setUserGlobalStoriesUserId(publicProfileData._id);
+                          setUserGlobalStoriesUserInfo({ username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl });
+                          setUserGlobalStories([]);
+                          fetchUserGlobalStories(publicProfileData._id, 1, false);
+                          setActiveTab('user-global-stories');
+                        }}
                         style={{ marginTop: '10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '10px', fontSize: '0.9rem' }}
                       >
-                        {showAllGlobalStoriesPublic ? 'Show Less' : 'See More'}
+                        See More
                       </button>
                     )}
                   </div>
@@ -4565,17 +4614,94 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
-                    {profileStats.globalStories.length > 3 && (
+                    {profileStats.globalStories.length === 3 && (
                       <button 
-                        onClick={() => setShowAllGlobalStoriesMy(!showAllGlobalStoriesMy)}
+                        onClick={() => {
+                          setUserGlobalStoriesUserId(user.id || user._id);
+                          setUserGlobalStoriesUserInfo({ username: user.username, avatarUrl: profileStats?.avatarUrl || user.avatarUrl });
+                          setUserGlobalStories([]);
+                          fetchUserGlobalStories(user.id || user._id, 1, false);
+                          setActiveTab('user-global-stories');
+                        }}
                         style={{ marginTop: '10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '10px', fontSize: '0.9rem' }}
                       >
-                        {showAllGlobalStoriesMy ? 'Show Less' : 'See More'}
+                        See More
                       </button>
                     )}
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        );
+      case 'user-global-stories':
+        return (
+          <div className="search-container">
+            <div className="search-header" style={{ padding: '20px', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <button 
+                onClick={() => setActiveTab(userGlobalStoriesUserId === (user.id || user._id) ? 'profile' : 'publicProfile')}
+                style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', background: '#333' }}>
+                  {userGlobalStoriesUserInfo?.avatarUrl ? (
+                    <img src={userGlobalStoriesUserInfo.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                      {userGlobalStoriesUserInfo?.username?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Global Stories</div>
+                  <div style={{ fontSize: '0.8rem', color: '#aaa' }}>@{userGlobalStoriesUserInfo?.username}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div style={{ padding: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                {userGlobalStories.map((story, index) => (
+                  <div 
+                    key={story._id}
+                    onClick={() => {
+                      setProfileStoryGroup({
+                        user: { _id: userGlobalStoriesUserId, username: userGlobalStoriesUserInfo?.username, avatarUrl: userGlobalStoriesUserInfo?.avatarUrl },
+                        stories: userGlobalStories
+                      });
+                      setCurrentStoryUserIndex(0);
+                      setCurrentStoryIndex(index);
+                      setStoryViewerActive(true);
+                      window.history.pushState({ overlayOpen: true }, '');
+                    }}
+                    style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', background: '#222' }}
+                  >
+                    {story.mediaType === 'video' ? (
+                      <video src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                    ) : (
+                      <img src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {userGlobalStoriesLoading && (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0' }}>
+                  <Loader2 className="rotating" size={24} color="#00ffff" />
+                </div>
+              )}
+              
+              {hasMoreUserGlobalStories && !userGlobalStoriesLoading && (
+                <div ref={loadMoreUserGlobalStoriesRef} style={{ height: '50px' }}></div>
+              )}
+              
+              {!hasMoreUserGlobalStories && userGlobalStories.length > 0 && (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: '#666', fontSize: '0.9rem' }}>
+                  No more stories
+                </div>
+              )}
             </div>
           </div>
         );

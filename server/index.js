@@ -616,6 +616,7 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
       .sort({ createdAt: -1 })
+      .limit(3)
       .lean();
     user.globalStories = globalStories;
 
@@ -705,6 +706,7 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
       .sort({ createdAt: -1 })
+      .limit(3)
       .lean();
     user.globalStories = globalStories;
 
@@ -728,12 +730,41 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
       .sort({ createdAt: -1 })
+      .limit(3)
       .lean();
     user.globalStories = globalStories;
 
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching public profile' });
+  }
+});
+
+// Get Paginated Global Stories for User
+app.get('/api/users/:id/global_stories', authenticateToken, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const skip = (page - 1) * limit;
+
+    const globalStories = await Story.find({ user: req.params.id, visibility: { $in: ['global', 'everyone'] } })
+      .populate('viewedBy', 'username avatarUrl')
+      .populate('likedBy', 'username avatarUrl')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const total = await Story.countDocuments({ user: req.params.id, visibility: { $in: ['global', 'everyone'] } });
+
+    res.json({
+      stories: globalStories,
+      page,
+      pages: Math.ceil(total / limit),
+      total
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching global stories' });
   }
 });
 
