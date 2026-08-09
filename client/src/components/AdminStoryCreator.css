@@ -216,13 +216,15 @@
 }
 
 .admin-sc-editor-preview {
-  flex: 1;
-  min-height: 0;
+  height: 45vh;
+  flex: none;
+  margin: 15px;
+  border-radius: 12px;
   position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #0a0a0a;
+  background: #000;
   overflow: hidden;
 }
 
@@ -297,12 +299,15 @@
 }
 
 .admin-sc-editor-toolbar {
+  flex: 1;
   background: #111;
-  padding: 15px 15px 35px 15px; /* Added extra bottom padding */
+  padding: 15px 15px 40px 15px;
   display: flex;
   flex-direction: column;
   gap: 15px;
-  flex-shrink: 0;
+  overflow-y: auto;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
 }
 
 .admin-sc-tools {
