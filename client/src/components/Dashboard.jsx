@@ -237,43 +237,58 @@ const StorySlide = ({
 
         {/* Action Bar for Everyone Stories */}
         {activeTab === 'everyone-stories' && (
-          <div style={{ position: 'absolute', right: '15px', bottom: '100px', zIndex: 15, display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
-            <button 
-              style={{ background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleStoryLike(story._id, groupIdx, (isActiveSlide ? currentStoryIndex : 0));
-              }}
-            >
-              <Heart 
-                size={28} 
-                fill={story.likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : 'transparent'} 
-                color={story.likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : '#fff'} 
-              />
-              <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>{story.likedBy?.length || 0}</span>
-            </button>
+          <div style={{ position: 'absolute', right: '12px', bottom: '80px', zIndex: 15, display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+            {/* Like Button */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <button 
+                style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.4)', transition: 'transform 0.1s active' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStoryLike(story._id, groupIdx, (isActiveSlide ? currentStoryIndex : 0));
+                }}
+              >
+                <Heart 
+                  size={24} 
+                  fill={story.likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : 'transparent'} 
+                  color={story.likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : '#fff'} 
+                />
+              </button>
+              <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: '600', marginTop: '4px', textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}>
+                {story.likedBy?.length || 0}
+              </span>
+            </div>
 
-            <button 
-              style={{ background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                window.alert('Comments feature coming soon!');
-              }}
-            >
-              <MessageCircle size={28} color="#fff" />
-              <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>0</span>
-            </button>
+            {/* Comment Button */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <button 
+                style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.alert('Comments feature coming soon!');
+                }}
+              >
+                <MessageCircle size={24} color="#fff" />
+              </button>
+              <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: '600', marginTop: '4px', textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}>
+                0
+              </span>
+            </div>
 
-            <button 
-              style={{ background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowShareModal(true);
-              }}
-            >
-              <Share2 size={28} color="#fff" />
-              <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>Share</span>
-            </button>
+            {/* Share Button */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <button 
+                style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowShareModal(true);
+                }}
+              >
+                <Share2 size={24} color="#fff" />
+              </button>
+              <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: '600', marginTop: '4px', textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}>
+                Share
+              </span>
+            </div>
           </div>
         )}
       </div>
