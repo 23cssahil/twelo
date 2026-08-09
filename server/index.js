@@ -1142,10 +1142,13 @@ app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
     
     // Don't count owner's own views
     if (story.isAdminStory || (story.user && story.user.toString() !== currentUserId)) {
-      if (!story.viewedBy.includes(currentUserId)) {
-        story.viewedBy.push(currentUserId);
-        await story.save();
-        
+      const updated = await Story.findOneAndUpdate(
+        { _id: storyId, viewedBy: { $ne: currentUserId } },
+        { $addToSet: { viewedBy: currentUserId } },
+        { new: true }
+      );
+      
+      if (updated) {
         // Notify the story owner
         if (story.isAdminStory) {
           io.emit('admin_story_interaction');
@@ -1357,24 +1360,26 @@ app.post('/api/stories/:id/like', authenticateToken, async (req, res) => {
     const story = await Story.findById(storyId);
     if (!story) return res.status(404).json({ message: 'Story not found' });
     
-    const likedIndex = story.likedBy.indexOf(userId);
-    if (likedIndex > -1) {
+    const hasLiked = story.likedBy.some(id => id.toString() === userId.toString());
+    let updated;
+    if (hasLiked) {
       // Unlike
-      story.likedBy.splice(likedIndex, 1);
+      updated = await Story.findByIdAndUpdate(storyId, { $pull: { likedBy: userId } }, { new: true });
     } else {
       // Like
-      story.likedBy.push(userId);
+      updated = await Story.findByIdAndUpdate(storyId, { $addToSet: { likedBy: userId } }, { new: true });
     }
-    await story.save();
     
-    // Notify the story owner
-    if (story.isAdminStory) {
-      io.emit('admin_story_interaction');
-    } else if (story.user) {
-      const ownerId = story.user.toString();
-      const ownerSocketId = onlineUsers.get(ownerId);
-      if (ownerSocketId) {
-        io.to(ownerSocketId).emit('story_interaction');
+    if (!hasLiked && updated) {
+      // Notify the story owner only on like
+      if (story.isAdminStory) {
+        io.emit('admin_story_interaction');
+      } else if (story.user) {
+        const ownerId = story.user.toString();
+        const ownerSocketId = onlineUsers.get(ownerId);
+        if (ownerSocketId) {
+          io.to(ownerSocketId).emit('story_interaction');
+        }
       }
     }
     
