@@ -5187,7 +5187,8 @@ export default function Dashboard() {
         <div 
           style={{
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-            background: '#000', zIndex: 11000, display: 'flex', flexDirection: 'column'
+            background: '#000', zIndex: 11000, display: 'flex', flexDirection: 'column',
+            touchAction: 'none'
           }}
           onWheel={(e) => {
             if (activeTab !== 'everyone-stories') return;
@@ -5214,16 +5215,16 @@ export default function Dashboard() {
             setStoryPaused(true);
             if (storyVideoRef.current) storyVideoRef.current.pause();
             if (storyAudioRef.current) storyAudioRef.current.pause();
-            if (e.touches) {
-              setTouchEnd(null);
-              setTouchStart(e.touches[0].clientX);
-              setTouchEndY(null);
-              setTouchStartY(e.touches[0].clientY);
-            } else {
-              setTouchEnd(null);
-              setTouchStart(e.clientX);
-              setTouchEndY(null);
-              setTouchStartY(e.clientY);
+            
+            setTouchEnd(null);
+            setTouchStart(e.clientX);
+            setTouchEndY(null);
+            setTouchStartY(e.clientY);
+          }}
+          onPointerMove={(e) => {
+            if (touchStart !== null || touchStartY !== null) {
+              setTouchEnd(e.clientX);
+              setTouchEndY(e.clientY);
             }
           }}
           onPointerUp={(e) => {
@@ -5231,12 +5232,46 @@ export default function Dashboard() {
             setStoryPaused(false);
             if (storyVideoRef.current) storyVideoRef.current.play().catch(() => {});
             if (storyAudioRef.current) storyAudioRef.current.play().catch(() => {});
+            
+            // Allow pointer up to also trigger the swipe logic for desktop mouse drag
+            if (touchStart !== null && touchEnd !== null && touchStartY !== null && touchEndY !== null) {
+              const distanceX = touchStart - touchEnd;
+              const distanceY = touchStartY - touchEndY;
+              const isLeftSwipe = distanceX > 50;
+              const isRightSwipe = distanceX < -50;
+              const isUpSwipe = distanceY > 50;
+              const isDownSwipe = distanceY < -50;
+              
+              if (Math.abs(distanceX) > Math.abs(distanceY)) {
+                if (isLeftSwipe && currentStoryIndex < viewerStories[currentStoryUserIndex].stories.length - 1) {
+                  setCurrentStoryIndex(prev => prev + 1); setStoryProgress(0);
+                } else if (isLeftSwipe && currentStoryUserIndex < viewerStories.length - 1) {
+                  setCurrentStoryUserIndex(prev => prev + 1); setCurrentStoryIndex(0); setStoryProgress(0);
+                } else if (isLeftSwipe) {
+                  window.history.back();
+                } else if (isRightSwipe && currentStoryIndex > 0) {
+                  setCurrentStoryIndex(prev => prev - 1); setStoryProgress(0);
+                } else if (isRightSwipe && currentStoryUserIndex > 0) {
+                  setCurrentStoryUserIndex(prev => prev - 1); setCurrentStoryIndex(viewerStories[currentStoryUserIndex - 1].stories.length - 1); setStoryProgress(0);
+                }
+              } else if (activeTab === 'everyone-stories') {
+                if (isUpSwipe) {
+                  if (currentStoryUserIndex < viewerStories.length - 1) {
+                    setCurrentStoryUserIndex(prev => prev + 1); setCurrentStoryIndex(0); setStoryProgress(0);
+                  } else window.history.back();
+                } else if (isDownSwipe && currentStoryUserIndex > 0) {
+                  setCurrentStoryUserIndex(prev => prev - 1); setCurrentStoryIndex(0); setStoryProgress(0);
+                }
+              }
+            }
+            setTouchStart(null); setTouchEnd(null); setTouchStartY(null); setTouchEndY(null);
           }}
           onPointerLeave={() => {
             storyPausedRef.current = false;
             setStoryPaused(false);
             if (storyVideoRef.current) storyVideoRef.current.play().catch(() => {});
             if (storyAudioRef.current) storyAudioRef.current.play().catch(() => {});
+            setTouchStart(null); setTouchEnd(null); setTouchStartY(null); setTouchEndY(null);
           }}
           onTouchStart={(e) => {
             setTouchEnd(null);
