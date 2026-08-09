@@ -15,8 +15,7 @@
 .admin-sc-container {
   width: 100%;
   max-width: 500px;
-  height: 100vh;
-  max-height: 900px;
+  height: 100dvh; /* Changed from 100vh for mobile Safari */
   background: #121212;
   display: flex;
   flex-direction: column;
@@ -100,14 +99,22 @@
   object-fit: cover;
 }
 
-.admin-sc-live-controls {
-  position: absolute;
-  bottom: 30px;
-  left: 0;
-  right: 0;
+.admin-sc-media-wrapper {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #0a0a0a;
+}
+
+.admin-sc-bottom-controls {
+  height: 100px;
+  background: #111;
   display: flex;
   justify-content: space-around;
   align-items: center;
+  border-top: 1px solid rgba(255,255,255,0.05);
 }
 
 .admin-sc-btn-switch {
@@ -148,15 +155,6 @@
   object-fit: contain;
 }
 
-.admin-sc-review-controls {
-  position: absolute;
-  bottom: 30px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-}
 
 .admin-sc-btn-cancel, .admin-sc-btn-okay {
   width: 60px;
@@ -219,6 +217,7 @@
   justify-content: center;
   align-items: center;
   background: #0a0a0a;
+  overflow: hidden;
 }
 
 .admin-sc-text-overlay {

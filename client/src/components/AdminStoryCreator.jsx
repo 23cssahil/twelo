@@ -250,21 +250,25 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
             <>
               {cameraStage === 'live' && (
                 <div className="admin-sc-live-view">
-                  <video ref={videoRef} autoPlay playsInline muted className="admin-sc-video" style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }} />
-                  <div className="admin-sc-live-controls">
+                  <div className="admin-sc-media-wrapper">
+                    <video ref={videoRef} autoPlay playsInline muted className="admin-sc-video" style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }} />
+                  </div>
+                  <div className="admin-sc-bottom-controls" style={{ justifyContent: 'space-between', padding: '0 40px' }}>
+                    <div style={{ width: 44 }}></div> {/* Spacer for center alignment */}
+                    <button className="admin-sc-btn-capture" onClick={handleCapture}></button>
                     <button className="admin-sc-btn-switch" onClick={switchCamera}>
                       <RefreshCcw size={24} />
                     </button>
-                    <button className="admin-sc-btn-capture" onClick={handleCapture}></button>
-                    <div style={{ width: 44 }}></div> {/* Spacer for symmetry */}
                   </div>
                 </div>
               )}
 
               {cameraStage === 'review' && (
                 <div className="admin-sc-review-view">
-                  <img src={previewUrl} alt="Review" className="admin-sc-preview-img" />
-                  <div className="admin-sc-review-controls">
+                  <div className="admin-sc-media-wrapper">
+                    <img src={previewUrl} alt="Review" className="admin-sc-preview-img" />
+                  </div>
+                  <div className="admin-sc-bottom-controls" style={{ justifyContent: 'space-between', padding: '0 40px' }}>
                     <button className="admin-sc-btn-cancel" onClick={handleReviewCancel}>
                       <X size={32} />
                     </button>
