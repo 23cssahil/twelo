@@ -4733,7 +4733,18 @@ export default function Dashboard() {
                 ))}
                 
                 {userGlobalStoriesLoading && [...Array(userGlobalStories.length === 0 ? 12 : 3)].map((_, i) => (
-                  <div key={`skel-${i}`} style={{ aspectRatio: '9/16', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', animation: 'pulse 1.5s infinite ease-in-out' }}></div>
+                  <div key={`skel-${i}`} style={{ 
+                    aspectRatio: '9/16', 
+                    borderRadius: '10px', 
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%)', 
+                    backgroundSize: '200% 200%',
+                    animation: 'shimmer 2s infinite linear',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <ImageIcon size={28} color="rgba(255,255,255,0.15)" />
+                  </div>
                 ))}
               </div>
               
