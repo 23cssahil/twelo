@@ -2990,22 +2990,10 @@ export default function Dashboard() {
           </div>
         );
         case 'everyone-stories': {
-          const alleveryoneStories = [];
-          everyoneStories.forEach(group => {
-            group.stories.forEach(story => {
-              if (!story.user || typeof story.user === 'string') {
-                story.user = { _id: group.userId, username: group.username, avatarUrl: group.avatarUrl };
-              }
-              alleveryoneStories.push(story);
-            });
-          });
-          alleveryoneStories.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
           return (
             <div className="everyone-stories-container" style={{ padding: '15px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
               <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '1.8rem', color: '#fff' }}>Global Stories</h2>
-              {alleveryoneStories.length === 0 ? (
-                everyoneStories.length === 0 ? (
+              {everyoneStories.length === 0 ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' }}>
                     {[...Array(6)].map((_, i) => (
                       <div key={i} style={{ position: 'relative', paddingBottom: '150%', borderRadius: '15px', overflow: 'hidden', background: 'rgba(255,255,255,0.05)', animation: 'pulse 1.5s infinite ease-in-out' }}>
@@ -3016,9 +3004,6 @@ export default function Dashboard() {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>No stories available yet.</div>
-                )
               ) : (
                 <>
                   <div style={{ 
@@ -3026,9 +3011,15 @@ export default function Dashboard() {
                     gridTemplateColumns: 'repeat(2, 1fr)', 
                     gap: '15px' 
                   }}>
-                    {alleveryoneStories.slice(0, visibleeveryoneStories).map((story) => (
+                    {everyoneStories.slice(0, visibleeveryoneStories).map((group, groupIdx) => {
+                      const story = group.stories[0];
+                      if (!story) return null;
+                      if (!story.user || typeof story.user === 'string') {
+                        story.user = { _id: group.userId, username: group.username, avatarUrl: group.avatarUrl, country: group.country, countryCode: group.countryCode };
+                      }
+                      return (
                       <div 
-                        key={story._id} 
+                        key={group.userId} 
                         style={{ 
                           position: 'relative', 
                           paddingBottom: '150%', 
@@ -3038,15 +3029,9 @@ export default function Dashboard() {
                           background: '#111'
                         }}
                         onClick={() => {
-                          let uIdx = everyoneStories.findIndex(g => g.userId === (story.user._id || story.user));
-                          if (uIdx !== -1) {
-                            let sIdx = everyoneStories[uIdx].stories.findIndex(s => s._id === story._id);
-                            if (sIdx !== -1) {
-                              setCurrentStoryUserIndex(uIdx);
-                              setCurrentStoryIndex(sIdx);
-                              setStoryViewerActive(true);
-                            }
-                          }
+                          setCurrentStoryUserIndex(groupIdx);
+                          setCurrentStoryIndex(0);
+                          setStoryViewerActive(true);
                         }}
                       >
                         {story.mediaType === 'video' ? (
@@ -3055,17 +3040,26 @@ export default function Dashboard() {
                           <img src={story.mediaUrl} alt="Story" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                         )}
                         
-                        <div style={{ position: 'absolute', bottom: '10px', left: '10px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '20px' }}>
-                          <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
-                          <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>{story.user?.username || 'user'}</span>
+                        <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', alignItems: 'flex-start', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.6)', padding: '6px 10px', borderRadius: '12px', maxWidth: '85%' }}>
+                          <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', marginTop: '2px' }} />
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{story.user?.username || 'user'}</span>
+                              <span style={{ fontSize: '1rem', flexShrink: 0 }}>{getFlagEmoji(story.user?.country, story.user?.countryCode)}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ color: '#ddd', fontSize: '0.75rem', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{story.user?.country || 'Earth'}</span>
+                              <span style={{ color: '#aaa', fontSize: '0.7rem', flexShrink: 0 }}>• {timeSince(story.createdAt)}</span>
+                            </div>
+                          </div>
                         </div>
-                        {story.isAdminStory && (
+                        {group.isAdminStory && (
                           <div style={{ position: 'absolute', top: '10px', right: '10px', background: '#ff3366', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold' }}>Global</div>
                         )}
                       </div>
-                    ))}
+                    )})}
                   </div>
-                  {visibleeveryoneStories < alleveryoneStories.length && (
+                  {visibleeveryoneStories < everyoneStories.length && (
                     <div ref={loadMoreRef} style={{ display: 'flex', justifyContent: 'center', padding: '30px 0' }}>
                       <button 
                         onClick={() => {
