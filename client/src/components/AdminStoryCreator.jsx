@@ -420,7 +420,7 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
                       onComplete={c => setCompletedCrop(c)}
                       style={{ maxHeight: '100%', maxWidth: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
-                      <img src={previewUrl} ref={cropImgRef} style={{ maxHeight: '60vh', maxWidth: '100%', objectFit: 'contain' }} alt="Crop Preview" />
+                      <img src={previewUrl} ref={cropImgRef} style={{ maxHeight: '85vh', maxWidth: '100%', objectFit: 'contain' }} alt="Crop Preview" />
                     </ReactCrop>
                   </div>
                   <div className="admin-sc-bottom-controls" style={{ justifyContent: 'center', padding: '15px' }}>
