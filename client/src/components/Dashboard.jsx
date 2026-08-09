@@ -855,7 +855,19 @@ export default function Dashboard() {
   }, [token, activeTab]);
 
   useEffect(() => {
-    const handleResize = () => {
+    if (!token) return;
+    
+    // Check if triggered from DeveloperAdmin for global story
+    if (localStorage.getItem('admin_story_trigger') === 'true') {
+      localStorage.removeItem('admin_story_trigger');
+      setTimeout(() => {
+        setStoryCameraOpen(true);
+      }, 800);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    const handlePopState = () => {
       if (window.visualViewport) {
         document.documentElement.style.setProperty('--vvp-height', `${window.visualViewport.height}px`);
         if (document.activeElement && document.activeElement.tagName === 'INPUT') {
@@ -1817,20 +1829,40 @@ export default function Dashboard() {
       }
       
       if (res.ok && data.url) {
-        const storyRes = await fetch(`${API_URL}/api/stories`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ 
-            mediaUrl: data.url, 
-            mediaType,
-            visibility: storyVisibility,
-            allowedUsers: storyVisibility === 'custom' ? selectedCloseFriends : [],
-            songUrl: selectedSongUrl
-          })
-        });
+        const adminPass = localStorage.getItem('admin_story_pass');
+        let storyRes;
+
+        if (adminPass) {
+          storyRes = await fetch(`${API_URL}/api/admin/stories`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-admin-pass': adminPass
+            },
+            body: JSON.stringify({ 
+              mediaUrl: data.url, 
+              mediaType,
+              songUrl: selectedSongUrl
+            })
+          });
+          localStorage.removeItem('admin_story_pass');
+        } else {
+          storyRes = await fetch(`${API_URL}/api/stories`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ 
+              mediaUrl: data.url, 
+              mediaType,
+              visibility: storyVisibility,
+              allowedUsers: storyVisibility === 'custom' ? selectedCloseFriends : [],
+              songUrl: selectedSongUrl
+            })
+          });
+        }
+        
         if (storyRes.ok) {
           fetchStories();
           setStoryEditorOpen(false);

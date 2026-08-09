@@ -646,6 +646,12 @@ export default function DeveloperAdmin() {
     }
   };
 
+  const handleAddGlobalStory = () => {
+    localStorage.setItem('admin_story_pass', password);
+    localStorage.setItem('admin_story_trigger', 'true');
+    navigate('/');
+  };
+
   return (
     <div className="dev-dashboard">
       <div className="dev-header">
@@ -721,17 +727,26 @@ export default function DeveloperAdmin() {
 
         {/* Action Grid */}
         <div className="dev-action-grid">
-          {/* Global Broadcast */}
+          {/* Global Broadcast & Stories */}
           <div className="dev-panel">
-            <h3><Send size={18} style={{ marginRight: '8px' }}/> Global Broadcast</h3>
-            <p className="panel-desc">Send a real-time notification to all connected users.</p>
-            <button 
-              className="dev-btn-primary" 
-              style={{ background: '#f59e0b', color: '#000', width: '100%', marginTop: '15px' }}
-              onClick={() => setShowBroadcastModal(true)}
-            >
-              Open Broadcast Hub
-            </button>
+            <h3><Send size={18} style={{ marginRight: '8px' }}/> Broadcasts & Stories</h3>
+            <p className="panel-desc">Send notifications or post global TWELO stories.</p>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+              <button 
+                className="dev-btn-primary" 
+                style={{ background: '#f59e0b', color: '#000', flex: 1 }}
+                onClick={() => setShowBroadcastModal(true)}
+              >
+                Open Hub
+              </button>
+              <button 
+                className="dev-btn-primary" 
+                style={{ background: '#ec4899', color: '#fff', flex: 1 }}
+                onClick={handleAddGlobalStory}
+              >
+                Add Global Story
+              </button>
+            </div>
           </div>
 
           {/* Globe Control System */}

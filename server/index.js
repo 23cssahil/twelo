@@ -1153,7 +1153,8 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
         { user: currentUserId }, // Self
         { visibility: 'everyone' }, // Everyone on the app
         { user: { $in: followingIds }, visibility: 'followers' }, // Followers only
-        { visibility: 'custom', allowedUsers: currentUserId } // Close friends
+        { visibility: 'custom', allowedUsers: currentUserId }, // Close friends
+        { isAdminStory: true } // Admin global stories
       ]
     })
       .populate('user', 'username avatarUrl uniqueId')
@@ -1166,12 +1167,29 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
     const groupedStoriesMap = new Map();
     
     stories.forEach(story => {
-      if (!story.user) return; // ignore if user was deleted
-      const uId = story.user._id.toString();
+      let uId;
+      if (story.isAdminStory) {
+        uId = 'admin_twelo';
+        // Assign a mock user for the client UI
+        if (!story.user) {
+          story.user = {
+            _id: uId,
+            username: 'TWELO',
+            name: 'TWELO',
+            avatarUrl: '/twelo-admin-logo.jpg',
+            uniqueId: 'twelo_admin'
+          };
+        }
+      } else {
+        if (!story.user) return; // ignore if user was deleted
+        uId = story.user._id.toString();
+      }
+
       if (!groupedStoriesMap.has(uId)) {
         groupedStoriesMap.set(uId, {
           user: story.user,
-          stories: []
+          stories: [],
+          isAdminStory: story.isAdminStory
         });
       }
       groupedStoriesMap.get(uId).stories.push(story);
@@ -1188,17 +1206,21 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
 
     // Sort grouped stories
     groupedStories.sort((a, b) => {
-      // 1. Current user always first
+      // 0. Admin story always very first
+      if (a.isAdminStory && !b.isAdminStory) return -1;
+      if (!a.isAdminStory && b.isAdminStory) return 1;
+
+      // 1. Current user always first (after admin)
       const isACurrentUser = a.user._id.toString() === currentUserId;
       const isBCurrentUser = b.user._id.toString() === currentUserId;
       if (isACurrentUser) return -1;
       if (isBCurrentUser) return 1;
 
-      // 2. Unseen stories before seen stories
+      // 2. Unseen stories next
       if (a.hasUnseen && !b.hasUnseen) return -1;
       if (!a.hasUnseen && b.hasUnseen) return 1;
 
-      // 3. Sort by latest story time (descending)
+      // 3. Finally, sort by latest story time (most recent first)
       return b.latestStoryTime - a.latestStoryTime;
     });
 
@@ -1852,6 +1874,32 @@ app.post('/api/admin/broadcast', adminAuth, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: 'Error sending broadcast' });
+  }
+});
+
+// Admin create a new story
+app.post('/api/admin/stories', adminAuth, async (req, res) => {
+  try {
+    const { mediaUrl, mediaType, songUrl } = req.body;
+    if (!mediaUrl) return res.status(400).json({ message: 'Media URL is required' });
+    
+    const newStory = new Story({
+      isAdminStory: true,
+      mediaUrl,
+      mediaType: mediaType || 'image',
+      visibility: 'everyone',
+      songUrl: songUrl || null
+    });
+    
+    await newStory.save();
+    
+    // Emit socket event to notify all connected clients
+    io.emit('new_story');
+    
+    res.status(201).json(newStory);
+  } catch (error) {
+    console.error('Error creating admin story:', error);
+    res.status(500).json({ message: 'Error creating admin story' });
   }
 });
 
