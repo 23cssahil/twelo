@@ -3446,18 +3446,19 @@ export default function Dashboard() {
                           <img src={story.mediaUrl} alt="Story" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                         )}
                         
-                        <div style={{ position: 'absolute', top: '8px', left: '8px', display: 'flex', alignItems: 'flex-start', gap: '6px', zIndex: 5, background: 'rgba(0,0,0,0.35)', padding: '4px 8px', borderRadius: '8px', maxWidth: '90%' }}>
-                          <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', marginTop: '2px' }} />
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                                {(story.user?.username || 'user').length > 5 ? (story.user?.username || 'user').substring(0, 5) + '...' : (story.user?.username || 'user')}
+                        <div style={{ position: 'absolute', top: '8px', left: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.4)', padding: '6px 8px', borderRadius: '10px' }}>
+                          <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                                {story.user?.username || 'user'}
                               </span>
-                              <span style={{ fontSize: '1rem', flexShrink: 0 }}>{getFlagEmoji(story.user?.country, story.user?.countryCode)}</span>
+                              <span style={{ fontSize: '0.9rem', flexShrink: 0 }}>{getFlagEmoji(story.user?.country, story.user?.countryCode)}</span>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '2px' }}>
-                              <span style={{ color: '#ddd', fontSize: '0.75rem', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{story.user?.country || 'Earth'}</span>
-                              <span style={{ color: '#aaa', fontSize: '0.65rem' }}>{timeSince(story.createdAt)}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+                              <span style={{ color: '#ddd', fontSize: '0.75rem', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', flexShrink: 1 }}>{story.user?.country || 'Earth'}</span>
+                              <span style={{ color: '#aaa', fontSize: '0.75rem', flexShrink: 0 }}>•</span>
+                              <span style={{ color: '#aaa', fontSize: '0.75rem', flexShrink: 0, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{timeSince(story.createdAt)}</span>
                             </div>
                           </div>
                         </div>
