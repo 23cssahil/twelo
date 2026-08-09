@@ -3446,8 +3446,8 @@ export default function Dashboard() {
                           <img src={story.mediaUrl} alt="Story" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                         )}
                         
-                        <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', alignItems: 'flex-start', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.6)', padding: '6px 10px', borderRadius: '12px', maxWidth: '85%' }}>
-                          <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', marginTop: '2px' }} />
+                        <div style={{ position: 'absolute', top: '8px', left: '8px', display: 'flex', alignItems: 'flex-start', gap: '6px', zIndex: 5, background: 'rgba(0,0,0,0.35)', padding: '4px 8px', borderRadius: '8px', maxWidth: '90%' }}>
+                          <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', marginTop: '2px' }} />
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
