@@ -867,7 +867,7 @@ export default function Dashboard() {
   }, [token]);
 
   useEffect(() => {
-    const handlePopState = () => {
+    const handleResize = () => {
       if (window.visualViewport) {
         document.documentElement.style.setProperty('--vvp-height', `${window.visualViewport.height}px`);
         if (document.activeElement && document.activeElement.tagName === 'INPUT') {
