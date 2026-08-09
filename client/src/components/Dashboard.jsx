@@ -1164,7 +1164,7 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const viewerStories = activeTab === 'everyone-stories' ? everyoneStories : groupedStories;
+    const viewerStories = profileStoryGroup ? [profileStoryGroup] : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
     if (storyViewerActive && viewerStories[currentStoryUserIndex]) {
       const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
       const myId = user?._id || user?.id;
@@ -1234,10 +1234,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     let interval;
-    const viewerStories = activeTab === 'everyone-stories' ? everyoneStories : groupedStories;
+    const viewerStories = profileStoryGroup ? [profileStoryGroup] : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
     if (storyViewerActive && viewerStories[currentStoryUserIndex] && !showStoryViewsModal) {
       const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
-      if (currentStory.mediaType === 'image') {
+      if (currentStory && currentStory.mediaType === 'image') {
         interval = setInterval(() => {
           if (storyPausedRef.current) return; // Don't advance while held
           setStoryProgress(prev => {
@@ -1271,7 +1271,10 @@ export default function Dashboard() {
       if (showStoryViewsModal) {
         storyVideoRef.current.pause();
       } else {
-        storyVideoRef.current.play().catch(e => console.log('Auto-play prevented on resume', e));
+        const playPromise = storyVideoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => console.log('Auto-play prevented on resume', e));
+        }
       }
     }
   }, [showStoryViewsModal, currentStoryIndex, currentStoryUserIndex]);
@@ -1321,10 +1324,10 @@ export default function Dashboard() {
       }
     };
 
-    const viewerStories = activeTab === 'everyone-stories' ? everyoneStories : groupedStories;
+    const viewerStories = profileStoryGroup ? [profileStoryGroup] : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
     if (storyViewerActive && viewerStories[currentStoryUserIndex]) {
       const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
-      if (currentStory.songUrl) {
+      if (currentStory && currentStory.songUrl) {
         playWithWebAudio(currentStory.songUrl);
       }
     }
