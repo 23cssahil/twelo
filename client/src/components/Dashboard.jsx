@@ -590,6 +590,7 @@ export default function Dashboard() {
   const [expandedAlerts, setExpandedAlerts] = useState(new Set());
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [publicProfileData, setPublicProfileData] = useState(null);
+  const [connectionsModal, setConnectionsModal] = useState({ isOpen: false, title: '', users: [] });
   const [showAllGlobalStoriesPublic, setShowAllGlobalStoriesPublic] = useState(false);
   const [showAllGlobalStoriesMy, setShowAllGlobalStoriesMy] = useState(false);
   const [profileStoryGroup, setProfileStoryGroup] = useState(null);
