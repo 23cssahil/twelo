@@ -20,6 +20,7 @@ import {
   UserPlus,
   Bell,
   Layers,
+  ChevronDown,
   Gift,
   Mic,
   MicOff,
@@ -78,6 +79,27 @@ const COUNTRY_DATA = {
 
 export default function Dashboard() {
   const [activeTab, _setActiveTab] = useState('home');
+  const [visibleGlobalStories, setVisibleGlobalStories] = useState(12);
+
+  const observerRef = useRef(null);
+  const timeoutRef = useRef(null);
+  const loadMoreRef = useCallback((node) => {
+    if (observerRef.current) observerRef.current.disconnect();
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
+    if (node) {
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          timeoutRef.current = setTimeout(() => {
+            setVisibleGlobalStories(prev => prev + 12);
+          }, 2000);
+        } else {
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        }
+      });
+      observerRef.current.observe(node);
+    }
+  }, []);
   
   const setActiveTab = useCallback((tab) => {
     _setActiveTab(prev => {
@@ -2902,52 +2924,84 @@ export default function Dashboard() {
             <div className="global-stories-container" style={{ padding: '15px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
               <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '1.8rem', color: '#fff' }}>Global Stories</h2>
               {allGlobalStories.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>No stories available yet.</div>
-              ) : (
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(2, 1fr)', 
-                  gap: '15px' 
-                }}>
-                  {allGlobalStories.map((story) => (
-                    <div 
-                      key={story._id} 
-                      style={{ 
-                        position: 'relative', 
-                        paddingBottom: '150%', 
-                        borderRadius: '15px', 
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        background: '#111'
-                      }}
-                      onClick={() => {
-                        let uIdx = groupedStories.findIndex(g => g.userId === (story.user._id || story.user));
-                        if (uIdx !== -1) {
-                          let sIdx = groupedStories[uIdx].stories.findIndex(s => s._id === story._id);
-                          if (sIdx !== -1) {
-                            setCurrentStoryUserIndex(uIdx);
-                            setCurrentStoryIndex(sIdx);
-                            setStoryViewerActive(true);
-                          }
-                        }
-                      }}
-                    >
-                      {story.mediaType === 'video' ? (
-                        <video src={story.mediaUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} muted />
-                      ) : (
-                        <img src={story.mediaUrl} alt="Story" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                      )}
-                      
-                      <div style={{ position: 'absolute', bottom: '10px', left: '10px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '20px' }}>
-                        <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
-                        <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>{story.user?.username || 'user'}</span>
+                groupedStories.length === 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' }}>
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} style={{ position: 'relative', paddingBottom: '150%', borderRadius: '15px', overflow: 'hidden', background: 'rgba(255,255,255,0.05)', animation: 'pulse 1.5s infinite ease-in-out' }}>
+                        <div style={{ position: 'absolute', bottom: '10px', left: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)' }} />
+                          <div style={{ width: '60px', height: '10px', borderRadius: '5px', background: 'rgba(255,255,255,0.1)' }} />
+                        </div>
                       </div>
-                      {story.isAdminStory && (
-                        <div style={{ position: 'absolute', top: '10px', right: '10px', background: '#ff3366', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold' }}>Global</div>
-                      )}
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>No stories available yet.</div>
+                )
+              ) : (
+                <>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                    gap: '15px' 
+                  }}>
+                    {allGlobalStories.slice(0, visibleGlobalStories).map((story) => (
+                      <div 
+                        key={story._id} 
+                        style={{ 
+                          position: 'relative', 
+                          paddingBottom: '150%', 
+                          borderRadius: '15px', 
+                          overflow: 'hidden',
+                          cursor: 'pointer',
+                          background: '#111'
+                        }}
+                        onClick={() => {
+                          let uIdx = groupedStories.findIndex(g => g.userId === (story.user._id || story.user));
+                          if (uIdx !== -1) {
+                            let sIdx = groupedStories[uIdx].stories.findIndex(s => s._id === story._id);
+                            if (sIdx !== -1) {
+                              setCurrentStoryUserIndex(uIdx);
+                              setCurrentStoryIndex(sIdx);
+                              setStoryViewerActive(true);
+                            }
+                          }
+                        }}
+                      >
+                        {story.mediaType === 'video' ? (
+                          <video src={story.mediaUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                        ) : (
+                          <img src={story.mediaUrl} alt="Story" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                        )}
+                        
+                        <div style={{ position: 'absolute', bottom: '10px', left: '10px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '20px' }}>
+                          <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+                          <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>{story.user?.username || 'user'}</span>
+                        </div>
+                        {story.isAdminStory && (
+                          <div style={{ position: 'absolute', top: '10px', right: '10px', background: '#ff3366', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold' }}>Global</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {visibleGlobalStories < allGlobalStories.length && (
+                    <div ref={loadMoreRef} style={{ display: 'flex', justifyContent: 'center', padding: '30px 0' }}>
+                      <button 
+                        onClick={() => {
+                          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                          setVisibleGlobalStories(prev => prev + 12);
+                        }}
+                        style={{
+                          background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', 
+                          width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                          cursor: 'pointer', color: '#fff', animation: 'bounce 2s infinite'
+                        }}
+                      >
+                        <ChevronDown size={28} />
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
           );
