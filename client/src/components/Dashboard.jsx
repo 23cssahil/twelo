@@ -1149,7 +1149,7 @@ export default function Dashboard() {
       try {
         abortController = new AbortController();
         // Fetch the audio file as ArrayBuffer (bypasses HTMLAudio/MediaSession)
-        const response = await fetch(url, { signal: abortController.signal });
+        const response = await fetch(url, { signal: abortController.signal, referrerPolicy: 'no-referrer' });
         if (stopped) return;
         const arrayBuffer = await response.arrayBuffer();
         if (stopped) return;
