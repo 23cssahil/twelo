@@ -23,9 +23,16 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
   // Editor State
   const [overlayText, setOverlayText] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
-  const [textFont, setTextFont] = useState('Inter'); // 'Inter', 'Serif', 'Cursive'
+  const [textFont, setTextFont] = useState('Inter'); // 'Inter', 'Serif', 'Cursive', 'Monospace', 'Impact', 'Comic Sans MS'
+  const [textColor, setTextColor] = useState('#ffffff');
   const [textPos, setTextPos] = useState({ x: 50, y: 50 }); // Percentages
   const isDraggingText = useRef(false);
+
+  // Gallery & Crop State
+  const galleryInputRef = useRef(null);
+  const [crop, setCrop] = useState({ unit: '%', width: 90, height: 90, x: 5, y: 5 });
+  const [completedCrop, setCompletedCrop] = useState(null);
+  const cropImgRef = useRef(null);
 
   // Song state
   const [songs, setSongs] = useState([]);
@@ -40,7 +47,12 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
     setSongs([
       { name: 'TWELO Theme', url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8b82431d1.mp3' },
       { name: 'Chill Vibes', url: 'https://cdn.pixabay.com/download/audio/2021/08/09/audio_13b5d25950.mp3' },
-      { name: 'Epic Announcement', url: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3' }
+      { name: 'Epic Announcement', url: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3' },
+      { name: 'Upbeat Pop', url: 'https://cdn.pixabay.com/download/audio/2022/10/14/audio_9939f792cb.mp3' },
+      { name: 'Cinematic Intense', url: 'https://cdn.pixabay.com/download/audio/2022/11/22/audio_8bea3d35f0.mp3' },
+      { name: 'Calm Acoustic', url: 'https://cdn.pixabay.com/download/audio/2021/11/25/audio_91b3cb39b6.mp3' },
+      { name: 'Lofi Study', url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf7eb.mp3' },
+      { name: 'Cyberpunk', url: 'https://cdn.pixabay.com/download/audio/2021/10/26/audio_9bc1fdb702.mp3' }
     ]);
   }, [API_URL, adminPass]);
 
@@ -105,6 +117,53 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
         setCameraStage('review');
       }, 'image/jpeg', 0.85);
     }
+  };
+
+  const handleGallerySelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+      setPreviewUrl(URL.createObjectURL(selectedFile));
+      setCameraStage('cropping');
+      setCrop({ unit: '%', width: 90, height: 90, x: 5, y: 5 });
+      setCompletedCrop(null);
+    }
+  };
+
+  const getCroppedImg = (image, crop, fileName) => {
+    const canvas = document.createElement('canvas');
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    canvas.width = crop.width * scaleX;
+    canvas.height = crop.height * scaleY;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(
+      image,
+      crop.x * scaleX,
+      crop.y * scaleY,
+      crop.width * scaleX,
+      crop.height * scaleY,
+      0,
+      0,
+      crop.width * scaleX,
+      crop.height * scaleY
+    );
+    return new Promise((resolve) => {
+      canvas.toBlob(blob => {
+        resolve(new File([blob], fileName, { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.9);
+    });
+  };
+
+  const handleConfirmCrop = async () => {
+    if (completedCrop?.width && completedCrop?.height && cropImgRef.current) {
+      const croppedFile = await getCroppedImg(cropImgRef.current, completedCrop, 'gallery_crop.jpg');
+      if (croppedFile) {
+        setFile(croppedFile);
+        setPreviewUrl(URL.createObjectURL(croppedFile));
+      }
+    }
+    handleReviewOkay(); // Move to AI scanning and then editor
   };
 
   const handleReviewCancel = () => {
@@ -210,8 +269,9 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
         const ctx = canvas.getContext('2d');
         
         ctx.drawImage(img, 0, 0);
-        ctx.font = `bold ${Math.floor(img.width * 0.08)}px ${textFont === 'Cursive' ? 'cursive' : textFont === 'Serif' ? 'serif' : 'sans-serif'}`;
-        ctx.fillStyle = 'white';
+        const fontMap = { Inter: 'sans-serif', Serif: 'serif', Cursive: 'cursive', Monospace: 'monospace', Impact: 'Impact', 'Comic Sans MS': '"Comic Sans MS"' };
+        ctx.font = `bold ${Math.floor(img.width * 0.08)}px ${fontMap[textFont] || 'sans-serif'}`;
+        ctx.fillStyle = textColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         // Draw text with outline for better visibility
@@ -250,11 +310,21 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
           
           <button 
             className={`admin-sc-tab ${mode === 'gallery' ? 'active' : ''}`}
-            onClick={() => setMode('gallery')}
+            onClick={() => {
+              setMode('gallery');
+              galleryInputRef.current?.click();
+            }}
           >
             <ImageIcon size={20} />
             <span>Gallery</span>
           </button>
+          <input 
+            type="file" 
+            ref={galleryInputRef} 
+            onChange={handleGallerySelect} 
+            accept="image/*" 
+            style={{ display: 'none' }} 
+          />
           
           <button 
             className={`admin-sc-tab ${mode === 'text' ? 'active' : ''}`}
@@ -268,9 +338,9 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
         {/* Dynamic Workspace */}
         <div className="admin-sc-workspace">
           
-          {mode === 'camera' && (
+          {(mode === 'camera' || mode === 'gallery' || mode === 'text') && (
             <>
-              {cameraStage === 'live' && (
+              {cameraStage === 'live' && mode === 'camera' && (
                 <div className="admin-sc-live-view">
                   <div className="admin-sc-media-wrapper">
                     <video ref={videoRef} autoPlay playsInline muted className="admin-sc-video" style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }} />
@@ -296,6 +366,28 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
                     </button>
                     <button className="admin-sc-btn-okay" onClick={handleReviewOkay}>
                       <Check size={32} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {cameraStage === 'cropping' && (
+                <div className="admin-sc-cropping-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', background: '#000' }}>
+                    <ReactCrop 
+                      crop={crop} 
+                      onChange={c => setCrop(c)} 
+                      onComplete={c => setCompletedCrop(c)}
+                      style={{ maxHeight: '100%', maxWidth: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <img src={previewUrl} ref={cropImgRef} style={{ maxHeight: '60vh', maxWidth: '100%', objectFit: 'contain' }} alt="Crop Preview" />
+                    </ReactCrop>
+                  </div>
+                  <div className="admin-sc-bottom-controls" style={{ justifyContent: 'center', padding: '15px' }}>
+                    <button 
+                      onClick={handleConfirmCrop}
+                      style={{ padding: '10px 30px', background: '#10B981', color: 'white', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                      Done Cropping
                     </button>
                   </div>
                 </div>
@@ -332,7 +424,7 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
                           transform: 'translate(-50%, -50%)',
                           cursor: 'move',
                           userSelect: 'none',
-                          color: '#fff',
+                          color: textColor,
                           textShadow: '0px 0px 10px rgba(0,0,0,0.8)',
                           fontSize: '2rem',
                           fontWeight: 'bold',
@@ -357,9 +449,23 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
                         autoFocus
                       />
                       <div className="admin-sc-font-picker">
-                        <button onClick={() => setTextFont('Inter')} className={textFont === 'Inter' ? 'active' : ''}>Normal</button>
-                        <button onClick={() => setTextFont('Serif')} className={textFont === 'Serif' ? 'active' : ''}>Serif</button>
-                        <button onClick={() => setTextFont('Cursive')} className={textFont === 'Cursive' ? 'active' : ''}>Cursive</button>
+                        {['Inter', 'Serif', 'Cursive', 'Monospace', 'Impact', 'Comic Sans MS'].map(f => (
+                          <button key={f} onClick={() => setTextFont(f)} className={textFont === f ? 'active' : ''}>{f.split(' ')[0]}</button>
+                        ))}
+                      </div>
+                      <div className="admin-sc-color-picker" style={{ display: 'flex', gap: '10px', marginTop: '10px', overflowX: 'auto', padding: '5px' }}>
+                        {['#ffffff', '#000000', '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'].map(color => (
+                          <div 
+                            key={color} 
+                            onClick={() => setTextColor(color)}
+                            style={{ 
+                              width: '30px', height: '30px', borderRadius: '50%', backgroundColor: color, 
+                              border: textColor === color ? '3px solid #fff' : '2px solid rgba(255,255,255,0.3)',
+                              cursor: 'pointer', flexShrink: 0,
+                              boxShadow: textColor === color ? '0 0 10px rgba(255,255,255,0.5)' : 'none'
+                            }} 
+                          />
+                        ))}
                       </div>
                       <button className="admin-sc-done-btn" onClick={() => setShowTextInput(false)}>Done</button>
                     </div>
