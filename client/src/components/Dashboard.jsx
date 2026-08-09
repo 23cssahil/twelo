@@ -130,7 +130,7 @@ const StorySlide = ({
 
   return (
     <div 
-      style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px 0', boxSizing: 'border-box', touchAction: 'none' }}
+      style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px 10px', boxSizing: 'border-box', touchAction: 'pan-y' }}
       onPointerDown={(e) => handlePointerDown(e.touches ? e.touches[0].clientX : e.clientX)}
       onPointerMove={(e) => handlePointerMove(e.touches ? e.touches[0].clientX : e.clientX)}
       onPointerUp={handlePointerUp}
@@ -140,7 +140,7 @@ const StorySlide = ({
       onTouchEnd={handlePointerUp}
     >
       <div style={{
-         width: '100%', maxWidth: '450px', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column',
+         width: '100%', maxWidth: '380px', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column',
          borderRadius: '20px', overflow: 'hidden', background: '#000', boxShadow: '0 10px 40px rgba(0,0,0,0.8)'
       }}>
       {/* Progress Bars */}
