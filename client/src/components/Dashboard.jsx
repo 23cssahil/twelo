@@ -3872,6 +3872,15 @@ export default function Dashboard() {
                   </div>
                   
                   <div className="shimmer" style={{ width: '100%', height: '45px', borderRadius: '25px', marginTop: '25px' }}></div>
+                  
+                  <div style={{ marginTop: '20px', width: '100%' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
+                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
+                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -4444,6 +4453,35 @@ export default function Dashboard() {
         );
 
       case 'profile':
+        if (!profileStats) {
+          return (
+            <div className="profile-container">
+              <div className="profile-card" style={{ padding: '30px 20px' }}>
+                <div className="profile-avatar-large shimmer" style={{ background: '#333', border: 'none' }}></div>
+                <div className="profile-info" style={{ marginTop: '20px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div className="shimmer" style={{ width: '150px', height: '24px', borderRadius: '4px', marginBottom: '10px' }}></div>
+                  <div className="shimmer" style={{ width: '80px', height: '16px', borderRadius: '4px', marginBottom: '25px' }}></div>
+                  
+                  <div className="profile-stats" style={{ width: '100%', gap: '15px' }}>
+                    <div className="stat-box shimmer" style={{ height: '70px', borderRadius: '12px', border: 'none' }}></div>
+                    <div className="stat-box shimmer" style={{ height: '70px', borderRadius: '12px', border: 'none' }}></div>
+                  </div>
+                  
+                  <div className="shimmer" style={{ width: '100%', height: '45px', borderRadius: '25px', marginTop: '25px' }}></div>
+
+                  <div style={{ marginTop: '20px', width: '100%' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
+                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
+                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
         return (
           <div className="profile-container" style={{ position: 'relative' }}>
             <div className="profile-card">
