@@ -12,6 +12,8 @@
   justify-content: center;
   align-items: center;
   font-family: 'Inter', sans-serif;
+  overscroll-behavior: none;
+  touch-action: none; /* Prevents pull-to-refresh */
 }
 
 .admin-sc-container {
