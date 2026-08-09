@@ -769,6 +769,79 @@ export default function Dashboard() {
   // Refs for media
   const myVideoRef = useRef(null);
   const storyVideoRef = useRef(null);
+  const lastScrollTime = useRef(0);
+  const touchStartYRef = useRef(0);
+
+  const handleStoryWheel = (e) => {
+    if (activeTab !== 'everyone-stories' || !storyViewerActive) return;
+    const now = Date.now();
+    if (now - lastScrollTime.current < 600) return;
+
+    if (e.deltaY > 30) {
+      if (currentStoryUserIndex < everyoneStories.length - 1) {
+        lastScrollTime.current = now;
+        const nextIndex = currentStoryUserIndex + 1;
+        setCurrentStoryUserIndex(nextIndex);
+        setCurrentStoryIndex(0);
+        setStoryProgress(0);
+        const container = document.getElementById('story-swiper-container');
+        if (container) {
+          container.scrollTo({ top: nextIndex * container.clientHeight, behavior: 'smooth' });
+        }
+      }
+    } else if (e.deltaY < -30) {
+      if (currentStoryUserIndex > 0) {
+        lastScrollTime.current = now;
+        const prevIndex = currentStoryUserIndex - 1;
+        setCurrentStoryUserIndex(prevIndex);
+        setCurrentStoryIndex(0);
+        setStoryProgress(0);
+        const container = document.getElementById('story-swiper-container');
+        if (container) {
+          container.scrollTo({ top: prevIndex * container.clientHeight, behavior: 'smooth' });
+        }
+      }
+    }
+  };
+
+  const handleStoryTouchStart = (e) => {
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handleStoryTouchEnd = (e) => {
+    if (activeTab !== 'everyone-stories' || !storyViewerActive) return;
+    const now = Date.now();
+    if (now - lastScrollTime.current < 600) return;
+
+    const diffY = touchStartYRef.current - e.changedTouches[0].clientY;
+    if (Math.abs(diffY) > 40) {
+      if (diffY > 0) {
+        if (currentStoryUserIndex < everyoneStories.length - 1) {
+          lastScrollTime.current = now;
+          const nextIndex = currentStoryUserIndex + 1;
+          setCurrentStoryUserIndex(nextIndex);
+          setCurrentStoryIndex(0);
+          setStoryProgress(0);
+          const container = document.getElementById('story-swiper-container');
+          if (container) {
+            container.scrollTo({ top: nextIndex * container.clientHeight, behavior: 'smooth' });
+          }
+        }
+      } else {
+        if (currentStoryUserIndex > 0) {
+          lastScrollTime.current = now;
+          const prevIndex = currentStoryUserIndex - 1;
+          setCurrentStoryUserIndex(prevIndex);
+          setCurrentStoryIndex(0);
+          setStoryProgress(0);
+          const container = document.getElementById('story-swiper-container');
+          if (container) {
+            container.scrollTo({ top: prevIndex * container.clientHeight, behavior: 'smooth' });
+          }
+        }
+      }
+    }
+  };
   const userVideoRef = useRef(null);
   const connectionRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -5455,21 +5528,12 @@ export default function Dashboard() {
           style={{
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             background: '#000', zIndex: 11000, 
-            overflowY: activeTab === 'everyone-stories' ? 'scroll' : 'hidden',
-            scrollSnapType: activeTab === 'everyone-stories' ? 'y mandatory' : 'none',
+            overflowY: 'hidden',
             scrollBehavior: 'smooth'
           }}
-          onScroll={(e) => {
-            if (activeTab !== 'everyone-stories') return;
-            const containerHeight = e.target.clientHeight;
-            const scrollTop = e.target.scrollTop;
-            const index = Math.round(scrollTop / containerHeight);
-            if (index !== currentStoryUserIndex && index >= 0 && index < viewerStories.length) {
-              setCurrentStoryUserIndex(index);
-              setCurrentStoryIndex(0);
-              setStoryProgress(0);
-            }
-          }}
+          onWheel={handleStoryWheel}
+          onTouchStart={handleStoryTouchStart}
+          onTouchEnd={handleStoryTouchEnd}
         >
           {activeTab === 'everyone-stories' ? (
              viewerStories.map((group, groupIdx) => (
