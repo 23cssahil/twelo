@@ -393,6 +393,8 @@ export default function Dashboard() {
   // Swipe handling state
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
+  const [touchStartY, setTouchStartY] = useState(null);
+  const [touchEndY, setTouchEndY] = useState(null);
   
   // Story Views Modal
   const [showStoryViewsModal, setShowStoryViewsModal] = useState(false);
