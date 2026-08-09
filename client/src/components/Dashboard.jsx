@@ -3434,12 +3434,14 @@ export default function Dashboard() {
                           <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', marginTop: '2px' }} />
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{story.user?.username || 'user'}</span>
+                              <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                                {(story.user?.username || 'user').length > 5 ? (story.user?.username || 'user').substring(0, 5) + '...' : (story.user?.username || 'user')}
+                              </span>
                               <span style={{ fontSize: '1rem', flexShrink: 0 }}>{getFlagEmoji(story.user?.country, story.user?.countryCode)}</span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '2px' }}>
                               <span style={{ color: '#ddd', fontSize: '0.75rem', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{story.user?.country || 'Earth'}</span>
-                              <span style={{ color: '#aaa', fontSize: '0.7rem', flexShrink: 0 }}>• {timeSince(story.createdAt)}</span>
+                              <span style={{ color: '#aaa', fontSize: '0.65rem' }}>{timeSince(story.createdAt)}</span>
                             </div>
                           </div>
                         </div>
