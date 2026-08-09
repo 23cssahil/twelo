@@ -591,6 +591,8 @@ export default function Dashboard() {
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [publicProfileData, setPublicProfileData] = useState(null);
   const [connectionsModal, setConnectionsModal] = useState({ isOpen: false, title: '', users: [] });
+  const [showAllGlobalStoriesPublic, setShowAllGlobalStoriesPublic] = useState(false);
+  const [showAllGlobalStoriesMy, setShowAllGlobalStoriesMy] = useState(false);
 
   // Anonymous Matchmaking & Economy State
   const [coins, setCoins] = useState(0);
@@ -3959,7 +3961,7 @@ export default function Dashboard() {
                   <div style={{ marginTop: '20px', width: '100%' }}>
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                      {publicProfileData.globalStories.map(story => (
+                      {(showAllGlobalStoriesPublic ? publicProfileData.globalStories : publicProfileData.globalStories.slice(0, 3)).map(story => (
                         <div key={story._id} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333' }}>
                           {story.mediaType === 'video' ? (
                             <video src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
@@ -3969,6 +3971,14 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
+                    {publicProfileData.globalStories.length > 3 && (
+                      <button 
+                        onClick={() => setShowAllGlobalStoriesPublic(!showAllGlobalStoriesPublic)}
+                        style={{ marginTop: '10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '10px', fontSize: '0.9rem' }}
+                      >
+                        {showAllGlobalStoriesPublic ? 'Show Less' : 'See More'}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -4503,7 +4513,7 @@ export default function Dashboard() {
                   <div style={{ marginTop: '20px', width: '100%' }}>
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                      {profileStats.globalStories.map(story => (
+                      {(showAllGlobalStoriesMy ? profileStats.globalStories : profileStats.globalStories.slice(0, 3)).map(story => (
                         <div key={story._id} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333' }}>
                           {story.mediaType === 'video' ? (
                             <video src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
@@ -4513,6 +4523,14 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
+                    {profileStats.globalStories.length > 3 && (
+                      <button 
+                        onClick={() => setShowAllGlobalStoriesMy(!showAllGlobalStoriesMy)}
+                        style={{ marginTop: '10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '10px', fontSize: '0.9rem' }}
+                      >
+                        {showAllGlobalStoriesMy ? 'Show Less' : 'See More'}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
