@@ -395,6 +395,48 @@ export default function Dashboard() {
   
   // Story Views Modal
   const [showStoryViewsModal, setShowStoryViewsModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareFollowers, setShareFollowers] = useState([]);
+  const [isSharing, setIsSharing] = useState(false);
+  
+  useEffect(() => {
+    if (showShareModal) {
+      const fetchFollowers = async () => {
+        try {
+          const res = await fetch(`${API_URL}/api/users/connections/${user.id || user._id}`, { headers: { Authorization: `Bearer ${token}` } });
+          const data = await res.json();
+          if (res.ok) {
+            setShareFollowers(data.followers || []);
+          }
+        } catch (err) { console.error(err); }
+      };
+      fetchFollowers();
+    }
+  }, [showShareModal, user, token, API_URL]);
+  
+  const handleShareStory = (targetUserId) => {
+    if (!socket) return;
+    setIsSharing(true);
+    const storyId = viewerStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
+    const storyLink = `${window.location.origin}/stories/${storyId}`;
+    const tempId = Date.now().toString();
+    const msgData = {
+      tempId,
+      senderId: user.id || user._id,
+      receiverId: targetUserId,
+      messageText: `Check out this story: ${storyLink}`,
+      messageType: 'text',
+      fileUrl: null,
+      replyTo: null
+    };
+    socket.emit('send_message', msgData);
+    setTimeout(() => {
+      setIsSharing(false);
+      setShowShareModal(false);
+      window.alert('Story shared successfully!');
+    }, 500);
+  };
+
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef(null);
   const [activeStoryTimeout, setActiveStoryTimeout] = useState(null);
@@ -4342,7 +4384,47 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* CALLING OVERLAYS */}
+      
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="call-overlay" style={{ zIndex: 12000 }}>
+          <div className="auth-card" style={{ maxWidth: '400px', width: '90%', background: '#121212', padding: '24px', borderRadius: '12px', position: 'relative' }}>
+            <button 
+              className="back-btn" 
+              style={{ position: 'absolute', top: '16px', right: '16px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#f5f5f5' }} 
+              onClick={() => setShowShareModal(false)}
+            >
+              <X size={24} />
+            </button>
+            <h2 style={{ marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '12px', color: '#f5f5f5' }}>Share Story</h2>
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              {shareFollowers.map(u => (
+                <div 
+                  className="user-card-info" 
+                  key={u._id} 
+                  style={{ padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', cursor: 'default' }} 
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="user-avatar-small">{u.avatarUrl ? <img src={u.avatarUrl} alt='avatar' /> : u.username.charAt(0).toUpperCase()}</div>
+                    <div className="user-names">
+                      <span className="user-username">@{u.username?.length > 10 ? u.username.substring(0, 10) + '...' : u.username}</span>
+                    </div>
+                  </div>
+                  <button 
+                    disabled={isSharing}
+                    style={{ background: 'var(--brand-blue)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}
+                    onClick={() => handleShareStory(u._id)}
+                  >
+                    Send
+                  </button>
+                </div>
+              ))}
+              {shareFollowers.length === 0 && <p style={{ color: '#a8a8a8', textAlign: 'center' }}>No followers to share with.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+\n      {/* CALLING OVERLAYS */}
       {receivingCall && (
         <div className="call-overlay">
           <div className="incoming-call-box">
@@ -5110,46 +5192,76 @@ export default function Dashboard() {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             background: '#000', zIndex: 11000, display: 'flex', flexDirection: 'column'
           }}
+          onWheel={(e) => {
+            if (activeTab !== 'everyone-stories') return;
+            if (e.deltaY > 0) {
+              // Scroll down -> Next User
+              if (currentStoryUserIndex < viewerStories.length - 1) {
+                setCurrentStoryUserIndex(prev => prev + 1);
+                setCurrentStoryIndex(0);
+                setStoryProgress(0);
+              } else {
+                window.history.back();
+              }
+            } else if (e.deltaY < 0) {
+              // Scroll up -> Prev User
+              if (currentStoryUserIndex > 0) {
+                setCurrentStoryUserIndex(prev => prev - 1);
+                setCurrentStoryIndex(0);
+                setStoryProgress(0);
+              }
+            }
+          }}
           onPointerDown={(e) => {
-            // Hold to pause
             storyPausedRef.current = true;
             setStoryPaused(true);
             if (storyVideoRef.current) storyVideoRef.current.pause();
-            if (storyAudioRef.current) storyAudioRef.current.pause(); // Pause song too
-            // Also track swipe start
+            if (storyAudioRef.current) storyAudioRef.current.pause();
             if (e.touches) {
               setTouchEnd(null);
               setTouchStart(e.touches[0].clientX);
+              setTouchEndY(null);
+              setTouchStartY(e.touches[0].clientY);
             } else {
               setTouchEnd(null);
               setTouchStart(e.clientX);
+              setTouchEndY(null);
+              setTouchStartY(e.clientY);
             }
           }}
           onPointerUp={(e) => {
             storyPausedRef.current = false;
             setStoryPaused(false);
             if (storyVideoRef.current) storyVideoRef.current.play().catch(() => {});
-            if (storyAudioRef.current) storyAudioRef.current.play().catch(() => {}); // Resume song
+            if (storyAudioRef.current) storyAudioRef.current.play().catch(() => {});
           }}
           onPointerLeave={() => {
             storyPausedRef.current = false;
             setStoryPaused(false);
             if (storyVideoRef.current) storyVideoRef.current.play().catch(() => {});
-            if (storyAudioRef.current) storyAudioRef.current.play().catch(() => {}); // Resume song
+            if (storyAudioRef.current) storyAudioRef.current.play().catch(() => {});
           }}
           onTouchStart={(e) => {
             setTouchEnd(null);
             setTouchStart(e.targetTouches[0].clientX);
+            setTouchEndY(null);
+            setTouchStartY(e.targetTouches[0].clientY);
           }}
-          onTouchMove={(e) => setTouchEnd(e.targetTouches[0].clientX)}
+          onTouchMove={(e) => {
+            setTouchEnd(e.targetTouches[0].clientX);
+            setTouchEndY(e.targetTouches[0].clientY);
+          }}
           onTouchEnd={() => {
-            if (!touchStart || !touchEnd) return;
-            const distance = touchStart - touchEnd;
-            const isLeftSwipe = distance > 50;
-            const isRightSwipe = distance < -50;
+            if (!touchStart || !touchEnd || (!touchStartY && touchStartY !== 0) || (!touchEndY && touchEndY !== 0)) return;
+            const distanceX = touchStart - touchEnd;
+            const distanceY = touchStartY - touchEndY;
             
-            if (isLeftSwipe) {
-              // Swipe Left (Go to Next)
+            const isLeftSwipe = distanceX > 50;
+            const isRightSwipe = distanceX < -50;
+            const isUpSwipe = distanceY > 50;
+            const isDownSwipe = distanceY < -50;
+            
+            const goNext = () => {
               if (currentStoryIndex < viewerStories[currentStoryUserIndex].stories.length - 1) {
                 setCurrentStoryIndex(prev => prev + 1);
                 setStoryProgress(0);
@@ -5160,8 +5272,9 @@ export default function Dashboard() {
               } else {
                 window.history.back();
               }
-            } else if (isRightSwipe) {
-              // Swipe Right (Go to Prev)
+            };
+            
+            const goPrev = () => {
               if (currentStoryIndex > 0) {
                 setCurrentStoryIndex(prev => prev - 1);
                 setStoryProgress(0);
@@ -5170,6 +5283,28 @@ export default function Dashboard() {
                 setCurrentStoryIndex(viewerStories[currentStoryUserIndex - 1].stories.length - 1);
                 setStoryProgress(0);
               }
+            };
+            
+            if (activeTab === 'everyone-stories') {
+              if (isUpSwipe) {
+                if (currentStoryUserIndex < viewerStories.length - 1) {
+                  setCurrentStoryUserIndex(prev => prev + 1);
+                  setCurrentStoryIndex(0);
+                  setStoryProgress(0);
+                } else {
+                  window.history.back();
+                }
+              } else if (isDownSwipe) {
+                if (currentStoryUserIndex > 0) {
+                  setCurrentStoryUserIndex(prev => prev - 1);
+                  setCurrentStoryIndex(0);
+                  setStoryProgress(0);
+                }
+              } else if (isLeftSwipe) goNext();
+              else if (isRightSwipe) goPrev();
+            } else {
+              if (isLeftSwipe) goNext();
+              else if (isRightSwipe) goPrev();
             }
           }}
         >
@@ -5200,18 +5335,13 @@ export default function Dashboard() {
               <button style={{ background: 'transparent', border: 'none', color: '#fff', padding: '5px', marginLeft: '10px', cursor: 'pointer' }} onClick={(e) => {
                 e.currentTarget.style.display = 'none';
                 const sId = viewerStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
-                
-                // Optimistically close viewer immediately
                 window.history.back();
-                
-                // Perform deletion in background
                 fetch(`${API_URL}/api/stories/${sId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }})
                   .then(() => fetchStories())
                   .catch(() => {});
               }}><Trash2 size={20}/></button>
             )}
             <button style={{ background: 'transparent', border: 'none', color: '#fff', padding: '5px', cursor: 'pointer' }} onClick={() => {
-              // Instead of manually closing, simulate a back button press to cleanly pop the history state
               window.history.back();
             }}><X size={28}/></button>
           </div>
@@ -5227,8 +5357,10 @@ export default function Dashboard() {
                 ref={storyVideoRef}
                 src={viewerStories[currentStoryUserIndex].stories[currentStoryIndex].mediaUrl} 
                 autoPlay 
-                playsInline 
+                playsInline
+                loop={activeTab === 'everyone-stories'}
                 onEnded={() => {
+                  if (activeTab === 'everyone-stories') return; // Let it loop
                   if (currentStoryIndex < viewerStories[currentStoryUserIndex].stories.length - 1) {
                     setCurrentStoryIndex(prev => prev + 1);
                     setStoryProgress(0);
@@ -5243,13 +5375,13 @@ export default function Dashboard() {
                 onTimeUpdate={(e) => {
                   setStoryProgress((e.target.currentTime / e.target.duration) * 100);
                 }}
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                style={{ width: '100%', height: '100%', objectFit: activeTab === 'everyone-stories' ? 'cover' : 'contain' }}
               />
             ) : (
               <img 
                 src={viewerStories[currentStoryUserIndex].stories[currentStoryIndex].mediaUrl} 
                 alt="story" 
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                style={{ width: '100%', height: '100%', objectFit: activeTab === 'everyone-stories' ? 'cover' : 'contain' }} 
               />
             )}
 
@@ -5269,7 +5401,7 @@ export default function Dashboard() {
               }}
             />
             <div 
-              style={{ position: 'absolute', top: 0, right: 0, width: '70%', height: '100%', zIndex: 5, cursor: 'e-resize' }} 
+              style={{ position: 'absolute', top: 0, right: 0, width: activeTab === 'everyone-stories' ? '50%' : '70%', height: '100%', zIndex: 5, cursor: 'e-resize' }} 
               onClick={(e) => {
                 e.stopPropagation();
                 if (currentStoryIndex < viewerStories[currentStoryUserIndex].stories.length - 1) {
@@ -5284,30 +5416,12 @@ export default function Dashboard() {
                 }
               }}
             />
-          </div>
 
-          {/* Bottom Controls */}
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
-            {viewerStories[currentStoryUserIndex].user._id === (user?._id || user?.id) ? (
-              // Creator View
-              <div 
-                style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: 'rgba(255,255,255,0.2)', padding: '8px 15px', borderRadius: '20px' }}
-                onClick={(e) => { e.stopPropagation(); setShowStoryViewsModal(true); }}
-              >
-                <Eye size={18} color="#fff" />
-                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                  {viewerStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy?.length || 0}
-                </span>
-                <Heart size={16} color="#fff" style={{ marginLeft: '10px' }} />
-                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                  {viewerStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.length || 0}
-                </span>
-              </div>
-            ) : (
-              // Viewer View (Like Button)
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+            {/* Action Bar for Everyone Stories */}
+            {activeTab === 'everyone-stories' && (
+              <div style={{ position: 'absolute', right: '15px', bottom: '100px', zIndex: 15, display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
                 <button 
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', zIndex: 15 }}
+                  style={{ background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     const sId = viewerStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
@@ -5315,19 +5429,81 @@ export default function Dashboard() {
                   }}
                 >
                   <Heart 
-                    size={32} 
+                    size={28} 
                     fill={viewerStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : 'transparent'} 
                     color={viewerStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : '#fff'} 
                   />
+                  <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>{viewerStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.length || 0}</span>
+                </button>
+
+                <button 
+                  style={{ background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.alert('Comments feature coming soon!');
+                  }}
+                >
+                  <MessageCircle size={28} color="#fff" />
+                  <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>0</span>
+                </button>
+
+                <button 
+                  style={{ background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowShareModal(true);
+                  }}
+                >
+                  <Share2 size={28} color="#fff" />
+                  <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>Share</span>
                 </button>
               </div>
             )}
           </div>
+
+          {/* Bottom Controls (Only for normal stories) */}
+          {activeTab !== 'everyone-stories' && (
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
+              {viewerStories[currentStoryUserIndex].user._id === (user?._id || user?.id) ? (
+                // Creator View
+                <div 
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: 'rgba(255,255,255,0.2)', padding: '8px 15px', borderRadius: '20px' }}
+                  onClick={(e) => { e.stopPropagation(); setShowStoryViewsModal(true); }}
+                >
+                  <Eye size={18} color="#fff" />
+                  <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                    {viewerStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy?.length || 0}
+                  </span>
+                  <Heart size={16} color="#fff" style={{ marginLeft: '10px' }} />
+                  <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                    {viewerStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.length || 0}
+                  </span>
+                </div>
+              ) : (
+                // Viewer View (Like Button)
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+                  <button 
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', zIndex: 15 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const sId = viewerStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
+                      handleStoryLike(sId, currentStoryUserIndex, currentStoryIndex);
+                    }}
+                  >
+                    <Heart 
+                      size={32} 
+                      fill={viewerStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : 'transparent'} 
+                      color={viewerStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : '#fff'} 
+                    />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           
         </div>
       )}
-
-      {/* Story Views Modal */}
+{/* Story Views Modal */}
       {showStoryViewsModal && storyViewerActive && viewerStories[currentStoryUserIndex] && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 12000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
           <div style={{ width: '100%', maxWidth: '500px', height: '60vh', background: '#121212', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', display: 'flex', flexDirection: 'column' }}>

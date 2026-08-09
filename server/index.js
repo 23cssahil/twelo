@@ -1231,7 +1231,7 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
         { isAdminStory: true } // Admin global stories
       ]
     })
-      .populate('user', 'username avatarUrl uniqueId')
+      .populate('user', 'username avatarUrl uniqueId country countryCode')
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
       .sort({ createdAt: 1 })
@@ -1270,7 +1270,13 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
       groupedStoriesMap.get(uId).stories.push(story);
     });
 
-    res.json(Array.from(groupedStoriesMap.values()));
+    let groupedStoriesArray = Array.from(groupedStoriesMap.values());
+    groupedStoriesArray.forEach(group => {
+      group.latestStoryTime = new Date(group.stories[group.stories.length - 1].createdAt).getTime();
+    });
+    groupedStoriesArray.sort((a, b) => b.latestStoryTime - a.latestStoryTime);
+
+    res.json(groupedStoriesArray);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching everyone stories' });
