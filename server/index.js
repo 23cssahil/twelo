@@ -1157,10 +1157,8 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
     const stories = await Story.find({
       $or: [
         { user: currentUserId }, // Self
-        { visibility: 'everyone' }, // Everyone on the app
         { user: { $in: followingIds }, visibility: 'followers' }, // Followers only
-        { visibility: 'custom', allowedUsers: currentUserId }, // Close friends
-        { isAdminStory: true } // Admin global stories
+        { visibility: 'custom', allowedUsers: currentUserId } // Close friends
       ]
     })
       .populate('user', 'username avatarUrl uniqueId')
@@ -1173,29 +1171,14 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
     const groupedStoriesMap = new Map();
     
     stories.forEach(story => {
-      let uId;
-      if (story.isAdminStory) {
-        uId = 'admin_twelo';
-        // Assign a mock user for the client UI
-        if (!story.user) {
-          story.user = {
-            _id: uId,
-            username: 'TWELO',
-            name: 'TWELO',
-            avatarUrl: '/twelo-admin-logo.jpg',
-            uniqueId: 'twelo_admin'
-          };
-        }
-      } else {
-        if (!story.user) return; // ignore if user was deleted
-        uId = story.user._id.toString();
-      }
+      if (!story.user) return; // ignore if user was deleted
+      const uId = story.user._id.toString();
 
       if (!groupedStoriesMap.has(uId)) {
         groupedStoriesMap.set(uId, {
           user: story.user,
           stories: [],
-          isAdminStory: story.isAdminStory
+          isAdminStory: false
         });
       }
       groupedStoriesMap.get(uId).stories.push(story);
@@ -1212,11 +1195,7 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
 
     // Sort grouped stories
     groupedStories.sort((a, b) => {
-      // 0. Admin story always very first
-      if (a.isAdminStory && !b.isAdminStory) return -1;
-      if (!a.isAdminStory && b.isAdminStory) return 1;
-
-      // 1. Current user always first (after admin)
+      // 1. Current user always first
       const isACurrentUser = a.user._id.toString() === currentUserId;
       const isBCurrentUser = b.user._id.toString() === currentUserId;
       if (isACurrentUser) return -1;
@@ -1240,6 +1219,61 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching stories:', error);
     res.status(500).json({ message: 'Error fetching stories' });
+  }
+});
+
+// Get global stories
+app.get('/api/stories/global', authenticateToken, async (req, res) => {
+  try {
+    const stories = await Story.find({
+      $or: [
+        { visibility: 'everyone' }, // Everyone on the app
+        { isAdminStory: true } // Admin global stories
+      ]
+    })
+      .populate('user', 'username avatarUrl uniqueId')
+      .populate('viewedBy', 'username avatarUrl')
+      .populate('likedBy', 'username avatarUrl')
+      .sort({ createdAt: 1 })
+      .lean();
+      
+    // Group stories by user
+    const groupedStoriesMap = new Map();
+    
+    stories.forEach(story => {
+      let uId;
+      if (story.isAdminStory) {
+        uId = 'admin_twelo';
+        if (!story.user) {
+          story.user = {
+            _id: uId,
+            username: 'TWELO',
+            name: 'TWELO',
+            avatarUrl: '/twelo-admin-logo.jpg',
+            uniqueId: 'twelo_admin'
+          };
+        }
+      } else {
+        if (!story.user) return;
+        uId = story.user._id.toString();
+      }
+
+      if (!groupedStoriesMap.has(uId)) {
+        groupedStoriesMap.set(uId, {
+          user: story.user,
+          userId: uId,
+          username: story.user.username,
+          avatarUrl: story.user.avatarUrl,
+          stories: [],
+        });
+      }
+      groupedStoriesMap.get(uId).stories.push(story);
+    });
+
+    res.json(Array.from(groupedStoriesMap.values()));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching global stories' });
   }
 });
 

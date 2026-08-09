@@ -363,6 +363,7 @@ export default function Dashboard() {
   
   // Stories State
   const [groupedStories, setGroupedStories] = useState([]);
+  const [globalStories, setGlobalStories] = useState([]);
   const [storyViewerActive, setStoryViewerActive] = useState(false);
   const [currentStoryUserIndex, setCurrentStoryUserIndex] = useState(0);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
@@ -690,6 +691,7 @@ export default function Dashboard() {
       fetchConnections();
       fetchNotifications();
       fetchStories();
+      fetchGlobalStories();
     }
   }, [token]);
 
@@ -711,21 +713,47 @@ export default function Dashboard() {
     }
   };
 
+  const fetchGlobalStories = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/stories/global`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGlobalStories(data);
+      } else {
+        const errData = await res.json();
+        showToastMsg(`Failed to load global stories: ${errData.message}`, 'error');
+      }
+    } catch (err) {
+      console.error('Failed to fetch global stories', err);
+      showToastMsg('Network error loading global stories', 'error');
+    }
+  };
+
   useEffect(() => {
-    if (storyViewerActive && groupedStories[currentStoryUserIndex]) {
-      const currentStory = groupedStories[currentStoryUserIndex].stories[currentStoryIndex];
+    const viewerStories = activeTab === 'global-stories' ? globalStories : groupedStories;
+    if (storyViewerActive && viewerStories[currentStoryUserIndex]) {
+      const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
       const myId = user?._id || user?.id;
-      const isOwner = groupedStories[currentStoryUserIndex].user._id === myId;
+      const isOwner = viewerStories[currentStoryUserIndex].user._id === myId;
       if (currentStory && myId && !isOwner && (!currentStory.viewedBy || !currentStory.viewedBy.some(v => (v._id || v) === myId))) {
         // Optimistically update local state
-        setGroupedStories(prev => {
+        const updateStories = prev => {
           const newGroups = [...prev];
           if (newGroups[currentStoryUserIndex] && newGroups[currentStoryUserIndex].stories[currentStoryIndex]) {
-             // Add viewer as object so modal doesn't break if it opens immediately
-             newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy = [...(newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy || []), { _id: myId, username: user.username, avatarUrl: user.avatarUrl }];
+             if (!newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy) {
+                newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy = [];
+             }
+             newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy.push({_id: myId, username: user.username, avatarUrl: user.avatarUrl });
           }
           return newGroups;
-        });
+        };
+        if (activeTab === 'global-stories') {
+          setGlobalStories(updateStories);
+        } else {
+          setGroupedStories(updateStories);
+        }
         
         // Fire API call
         fetch(`${API_URL}/api/stories/${currentStory._id}/view`, {
@@ -734,35 +762,39 @@ export default function Dashboard() {
         }).catch(e => console.error("Error marking story viewed", e));
       }
     }
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, user, token]);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, globalStories, activeTab, user, token]);
 
   const handleStoryLike = async (storyId, userIndex, storyIndex) => {
     const myId = user?._id || user?.id;
     if (!myId) return;
 
     // Optimistic update
-    setGroupedStories(prev => {
+    const updateStories = prev => {
       const newGroups = [...prev];
       if (newGroups[userIndex] && newGroups[userIndex].stories[storyIndex]) {
         const story = newGroups[userIndex].stories[storyIndex];
         const likedBy = story.likedBy || [];
-        const isLiked = likedBy.some(u => u._id === myId || u === myId);
+        const isLiked = likedBy.some(u => (u._id || u) === myId);
         
         if (isLiked) {
-          story.likedBy = likedBy.filter(u => u._id !== myId && u !== myId);
+          story.likedBy = likedBy.filter(u => (u._id || u) !== myId);
         } else {
           story.likedBy = [...likedBy, { _id: myId, username: user.username, avatarUrl: user.avatarUrl }];
         }
       }
       return newGroups;
-    });
+    };
+    if (activeTab === 'global-stories') {
+      setGlobalStories(updateStories);
+    } else {
+      setGroupedStories(updateStories);
+    }
 
     try {
       await fetch(`${API_URL}/api/stories/${storyId}/like`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      // Optionally fetchStories() to get real data, but optimistic update is enough
     } catch (err) {
       console.error('Failed to toggle like', err);
     }
@@ -770,8 +802,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     let interval;
-    if (storyViewerActive && groupedStories[currentStoryUserIndex] && !showStoryViewsModal) {
-      const currentStory = groupedStories[currentStoryUserIndex].stories[currentStoryIndex];
+    const viewerStories = activeTab === 'global-stories' ? globalStories : groupedStories;
+    if (storyViewerActive && viewerStories[currentStoryUserIndex] && !showStoryViewsModal) {
+      const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
       if (currentStory.mediaType === 'image') {
         interval = setInterval(() => {
           if (storyPausedRef.current) return; // Don't advance while held
@@ -779,10 +812,10 @@ export default function Dashboard() {
             if (prev >= 100) {
               clearInterval(interval);
               // Auto advance
-              if (currentStoryIndex < groupedStories[currentStoryUserIndex].stories.length - 1) {
+              if (currentStoryIndex < viewerStories[currentStoryUserIndex].stories.length - 1) {
                 setCurrentStoryIndex(c => c + 1);
                 return 0;
-              } else if (currentStoryUserIndex < groupedStories.length - 1) {
+              } else if (currentStoryUserIndex < viewerStories.length - 1) {
                 setCurrentStoryUserIndex(c => c + 1);
                 setCurrentStoryIndex(0);
                 return 0;
@@ -797,7 +830,7 @@ export default function Dashboard() {
       }
     }
     return () => clearInterval(interval);
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, showStoryViewsModal]);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, globalStories, activeTab, showStoryViewsModal]);
 
   useEffect(() => {
     if (storyVideoRef.current) {
@@ -854,8 +887,9 @@ export default function Dashboard() {
       }
     };
 
-    if (storyViewerActive && groupedStories[currentStoryUserIndex]) {
-      const currentStory = groupedStories[currentStoryUserIndex].stories[currentStoryIndex];
+    const viewerStories = activeTab === 'global-stories' ? globalStories : groupedStories;
+    if (storyViewerActive && viewerStories[currentStoryUserIndex]) {
+      const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
       if (currentStory.songUrl) {
         playWithWebAudio(currentStory.songUrl);
       }
@@ -868,7 +902,7 @@ export default function Dashboard() {
       if (audioCtx) { try { audioCtx.close(); } catch(e) {} }
       storyAudioRef.current = null;
     };
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories]);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, globalStories, activeTab]);
 
 
   useEffect(() => {
@@ -1126,10 +1160,12 @@ export default function Dashboard() {
 
     socket.on('new_story', () => {
       fetchStories();
+      fetchGlobalStories();
     });
     
     socket.on('story_interaction', () => {
       fetchStories();
+      fetchGlobalStories();
     });
 
     return () => {
@@ -1214,6 +1250,7 @@ export default function Dashboard() {
       } else if (storyViewerActive) {
         setStoryViewerActive(false);
         fetchStories();
+        fetchGlobalStories();
       } else if (showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || showLogoutConfirm) {
         setShowSettingsModal(false);
         setShowLogoutConfirm(false);
@@ -1869,6 +1906,7 @@ export default function Dashboard() {
         
         if (storyRes.ok) {
           fetchStories();
+          fetchGlobalStories();
           setStoryEditorOpen(false);
           setStoryFile(null);
           showToastMsg('Status added successfully!', 'success');
@@ -2908,14 +2946,12 @@ export default function Dashboard() {
         );
         case 'global-stories': {
           const allGlobalStories = [];
-          groupedStories.forEach(group => {
+          globalStories.forEach(group => {
             group.stories.forEach(story => {
-              if (story.visibility === 'everyone' || story.isAdminStory) {
-                if (!story.user || typeof story.user === 'string') {
-                  story.user = { _id: group.userId, username: group.username, avatarUrl: group.avatarUrl };
-                }
-                allGlobalStories.push(story);
+              if (!story.user || typeof story.user === 'string') {
+                story.user = { _id: group.userId, username: group.username, avatarUrl: group.avatarUrl };
               }
+              allGlobalStories.push(story);
             });
           });
           allGlobalStories.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -2924,7 +2960,7 @@ export default function Dashboard() {
             <div className="global-stories-container" style={{ padding: '15px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
               <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '1.8rem', color: '#fff' }}>Global Stories</h2>
               {allGlobalStories.length === 0 ? (
-                groupedStories.length === 0 ? (
+                globalStories.length === 0 ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' }}>
                     {[...Array(6)].map((_, i) => (
                       <div key={i} style={{ position: 'relative', paddingBottom: '150%', borderRadius: '15px', overflow: 'hidden', background: 'rgba(255,255,255,0.05)', animation: 'pulse 1.5s infinite ease-in-out' }}>
@@ -2957,9 +2993,9 @@ export default function Dashboard() {
                           background: '#111'
                         }}
                         onClick={() => {
-                          let uIdx = groupedStories.findIndex(g => g.userId === (story.user._id || story.user));
+                          let uIdx = globalStories.findIndex(g => g.userId === (story.user._id || story.user));
                           if (uIdx !== -1) {
-                            let sIdx = groupedStories[uIdx].stories.findIndex(s => s._id === story._id);
+                            let sIdx = globalStories[uIdx].stories.findIndex(s => s._id === story._id);
                             if (sIdx !== -1) {
                               setCurrentStoryUserIndex(uIdx);
                               setCurrentStoryIndex(sIdx);
@@ -4078,6 +4114,7 @@ export default function Dashboard() {
   };
 
   const totalUnreadUsers = Object.values(unreadMessages).filter(count => count > 0).length;
+  const viewerStories = activeTab === 'global-stories' ? globalStories : groupedStories;
 
   return (
     <div className="dashboard-container">
@@ -5067,7 +5104,7 @@ export default function Dashboard() {
       )}
 
       {/* Story Viewer Overlay */}
-      {storyViewerActive && groupedStories[currentStoryUserIndex] && (
+      {storyViewerActive && viewerStories[currentStoryUserIndex] && (
         <div 
           style={{
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
@@ -5113,10 +5150,10 @@ export default function Dashboard() {
             
             if (isLeftSwipe) {
               // Swipe Left (Go to Next)
-              if (currentStoryIndex < groupedStories[currentStoryUserIndex].stories.length - 1) {
+              if (currentStoryIndex < viewerStories[currentStoryUserIndex].stories.length - 1) {
                 setCurrentStoryIndex(prev => prev + 1);
                 setStoryProgress(0);
-              } else if (currentStoryUserIndex < groupedStories.length - 1) {
+              } else if (currentStoryUserIndex < viewerStories.length - 1) {
                 setCurrentStoryUserIndex(prev => prev + 1);
                 setCurrentStoryIndex(0);
                 setStoryProgress(0);
@@ -5130,7 +5167,7 @@ export default function Dashboard() {
                 setStoryProgress(0);
               } else if (currentStoryUserIndex > 0) {
                 setCurrentStoryUserIndex(prev => prev - 1);
-                setCurrentStoryIndex(groupedStories[currentStoryUserIndex - 1].stories.length - 1);
+                setCurrentStoryIndex(viewerStories[currentStoryUserIndex - 1].stories.length - 1);
                 setStoryProgress(0);
               }
             }
@@ -5138,7 +5175,7 @@ export default function Dashboard() {
         >
           {/* Progress Bars */}
           <div style={{ display: 'flex', gap: '5px', padding: '15px 10px 5px', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
-            {groupedStories[currentStoryUserIndex].stories.map((story, i) => (
+            {viewerStories[currentStoryUserIndex].stories.map((story, i) => (
               <div key={story._id} style={{ height: '3px', background: 'rgba(255,255,255,0.3)', flex: 1, borderRadius: '2px', overflow: 'hidden' }}>
                 <div style={{ 
                   height: '100%', 
@@ -5153,16 +5190,16 @@ export default function Dashboard() {
           {/* User Info Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '25px 15px 15px', position: 'absolute', top: '10px', left: 0, right: 0, zIndex: 10, background: 'linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)' }}>
             <div className="user-avatar-small" style={{ width: '36px', height: '36px', border: '1px solid #fff' }}>
-               {groupedStories[currentStoryUserIndex].user.avatarUrl ? <img src={groupedStories[currentStoryUserIndex].user.avatarUrl} alt="user" /> : groupedStories[currentStoryUserIndex].user.username.charAt(0).toUpperCase()}
+               {viewerStories[currentStoryUserIndex].user.avatarUrl ? <img src={viewerStories[currentStoryUserIndex].user.avatarUrl} alt="user" /> : viewerStories[currentStoryUserIndex].user.username.charAt(0).toUpperCase()}
             </div>
-            <span style={{ color: '#fff', fontWeight: 'bold' }}>{groupedStories[currentStoryUserIndex].user.username}</span>
+            <span style={{ color: '#fff', fontWeight: 'bold' }}>{viewerStories[currentStoryUserIndex].user.username}</span>
             <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', marginLeft: 'auto' }}>
-              {new Date(groupedStories[currentStoryUserIndex].stories[currentStoryIndex].createdAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+              {new Date(viewerStories[currentStoryUserIndex].stories[currentStoryIndex].createdAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
             </span>
-            {groupedStories[currentStoryUserIndex].user._id === user.id && (
+            {viewerStories[currentStoryUserIndex].user._id === user.id && (
               <button style={{ background: 'transparent', border: 'none', color: '#fff', padding: '5px', marginLeft: '10px', cursor: 'pointer' }} onClick={(e) => {
                 e.currentTarget.style.display = 'none';
-                const sId = groupedStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
+                const sId = viewerStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
                 
                 // Optimistically close viewer immediately
                 window.history.back();
@@ -5185,17 +5222,17 @@ export default function Dashboard() {
             className="story-user-enter"
             style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            {groupedStories[currentStoryUserIndex].stories[currentStoryIndex].mediaType === 'video' ? (
+            {viewerStories[currentStoryUserIndex].stories[currentStoryIndex].mediaType === 'video' ? (
               <video 
                 ref={storyVideoRef}
-                src={groupedStories[currentStoryUserIndex].stories[currentStoryIndex].mediaUrl} 
+                src={viewerStories[currentStoryUserIndex].stories[currentStoryIndex].mediaUrl} 
                 autoPlay 
                 playsInline 
                 onEnded={() => {
-                  if (currentStoryIndex < groupedStories[currentStoryUserIndex].stories.length - 1) {
+                  if (currentStoryIndex < viewerStories[currentStoryUserIndex].stories.length - 1) {
                     setCurrentStoryIndex(prev => prev + 1);
                     setStoryProgress(0);
-                  } else if (currentStoryUserIndex < groupedStories.length - 1) {
+                  } else if (currentStoryUserIndex < viewerStories.length - 1) {
                     setCurrentStoryUserIndex(prev => prev + 1);
                     setCurrentStoryIndex(0);
                     setStoryProgress(0);
@@ -5210,7 +5247,7 @@ export default function Dashboard() {
               />
             ) : (
               <img 
-                src={groupedStories[currentStoryUserIndex].stories[currentStoryIndex].mediaUrl} 
+                src={viewerStories[currentStoryUserIndex].stories[currentStoryIndex].mediaUrl} 
                 alt="story" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
               />
@@ -5226,7 +5263,7 @@ export default function Dashboard() {
                   setStoryProgress(0);
                 } else if (currentStoryUserIndex > 0) {
                   setCurrentStoryUserIndex(prev => prev - 1);
-                  setCurrentStoryIndex(groupedStories[currentStoryUserIndex - 1].stories.length - 1);
+                  setCurrentStoryIndex(viewerStories[currentStoryUserIndex - 1].stories.length - 1);
                   setStoryProgress(0);
                 }
               }}
@@ -5235,10 +5272,10 @@ export default function Dashboard() {
               style={{ position: 'absolute', top: 0, right: 0, width: '70%', height: '100%', zIndex: 5, cursor: 'e-resize' }} 
               onClick={(e) => {
                 e.stopPropagation();
-                if (currentStoryIndex < groupedStories[currentStoryUserIndex].stories.length - 1) {
+                if (currentStoryIndex < viewerStories[currentStoryUserIndex].stories.length - 1) {
                   setCurrentStoryIndex(prev => prev + 1);
                   setStoryProgress(0);
-                } else if (currentStoryUserIndex < groupedStories.length - 1) {
+                } else if (currentStoryUserIndex < viewerStories.length - 1) {
                   setCurrentStoryUserIndex(prev => prev + 1);
                   setCurrentStoryIndex(0);
                   setStoryProgress(0);
@@ -5251,7 +5288,7 @@ export default function Dashboard() {
 
           {/* Bottom Controls */}
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
-            {groupedStories[currentStoryUserIndex].user._id === (user?._id || user?.id) ? (
+            {viewerStories[currentStoryUserIndex].user._id === (user?._id || user?.id) ? (
               // Creator View
               <div 
                 style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: 'rgba(255,255,255,0.2)', padding: '8px 15px', borderRadius: '20px' }}
@@ -5259,11 +5296,11 @@ export default function Dashboard() {
               >
                 <Eye size={18} color="#fff" />
                 <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                  {groupedStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy?.length || 0}
+                  {viewerStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy?.length || 0}
                 </span>
                 <Heart size={16} color="#fff" style={{ marginLeft: '10px' }} />
                 <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                  {groupedStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.length || 0}
+                  {viewerStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.length || 0}
                 </span>
               </div>
             ) : (
@@ -5273,14 +5310,14 @@ export default function Dashboard() {
                   style={{ background: 'none', border: 'none', cursor: 'pointer', zIndex: 15 }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    const sId = groupedStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
+                    const sId = viewerStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
                     handleStoryLike(sId, currentStoryUserIndex, currentStoryIndex);
                   }}
                 >
                   <Heart 
                     size={32} 
-                    fill={groupedStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : 'transparent'} 
-                    color={groupedStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : '#fff'} 
+                    fill={viewerStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : 'transparent'} 
+                    color={viewerStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : '#fff'} 
                   />
                 </button>
               </div>
@@ -5291,22 +5328,22 @@ export default function Dashboard() {
       )}
 
       {/* Story Views Modal */}
-      {showStoryViewsModal && storyViewerActive && groupedStories[currentStoryUserIndex] && (
+      {showStoryViewsModal && storyViewerActive && viewerStories[currentStoryUserIndex] && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 12000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
           <div style={{ width: '100%', maxWidth: '500px', height: '60vh', background: '#121212', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #333' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Eye size={20} color="#fff" />
-                <span style={{ color: '#fff', fontSize: '1rem', fontWeight: 'bold' }}>{groupedStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy?.length || 0} Views</span>
+                <span style={{ color: '#fff', fontSize: '1rem', fontWeight: 'bold' }}>{viewerStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy?.length || 0} Views</span>
               </div>
               <button onClick={() => window.history.back()} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-              {(groupedStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy?.length || 0) === 0 ? (
+              {(viewerStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy?.length || 0) === 0 ? (
                 <div style={{ textAlign: 'center', color: '#888', marginTop: '40px' }}>No views yet.</div>
               ) : (
-                groupedStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy.map(viewer => {
-                  const hasLiked = groupedStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => (u._id || u) === (viewer._id || viewer));
+                viewerStories[currentStoryUserIndex].stories[currentStoryIndex].viewedBy.map(viewer => {
+                  const hasLiked = viewerStories[currentStoryUserIndex].stories[currentStoryIndex].likedBy?.some(u => (u._id || u) === (viewer._id || viewer));
                   return (
                     <div key={viewer._id || viewer} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid #222' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
