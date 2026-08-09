@@ -1080,15 +1080,21 @@ app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
     if (!story) return res.status(404).json({ message: 'Story not found' });
     
     // Don't count owner's own views
-    if (story.user.toString() !== currentUserId && !story.viewedBy.includes(currentUserId)) {
-      story.viewedBy.push(currentUserId);
-      await story.save();
-      
-      // Notify the story owner
-      const ownerId = story.user.toString();
-      const ownerSocketId = onlineUsers.get(ownerId);
-      if (ownerSocketId) {
-        io.to(ownerSocketId).emit('story_interaction');
+    if (story.isAdminStory || (story.user && story.user.toString() !== currentUserId)) {
+      if (!story.viewedBy.includes(currentUserId)) {
+        story.viewedBy.push(currentUserId);
+        await story.save();
+        
+        // Notify the story owner
+        if (story.isAdminStory) {
+          io.emit('admin_story_interaction');
+        } else if (story.user) {
+          const ownerId = story.user.toString();
+          const ownerSocketId = onlineUsers.get(ownerId);
+          if (ownerSocketId) {
+            io.to(ownerSocketId).emit('story_interaction');
+          }
+        }
       }
     }
     
@@ -1256,10 +1262,14 @@ app.post('/api/stories/:id/like', authenticateToken, async (req, res) => {
     await story.save();
     
     // Notify the story owner
-    const ownerId = story.user.toString();
-    const ownerSocketId = onlineUsers.get(ownerId);
-    if (ownerSocketId) {
-      io.to(ownerSocketId).emit('story_interaction');
+    if (story.isAdminStory) {
+      io.emit('admin_story_interaction');
+    } else if (story.user) {
+      const ownerId = story.user.toString();
+      const ownerSocketId = onlineUsers.get(ownerId);
+      if (ownerSocketId) {
+        io.to(ownerSocketId).emit('story_interaction');
+      }
     }
     
     res.json({ likedBy: story.likedBy });
