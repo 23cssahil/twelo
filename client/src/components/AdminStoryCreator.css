@@ -336,6 +336,7 @@
   font-size: 1.1rem;
   font-weight: bold;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .admin-sc-publish-btn:disabled {
@@ -350,8 +351,10 @@
   gap: 10px;
   justify-content: center;
   background: #222;
-  padding: 15px;
   border-radius: 12px;
+  padding: 10px;
+  max-height: 120px;
+  overflow-y: auto;
 }
 
 .admin-sc-song-picker button {

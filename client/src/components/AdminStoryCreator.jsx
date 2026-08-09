@@ -24,6 +24,8 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
   const [overlayText, setOverlayText] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
   const [textFont, setTextFont] = useState('Inter'); // 'Inter', 'Serif', 'Cursive'
+  const [textPos, setTextPos] = useState({ x: 50, y: 50 }); // Percentages
+  const isDraggingText = useRef(false);
 
   // Song state
   const [songs, setSongs] = useState([]);
@@ -121,6 +123,32 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
     }, 2000);
   };
 
+  const handlePointerDown = (e) => {
+    isDraggingText.current = true;
+  };
+  
+  const handlePointerMove = (e) => {
+    if (!isDraggingText.current) return;
+    const container = document.getElementById('admin-sc-preview-container');
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    let x = ((clientX - rect.left) / rect.width) * 100;
+    let y = ((clientY - rect.top) / rect.height) * 100;
+    
+    x = Math.max(5, Math.min(95, x));
+    y = Math.max(5, Math.min(95, y));
+    
+    setTextPos({ x, y });
+  };
+  
+  const handlePointerUp = () => {
+    isDraggingText.current = false;
+  };
+
   const handlePublishFromEditor = async () => {
     setUploading(true);
     let finalFile = file;
@@ -182,21 +210,15 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
         const ctx = canvas.getContext('2d');
         
         ctx.drawImage(img, 0, 0);
-        
-        // Draw Text
-        ctx.fillStyle = '#ffffff';
-        // Base font size on image width
-        const fontSize = Math.floor(canvas.width * 0.1); 
-        ctx.font = `bold ${fontSize}px ${textFont === 'Cursive' ? 'cursive' : textFont === 'Serif' ? 'serif' : 'sans-serif'}`;
+        ctx.font = `bold ${Math.floor(img.width * 0.08)}px ${textFont === 'Cursive' ? 'cursive' : textFont === 'Serif' ? 'serif' : 'sans-serif'}`;
+        ctx.fillStyle = 'white';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        
-        // Adding a slight text shadow for visibility
-        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = 10;
-        ctx.lineWidth = 5;
-        
-        ctx.fillText(overlayText, canvas.width / 2, canvas.height / 2);
+        // Draw text with outline for better visibility
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.lineWidth = Math.floor(img.width * 0.015);
+        ctx.strokeText(overlayText, (canvas.width * textPos.x) / 100, (canvas.height * textPos.y) / 100);
+        ctx.fillText(overlayText, (canvas.width * textPos.x) / 100, (canvas.height * textPos.y) / 100);
         
         canvas.toBlob(blob => {
           resolve(new File([blob], 'edited_story.jpg', { type: 'image/jpeg' }));
@@ -289,10 +311,37 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
 
               {cameraStage === 'editor' && (
                 <div className="admin-sc-editor-view">
-                  <div className="admin-sc-editor-preview">
-                    <img src={previewUrl} alt="Editor" className="admin-sc-preview-img" />
+                  <div 
+                    className="admin-sc-editor-preview" 
+                    id="admin-sc-preview-container"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                    style={{ touchAction: 'none' }}
+                  >
+                    <img src={previewUrl} alt="Editor" className="admin-sc-preview-img" draggable="false" />
                     {overlayText && (
-                      <div className="admin-sc-text-overlay" style={{ fontFamily: textFont === 'Cursive' ? 'cursive' : textFont === 'Serif' ? 'serif' : 'sans-serif' }}>
+                      <div 
+                        className="admin-sc-text-overlay" 
+                        style={{ 
+                          fontFamily: textFont === 'Cursive' ? 'cursive' : textFont === 'Serif' ? 'serif' : 'sans-serif',
+                          position: 'absolute',
+                          left: `${textPos.x}%`,
+                          top: `${textPos.y}%`,
+                          transform: 'translate(-50%, -50%)',
+                          cursor: 'move',
+                          userSelect: 'none',
+                          color: '#fff',
+                          textShadow: '0px 0px 10px rgba(0,0,0,0.8)',
+                          fontSize: '2rem',
+                          fontWeight: 'bold',
+                          textAlign: 'center',
+                          whiteSpace: 'pre-wrap',
+                          width: '90%',
+                          pointerEvents: 'none'
+                        }}
+                      >
                         {overlayText}
                       </div>
                     )}
