@@ -162,10 +162,25 @@ const StorySlide = ({
         <div className="user-avatar-small" style={{ width: '36px', height: '36px', border: '1px solid #fff' }}>
            {group.user.avatarUrl ? <img src={group.user.avatarUrl} alt="user" /> : group.user.username.charAt(0).toUpperCase()}
         </div>
-        <span style={{ color: '#fff', fontWeight: 'bold' }}>{group.user.username}</span>
-        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', marginLeft: 'auto' }}>
-          {new Date(story.createdAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
-        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ color: '#fff', fontSize: '1rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+              {group.user.username}
+            </span>
+            {group.user.countryCode && (
+              <span style={{ fontSize: '1rem', flexShrink: 0 }}>
+                {getFlagEmoji(group.user.country, group.user.countryCode)}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+            <span style={{ color: '#ddd', fontSize: '0.8rem', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', flexShrink: 1 }}>{group.user.country || 'Earth'}</span>
+            <span style={{ color: '#aaa', fontSize: '0.8rem', flexShrink: 0 }}>•</span>
+            <span style={{ color: '#aaa', fontSize: '0.8rem', flexShrink: 0, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+              {new Date(story.createdAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+            </span>
+          </div>
+        </div>
         {group.user._id === user?.id && (
           <button style={{ background: 'transparent', border: 'none', color: '#fff', padding: '5px', marginLeft: '10px', cursor: 'pointer' }} onClick={(e) => {
             e.currentTarget.style.display = 'none';
