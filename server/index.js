@@ -1,6 +1,6 @@
 require('dotenv').config();
 const Groq = require('groq-sdk');
-const groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groqClient = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 const AiBotSession = require('./models/AiBotSession');
 const express = require('express');
 const http = require('http');
