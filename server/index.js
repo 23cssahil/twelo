@@ -1222,8 +1222,8 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
   }
 });
 
-// Get global stories
-app.get('/api/stories/global', authenticateToken, async (req, res) => {
+// Get everyone stories
+app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
   try {
     const stories = await Story.find({
       $or: [
@@ -1273,7 +1273,7 @@ app.get('/api/stories/global', authenticateToken, async (req, res) => {
     res.json(Array.from(groupedStoriesMap.values()));
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Error fetching global stories' });
+    res.status(500).json({ message: 'Error fetching everyone stories' });
   }
 });
 

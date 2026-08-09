@@ -79,7 +79,7 @@ const COUNTRY_DATA = {
 
 export default function Dashboard() {
   const [activeTab, _setActiveTab] = useState('home');
-  const [visibleGlobalStories, setVisibleGlobalStories] = useState(12);
+  const [visibleeveryoneStories, setVisibleeveryoneStories] = useState(12);
 
   const observerRef = useRef(null);
   const timeoutRef = useRef(null);
@@ -91,7 +91,7 @@ export default function Dashboard() {
       observerRef.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
           timeoutRef.current = setTimeout(() => {
-            setVisibleGlobalStories(prev => prev + 12);
+            setVisibleeveryoneStories(prev => prev + 12);
           }, 2000);
         } else {
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -363,7 +363,7 @@ export default function Dashboard() {
   
   // Stories State
   const [groupedStories, setGroupedStories] = useState([]);
-  const [globalStories, setGlobalStories] = useState([]);
+  const [everyoneStories, seteveryoneStories] = useState([]);
   const [storyViewerActive, setStoryViewerActive] = useState(false);
   const [currentStoryUserIndex, setCurrentStoryUserIndex] = useState(0);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
@@ -691,7 +691,7 @@ export default function Dashboard() {
       fetchConnections();
       fetchNotifications();
       fetchStories();
-      fetchGlobalStories();
+      fetcheveryoneStories();
     }
   }, [token]);
 
@@ -713,26 +713,26 @@ export default function Dashboard() {
     }
   };
 
-  const fetchGlobalStories = async () => {
+  const fetcheveryoneStories = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/stories/global`, {
+      const res = await fetch(`${API_URL}/api/stories/everyone`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        setGlobalStories(data);
+        seteveryoneStories(data);
       } else {
         const errData = await res.json();
-        showToastMsg(`Failed to load global stories: ${errData.message}`, 'error');
+        showToastMsg(`Failed to load everyone stories: ${errData.message}`, 'error');
       }
     } catch (err) {
-      console.error('Failed to fetch global stories', err);
-      showToastMsg('Network error loading global stories', 'error');
+      console.error('Failed to fetch everyone stories', err);
+      showToastMsg('Network error loading everyone stories', 'error');
     }
   };
 
   useEffect(() => {
-    const viewerStories = activeTab === 'global-stories' ? globalStories : groupedStories;
+    const viewerStories = activeTab === 'everyone-stories' ? everyoneStories : groupedStories;
     if (storyViewerActive && viewerStories[currentStoryUserIndex]) {
       const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
       const myId = user?._id || user?.id;
@@ -749,8 +749,8 @@ export default function Dashboard() {
           }
           return newGroups;
         };
-        if (activeTab === 'global-stories') {
-          setGlobalStories(updateStories);
+        if (activeTab === 'everyone-stories') {
+          seteveryoneStories(updateStories);
         } else {
           setGroupedStories(updateStories);
         }
@@ -762,7 +762,7 @@ export default function Dashboard() {
         }).catch(e => console.error("Error marking story viewed", e));
       }
     }
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, globalStories, activeTab, user, token]);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, user, token]);
 
   const handleStoryLike = async (storyId, userIndex, storyIndex) => {
     const myId = user?._id || user?.id;
@@ -784,8 +784,8 @@ export default function Dashboard() {
       }
       return newGroups;
     };
-    if (activeTab === 'global-stories') {
-      setGlobalStories(updateStories);
+    if (activeTab === 'everyone-stories') {
+      seteveryoneStories(updateStories);
     } else {
       setGroupedStories(updateStories);
     }
@@ -802,7 +802,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     let interval;
-    const viewerStories = activeTab === 'global-stories' ? globalStories : groupedStories;
+    const viewerStories = activeTab === 'everyone-stories' ? everyoneStories : groupedStories;
     if (storyViewerActive && viewerStories[currentStoryUserIndex] && !showStoryViewsModal) {
       const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
       if (currentStory.mediaType === 'image') {
@@ -830,7 +830,7 @@ export default function Dashboard() {
       }
     }
     return () => clearInterval(interval);
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, globalStories, activeTab, showStoryViewsModal]);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, showStoryViewsModal]);
 
   useEffect(() => {
     if (storyVideoRef.current) {
@@ -887,7 +887,7 @@ export default function Dashboard() {
       }
     };
 
-    const viewerStories = activeTab === 'global-stories' ? globalStories : groupedStories;
+    const viewerStories = activeTab === 'everyone-stories' ? everyoneStories : groupedStories;
     if (storyViewerActive && viewerStories[currentStoryUserIndex]) {
       const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
       if (currentStory.songUrl) {
@@ -902,7 +902,7 @@ export default function Dashboard() {
       if (audioCtx) { try { audioCtx.close(); } catch(e) {} }
       storyAudioRef.current = null;
     };
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, globalStories, activeTab]);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab]);
 
 
   useEffect(() => {
@@ -1160,12 +1160,12 @@ export default function Dashboard() {
 
     socket.on('new_story', () => {
       fetchStories();
-      fetchGlobalStories();
+      fetcheveryoneStories();
     });
     
     socket.on('story_interaction', () => {
       fetchStories();
-      fetchGlobalStories();
+      fetcheveryoneStories();
     });
 
     return () => {
@@ -1250,7 +1250,7 @@ export default function Dashboard() {
       } else if (storyViewerActive) {
         setStoryViewerActive(false);
         fetchStories();
-        fetchGlobalStories();
+        fetcheveryoneStories();
       } else if (showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || showLogoutConfirm) {
         setShowSettingsModal(false);
         setShowLogoutConfirm(false);
@@ -1906,7 +1906,7 @@ export default function Dashboard() {
         
         if (storyRes.ok) {
           fetchStories();
-          fetchGlobalStories();
+          fetcheveryoneStories();
           setStoryEditorOpen(false);
           setStoryFile(null);
           showToastMsg('Status added successfully!', 'success');
@@ -2944,23 +2944,23 @@ export default function Dashboard() {
 
           </div>
         );
-        case 'global-stories': {
-          const allGlobalStories = [];
-          globalStories.forEach(group => {
+        case 'everyone-stories': {
+          const alleveryoneStories = [];
+          everyoneStories.forEach(group => {
             group.stories.forEach(story => {
               if (!story.user || typeof story.user === 'string') {
                 story.user = { _id: group.userId, username: group.username, avatarUrl: group.avatarUrl };
               }
-              allGlobalStories.push(story);
+              alleveryoneStories.push(story);
             });
           });
-          allGlobalStories.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          alleveryoneStories.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
           return (
-            <div className="global-stories-container" style={{ padding: '15px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
+            <div className="everyone-stories-container" style={{ padding: '15px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
               <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '1.8rem', color: '#fff' }}>Global Stories</h2>
-              {allGlobalStories.length === 0 ? (
-                globalStories.length === 0 ? (
+              {alleveryoneStories.length === 0 ? (
+                everyoneStories.length === 0 ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' }}>
                     {[...Array(6)].map((_, i) => (
                       <div key={i} style={{ position: 'relative', paddingBottom: '150%', borderRadius: '15px', overflow: 'hidden', background: 'rgba(255,255,255,0.05)', animation: 'pulse 1.5s infinite ease-in-out' }}>
@@ -2981,7 +2981,7 @@ export default function Dashboard() {
                     gridTemplateColumns: 'repeat(2, 1fr)', 
                     gap: '15px' 
                   }}>
-                    {allGlobalStories.slice(0, visibleGlobalStories).map((story) => (
+                    {alleveryoneStories.slice(0, visibleeveryoneStories).map((story) => (
                       <div 
                         key={story._id} 
                         style={{ 
@@ -2993,9 +2993,9 @@ export default function Dashboard() {
                           background: '#111'
                         }}
                         onClick={() => {
-                          let uIdx = globalStories.findIndex(g => g.userId === (story.user._id || story.user));
+                          let uIdx = everyoneStories.findIndex(g => g.userId === (story.user._id || story.user));
                           if (uIdx !== -1) {
-                            let sIdx = globalStories[uIdx].stories.findIndex(s => s._id === story._id);
+                            let sIdx = everyoneStories[uIdx].stories.findIndex(s => s._id === story._id);
                             if (sIdx !== -1) {
                               setCurrentStoryUserIndex(uIdx);
                               setCurrentStoryIndex(sIdx);
@@ -3020,12 +3020,12 @@ export default function Dashboard() {
                       </div>
                     ))}
                   </div>
-                  {visibleGlobalStories < allGlobalStories.length && (
+                  {visibleeveryoneStories < alleveryoneStories.length && (
                     <div ref={loadMoreRef} style={{ display: 'flex', justifyContent: 'center', padding: '30px 0' }}>
                       <button 
                         onClick={() => {
                           if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                          setVisibleGlobalStories(prev => prev + 12);
+                          setVisibleeveryoneStories(prev => prev + 12);
                         }}
                         style={{
                           background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', 
@@ -4114,7 +4114,7 @@ export default function Dashboard() {
   };
 
   const totalUnreadUsers = Object.values(unreadMessages).filter(count => count > 0).length;
-  const viewerStories = activeTab === 'global-stories' ? globalStories : groupedStories;
+  const viewerStories = activeTab === 'everyone-stories' ? everyoneStories : groupedStories;
 
   return (
     <div className="dashboard-container">
@@ -4160,8 +4160,8 @@ export default function Dashboard() {
               <MessageSquare size={24} /><span>Messages</span>
               {totalUnreadUsers > 0 && <span className="sidebar-badge">{totalUnreadUsers}</span>}
             </div>
-            <div className={`nav-item ${activeTab === 'global-stories' ? 'active' : ''}`} onClick={() => setActiveTab('global-stories')}>
-              <Layers size={24} color={activeTab === 'global-stories' ? '#fff' : '#00ffff'} /><span>Global Stories</span>
+            <div className={`nav-item ${activeTab === 'everyone-stories' ? 'active' : ''}`} onClick={() => setActiveTab('everyone-stories')}>
+              <Layers size={24} color={activeTab === 'everyone-stories' ? '#fff' : '#00ffff'} /><span>Global Stories</span>
             </div>
             <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
               <UserIcon size={24} /><span>Profile</span>
@@ -4198,8 +4198,8 @@ export default function Dashboard() {
       <nav className={`mobile-nav ${(activeChatUser && activeTab === 'messages') ? 'hide-on-mobile' : ''}`}>
         <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}><HomeIcon size={24} /></div>
         <div className={`nav-item ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}><SearchIcon size={24} /></div>
-        <div className={`nav-item ${activeTab === 'global-stories' ? 'active' : ''}`} onClick={() => setActiveTab('global-stories')}>
-          <Layers size={24} color={activeTab === 'global-stories' ? '#fff' : '#00ffff'} />
+        <div className={`nav-item ${activeTab === 'everyone-stories' ? 'active' : ''}`} onClick={() => setActiveTab('everyone-stories')}>
+          <Layers size={24} color={activeTab === 'everyone-stories' ? '#fff' : '#00ffff'} />
         </div>
         <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')} style={{ position: 'relative' }}>
           <MessageSquare size={24} />
