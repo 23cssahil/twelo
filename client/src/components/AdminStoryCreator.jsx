@@ -171,14 +171,16 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
   };
 
   const handleConfirmCrop = async () => {
+    let finalFile = file;
     if (completedCrop?.width && completedCrop?.height && cropImgRef.current) {
       const croppedFile = await getCroppedImg(cropImgRef.current, completedCrop, 'gallery_crop.jpg');
       if (croppedFile) {
         setFile(croppedFile);
         setPreviewUrl(URL.createObjectURL(croppedFile));
+        finalFile = croppedFile;
       }
     }
-    handleReviewOkay(); // Move to AI scanning and then editor
+    handleReviewOkay(finalFile); // Move to AI scanning and then editor
   };
 
   const handleReviewCancel = () => {
@@ -187,15 +189,15 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
     setCameraStage('live');
   };
 
-  const handleReviewOkay = async () => {
+  const handleReviewOkay = async (fileToScan = file) => {
     setCameraStage('scanning');
     
     // Real AI Scanning for Nudity using backend API
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', fileToScan);
       
-      const checkRes = await fetch(`${API_URL}/api/upload/check-nudity`, {
+      const checkRes = await fetch(`${API_URL}/api/check`, {
         method: 'POST',
         headers: {
           'x-admin-pass': adminPass // Although check-nudity might not require it, good to send
