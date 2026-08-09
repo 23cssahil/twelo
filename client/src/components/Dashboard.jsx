@@ -201,13 +201,13 @@ const StorySlide = ({
             onTimeUpdate={(e) => {
               if (isActiveSlide) setStoryProgress((e.target.currentTime / e.target.duration) * 100);
             }}
-            style={{ width: '100%', height: '100%', objectFit: activeTab === 'everyone-stories' ? 'cover' : 'contain' }}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
         ) : (
           <img 
             src={story.mediaUrl} 
             alt="story" 
-            style={{ width: '100%', height: '100%', objectFit: activeTab === 'everyone-stories' ? 'cover' : 'contain' }} 
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
           />
         )}
 
