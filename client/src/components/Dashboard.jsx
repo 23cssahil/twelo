@@ -4722,13 +4722,11 @@ export default function Dashboard() {
                     )}
                   </div>
                 ))}
+                
+                {userGlobalStoriesLoading && [...Array(userGlobalStories.length === 0 ? 12 : 3)].map((_, i) => (
+                  <div key={`skel-${i}`} style={{ aspectRatio: '9/16', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', animation: 'pulse 1.5s infinite ease-in-out' }}></div>
+                ))}
               </div>
-              
-              {userGlobalStoriesLoading && (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0' }}>
-                  <Loader2 className="rotating" size={24} color="#00ffff" />
-                </div>
-              )}
               
               {hasMoreUserGlobalStories && !userGlobalStoriesLoading && (
                 <div ref={loadMoreUserGlobalStoriesRef} style={{ height: '50px' }}></div>
