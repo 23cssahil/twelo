@@ -1773,3 +1773,6 @@ input, button, textarea {
 .story-user-enter {
   animation: storyUserTransition 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
+
+#story-swiper-container::-webkit-scrollbar { display: none; }
+#story-swiper-container { -ms-overflow-style: none; scrollbar-width: none; }
