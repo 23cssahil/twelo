@@ -78,6 +78,23 @@ const COUNTRY_DATA = {
   "Other": { lat: 0, lng: 0, fact: "Did you know? Earth has over 195 countries!" }
 };
 
+const getFlagEmoji = (countryName, countryCode) => {
+  if (countryCode && countryCode !== 'UN') {
+    try {
+      const codePoints = countryCode.toUpperCase().split('').map(char => 127397 + char.charCodeAt(0));
+      return String.fromCodePoint(...codePoints);
+    } catch (e) {}
+  }
+  if (!countryName) return '🌍';
+  const flags = {
+    'India': '🇮🇳', 'USA': '🇺🇸', 'UK': '🇬🇧', 'Canada': '🇨🇦',
+    'Australia': '🇦🇺', 'Germany': '🇩🇪', 'France': '🇫🇷',
+    'Japan': '🇯🇵', 'Brazil': '🇧🇷', 'Indonesia': '🇮🇩',
+    'Pakistan': '🇵🇰', 'Bangladesh': '🇧🇩', 'Nepal': '🇳🇵',
+    'Sri Lanka': '🇱🇰', 'Russia': '🇷🇺', 'China': '🇨🇳'
+  };
+  return flags[countryName] || '🌍';
+};
 
 const StorySlide = ({
   group, groupIdx, isActiveSlide, 
@@ -575,23 +592,7 @@ export default function Dashboard() {
     } catch (err) { console.error(err); }
   };
   
-  const getFlagEmoji = (countryName, countryCode) => {
-    if (countryCode && countryCode !== 'UN') {
-      try {
-        const codePoints = countryCode.toUpperCase().split('').map(char => 127397 + char.charCodeAt(0));
-        return String.fromCodePoint(...codePoints);
-      } catch (e) {}
-    }
-    if (!countryName) return '🌍';
-    const flags = {
-      'India': '🇮🇳', 'USA': '🇺🇸', 'UK': '🇬🇧', 'Canada': '🇨🇦',
-      'Australia': '🇦🇺', 'Germany': '🇩🇪', 'France': '🇫🇷',
-      'Japan': '🇯🇵', 'Brazil': '🇧🇷', 'Indonesia': '🇮🇩',
-      'Pakistan': '🇵🇰', 'Bangladesh': '🇧🇩', 'Nepal': '🇳🇵',
-      'Sri Lanka': '🇱🇰', 'Russia': '🇷🇺', 'China': '🇨🇳'
-    };
-    return flags[countryName] || '🌍';
-  };
+
 
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
