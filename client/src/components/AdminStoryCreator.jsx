@@ -68,6 +68,21 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
     };
   }, [mode, cameraStage]);
 
+  useEffect(() => {
+    // Add a dummy state to history so back button can be intercepted
+    window.history.pushState({ adminStoryCreator: true }, '');
+
+    const handlePopState = (e) => {
+      e.preventDefault();
+      onClose(); // Close the creator gracefully without leaving /admin
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [onClose]);
+
   const openCamera = async (modeOverride) => {
     if (stream) stream.getTracks().forEach(t => t.stop());
     try {
@@ -172,14 +187,39 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
     setCameraStage('live');
   };
 
-  const handleReviewOkay = () => {
+  const handleReviewOkay = async () => {
     setCameraStage('scanning');
     
-    // Simulate AI Scanning for Nudity (In a real scenario, this happens during upload to /api/upload)
-    // We will do a 2-second fake scan for UX, since the actual scan is backend-driven during publish
-    setTimeout(() => {
-      setCameraStage('editor');
-    }, 2000);
+    // Real AI Scanning for Nudity using backend API
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const checkRes = await fetch(`${API_URL}/api/upload/check-nudity`, {
+        method: 'POST',
+        headers: {
+          'x-admin-pass': adminPass // Although check-nudity might not require it, good to send
+        },
+        body: formData
+      });
+      
+      const data = await checkRes.json();
+      
+      if (checkRes.ok) {
+        setCameraStage('editor');
+      } else {
+        if (checkRes.status === 400 && data.message && data.message.includes('Nudity')) {
+          alert('Action Blocked: Nudity or explicit content is strictly prohibited.');
+          handleReviewCancel();
+        } else {
+          alert(data.message || 'Upload blocked by moderation policy.');
+          handleReviewCancel();
+        }
+      }
+    } catch (err) {
+      alert('Failed to connect to moderation server.');
+      handleReviewCancel();
+    }
   };
 
   const handlePointerDown = (e) => {
