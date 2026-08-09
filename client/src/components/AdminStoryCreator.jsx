@@ -47,7 +47,10 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
   // Upload State
   const [uploading, setUploading] = useState(false);
 
-  const BG_COLORS = ['#2563eb', '#db2777', '#16a34a', '#d97706', '#7c3aed', '#000000', '#dc2626', '#0891b2'];
+  const BG_COLORS = [
+    '#FF5722', '#FF9800', '#FFEB3B', '#8BC34A', '#00BCD4', 
+    '#03A9F4', '#3F51B5', '#E91E63', '#9C27B0', '#607D8B'
+  ];
 
   const generateSolidImage = (color) => {
     const canvas = document.createElement('canvas');
@@ -390,15 +393,49 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
         
         ctx.drawImage(img, 0, 0);
         const fontMap = { Inter: 'sans-serif', Serif: 'serif', Cursive: 'cursive', Monospace: 'monospace', Impact: 'Impact', 'Comic Sans MS': '"Comic Sans MS"' };
-        ctx.font = `bold ${Math.floor(img.width * 0.08 * textScale)}px ${fontMap[textFont] || 'sans-serif'}`;
+        const fontSize = Math.floor(img.width * 0.08 * textScale);
+        ctx.font = `bold ${fontSize}px ${fontMap[textFont] || 'sans-serif'}`;
         ctx.fillStyle = textColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         // Draw text with outline for better visibility
         ctx.strokeStyle = 'rgba(0,0,0,0.5)';
         ctx.lineWidth = Math.floor(img.width * 0.015);
-        ctx.strokeText(overlayText, (canvas.width * textPos.x) / 100, (canvas.height * textPos.y) / 100);
-        ctx.fillText(overlayText, (canvas.width * textPos.x) / 100, (canvas.height * textPos.y) / 100);
+
+        const x = (canvas.width * textPos.x) / 100;
+        const y = (canvas.height * textPos.y) / 100;
+        
+        const maxWidth = canvas.width * 0.9;
+        const lineHeight = fontSize * 1.2;
+        
+        const textLines = overlayText.split('\n');
+        const wrappedLines = [];
+        
+        textLines.forEach(line => {
+          let currentLine = '';
+          const words = line.split(' ');
+          for (let i = 0; i < words.length; i++) {
+            const testLine = currentLine + words[i] + ' ';
+            const metrics = ctx.measureText(testLine);
+            if (metrics.width > maxWidth && i > 0) {
+              wrappedLines.push(currentLine);
+              currentLine = words[i] + ' ';
+            } else {
+              currentLine = testLine;
+            }
+          }
+          wrappedLines.push(currentLine);
+        });
+
+        // Adjust initial Y to be centered vertically around the text block
+        const totalHeight = wrappedLines.length * lineHeight;
+        let currentY = y - (totalHeight / 2) + (lineHeight / 2);
+
+        wrappedLines.forEach(line => {
+          ctx.strokeText(line.trim(), x, currentY);
+          ctx.fillText(line.trim(), x, currentY);
+          currentY += lineHeight;
+        });
         
         canvas.toBlob(blob => {
           resolve(new File([blob], 'edited_story.jpg', { type: 'image/jpeg' }));
@@ -445,17 +482,16 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
             accept="image/*" 
             style={{ display: 'none' }} 
           />
-          
           <button 
-            className={`admin-sc-tab ${mode === 'text' ? 'active' : ''}`}
-            onClick={() => {
-              setMode('text');
-              const defaultColor = '#2563eb';
-              setTextBgColor(defaultColor);
-              setPreviewUrl(generateSolidImage(defaultColor));
-              setCameraStage('editor');
-            }}
-          >
+              className={`admin-sc-tab ${mode === 'text' ? 'active' : ''}`}
+              onClick={() => {
+                setMode('text');
+                const defaultColor = BG_COLORS[0];
+                setTextBgColor(defaultColor);
+                setPreviewUrl(generateSolidImage(defaultColor));
+                setCameraStage('editor');
+              }}
+            >
             <Type size={20} />
             <span>Text</span>
           </button>
@@ -580,8 +616,10 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
                           fontWeight: 'bold',
                           textAlign: 'center',
                           whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
                           width: '90%',
-                          pointerEvents: 'none'
+                          pointerEvents: 'none',
+                          lineHeight: '1.2'
                         }}
                       >
                         {overlayText}
