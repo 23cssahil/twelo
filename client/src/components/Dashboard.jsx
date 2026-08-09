@@ -42,7 +42,8 @@ import {
   Users,
   Heart,
   Eye,
-  Download
+  Download,
+  MessageCircle
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
