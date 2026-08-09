@@ -23,10 +23,14 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
   // Editor State
   const [overlayText, setOverlayText] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
-  const [textFont, setTextFont] = useState('Inter'); // 'Inter', 'Serif', 'Cursive', 'Monospace', 'Impact', 'Comic Sans MS'
+  const [textPos, setTextPos] = useState({ x: 50, y: 50 });
+  const [textScale, setTextScale] = useState(1);
   const [textColor, setTextColor] = useState('#ffffff');
-  const [textPos, setTextPos] = useState({ x: 50, y: 50 }); // Percentages
+  const [textFont, setTextFont] = useState('Inter');
   const isDraggingText = useRef(false);
+  const lastPosRef = useRef({ x: 0, y: 0 });
+  const initialPinchDistRef = useRef(null);
+  const initialScaleRef = useRef(1);
 
   // Gallery & Crop State
   const galleryInputRef = useRef(null);
@@ -224,30 +228,91 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
     }
   };
 
+  const getDistance = (touches) => {
+    return Math.hypot(
+      touches[0].clientX - touches[1].clientX,
+      touches[0].clientY - touches[1].clientY
+    );
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 1) {
+      isDraggingText.current = true;
+      lastPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      isDraggingText.current = false; // Disable dragging while pinching
+      initialPinchDistRef.current = getDistance(e.touches);
+      initialScaleRef.current = textScale;
+    }
+  };
+  
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 1 && isDraggingText.current) {
+      const container = document.getElementById('admin-sc-preview-container');
+      if (!container) return;
+      
+      const rect = container.getBoundingClientRect();
+      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0].clientY;
+      
+      const deltaX = ((currentX - lastPosRef.current.x) / rect.width) * 100;
+      const deltaY = ((currentY - lastPosRef.current.y) / rect.height) * 100;
+      
+      lastPosRef.current = { x: currentX, y: currentY };
+      
+      setTextPos(prev => {
+        return {
+          x: Math.max(5, Math.min(95, prev.x + deltaX)),
+          y: Math.max(5, Math.min(95, prev.y + deltaY))
+        };
+      });
+    } else if (e.touches.length === 2 && initialPinchDistRef.current) {
+      const currentDist = getDistance(e.touches);
+      const scaleChange = currentDist / initialPinchDistRef.current;
+      const newScale = Math.max(0.5, Math.min(5, initialScaleRef.current * scaleChange));
+      setTextScale(newScale);
+    }
+  };
+  
+  const handleTouchEnd = (e) => {
+    if (e.touches.length < 2) {
+      initialPinchDistRef.current = null;
+    }
+    if (e.touches.length === 0) {
+      isDraggingText.current = false;
+    }
+  };
+
   const handlePointerDown = (e) => {
-    isDraggingText.current = true;
+    // Only for mouse, touches handled by handleTouchStart
+    if (e.pointerType === 'mouse') {
+      isDraggingText.current = true;
+      lastPosRef.current = { x: e.clientX, y: e.clientY };
+    }
   };
   
   const handlePointerMove = (e) => {
-    if (!isDraggingText.current) return;
-    const container = document.getElementById('admin-sc-preview-container');
-    if (!container) return;
-    
-    const rect = container.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    
-    let x = ((clientX - rect.left) / rect.width) * 100;
-    let y = ((clientY - rect.top) / rect.height) * 100;
-    
-    x = Math.max(5, Math.min(95, x));
-    y = Math.max(5, Math.min(95, y));
-    
-    setTextPos({ x, y });
+    if (e.pointerType === 'mouse' && isDraggingText.current) {
+      const container = document.getElementById('admin-sc-preview-container');
+      if (!container) return;
+      
+      const rect = container.getBoundingClientRect();
+      const deltaX = ((e.clientX - lastPosRef.current.x) / rect.width) * 100;
+      const deltaY = ((e.clientY - lastPosRef.current.y) / rect.height) * 100;
+      
+      lastPosRef.current = { x: e.clientX, y: e.clientY };
+      
+      setTextPos(prev => ({
+        x: Math.max(5, Math.min(95, prev.x + deltaX)),
+        y: Math.max(5, Math.min(95, prev.y + deltaY))
+      }));
+    }
   };
-  
-  const handlePointerUp = () => {
-    isDraggingText.current = false;
+
+  const handlePointerUp = (e) => {
+    if (e.pointerType === 'mouse') {
+      isDraggingText.current = false;
+    }
   };
 
   const handlePublishFromEditor = async () => {
@@ -312,7 +377,7 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
         
         ctx.drawImage(img, 0, 0);
         const fontMap = { Inter: 'sans-serif', Serif: 'serif', Cursive: 'cursive', Monospace: 'monospace', Impact: 'Impact', 'Comic Sans MS': '"Comic Sans MS"' };
-        ctx.font = `bold ${Math.floor(img.width * 0.08)}px ${fontMap[textFont] || 'sans-serif'}`;
+        ctx.font = `bold ${Math.floor(img.width * 0.08 * textScale)}px ${fontMap[textFont] || 'sans-serif'}`;
         ctx.fillStyle = textColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -448,6 +513,9 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
                   <div 
                     className="admin-sc-editor-preview" 
                     id="admin-sc-preview-container"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
@@ -468,7 +536,7 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
                           userSelect: 'none',
                           color: textColor,
                           textShadow: '0px 0px 10px rgba(0,0,0,0.8)',
-                          fontSize: '2rem',
+                          fontSize: `${2 * textScale}rem`,
                           fontWeight: 'bold',
                           textAlign: 'center',
                           whiteSpace: 'pre-wrap',
