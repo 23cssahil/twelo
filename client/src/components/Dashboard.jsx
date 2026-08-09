@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   UserPlus,
   Bell,
+  Layers,
   Gift,
   Mic,
   MicOff,
@@ -2883,6 +2884,74 @@ export default function Dashboard() {
 
           </div>
         );
+        case 'global-stories': {
+          const allGlobalStories = [];
+          groupedStories.forEach(group => {
+            group.stories.forEach(story => {
+              if (story.visibility === 'everyone' || story.isAdminStory) {
+                if (!story.user || typeof story.user === 'string') {
+                  story.user = { _id: group.userId, username: group.username, avatarUrl: group.avatarUrl };
+                }
+                allGlobalStories.push(story);
+              }
+            });
+          });
+          allGlobalStories.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+          return (
+            <div className="global-stories-container" style={{ padding: '15px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
+              <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '1.8rem', color: '#fff' }}>Global Stories</h2>
+              {allGlobalStories.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>No stories available yet.</div>
+              ) : (
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(2, 1fr)', 
+                  gap: '15px' 
+                }}>
+                  {allGlobalStories.map((story) => (
+                    <div 
+                      key={story._id} 
+                      style={{ 
+                        position: 'relative', 
+                        paddingBottom: '150%', 
+                        borderRadius: '15px', 
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        background: '#111'
+                      }}
+                      onClick={() => {
+                        let uIdx = groupedStories.findIndex(g => g.userId === (story.user._id || story.user));
+                        if (uIdx !== -1) {
+                          let sIdx = groupedStories[uIdx].stories.findIndex(s => s._id === story._id);
+                          if (sIdx !== -1) {
+                            setCurrentStoryUserIndex(uIdx);
+                            setCurrentStoryIndex(sIdx);
+                            setStoryViewerActive(true);
+                          }
+                        }
+                      }}
+                    >
+                      {story.mediaType === 'video' ? (
+                        <video src={story.mediaUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                      ) : (
+                        <img src={story.mediaUrl} alt="Story" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                      )}
+                      
+                      <div style={{ position: 'absolute', bottom: '10px', left: '10px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '20px' }}>
+                        <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+                        <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>{story.user?.username || 'user'}</span>
+                      </div>
+                      {story.isAdminStory && (
+                        <div style={{ position: 'absolute', top: '10px', right: '10px', background: '#ff3366', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold' }}>Global</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        }
       case 'home':
         return (
           <div className="space-container" style={{ overflow: 'hidden' }}>
@@ -3331,6 +3400,28 @@ export default function Dashboard() {
                   <div className="shimmer" style={{ width: '100%', height: '45px', borderRadius: '25px', marginTop: '25px' }}></div>
                 </div>
               </div>
+              
+              {/* Earn Coins Section migrated to Profile */}
+              <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginTop: '20px', width: '100%' }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Invite Friends & Earn</h3>
+                <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Share your unique link. You earn 20 coins for every friend who signs up!</p>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input type="text" readOnly value={`${window.location.origin}/login?ref=${user?.id}`} style={{ flex: 1, padding: '10px', background: 'rgba(0,0,0,0.5)', border: '1px solid #333', borderRadius: '8px', color: '#fff' }} />
+                  <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/login?ref=${user?.id}`); alert('Link Copied!'); }} style={{ padding: '10px 20px', background: '#333', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>
+                    Copy
+                  </button>
+                </div>
+              </div>
+              {Capacitor.isNativePlatform() && (
+                <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginTop: '20px', width: '100%' }}>
+                  <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Watch Video</h3>
+                  <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Watch a short ad to earn free coins immediately!</p>
+                  <button onClick={() => alert("Ad Mob integration goes here.")} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', border: 'none', borderRadius: '8px', color: '#000', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+                    Watch Ad & Earn
+                  </button>
+                </div>
+              )}
+              
             </div>
           );
         }
@@ -3978,8 +4069,8 @@ export default function Dashboard() {
               <MessageSquare size={24} /><span>Messages</span>
               {totalUnreadUsers > 0 && <span className="sidebar-badge">{totalUnreadUsers}</span>}
             </div>
-            <div className={`nav-item ${activeTab === 'earn' ? 'active' : ''}`} onClick={() => setActiveTab('earn')}>
-              <Gift size={24} color="#FFD700" /><span>Earn Coins</span>
+            <div className={`nav-item ${activeTab === 'global-stories' ? 'active' : ''}`} onClick={() => setActiveTab('global-stories')}>
+              <Layers size={24} color={activeTab === 'global-stories' ? '#fff' : '#00ffff'} /><span>Global Stories</span>
             </div>
             <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
               <UserIcon size={24} /><span>Profile</span>
@@ -4016,7 +4107,9 @@ export default function Dashboard() {
       <nav className={`mobile-nav ${(activeChatUser && activeTab === 'messages') ? 'hide-on-mobile' : ''}`}>
         <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}><HomeIcon size={24} /></div>
         <div className={`nav-item ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}><SearchIcon size={24} /></div>
-        <div className={`nav-item ${activeTab === 'earn' ? 'active' : ''}`} onClick={() => setActiveTab('earn')}><Gift size={24} color={activeTab === 'earn' ? '#fff' : '#FFD700'} /></div>
+        <div className={`nav-item ${activeTab === 'global-stories' ? 'active' : ''}`} onClick={() => setActiveTab('global-stories')}>
+          <Layers size={24} color={activeTab === 'global-stories' ? '#fff' : '#00ffff'} />
+        </div>
         <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')} style={{ position: 'relative' }}>
           <MessageSquare size={24} />
           {totalUnreadUsers > 0 && <span className="badge">{totalUnreadUsers}</span>}
