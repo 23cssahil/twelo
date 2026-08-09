@@ -357,18 +357,7 @@ export default function Dashboard() {
     }
   }, []);
   
-  const userGlobalStoriesObserverRef = useRef(null);
-  const loadMoreUserGlobalStoriesRef = useCallback((node) => {
-    if (userGlobalStoriesObserverRef.current) userGlobalStoriesObserverRef.current.disconnect();
-    if (node) {
-      userGlobalStoriesObserverRef.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMoreUserGlobalStories && !userGlobalStoriesLoading) {
-          fetchUserGlobalStories(userGlobalStoriesUserId, userGlobalStoriesPage + 1, true);
-        }
-      });
-      userGlobalStoriesObserverRef.current.observe(node);
-    }
-  }, [hasMoreUserGlobalStories, userGlobalStoriesLoading, userGlobalStoriesUserId, userGlobalStoriesPage]);
+
 
   const setActiveTab = useCallback((tab) => {
     _setActiveTab(prev => {
@@ -1087,6 +1076,19 @@ export default function Dashboard() {
       setUserGlobalStoriesLoading(false);
     }
   };
+
+  const userGlobalStoriesObserverRef = useRef(null);
+  const loadMoreUserGlobalStoriesRef = useCallback((node) => {
+    if (userGlobalStoriesObserverRef.current) userGlobalStoriesObserverRef.current.disconnect();
+    if (node) {
+      userGlobalStoriesObserverRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMoreUserGlobalStories && !userGlobalStoriesLoading) {
+          fetchUserGlobalStories(userGlobalStoriesUserId, userGlobalStoriesPage + 1, true);
+        }
+      });
+      userGlobalStoriesObserverRef.current.observe(node);
+    }
+  }, [hasMoreUserGlobalStories, userGlobalStoriesLoading, userGlobalStoriesUserId, userGlobalStoriesPage]);
 
   const fetchConnections = async () => {
     try {
