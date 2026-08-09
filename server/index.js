@@ -1170,6 +1170,42 @@ app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
 
 // --- Status/Story Routes ---
 
+app.get('/api/clean-duplicate-views', async (req, res) => {
+  try {
+    const stories = await Story.find({});
+    let fixedCount = 0;
+
+    for (let story of stories) {
+      let needsSave = false;
+      
+      if (story.viewedBy && story.viewedBy.length > 0) {
+        const uniqueViews = [...new Set(story.viewedBy.map(id => id.toString()))];
+        if (uniqueViews.length !== story.viewedBy.length) {
+          story.viewedBy = uniqueViews;
+          needsSave = true;
+        }
+      }
+      
+      if (story.likedBy && story.likedBy.length > 0) {
+        const uniqueLikes = [...new Set(story.likedBy.map(id => id.toString()))];
+        if (uniqueLikes.length !== story.likedBy.length) {
+          story.likedBy = uniqueLikes;
+          needsSave = true;
+        }
+      }
+
+      if (needsSave) {
+        await story.save();
+        fixedCount++;
+      }
+    }
+
+    res.json({ message: `Cleanup complete. Fixed ${fixedCount} stories with duplicate views/likes.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/test-stories', async (req, res) => {
   try {
     const stories = await Story.find().sort({createdAt: -1}).limit(10).lean();
