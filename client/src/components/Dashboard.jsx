@@ -78,7 +78,19 @@ const COUNTRY_DATA = {
   "Other": { lat: 0, lng: 0, fact: "Did you know? Earth has over 195 countries!" }
 };
 
-const getFlagEmoji = (countryName, countryCode) => {
+
+  const groupStoriesByDay = (stories) => {
+    if (!stories || stories.length === 0) return [];
+    const groups = {};
+    stories.forEach(story => {
+      const dateKey = new Date(story.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(story);
+    });
+    return Object.entries(groups).map(([date, st]) => ({ date, stories: st }));
+  };
+
+  const getFlagEmoji = (countryName, countryCode) => {
   if (countryCode && countryCode !== 'UN') {
     try {
       const codePoints = countryCode.toUpperCase().split('').map(char => 127397 + char.charCodeAt(0));
@@ -627,7 +639,7 @@ export default function Dashboard() {
   const [connectionsModal, setConnectionsModal] = useState({ isOpen: false, title: '', users: [] });
   const [showAllGlobalStoriesPublic, setShowAllGlobalStoriesPublic] = useState(false);
   const [showAllGlobalStoriesMy, setShowAllGlobalStoriesMy] = useState(false);
-  const [profileStoryGroup, setProfileStoryGroup] = useState(null);
+  const [profileStoryGroups, setProfileStoryGroups] = useState(null);
 
   // User Global Stories Pagination State
   const [userGlobalStories, setUserGlobalStories] = useState([]);
@@ -1196,23 +1208,23 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const viewerStories = profileStoryGroup ? [profileStoryGroup] : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
+    const viewerStories = profileStoryGroups ? profileStoryGroups : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
     if (storyViewerActive && viewerStories[currentStoryUserIndex]) {
       const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
       const myId = user?._id || user?.id;
       const isOwner = viewerStories[currentStoryUserIndex].user._id === myId;
       if (currentStory && myId && !isOwner && (!currentStory.viewedBy || !currentStory.viewedBy.some(v => (v._id || v) === myId))) {
         // Optimistically update local state
-        if (profileStoryGroup) {
-          setProfileStoryGroup(prev => {
-            const newGroup = { ...prev };
-            if (newGroup.stories && newGroup.stories[currentStoryIndex]) {
-              if (!newGroup.stories[currentStoryIndex].viewedBy) {
-                newGroup.stories[currentStoryIndex].viewedBy = [];
+        if (profileStoryGroups) {
+          setProfileStoryGroups(prev => {
+            const newGroups = [...prev];
+            if (newGroups[currentStoryUserIndex] && newGroups[currentStoryUserIndex].stories[currentStoryIndex]) {
+              if (!newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy) {
+                newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy = [];
               }
-              newGroup.stories[currentStoryIndex].viewedBy.push({_id: myId, username: user.username, avatarUrl: user.avatarUrl });
+              newGroups[currentStoryUserIndex].stories[currentStoryIndex].viewedBy.push({_id: myId, username: user.username, avatarUrl: user.avatarUrl });
             }
-            return newGroup;
+            return newGroups;
           });
         } else {
           const updateStories = prev => {
@@ -1239,7 +1251,7 @@ export default function Dashboard() {
         }).catch(e => console.error("Error marking story viewed", e));
       }
     }
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, user, token, profileStoryGroup]);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, user, token, profileStoryGroups]);
 
   const handleStoryLike = async (storyId, userIndex, storyIndex) => {
     const myId = user?._id || user?.id;
@@ -1279,7 +1291,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     let interval;
-    const viewerStories = profileStoryGroup ? [profileStoryGroup] : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
+    const viewerStories = profileStoryGroups ? profileStoryGroups : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
     if (storyViewerActive && viewerStories[currentStoryUserIndex] && !showStoryViewsModal) {
       const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
       if (currentStory && currentStory.mediaType === 'image') {
@@ -1298,7 +1310,7 @@ export default function Dashboard() {
                 return 0;
               } else {
                 setStoryViewerActive(false);
-                setProfileStoryGroup(null);
+                setProfileStoryGroups(null);
                 window.history.back();
                 return 100;
               }
@@ -1369,7 +1381,7 @@ export default function Dashboard() {
       }
     };
 
-    const viewerStories = profileStoryGroup ? [profileStoryGroup] : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
+    const viewerStories = profileStoryGroups ? profileStoryGroups : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
     if (storyViewerActive && viewerStories[currentStoryUserIndex]) {
       const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
       if (currentStory && currentStory.songUrl) {
@@ -1731,7 +1743,7 @@ export default function Dashboard() {
         setStoryEditorOpen(false);
       } else if (storyViewerActive) {
         setStoryViewerActive(false);
-        setProfileStoryGroup(null);
+        setProfileStoryGroups(null);
         fetchStories();
         fetcheveryoneStories();
       } else if (showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || showLogoutConfirm) {
@@ -4079,15 +4091,30 @@ export default function Dashboard() {
                   <div style={{ marginTop: '20px', width: '100%' }}>
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                      {(showAllGlobalStoriesPublic ? publicProfileData.globalStories : publicProfileData.globalStories.slice(0, 3)).map(story => (
-                        <div key={story._id} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333', cursor: 'pointer' }} onClick={() => { setProfileStoryGroup({ user: { _id: publicProfileData._id, username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl }, stories: publicProfileData.globalStories }); setCurrentStoryUserIndex(0); setCurrentStoryIndex(publicProfileData.globalStories.findIndex(s => s._id === story._id)); setStoryViewerActive(true); }}>
-                          {story.mediaType === 'video' ? (
-                            <video src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                      {groupStoriesByDay(showAllGlobalStoriesPublic ? publicProfileData.globalStories : publicProfileData.globalStories).slice(0, showAllGlobalStoriesPublic ? 999 : 3).map((group, index, allGroups) => {
+                        const firstStory = group.stories[0];
+                        return (
+                        <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333', cursor: 'pointer', position: 'relative' }} onClick={() => { 
+                          const viewerGroups = allGroups.map(g => ({
+                            user: { _id: publicProfileData._id, username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl },
+                            stories: g.stories
+                          }));
+                          setProfileStoryGroups(viewerGroups); 
+                          setCurrentStoryUserIndex(index); 
+                          setCurrentStoryIndex(0); 
+                          setStoryViewerActive(true); 
+                        }}>
+                          {firstStory.mediaType === 'video' ? (
+                            <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
                           ) : (
-                            <img src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
+                            <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
                           )}
+                          <div style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '6px' }}>
+                            <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{group.date}</span>
+                            <span style={{ color: '#fff', fontSize: '0.75rem', flexShrink: 0 }}>{group.stories.length}</span>
+                          </div>
                         </div>
-                      ))}
+                      )})}
                     </div>
                     {publicProfileData.globalStories.length === 3 && (
                       <button 
@@ -4666,15 +4693,30 @@ export default function Dashboard() {
                   <div style={{ marginTop: '20px', width: '100%' }}>
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                      {(showAllGlobalStoriesMy ? profileStats.globalStories : profileStats.globalStories.slice(0, 3)).map(story => (
-                        <div key={story._id} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333', cursor: 'pointer' }} onClick={() => { setProfileStoryGroup({ user: { _id: user.id, username: user.username, avatarUrl: profileStats?.avatarUrl || user.avatarUrl }, stories: profileStats.globalStories }); setCurrentStoryUserIndex(0); setCurrentStoryIndex(profileStats.globalStories.findIndex(s => s._id === story._id)); setStoryViewerActive(true); }}>
-                          {story.mediaType === 'video' ? (
-                            <video src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                      {groupStoriesByDay(showAllGlobalStoriesMy ? profileStats.globalStories : profileStats.globalStories).slice(0, showAllGlobalStoriesMy ? 999 : 3).map((group, index, allGroups) => {
+                        const firstStory = group.stories[0];
+                        return (
+                        <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333', cursor: 'pointer', position: 'relative' }} onClick={() => { 
+                          const viewerGroups = allGroups.map(g => ({
+                            user: { _id: user.id || user._id, username: user.username, avatarUrl: profileStats?.avatarUrl || user.avatarUrl },
+                            stories: g.stories
+                          }));
+                          setProfileStoryGroups(viewerGroups); 
+                          setCurrentStoryUserIndex(index); 
+                          setCurrentStoryIndex(0); 
+                          setStoryViewerActive(true); 
+                        }}>
+                          {firstStory.mediaType === 'video' ? (
+                            <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
                           ) : (
-                            <img src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
+                            <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
                           )}
+                          <div style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '6px' }}>
+                            <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{group.date}</span>
+                            <span style={{ color: '#fff', fontSize: '0.75rem', flexShrink: 0 }}>{group.stories.length}</span>
+                          </div>
                         </div>
-                      ))}
+                      )})}
                     </div>
                     {profileStats.globalStories.length === 3 && (
                       <button 
@@ -4725,28 +4767,35 @@ export default function Dashboard() {
             
             <div style={{ padding: '20px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                {userGlobalStories.map((story, index) => (
+                {groupStoriesByDay(userGlobalStories).map((group, index, allGroups) => {
+                  const firstStory = group.stories[0];
+                  return (
                   <div 
-                    key={story._id}
+                    key={group.date}
                     onClick={() => {
-                      setProfileStoryGroup({
+                      const viewerGroups = allGroups.map(g => ({
                         user: { _id: userGlobalStoriesUserId, username: userGlobalStoriesUserInfo?.username, avatarUrl: userGlobalStoriesUserInfo?.avatarUrl },
-                        stories: userGlobalStories
-                      });
-                      setCurrentStoryUserIndex(0);
-                      setCurrentStoryIndex(index);
+                        stories: g.stories
+                      }));
+                      setProfileStoryGroups(viewerGroups);
+                      setCurrentStoryUserIndex(index);
+                      setCurrentStoryIndex(0);
                       setStoryViewerActive(true);
                       window.history.pushState({ overlayOpen: true }, '');
                     }}
-                    style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', background: '#222' }}
+                    style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', background: '#222', position: 'relative' }}
                   >
-                    {story.mediaType === 'video' ? (
-                      <video src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                    {firstStory.mediaType === 'video' ? (
+                      <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
                     ) : (
-                      <img src={story.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
+                      <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
                     )}
+                    <div style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '6px' }}>
+                      <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{group.date}</span>
+                      <span style={{ color: '#fff', fontSize: '0.75rem', flexShrink: 0 }}>{group.stories.length}</span>
+                    </div>
                   </div>
-                ))}
+                )})}
                 
                 {userGlobalStoriesLoading && [...Array(userGlobalStories.length === 0 ? 12 : 3)].map((_, i) => (
                   <div key={`skel-${i}`} style={{ 
@@ -4783,7 +4832,7 @@ export default function Dashboard() {
   };
 
   const totalUnreadUsers = Object.values(unreadMessages).filter(count => count > 0).length;
-  const viewerStories = profileStoryGroup ? [profileStoryGroup] : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
+  const viewerStories = profileStoryGroups ? profileStoryGroups : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
 
   return (
     <div className="dashboard-container">
