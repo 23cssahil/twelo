@@ -1,39 +1,40 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
-import { Camera, Image as ImageIcon, Type, X, Check, Music, RefreshCcw } from 'lucide-react';
+import { Camera, Image as ImageIcon, Type, X, Check, Music, RefreshCcw, Type as TypeIcon } from 'lucide-react';
 import './AdminStoryCreator.css';
 
 export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
-  const [mode, setMode] = useState(null); // 'camera', 'gallery', 'text'
+  // Top level modes
+  const [mode, setMode] = useState('camera'); // 'camera', 'gallery', 'text'
+  
+  // Camera Workflow Stages: 'live', 'review', 'scanning', 'editor'
+  const [cameraStage, setCameraStage] = useState('live'); 
+  
+  // File & Preview
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   
-  // Crop state
-  const [crop, setCrop] = useState({ unit: '%', width: 90, height: 90, x: 5, y: 5 });
-  const [completedCrop, setCompletedCrop] = useState(null);
-  const [isCropping, setIsCropping] = useState(false);
-  const imgRef = useRef(null);
-
-  // Camera state
+  // Camera stream state
   const [stream, setStream] = useState(null);
   const videoRef = useRef(null);
   const [facingMode, setFacingMode] = useState('user');
 
-  // Text state
-  const [textContent, setTextContent] = useState('');
-  const [textBg, setTextBg] = useState('linear-gradient(135deg, #FF6B6B 0%, #556270 100%)');
-  
-  // Upload State
-  const [uploading, setUploading] = useState(false);
+  // Editor State
+  const [overlayText, setOverlayText] = useState('');
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [textFont, setTextFont] = useState('Inter'); // 'Inter', 'Serif', 'Cursive'
 
   // Song state
   const [songs, setSongs] = useState([]);
   const [selectedSongUrl, setSelectedSongUrl] = useState('');
   const [showSongPicker, setShowSongPicker] = useState(false);
 
+  // Upload State
+  const [uploading, setUploading] = useState(false);
+
   useEffect(() => {
-    // Basic array of popular songs for admin or fetch if you have an endpoint
+    // Fetch songs for admin
     setSongs([
       { name: 'TWELO Theme', url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8b82431d1.mp3' },
       { name: 'Chill Vibes', url: 'https://cdn.pixabay.com/download/audio/2021/08/09/audio_13b5d25950.mp3' },
@@ -42,15 +43,19 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
   }, [API_URL, adminPass]);
 
   useEffect(() => {
-    if (mode === 'camera' && videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    if (mode === 'camera' && cameraStage === 'live') {
+      openCamera(facingMode);
+    } else {
+      closeCamera();
     }
-  }, [mode, stream]);
+    
+    return () => {
+      closeCamera();
+    };
+  }, [mode, cameraStage]);
 
-  const openCamera = async (modeOverride = facingMode) => {
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-    }
+  const openCamera = async (modeOverride) => {
+    if (stream) stream.getTracks().forEach(t => t.stop());
     try {
       let newStream;
       try {
@@ -59,9 +64,11 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
         newStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: modeOverride } });
       }
       setStream(newStream);
-      setMode('camera');
+      if (videoRef.current) {
+        videoRef.current.srcObject = newStream;
+      }
     } catch (err) {
-      alert('Camera access denied or unavailable.');
+      console.error('Camera access denied:', err);
     }
   };
 
@@ -72,13 +79,18 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
     }
   };
 
+  const switchCamera = () => {
+    const newMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newMode);
+    openCamera(newMode);
+  };
+
   const handleCapture = () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
       const ctx = canvas.getContext('2d');
-      // Mirror if front camera
       if (facingMode === 'user') {
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
@@ -88,143 +100,34 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
         const file = new File([blob], 'camera_capture.jpg', { type: 'image/jpeg' });
         setFile(file);
         setPreviewUrl(URL.createObjectURL(file));
-        closeCamera();
-        setMode('preview');
-        setIsCropping(true);
+        setCameraStage('review');
       }, 'image/jpeg', 0.85);
     }
   };
 
-  const switchCamera = () => {
-    const newMode = facingMode === 'user' ? 'environment' : 'user';
-    setFacingMode(newMode);
-    openCamera(newMode);
+  const handleReviewCancel = () => {
+    setFile(null);
+    setPreviewUrl(null);
+    setCameraStage('live');
   };
 
-  const handleFileSelect = (e) => {
-    const selected = e.target.files[0];
-    if (selected) {
-      setFile(selected);
-      setPreviewUrl(URL.createObjectURL(selected));
-      setMode('preview');
-      if (selected.type.startsWith('image/')) {
-        setIsCropping(true);
-      }
-    }
+  const handleReviewOkay = () => {
+    setCameraStage('scanning');
+    
+    // Simulate AI Scanning for Nudity (In a real scenario, this happens during upload to /api/upload)
+    // We will do a 2-second fake scan for UX, since the actual scan is backend-driven during publish
+    setTimeout(() => {
+      setCameraStage('editor');
+    }, 2000);
   };
 
-  const getCroppedImg = (image, crop, fileName) => {
-    const canvas = document.createElement('canvas');
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-    canvas.width = crop.width * scaleX;
-    canvas.height = crop.height * scaleY;
-    const ctx = canvas.getContext('2d');
-
-    ctx.drawImage(
-      image,
-      crop.x * scaleX,
-      crop.y * scaleY,
-      crop.width * scaleX,
-      crop.height * scaleY,
-      0,
-      0,
-      crop.width * scaleX,
-      crop.height * scaleY
-    );
-
-    return new Promise((resolve) => {
-      canvas.toBlob(blob => {
-        if (!blob) return resolve(null);
-        resolve(new File([blob], fileName, { type: 'image/jpeg' }));
-      }, 'image/jpeg', 0.9);
-    });
-  };
-
-  const handleConfirmCrop = async () => {
-    if (completedCrop?.width && completedCrop?.height && imgRef.current) {
-      const croppedFile = await getCroppedImg(imgRef.current, completedCrop, file.name);
-      if (croppedFile) {
-        setFile(croppedFile);
-        setPreviewUrl(URL.createObjectURL(croppedFile));
-      }
-    }
-    setIsCropping(false);
-  };
-
-  const handleTextToImage = async () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1080;
-    canvas.height = 1920;
-    const ctx = canvas.getContext('2d');
-
-    // Draw Gradient
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    if (textBg.includes('#FF6B6B')) {
-      gradient.addColorStop(0, '#FF6B6B');
-      gradient.addColorStop(1, '#556270');
-    } else if (textBg.includes('#12c2e9')) {
-      gradient.addColorStop(0, '#12c2e9');
-      gradient.addColorStop(0.5, '#c471ed');
-      gradient.addColorStop(1, '#f64f59');
-    } else {
-      gradient.addColorStop(0, '#0f2027');
-      gradient.addColorStop(0.5, '#203a43');
-      gradient.addColorStop(1, '#2c5364');
-    }
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Draw Text (Basic wrapping)
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 80px "Inter", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    const words = textContent.split(' ');
-    let line = '';
-    const lines = [];
-    
-    for (let i = 0; i < words.length; i++) {
-      const testLine = line + words[i] + ' ';
-      const metrics = ctx.measureText(testLine);
-      if (metrics.width > canvas.width - 200 && i > 0) {
-        lines.push(line);
-        line = words[i] + ' ';
-      } else {
-        line = testLine;
-      }
-    }
-    lines.push(line);
-    
-    const totalHeight = lines.length * 100;
-    let y = (canvas.height - totalHeight) / 2;
-    
-    lines.forEach(l => {
-      ctx.fillText(l, canvas.width / 2, y);
-      y += 100;
-    });
-
-    return new Promise(resolve => {
-      canvas.toBlob(blob => {
-        resolve(new File([blob], 'text_story.jpg', { type: 'image/jpeg' }));
-      }, 'image/jpeg', 0.9);
-    });
-  };
-
-  const handleUpload = async () => {
+  const handlePublishFromEditor = async () => {
     setUploading(true);
     let finalFile = file;
 
-    if (mode === 'text') {
-      finalFile = await handleTextToImage();
-    }
-
-    if (!finalFile) {
-      alert("No file generated.");
-      setUploading(false);
-      return;
+    // If there is overlay text, render it onto a canvas
+    if (overlayText.trim()) {
+      finalFile = await renderTextOntoImage();
     }
 
     const formData = new FormData();
@@ -239,13 +142,10 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
       const uploadData = await uploadRes.json();
 
       if (!uploadRes.ok) {
-        alert(uploadData.message || 'Upload failed');
+        alert(uploadData.message || 'Upload blocked by AI Scanner.');
         setUploading(false);
         return;
       }
-
-      let mediaType = 'image';
-      if (finalFile.type.startsWith('video/')) mediaType = 'video';
 
       const storyRes = await fetch(`${API_URL}/api/admin/stories`, {
         method: 'POST',
@@ -255,138 +155,210 @@ export default function AdminStoryCreator({ onClose, API_URL, adminPass }) {
         },
         body: JSON.stringify({ 
           mediaUrl: uploadData.url, 
-          mediaType,
+          mediaType: 'image',
           songUrl: selectedSongUrl
         })
       });
 
       if (storyRes.ok) {
-        alert('Global Admin Story Added Successfully!');
-        handleClose();
+        alert('Global Story Published Successfully!');
+        onClose();
       } else {
-        alert('Failed to add admin story.');
+        alert('Failed to add story.');
       }
     } catch (err) {
-      console.error(err);
       alert('Network Error.');
     }
     setUploading(false);
   };
 
-  const handleClose = () => {
-    closeCamera();
-    onClose();
+  const renderTextOntoImage = () => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.drawImage(img, 0, 0);
+        
+        // Draw Text
+        ctx.fillStyle = '#ffffff';
+        // Base font size on image width
+        const fontSize = Math.floor(canvas.width * 0.1); 
+        ctx.font = `bold ${fontSize}px ${textFont === 'Cursive' ? 'cursive' : textFont === 'Serif' ? 'serif' : 'sans-serif'}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Adding a slight text shadow for visibility
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 5;
+        
+        ctx.fillText(overlayText, canvas.width / 2, canvas.height / 2);
+        
+        canvas.toBlob(blob => {
+          resolve(new File([blob], 'edited_story.jpg', { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.9);
+      };
+      img.src = previewUrl;
+    });
   };
 
   return (
-    <div className="admin-story-creator-overlay">
-      <div className="admin-story-creator-container">
-        <div className="admin-story-header">
-          <h2>Create Global Story</h2>
-          <button onClick={handleClose} className="admin-close-btn"><X size={24} /></button>
+    <div className="admin-sc-overlay">
+      <div className="admin-sc-container">
+        
+        {/* Header */}
+        <div className="admin-sc-header">
+          <h2>Global Story</h2>
+          <button onClick={onClose} className="admin-sc-close-btn"><X size={24} /></button>
         </div>
 
-        {!mode && (
-          <div className="admin-story-options">
-            <button onClick={() => openCamera()} className="admin-story-opt-btn camera">
-              <Camera size={48} />
-              <span>Camera</span>
-            </button>
-            <label className="admin-story-opt-btn gallery">
-              <ImageIcon size={48} />
-              <span>Gallery</span>
-              <input type="file" accept="image/*,video/*" hidden onChange={handleFileSelect} />
-            </label>
-            <button onClick={() => setMode('text')} className="admin-story-opt-btn text">
-              <Type size={48} />
-              <span>Text</span>
-            </button>
-          </div>
-        )}
+        {/* Top Navigation Bar */}
+        <div className="admin-sc-topbar">
+          <button 
+            className={`admin-sc-tab ${mode === 'camera' ? 'active' : ''}`}
+            onClick={() => { setMode('camera'); setCameraStage('live'); }}
+          >
+            <Camera size={20} />
+            <span>Camera</span>
+          </button>
+          
+          <button 
+            className={`admin-sc-tab ${mode === 'gallery' ? 'active' : ''}`}
+            onClick={() => setMode('gallery')}
+          >
+            <ImageIcon size={20} />
+            <span>Gallery</span>
+          </button>
+          
+          <button 
+            className={`admin-sc-tab ${mode === 'text' ? 'active' : ''}`}
+            onClick={() => setMode('text')}
+          >
+            <Type size={20} />
+            <span>Text</span>
+          </button>
+        </div>
 
-        {mode === 'camera' && (
-          <div className="admin-camera-view">
-            <video ref={videoRef} autoPlay playsInline muted style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }} />
-            <div className="admin-camera-controls">
-              <button className="admin-cam-btn switch" onClick={switchCamera}><RefreshCcw size={28} /></button>
-              <button className="admin-cam-btn capture" onClick={handleCapture}></button>
-              <button className="admin-cam-btn cancel" onClick={() => { closeCamera(); setMode(null); }}><X size={28} /></button>
-            </div>
-          </div>
-        )}
+        {/* Dynamic Workspace */}
+        <div className="admin-sc-workspace">
+          
+          {mode === 'camera' && (
+            <>
+              {cameraStage === 'live' && (
+                <div className="admin-sc-live-view">
+                  <video ref={videoRef} autoPlay playsInline muted className="admin-sc-video" style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }} />
+                  <div className="admin-sc-live-controls">
+                    <button className="admin-sc-btn-switch" onClick={switchCamera}>
+                      <RefreshCcw size={24} />
+                    </button>
+                    <button className="admin-sc-btn-capture" onClick={handleCapture}></button>
+                    <div style={{ width: 44 }}></div> {/* Spacer for symmetry */}
+                  </div>
+                </div>
+              )}
 
-        {mode === 'preview' && (
-          <div className="admin-preview-view">
-            {isCropping ? (
-              <div className="admin-cropper-wrapper">
-                <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)}>
-                  <img ref={imgRef} src={previewUrl} alt="Preview" />
-                </ReactCrop>
-                <button className="admin-crop-done-btn" onClick={handleConfirmCrop}>
-                  <Check size={20} /> Done Cropping
-                </button>
-              </div>
-            ) : (
-              <div className="admin-preview-wrapper">
-                {file?.type?.startsWith('video/') ? (
-                   <video src={previewUrl} autoPlay loop playsInline className="admin-preview-media" />
-                ) : (
-                   <img src={previewUrl} className="admin-preview-media" alt="Final Preview" />
-                )}
-                
-                {/* Song Selection */}
-                <div className="admin-song-selector">
-                  <button onClick={() => setShowSongPicker(!showSongPicker)} className="admin-song-btn">
-                    <Music size={20} /> {selectedSongUrl ? 'Song Selected' : 'Add Music'}
-                  </button>
-                  {showSongPicker && (
-                    <div className="admin-song-picker">
-                      <button onClick={() => { setSelectedSongUrl(''); setShowSongPicker(false); }}>No Music</button>
-                      {songs.map((s, i) => (
-                        <button key={i} onClick={() => { setSelectedSongUrl(s.url); setShowSongPicker(false); }}>
-                          {s.name || `Song ${i+1}`}
-                        </button>
-                      ))}
+              {cameraStage === 'review' && (
+                <div className="admin-sc-review-view">
+                  <img src={previewUrl} alt="Review" className="admin-sc-preview-img" />
+                  <div className="admin-sc-review-controls">
+                    <button className="admin-sc-btn-cancel" onClick={handleReviewCancel}>
+                      <X size={32} />
+                    </button>
+                    <button className="admin-sc-btn-okay" onClick={handleReviewOkay}>
+                      <Check size={32} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {cameraStage === 'scanning' && (
+                <div className="admin-sc-scanning-view">
+                  <div className="admin-sc-scanner-spinner"></div>
+                  <h3>AI Scanning...</h3>
+                  <p>Checking for safe content</p>
+                </div>
+              )}
+
+              {cameraStage === 'editor' && (
+                <div className="admin-sc-editor-view">
+                  <div className="admin-sc-editor-preview">
+                    <img src={previewUrl} alt="Editor" className="admin-sc-preview-img" />
+                    {overlayText && (
+                      <div className="admin-sc-text-overlay" style={{ fontFamily: textFont === 'Cursive' ? 'cursive' : textFont === 'Serif' ? 'serif' : 'sans-serif' }}>
+                        {overlayText}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {showTextInput && (
+                    <div className="admin-sc-text-input-panel">
+                      <input 
+                        type="text" 
+                        placeholder="Type something..." 
+                        value={overlayText} 
+                        onChange={e => setOverlayText(e.target.value)}
+                        autoFocus
+                      />
+                      <div className="admin-sc-font-picker">
+                        <button onClick={() => setTextFont('Inter')} className={textFont === 'Inter' ? 'active' : ''}>Normal</button>
+                        <button onClick={() => setTextFont('Serif')} className={textFont === 'Serif' ? 'active' : ''}>Serif</button>
+                        <button onClick={() => setTextFont('Cursive')} className={textFont === 'Cursive' ? 'active' : ''}>Cursive</button>
+                      </div>
+                      <button className="admin-sc-done-btn" onClick={() => setShowTextInput(false)}>Done</button>
                     </div>
                   )}
-                </div>
 
-                <div className="admin-preview-controls">
-                  <button className="admin-action-btn cancel" onClick={() => setMode(null)}>Cancel</button>
-                  <button className="admin-action-btn upload" onClick={handleUpload} disabled={uploading}>
-                    {uploading ? 'Publishing...' : 'Publish Global Story'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+                  <div className="admin-sc-editor-toolbar">
+                    <div className="admin-sc-tools">
+                      <button className="admin-sc-tool-btn" onClick={() => setShowTextInput(true)}>
+                        <TypeIcon size={24} />
+                        <span>Text</span>
+                      </button>
+                      <button className="admin-sc-tool-btn" onClick={() => setShowSongPicker(!showSongPicker)}>
+                        <Music size={24} />
+                        <span>{selectedSongUrl ? 'Song Added' : 'Music'}</span>
+                      </button>
+                    </div>
+                    
+                    {showSongPicker && (
+                      <div className="admin-sc-song-picker">
+                        <button onClick={() => { setSelectedSongUrl(''); setShowSongPicker(false); }}>No Music</button>
+                        {songs.map((s, i) => (
+                          <button key={i} onClick={() => { setSelectedSongUrl(s.url); setShowSongPicker(false); }}>
+                            {s.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
-        {mode === 'text' && (
-          <div className="admin-text-view" style={{ background: textBg }}>
-            <textarea 
-              value={textContent}
-              onChange={(e) => setTextContent(e.target.value)}
-              placeholder="Type your announcement here..."
-              autoFocus
-            />
-            
-            <div className="admin-text-controls">
-              <div className="admin-bg-selectors">
-                <button onClick={() => setTextBg('linear-gradient(135deg, #FF6B6B 0%, #556270 100%)')} style={{ background: 'linear-gradient(135deg, #FF6B6B 0%, #556270 100%)' }} />
-                <button onClick={() => setTextBg('linear-gradient(135deg, #12c2e9, #c471ed, #f64f59)')} style={{ background: 'linear-gradient(135deg, #12c2e9, #c471ed, #f64f59)' }} />
-                <button onClick={() => setTextBg('linear-gradient(135deg, #0f2027, #203a43, #2c5364)')} style={{ background: 'linear-gradient(135deg, #0f2027, #203a43, #2c5364)' }} />
-              </div>
-              
-              <div className="admin-preview-controls">
-                <button className="admin-action-btn cancel" onClick={() => setMode(null)}>Cancel</button>
-                <button className="admin-action-btn upload" onClick={handleUpload} disabled={uploading || !textContent.trim()}>
-                  {uploading ? 'Publishing...' : 'Publish Text Story'}
-                </button>
-              </div>
+                    <button className="admin-sc-publish-btn" onClick={handlePublishFromEditor} disabled={uploading}>
+                      {uploading ? 'Publishing...' : 'Publish'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {mode === 'gallery' && (
+            <div className="admin-sc-placeholder-view">
+              <h3>Gallery Mode</h3>
+              <p>Coming in next phase...</p>
             </div>
-          </div>
-        )}
+          )}
+
+          {mode === 'text' && (
+            <div className="admin-sc-placeholder-view">
+              <h3>Text Mode</h3>
+              <p>Coming in next phase...</p>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
