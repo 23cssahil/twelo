@@ -141,6 +141,7 @@ export default function App() {
           <Router>
             <Routes>
               <Route path="/twelo-admin-6006390989" element={<DeveloperAdmin />} />
+              <Route path="/admin" element={<DeveloperAdmin />} />
               <Route path="/admin/bot-training" element={<BotTrainingAdmin />} />
               <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
