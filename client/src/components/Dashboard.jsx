@@ -3731,7 +3731,7 @@ export default function Dashboard() {
                       
                       {!isRecording && (
                         <div style={{ display: 'flex', alignItems: 'center', flex: 1, position: 'relative' }}>
-                          <button type="button" className="media-btn" onClick={() => cameraInputRef.current.click()} style={{ background: 'transparent', border: 'none', cursor: 'pointer', position: 'absolute', left: '10px', zIndex: 10 }}>
+                          <button type="button" className="media-btn" onClick={() => window.alert('Abhi in features pe kaam chal raha hai (Bugs hain). Ye buttons disabled hain.')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', position: 'absolute', left: '10px', zIndex: 10 }}>
                             <Camera size={20} color="#a8a8a8" />
                           </button>
                           <input 
@@ -3806,11 +3806,7 @@ export default function Dashboard() {
                       {!isRecording && (
                         <div id="main-chat-media-actions" className="media-actions" style={{ display: 'flex', gap: '10px', paddingRight: '10px', alignItems: 'center' }}>
                           <button type="button" className="media-btn" onClick={() => {
-                            if (localStorage.getItem('twelo_gallery_access_granted') === 'true') {
-                              fileInputRef.current?.click();
-                            } else {
-                              setShowGalleryPermissionPopup(true);
-                            }
+                            window.alert('Abhi in features pe kaam chal raha hai (Bugs hain). Ye buttons disabled hain.');
                           }} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
                             <ImageIcon size={20} color="#a8a8a8" />
                           </button>
