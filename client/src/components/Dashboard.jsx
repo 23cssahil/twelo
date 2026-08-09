@@ -5453,7 +5453,7 @@ export default function Dashboard() {
         >
           {activeTab === 'everyone-stories' ? (
              viewerStories.map((group, groupIdx) => (
-                <div key={group.user._id || groupIdx} style={{ height: '100vh', width: '100%', scrollSnapAlign: 'start', position: 'relative', flexShrink: 0 }}>
+                <div key={group.user._id || groupIdx} style={{ height: '100vh', width: '100%', scrollSnapAlign: 'start', scrollSnapStop: 'always', position: 'relative', flexShrink: 0 }}>
                    {Math.abs(groupIdx - currentStoryUserIndex) <= 1 && (
                       <StorySlide 
                           group={group} 
