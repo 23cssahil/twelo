@@ -17,6 +17,7 @@ import {
   ArcElement
 } from 'chart.js';
 import AdminStoryCreator from './AdminStoryCreator';
+import AdminStoryManager from './AdminStoryManager';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(
@@ -75,6 +76,9 @@ export default function DeveloperAdmin() {
     activeRandomChatRef.current = activeRandomChat;
   }, [activeRandomChat]);
 
+  const [totalStories, setTotalStories] = useState(0);
+  const [totalChats, setTotalChats] = useState(0);
+  const [showStoryManager, setShowStoryManager] = useState(false);
   const [botRequests, setBotRequests] = useState([]);
   const [botChats, setBotChats] = useState([]);
   const [selectedBotChat, setSelectedBotChat] = useState(null);
@@ -653,6 +657,10 @@ export default function DeveloperAdmin() {
     return <AdminStoryCreator onClose={() => setShowAdminStoryUI(false)} API_URL={API_URL} adminPass={password} />;
   }
 
+  if (showStoryManager) {
+    return <AdminStoryManager onClose={() => setShowStoryManager(false)} API_URL={API_URL} adminPass={password} />;
+  }
+
   return (
     <div className="dev-dashboard">
       <div className="dev-header">
@@ -746,6 +754,13 @@ export default function DeveloperAdmin() {
                 onClick={handleAddGlobalStory}
               >
                 Add Global Story
+              </button>
+              <button 
+                className="dev-btn-primary" 
+                style={{ background: '#8b5cf6', color: '#fff', flex: 1 }}
+                onClick={() => setShowStoryManager(true)}
+              >
+                Manage Stories
               </button>
             </div>
           </div>

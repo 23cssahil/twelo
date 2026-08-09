@@ -1903,6 +1903,35 @@ app.post('/api/admin/stories', adminAuth, async (req, res) => {
   }
 });
 
+// Admin get all global stories
+app.get('/api/admin/stories', adminAuth, async (req, res) => {
+  try {
+    const stories = await Story.find({ isAdminStory: true })
+      .sort({ createdAt: -1 })
+      .populate('viewedBy', 'username avatarUrl uniqueId name')
+      .populate('likedBy', 'username avatarUrl uniqueId name');
+    res.json(stories);
+  } catch (error) {
+    console.error('Error fetching admin stories:', error);
+    res.status(500).json({ message: 'Error fetching stories' });
+  }
+});
+
+// Admin delete a global story
+app.delete('/api/admin/stories/:id', adminAuth, async (req, res) => {
+  try {
+    const story = await Story.findOneAndDelete({ _id: req.params.id, isAdminStory: true });
+    if (!story) return res.status(404).json({ message: 'Story not found' });
+    
+    io.emit('story_deleted', { storyId: req.params.id });
+    
+    res.json({ message: 'Story deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting admin story:', error);
+    res.status(500).json({ message: 'Error deleting story' });
+  }
+});
+
 app.post('/api/admin/notify-user', adminAuth, async (req, res) => {
   try {
     const { userId, message } = req.body;
