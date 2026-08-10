@@ -1151,6 +1151,8 @@ app.post('/api/stories/:id/comments', authenticateToken, async (req, res) => {
     if (parent_id) {
       await Comment.updateOne({ _id: parent_id }, { $inc: { reply_count: 1 } });
       await redisService.updateCommentScore(story._id.toString(), parent_id, 2);
+    } else {
+      await redisService.addCommentToCache(story._id.toString(), newComment);
     }
     const populatedComment = await Comment.findById(newComment._id).populate('user_id', 'username avatarUrl').lean();
     populatedComment.user = populatedComment.user_id;
@@ -1167,16 +1169,28 @@ app.post('/api/stories/:id/comments/:commentId/like', authenticateToken, async (
     const comment = await Comment.findById(req.params.commentId);
     if (!comment) return res.status(404).json({ message: 'Comment not found' });
 
-    // For simplicity, we toggle like (no separate 'likedBy' array for comments to save space, just a counter)
-    // In production, we'd store a CommentLike record to track user likes. For Phase 3, we just mock atomic updates.
-    // Wait, if we don't track who liked, they can like infinitely. We'll use a hacky array in Comment model? 
-    // The schema from Phase 1 had likes_count but no likedBy array. Let's just do +1.
-    await Comment.updateOne({ _id: comment._id }, { $inc: { likes_count: 1 } });
+    const userId = req.user.userId;
+    const hasLiked = comment.liked_by && comment.liked_by.some(id => id.toString() === userId.toString());
+
+    let incVal = 1;
+    if (hasLiked) {
+      await Comment.updateOne(
+        { _id: comment._id }, 
+        { $pull: { liked_by: userId }, $inc: { likes_count: -1 } }
+      );
+      incVal = -1;
+    } else {
+      await Comment.updateOne(
+        { _id: comment._id }, 
+        { $addToSet: { liked_by: userId }, $inc: { likes_count: 1 } }
+      );
+      incVal = 1;
+    }
     
     // Write-Through to Redis
-    await redisService.updateCommentScore(req.params.id, comment._id.toString(), 1);
+    await redisService.updateCommentScore(req.params.id, comment._id.toString(), incVal);
 
-    res.json({ success: true, likes_count: comment.likes_count + 1 });
+    res.json({ success: true, likes_count: comment.likes_count + incVal, isLiked: !hasLiked });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });

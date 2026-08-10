@@ -29,6 +29,50 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply 
       if (data.success) {
         setIsLiked(data.isLiked);
         setLikesCount(data.likes_count);
+        
+        const updateCache = (old) => {
+          if (!old) return old;
+          const uid = user?.id || user?._id;
+          
+          if (old.pages) {
+            return {
+              ...old,
+              pages: old.pages.map(page => ({
+                ...page,
+                comments: page.comments.map(c => {
+                  if (c._id === comment._id) {
+                    const newLikedBy = data.isLiked 
+                      ? [...(c.liked_by || []), uid]
+                      : (c.liked_by || []).filter(id => id !== uid);
+                    return { ...c, likes_count: data.likes_count, liked_by: newLikedBy };
+                  }
+                  return c;
+                })
+              }))
+            };
+          }
+          if (old.comments) {
+             return {
+               ...old,
+               comments: old.comments.map(c => {
+                 if (c._id === comment._id) {
+                   const newLikedBy = data.isLiked 
+                     ? [...(c.liked_by || []), uid]
+                     : (c.liked_by || []).filter(id => id !== uid);
+                   return { ...c, likes_count: data.likes_count, liked_by: newLikedBy };
+                 }
+                 return c;
+               })
+             };
+          }
+          return old;
+        };
+
+        if (isReply) {
+          queryClient.setQueryData(['comments', storyId, 'replies', comment.parent_id], updateCache);
+        } else {
+          queryClient.setQueryData(['comments', storyId], updateCache);
+        }
       }
     }
   });
