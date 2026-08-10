@@ -145,7 +145,7 @@ const StorySlide = ({
     if (touchStartX !== null) setTouchEndX(clientX);
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e) => {
     storyPausedRef.current = false;
     setStoryPaused(false);
     if (storyVideoRef.current) storyVideoRef.current.play()?.catch(() => {});
@@ -155,11 +155,37 @@ const StorySlide = ({
       const distanceX = touchStartX - touchEndX;
       const isLeftSwipe = distanceX > 50;
       const isRightSwipe = distanceX < -50;
+      const isTap = Math.abs(distanceX) < 10;
 
-      if (isLeftSwipe && (isActiveSlide ? currentStoryIndex : 0) < group.stories.length - 1) {
-        setCurrentStoryIndex(prev => prev + 1); setStoryProgress(0);
-      } else if (isRightSwipe && (isActiveSlide ? currentStoryIndex : 0) > 0) {
-        setCurrentStoryIndex(prev => prev - 1); setStoryProgress(0);
+      if (isLeftSwipe) {
+        if ((isActiveSlide ? currentStoryIndex : 0) < group.stories.length - 1) {
+          setCurrentStoryIndex(prev => prev + 1); setStoryProgress(0);
+        } else if (handleNextUser) {
+          handleNextUser();
+        }
+      } else if (isRightSwipe) {
+        if ((isActiveSlide ? currentStoryIndex : 0) > 0) {
+          setCurrentStoryIndex(prev => prev - 1); setStoryProgress(0);
+        } else if (handlePrevUser) {
+          handlePrevUser();
+        }
+      } else if (isTap) {
+         const screenWidth = window.innerWidth;
+         if (touchEndX > screenWidth / 2) {
+            // Tap right -> Next story
+            if ((isActiveSlide ? currentStoryIndex : 0) < group.stories.length - 1) {
+              setCurrentStoryIndex(prev => prev + 1); setStoryProgress(0);
+            } else if (handleNextUser) {
+              handleNextUser();
+            }
+         } else {
+            // Tap left -> Prev story
+            if ((isActiveSlide ? currentStoryIndex : 0) > 0) {
+              setCurrentStoryIndex(prev => prev - 1); setStoryProgress(0);
+            } else if (handlePrevUser) {
+              handlePrevUser();
+            }
+         }
       }
     }
     setTouchStartX(null);
@@ -271,12 +297,11 @@ const StorySlide = ({
             playsInline
             loop={activeTab === 'everyone-stories'}
             onEnded={() => {
-              if (activeTab === 'everyone-stories') return; 
               if (currentStoryIndex < group.stories.length - 1) {
                 setCurrentStoryIndex(prev => prev + 1);
                 setStoryProgress(0);
-              } else {
-                window.history.back();
+              } else if (handleNextUser) {
+                handleNextUser();
               }
             }}
             onTimeUpdate={(e) => {
@@ -875,35 +900,47 @@ export default function Dashboard() {
   const lastScrollTime = useRef(0);
   const touchStartYRef = useRef(0);
 
+  const handleNextUser = () => {
+    if (currentStoryUserIndex < viewerStories.length - 1) {
+      lastScrollTime.current = Date.now();
+      const nextIndex = currentStoryUserIndex + 1;
+      setCurrentStoryUserIndex(nextIndex);
+      setCurrentStoryIndex(0);
+      setStoryProgress(0);
+      const container = document.getElementById('story-swiper-container');
+      if (container) {
+        container.scrollTo({ top: nextIndex * container.clientHeight, behavior: 'smooth' });
+      }
+    } else {
+      setStoryViewerActive(false);
+    }
+  };
+
+  const handlePrevUser = () => {
+    if (currentStoryUserIndex > 0) {
+      lastScrollTime.current = Date.now();
+      const prevIndex = currentStoryUserIndex - 1;
+      setCurrentStoryUserIndex(prevIndex);
+      setCurrentStoryIndex(0);
+      setStoryProgress(0);
+      const container = document.getElementById('story-swiper-container');
+      if (container) {
+        container.scrollTo({ top: prevIndex * container.clientHeight, behavior: 'smooth' });
+      }
+    } else {
+      setStoryViewerActive(false);
+    }
+  };
+
   const handleStoryWheel = (e) => {
-    if (activeTab !== 'everyone-stories' || !storyViewerActive) return;
+    if (!storyViewerActive) return;
     const now = Date.now();
     if (now - lastScrollTime.current < 600) return;
 
     if (e.deltaY > 30) {
-      if (currentStoryUserIndex < everyoneStories.length - 1) {
-        lastScrollTime.current = now;
-        const nextIndex = currentStoryUserIndex + 1;
-        setCurrentStoryUserIndex(nextIndex);
-        setCurrentStoryIndex(0);
-        setStoryProgress(0);
-        const container = document.getElementById('story-swiper-container');
-        if (container) {
-          container.scrollTo({ top: nextIndex * container.clientHeight, behavior: 'smooth' });
-        }
-      }
+      handleNextUser();
     } else if (e.deltaY < -30) {
-      if (currentStoryUserIndex > 0) {
-        lastScrollTime.current = now;
-        const prevIndex = currentStoryUserIndex - 1;
-        setCurrentStoryUserIndex(prevIndex);
-        setCurrentStoryIndex(0);
-        setStoryProgress(0);
-        const container = document.getElementById('story-swiper-container');
-        if (container) {
-          container.scrollTo({ top: prevIndex * container.clientHeight, behavior: 'smooth' });
-        }
-      }
+      handlePrevUser();
     }
   };
 
@@ -912,36 +949,16 @@ export default function Dashboard() {
   };
 
   const handleStoryTouchEnd = (e) => {
-    if (activeTab !== 'everyone-stories' || !storyViewerActive) return;
+    if (!storyViewerActive) return;
     const now = Date.now();
     if (now - lastScrollTime.current < 600) return;
 
     const diffY = touchStartYRef.current - e.changedTouches[0].clientY;
     if (Math.abs(diffY) > 40) {
       if (diffY > 0) {
-        if (currentStoryUserIndex < everyoneStories.length - 1) {
-          lastScrollTime.current = now;
-          const nextIndex = currentStoryUserIndex + 1;
-          setCurrentStoryUserIndex(nextIndex);
-          setCurrentStoryIndex(0);
-          setStoryProgress(0);
-          const container = document.getElementById('story-swiper-container');
-          if (container) {
-            container.scrollTo({ top: nextIndex * container.clientHeight, behavior: 'smooth' });
-          }
-        }
+        handleNextUser();
       } else {
-        if (currentStoryUserIndex > 0) {
-          lastScrollTime.current = now;
-          const prevIndex = currentStoryUserIndex - 1;
-          setCurrentStoryUserIndex(prevIndex);
-          setCurrentStoryIndex(0);
-          setStoryProgress(0);
-          const container = document.getElementById('story-swiper-container');
-          if (container) {
-            container.scrollTo({ top: prevIndex * container.clientHeight, behavior: 'smooth' });
-          }
-        }
+        handlePrevUser();
       }
     }
   };
@@ -5986,6 +6003,8 @@ export default function Dashboard() {
                           viewPublicProfile={viewPublicProfile}
                           setActiveTab={setActiveTab}
                           setShowCommentsModal={setShowCommentsModal}
+                          handleNextUser={handleNextUser}
+                          handlePrevUser={handlePrevUser}
                       />
                    )}
                 </div>
@@ -6015,8 +6034,9 @@ export default function Dashboard() {
                    setShowStoryViewsModal={setShowStoryViewsModal}
                    viewerStoriesLength={viewerStories.length}
                    viewPublicProfile={viewPublicProfile}
-                   setActiveTab={setActiveTab}
-                          setShowCommentsModal={setShowCommentsModal}
+                           setShowCommentsModal={setShowCommentsModal}
+                           handleNextUser={handleNextUser}
+                           handlePrevUser={handlePrevUser}
                       />
              </div>
           )}
