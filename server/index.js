@@ -614,7 +614,7 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
       .sort({ createdAt: -1 })
-      .limit(3)
+      .limit(20)
       .lean();
     user.globalStories = globalStories;
 
@@ -704,7 +704,7 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
       .sort({ createdAt: -1 })
-      .limit(3)
+      .limit(20)
       .lean();
     user.globalStories = globalStories;
 
@@ -728,7 +728,7 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
       .sort({ createdAt: -1 })
-      .limit(3)
+      .limit(20)
       .lean();
     user.globalStories = globalStories;
 
