@@ -288,7 +288,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
                   <p className="text-sm">Be the first to start the conversation.</p>
                 </div>
               ) : (
-                <div style={{ height: \`\${rowVirtualizer.getTotalSize()}px\`, width: '100%', position: 'relative' }}>
+                <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
                   {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                     const isLoaderRow = virtualRow.index > flatComments.length - 1;
                     const comment = flatComments[virtualRow.index];
@@ -301,7 +301,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
                           top: 0,
                           left: 0,
                           width: '100%',
-                          transform: \`translateY(\${virtualRow.start}px)\`,
+                          transform: `translateY(${virtualRow.start}px)`,
                         }}
                       >
                         {isLoaderRow ? (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
+import CommentsModal from './CommentsModal';
 import { useNavigate } from 'react-router-dom';
 import { 
   Home as HomeIcon, 
