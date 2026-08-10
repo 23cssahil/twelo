@@ -45,7 +45,7 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply 
                 comments: page.comments.map(c => {
                   if (c._id === comment._id) {
                     const newLikedBy = data.isLiked 
-                      ? [...(c.liked_by || []), uid]
+                      ? Array.from(new Set([...(c.liked_by || []), uid]))
                       : (c.liked_by || []).filter(id => id !== uid);
                     return { ...c, likes_count: data.likes_count, liked_by: newLikedBy };
                   }
@@ -59,9 +59,9 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply 
                ...old,
                comments: old.comments.map(c => {
                  if (c._id === comment._id) {
-                   const newLikedBy = data.isLiked 
-                     ? [...(c.liked_by || []), uid]
-                     : (c.liked_by || []).filter(id => id !== uid);
+                    const newLikedBy = data.isLiked 
+                      ? Array.from(new Set([...(c.liked_by || []), uid]))
+                      : (c.liked_by || []).filter(id => id !== uid);
                    return { ...c, likes_count: data.likes_count, liked_by: newLikedBy };
                  }
                  return c;

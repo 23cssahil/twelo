@@ -217,9 +217,11 @@ mongoose.connection.once('open', async () => {
     const comments = await Comment.find({});
     let fixedCount = 0;
     for (let c of comments) {
-      const actualLikes = c.liked_by ? c.liked_by.length : 0;
-      if (c.likes_count !== actualLikes) {
-        c.likes_count = actualLikes;
+      if (!c.liked_by) c.liked_by = [];
+      const uniqueLikes = [...new Set(c.liked_by.map(id => id.toString()))];
+      if (c.likes_count !== uniqueLikes.length || c.liked_by.length !== uniqueLikes.length) {
+        c.liked_by = uniqueLikes.map(id => new mongoose.Types.ObjectId(id));
+        c.likes_count = uniqueLikes.length;
         await c.save();
         fixedCount++;
       }
