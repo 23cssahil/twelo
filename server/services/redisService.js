@@ -67,6 +67,20 @@ const warmupTopComments = async (storyId, comments) => {
 };
 
 /**
+ * Add a newly created comment to the cache
+ * @param {String} storyId 
+ * @param {Object} comment 
+ */
+const addCommentToCache = async (storyId, comment) => {
+  const key = `story:${storyId}:top_comments`;
+  const exists = await redis.exists(key);
+  if (exists) {
+    const score = (comment.likes_count * 1) + (comment.reply_count * 2);
+    await redis.zadd(key, score, comment._id.toString());
+  }
+};
+
+/**
  * Memory Optimization: Trim the ZSET to max 500 comments
  * @param {String} storyId 
  */
@@ -82,5 +96,6 @@ module.exports = {
   getTopComments,
   updateCommentScore,
   warmupTopComments,
+  addCommentToCache,
   trimTopComments
 };

@@ -28,6 +28,10 @@ const commentSchema = new Schema({
     type: Number, 
     default: 0 
   },
+  liked_by: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   reply_count: { 
     type: Number, 
     default: 0 
