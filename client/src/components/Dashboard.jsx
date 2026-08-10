@@ -5852,25 +5852,30 @@ export default function Dashboard() {
               {[1, 2, 3, 4, 5, 6].map((num) => (
                 <div 
                   key={num} 
-                  onClick={async () => {
+                  onClick={() => {
                     if (isProcessingLibraryAvatar) return;
                     setIsProcessingLibraryAvatar(true);
                     try {
-                      const imagePath = `/avatars/${user.gender === 'female' ? 'female' : 'male'}/${num}.png`;
-                      // Fetch the image and convert to File
-                      const response = await fetch(imagePath);
-                      if (!response.ok) throw new Error('Avatar not found');
-                      const blob = await response.blob();
-                      const file = new File([blob], `avatar_${num}.png`, { type: blob.type });
+                      const img = document.getElementById(`avatar-img-${num}`);
+                      if (!img) throw new Error('Image not found in DOM');
                       
-                      const simulatedEvent = { target: { files: [file] } };
-                      setShowAvatarLibrary(false);
-                      closeStoryCamera();
-                      handleAvatarSelect(simulatedEvent);
+                      const canvas = document.createElement('canvas');
+                      canvas.width = img.naturalWidth || 1024;
+                      canvas.height = img.naturalHeight || 1024;
+                      const ctx = canvas.getContext('2d');
+                      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                      
+                      canvas.toBlob((blob) => {
+                        const file = new File([blob], `avatar_${num}.png`, { type: 'image/png' });
+                        const simulatedEvent = { target: { files: [file] } };
+                        setShowAvatarLibrary(false);
+                        closeStoryCamera();
+                        handleAvatarSelect(simulatedEvent);
+                        setIsProcessingLibraryAvatar(false);
+                      }, 'image/png');
                     } catch (error) {
                       console.error('Error loading library avatar:', error);
                       alert('Could not load this avatar yet.');
-                    } finally {
                       setIsProcessingLibraryAvatar(false);
                     }
                   }}
@@ -5882,7 +5887,7 @@ export default function Dashboard() {
                   onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.borderColor = '#10B981'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'transparent'; }}
                 >
-                  <img src={`/avatars/${user?.gender === 'female' ? 'female' : 'male'}/${num}.png`} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.src = 'https://via.placeholder.com/150?text=Pending' }} />
+                  <img id={`avatar-img-${num}`} crossOrigin="anonymous" src={`/avatars/${user?.gender === 'female' ? 'female' : 'male'}/${num}.png`} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.src = 'https://via.placeholder.com/150?text=Pending' }} />
                 </div>
               ))}
             </div>
