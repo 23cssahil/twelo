@@ -771,6 +771,8 @@ export default function Dashboard() {
   const [storyCameraOpen, setStoryCameraOpen] = useState(false);
 
   const [cameraMode, setCameraMode] = useState('story');
+  const [showAvatarLibrary, setShowAvatarLibrary] = useState(false);
+  const [isProcessingLibraryAvatar, setIsProcessingLibraryAvatar] = useState(false);
   
   const openCamera = (mode) => {
     setCameraMode(mode);
@@ -5831,23 +5833,93 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Custom Story Camera Modal */}
+      
+      {/* Avatar Library Modal */}
+      {showAvatarLibrary && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          background: 'rgba(0,0,0,0.85)', zIndex: 13000, display: 'flex', flexDirection: 'column',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <h2 style={{ margin: 0, color: '#fff', fontSize: '1.2rem' }}>Choose 3D Avatar</h2>
+            <button onClick={() => setShowAvatarLibrary(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
+              <X size={28} />
+            </button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
+              {[1, 2, 3, 4, 5, 6].map((num) => (
+                <div 
+                  key={num} 
+                  onClick={async () => {
+                    if (isProcessingLibraryAvatar) return;
+                    setIsProcessingLibraryAvatar(true);
+                    try {
+                      const imagePath = `/avatars/${user.gender === 'female' ? 'female' : 'male'}/${num}.png`;
+                      // Fetch the image and convert to File
+                      const response = await fetch(imagePath);
+                      if (!response.ok) throw new Error('Avatar not found');
+                      const blob = await response.blob();
+                      const file = new File([blob], `avatar_${num}.png`, { type: blob.type });
+                      
+                      const simulatedEvent = { target: { files: [file] } };
+                      setShowAvatarLibrary(false);
+                      closeStoryCamera();
+                      handleAvatarSelect(simulatedEvent);
+                    } catch (error) {
+                      console.error('Error loading library avatar:', error);
+                      alert('Could not load this avatar yet.');
+                    } finally {
+                      setIsProcessingLibraryAvatar(false);
+                    }
+                  }}
+                  style={{ 
+                    aspectRatio: '1', borderRadius: '15px', overflow: 'hidden', cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: '2px solid transparent',
+                    transition: 'transform 0.2s, border-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.borderColor = '#10B981'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'transparent'; }}
+                >
+                  <img src={`/avatars/${user?.gender === 'female' ? 'female' : 'male'}/${num}.png`} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.src = 'https://via.placeholder.com/150?text=Pending' }} />
+                </div>
+              ))}
+            </div>
+            {isProcessingLibraryAvatar && (
+              <div style={{ textAlign: 'center', color: '#10B981', marginTop: '20px' }}>Processing...</div>
+            )}
+          </div>
+        </div>
+      )}
+
+{/* Custom Story Camera Modal */}
       {storyCameraOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
           background: '#000', zIndex: 12000, display: 'flex', flexDirection: 'column'
         }}>
+          
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '15px', padding: '15px', position: 'absolute', top: 0, width: '100%', zIndex: 10 }}>
-            {storyCapturedImage && (
-              <a href={storyCapturedImage} download="twelo_capture.jpg" style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex' }}>
-                <Download size={24} />
-              </a>
-            )}
-            <button onClick={() => window.history.back()} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex' }}>
-              <X size={24} />
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', position: 'absolute', top: 0, width: '100%', zIndex: 10 }}>
+            {cameraMode === 'avatar' ? (
+              <button onClick={() => setShowAvatarLibrary(true)} style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: '20px', padding: '8px 15px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(5px)' }}>
+                <User size={18} />
+                <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>3D Avatars</span>
+              </button>
+            ) : <div />}
+            <div style={{ display: 'flex', gap: '15px' }}>
+              {storyCapturedImage && (
+                <a href={storyCapturedImage} download="twelo_capture.jpg" style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex' }}>
+                  <Download size={24} />
+                </a>
+              )}
+              <button onClick={closeStoryCamera} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex' }}>
+                <X size={24} />
+              </button>
+            </div>
           </div>
+
 
           {/* Main View Area */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
