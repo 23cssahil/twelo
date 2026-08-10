@@ -774,7 +774,7 @@ export default function Dashboard() {
   
   const openCamera = (mode) => {
     setCameraMode(mode);
-    startStoryCamera('user');
+    openStoryCamera('user');
   };
 
   const [storyCameraStream, setStoryCameraStream] = useState(null);
