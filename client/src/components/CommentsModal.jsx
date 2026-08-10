@@ -7,7 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { SocketContext } from '../App';
 import { useContext } from 'react';
 
-const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwnerId, updateCommentCount, isReply = false }) => {
+const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwnerId, updateCommentCount, isReply = false, depth = 0 }) => {
   const queryClient = useQueryClient();
   const [likeData, setLikeData] = useState({
     isLiked: comment.liked_by && comment.liked_by.includes(user?.id || user?._id),
@@ -132,7 +132,7 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwn
   });
 
   return (
-    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'flex-start', marginLeft: isReply ? '40px' : '0', marginTop: isReply ? '8px' : '0' }}>
+    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'flex-start', marginLeft: depth > 0 ? (depth > 1 ? '-36px' : '0') : '0', marginTop: isReply ? '8px' : '0' }}>
       <img 
         src={comment.user?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${comment.user?.username}`} 
         style={{ width: isReply ? '24px' : '32px', height: isReply ? '24px' : '32px', borderRadius: '50%', backgroundColor: '#eee', objectFit: 'cover', flexShrink: 0 }} 
@@ -214,6 +214,7 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwn
                     storyOwnerId={storyOwnerId}
                     updateCommentCount={updateCommentCount}
                     isReply={true} 
+                    depth={depth + 1}
                   />
                 ))
              )}
