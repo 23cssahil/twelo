@@ -1239,7 +1239,7 @@ app.post('/api/stories/:id/comments/:commentId/like', authenticateToken, async (
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', errorMsg: error.message, stack: error.stack });
   }
 });
 
