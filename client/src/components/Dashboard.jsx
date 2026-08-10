@@ -462,7 +462,7 @@ export default function Dashboard() {
 
   const [avatarCropperOpen, setAvatarCropperOpen] = useState(false);
   const [avatarImageSrc, setAvatarImageSrc] = useState(null);
-  const [avatarCrop, setAvatarCrop] = useState({ unit: '%', width: 50, aspect: 1 });
+  const [avatarCrop, setAvatarCrop] = useState({ unit: '%', width: 50, height: 50, x: 25, y: 25, aspect: 1 });
   const [avatarCompletedCrop, setAvatarCompletedCrop] = useState(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const avatarImgRef = useRef(null);
@@ -1177,7 +1177,7 @@ export default function Dashboard() {
 
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
       const formData = new FormData();
-      formData.append('image', blob, 'avatar.jpg');
+      formData.append('file', blob, 'avatar.jpg');
 
       const uploadRes = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
