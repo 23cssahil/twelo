@@ -303,11 +303,10 @@ app.post('/api/upload', upload.single('file'), nudityCheck, async (req, res) => 
     return res.status(400).json({ message: 'No file uploaded' });
   }
   try {
-    // Use Cloudinary SDK with automatic moderation (Amazon Rekognition)
+    // Use Cloudinary SDK (Moderation is already handled by Sightengine middleware)
     cloudinary.uploader.upload_stream(
       {
-        resource_type: 'auto',
-        moderation: 'aws_rek' // Enable automatic moderation to detect and remove prohibited content
+        resource_type: 'auto'
       },
       (error, result) => {
         if (error) {
