@@ -166,7 +166,7 @@ export default function DeveloperAdmin() {
       newSocket.on('admin_alert_new_random', (user) => {
         try {
           const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-          audio.play().catch(e => console.log('Audio blocked', e));
+          audio.play()?.catch(e => console.log('Audio blocked', e));
         } catch (e) {}
         
         if (Notification.permission === 'granted') {

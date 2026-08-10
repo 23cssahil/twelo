@@ -141,8 +141,8 @@ const StorySlide = ({
   const handlePointerUp = () => {
     storyPausedRef.current = false;
     setStoryPaused(false);
-    if (storyVideoRef.current) storyVideoRef.current.play().catch(() => {});
-    if (storyAudioRef.current) storyAudioRef.current.play().catch(() => {});
+    if (storyVideoRef.current) storyVideoRef.current.play()?.catch(() => {});
+    if (storyAudioRef.current) storyAudioRef.current.play()?.catch(() => {});
 
     if (touchStartX !== null && touchEndX !== null) {
       const distanceX = touchStartX - touchEndX;
@@ -1483,7 +1483,7 @@ export default function Dashboard() {
           // Message from someone else (not in active chat) - play sound + update unread
           try {
             const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-            audio.play().catch(e => console.log('Audio blocked', e));
+            audio.play()?.catch(e => console.log('Audio blocked', e));
           } catch (e) {}
           setUnreadMessages(prev => ({...prev, [msg.sender]: (prev[msg.sender] || 0) + 1}));
           showToastMsg('New message received!', 'info');
@@ -1550,7 +1550,7 @@ export default function Dashboard() {
         callerCandidatesRef.current = []; // reset for new call
         if (ringtoneInRef.current) {
           ringtoneInRef.current.currentTime = 0;
-          ringtoneInRef.current.play().catch(e => console.log('Audio autoplay prevented'));
+          ringtoneInRef.current.play()?.catch(e => console.log('Audio autoplay prevented'));
         }
       } else if (signal.candidate) {
         // It's a trickle ICE candidate
@@ -2985,7 +2985,7 @@ export default function Dashboard() {
 
     if (ringtoneOutRef.current) {
       ringtoneOutRef.current.currentTime = 0;
-      ringtoneOutRef.current.play().catch(e => console.log('Audio autoplay prevented'));
+      ringtoneOutRef.current.play()?.catch(e => console.log('Audio autoplay prevented'));
     }
 
     try {
@@ -2993,7 +2993,7 @@ export default function Dashboard() {
       localStreamRef.current = stream;
       if (myVideoRef.current) {
         myVideoRef.current.srcObject = stream;
-        myVideoRef.current.play().catch(e => console.error('Local video play error:', e));
+        myVideoRef.current.play()?.catch(e => console.error('Local video play error:', e));
       }
 
       const peer = new Peer({ 
@@ -3064,7 +3064,7 @@ export default function Dashboard() {
       localStreamRef.current = stream;
       if (myVideoRef.current) {
         myVideoRef.current.srcObject = stream;
-        myVideoRef.current.play().catch(e => console.error('Local video play error:', e));
+        myVideoRef.current.play()?.catch(e => console.error('Local video play error:', e));
       }
 
       const peer = new Peer({ 
