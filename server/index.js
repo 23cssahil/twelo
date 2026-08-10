@@ -1203,36 +1203,49 @@ app.post('/api/stories/:id/comments/:commentId/like', authenticateToken, async (
     const userId = req.user.userId;
     const hasLiked = comment.liked_by && comment.liked_by.some(id => id.toString() === userId.toString());
 
-    let incVal = 1;
+    let incVal = 0;
+    let modified = false;
+
     if (hasLiked) {
-      await Comment.updateOne(
-        { _id: comment._id }, 
+      const result = await Comment.updateOne(
+        { _id: comment._id, liked_by: userId }, 
         { $pull: { liked_by: userId }, $inc: { likes_count: -1 } }
       );
-      incVal = -1;
+      if (result.modifiedCount > 0) {
+        incVal = -1;
+        modified = true;
+      }
     } else {
-      await Comment.updateOne(
-        { _id: comment._id }, 
+      const result = await Comment.updateOne(
+        { _id: comment._id, liked_by: { $ne: userId } }, 
         { $addToSet: { liked_by: userId }, $inc: { likes_count: 1 } }
       );
-      incVal = 1;
+      if (result.modifiedCount > 0) {
+        incVal = 1;
+        modified = true;
+      }
     }
     
-    // Write-Through to Redis
-    await redisService.updateCommentScore(req.params.id, comment._id.toString(), incVal);
+    if (modified) {
+      // Write-Through to Redis
+      await redisService.updateCommentScore(req.params.id, comment._id.toString(), incVal);
 
-    const newLikesCount = comment.likes_count + incVal;
-    
-    // Broadcast to room
-    io.to(`story_${req.params.id}`).emit('update_comment_like', {
-      commentId: comment._id,
-      likesCount: newLikesCount,
-      senderId: userId,
-      isLiked: !hasLiked,
-      parentId: comment.parent_id
-    });
+      const newLikesCount = comment.likes_count + incVal;
+      
+      // Broadcast to room
+      io.to(`story_${req.params.id}`).emit('update_comment_like', {
+        commentId: comment._id,
+        likesCount: newLikesCount,
+        senderId: userId,
+        isLiked: !hasLiked,
+        parentId: comment.parent_id
+      });
 
-    res.json({ success: true, likes_count: newLikesCount, isLiked: !hasLiked });
+      res.json({ success: true, likes_count: newLikesCount, isLiked: !hasLiked });
+    } else {
+      // State was already toggled by concurrent request
+      res.json({ success: true, likes_count: comment.likes_count, isLiked: hasLiked });
+    }
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
