@@ -4870,7 +4870,7 @@ export default function Dashboard() {
         if (profileStoryGroups) {
            setProfileStoryGroups([...updatedViewerStories]);
         } else if (activeTab === 'everyone-stories') {
-           setEveryoneStories([...updatedViewerStories]);
+           seteveryoneStories([...updatedViewerStories]);
         }
     }
   };
