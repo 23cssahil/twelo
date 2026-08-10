@@ -3930,7 +3930,7 @@ export default function Dashboard() {
                       style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', msUserSelect: 'none', MozUserSelect: 'none' }}
                     >
                       <div className="user-card-info" onClick={() => viewPublicProfile(reqUser._id)} style={{ cursor: 'pointer' }}>
-                        <div className="user-avatar-small">{reqUser.avatarUrl ? <img src={reqUser.avatarUrl} alt='avatar' /> : reqUser.username.charAt(0).toUpperCase()}</div>
+                        <div className="user-avatar-small">{(notif.type === 'anonymous_follow_request' || notif.type === 'anonymous_request_accepted' ? null : reqUser.avatarUrl) ? <img src={reqUser.avatarUrl} alt='avatar' /> : reqUser.username.charAt(0).toUpperCase()}</div>
                         <div className="user-names">
                           <span className="user-username">@{reqUser.username?.length > 10 ? reqUser.username.substring(0, 10) + '...' : reqUser.username}</span>
                           <span className="user-id" style={{ fontSize: '0.8rem' }}>{text}</span>
@@ -5796,7 +5796,47 @@ export default function Dashboard() {
       )}
 
       {/* Story Editor Overlay */}
-      {storyEditorOpen && (
+      
+      {avatarCropperOpen && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }}>
+          <div className="story-camera-container" style={{ background: '#111', padding: '20px', borderRadius: '15px', maxWidth: '400px', width: '90%' }}>
+            <h3 style={{ color: '#fff', marginBottom: '15px' }}>Crop Avatar</h3>
+            <ReactCrop
+              crop={avatarCrop}
+              onChange={(_, percentCrop) => setAvatarCrop(percentCrop)}
+              onComplete={(c) => setAvatarCompletedCrop(c)}
+              aspect={1}
+              circularCrop
+            >
+              <img
+                ref={avatarImgRef}
+                src={avatarImageSrc}
+                alt="Crop preview"
+                style={{ maxHeight: '60vh', width: 'auto' }}
+              />
+            </ReactCrop>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button 
+                className="chat-now-btn" 
+                style={{ flex: 1, background: '#333' }}
+                onClick={() => { setAvatarCropperOpen(false); setAvatarImageSrc(null); }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="chat-now-btn" 
+                style={{ flex: 1, background: 'var(--brand-blue)' }}
+                onClick={handleAvatarUpload}
+                disabled={isUploadingAvatar}
+              >
+                {isUploadingAvatar ? 'Saving...' : 'Save Avatar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+{storyEditorOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
           background: '#000', zIndex: 11000, display: 'flex', flexDirection: 'column'
