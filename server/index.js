@@ -1205,11 +1205,12 @@ app.post('/api/stories/:id/comments/:commentId/like', authenticateToken, async (
 
     let incVal = 0;
     let modified = false;
+    const userObjId = new mongoose.Types.ObjectId(userId);
 
     if (hasLiked) {
       const result = await Comment.updateOne(
-        { _id: comment._id, liked_by: userId }, 
-        { $pull: { liked_by: userId }, $inc: { likes_count: -1 } }
+        { _id: comment._id, liked_by: userObjId }, 
+        { $pull: { liked_by: userObjId }, $inc: { likes_count: -1 } }
       );
       if (result.modifiedCount > 0) {
         incVal = -1;
@@ -1217,8 +1218,8 @@ app.post('/api/stories/:id/comments/:commentId/like', authenticateToken, async (
       }
     } else {
       const result = await Comment.updateOne(
-        { _id: comment._id, liked_by: { $ne: userId } }, 
-        { $addToSet: { liked_by: userId }, $inc: { likes_count: 1 } }
+        { _id: comment._id, liked_by: { $ne: userObjId } }, 
+        { $addToSet: { liked_by: userObjId }, $inc: { likes_count: 1 } }
       );
       if (result.modifiedCount > 0) {
         incVal = 1;
@@ -1243,8 +1244,10 @@ app.post('/api/stories/:id/comments/:commentId/like', authenticateToken, async (
 
       res.json({ success: true, likes_count: newLikesCount, isLiked: !hasLiked });
     } else {
-      // State was already toggled by concurrent request
-      res.json({ success: true, likes_count: comment.likes_count, isLiked: hasLiked });
+      // Fetch latest state from DB to return actual state since our initial read was stale
+      const freshComment = await Comment.findById(comment._id);
+      const currentlyLiked = freshComment.liked_by.some(id => id.toString() === userId.toString());
+      res.json({ success: true, likes_count: freshComment.likes_count, isLiked: currentlyLiked });
     }
   } catch (error) {
     console.error(error);

@@ -24,8 +24,11 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply 
       return res.json();
     },
     onMutate: async () => {
-      setIsLiked(prev => !prev);
-      setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
+      setIsLiked(prev => {
+        const nextState = !prev;
+        setLikesCount(prevCount => prevCount + (nextState ? 1 : -1));
+        return nextState;
+      });
     },
     onSuccess: (data) => {
       if (data.success) {
