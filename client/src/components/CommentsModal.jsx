@@ -35,30 +35,29 @@ const CommentItem = ({ comment, token, API_URL, onReply, storyId, isReply = fals
   });
 
   return (
-    <div className={`flex gap-3 mb-4 items-start ${isReply ? 'ml-10 mt-2' : ''}`}>
+    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'flex-start', marginLeft: isReply ? '40px' : '0', marginTop: isReply ? '8px' : '0' }}>
       <img 
         src={comment.user?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${comment.user?.username}`} 
-        className={`${isReply ? 'w-6 h-6' : 'w-8 h-8'} rounded-full bg-gray-200 object-cover flex-shrink-0`} 
+        style={{ width: isReply ? '24px' : '32px', height: isReply ? '24px' : '32px', borderRadius: '50%', backgroundColor: '#eee', objectFit: 'cover', flexShrink: 0 }} 
         alt=""
       />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-sm text-gray-900">{comment.user?.username}</span>
-          <span className="text-xs text-gray-500">
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontWeight: '600', fontSize: '14px', color: '#111' }}>{comment.user?.username}</span>
+          <span style={{ fontSize: '12px', color: '#888' }}>
             {comment.createdAt ? formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true }) : ''}
           </span>
         </div>
-        <p className="text-sm text-gray-800 break-words mt-0.5">
-           {/* Basic mention highlight */}
-           {comment.text.split(' ').map((word, i) => 
-             word.startsWith('@') ? <span key={i} className="text-blue-600 font-medium">{word} </span> : word + ' '
+        <p style={{ fontSize: '14px', color: '#333', wordBreak: 'break-word', marginTop: '2px', marginBottom: '0' }}>
+           {comment.text?.split(' ').map((word, i) => 
+             word.startsWith('@') ? <span key={i} style={{ color: '#2563eb', fontWeight: '500' }}>{word} </span> : word + ' '
            )}
         </p>
         
-        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 font-medium">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', fontSize: '12px', color: '#888', fontWeight: '500' }}>
           <button 
             onClick={() => onReply(comment)} 
-            className="hover:text-gray-900 transition-colors"
+            style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: 0 }}
           >
             Reply
           </button>
@@ -66,29 +65,29 @@ const CommentItem = ({ comment, token, API_URL, onReply, storyId, isReply = fals
           {!isReply && comment.reply_count > 0 && !showReplies && (
             <button 
               onClick={() => setShowReplies(true)}
-              className="text-gray-900 transition-colors flex items-center gap-1"
+              style={{ background: 'none', border: 'none', color: '#111', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
             >
-              <div className="w-6 h-[1px] bg-gray-300"></div>
+              <div style={{ width: '24px', height: '1px', backgroundColor: '#ddd' }}></div>
               View {comment.reply_count} replies
             </button>
           )}
           {!isReply && showReplies && (
             <button 
               onClick={() => setShowReplies(false)}
-              className="text-gray-900 transition-colors flex items-center gap-1"
+              style={{ background: 'none', border: 'none', color: '#111', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
             >
-              <div className="w-6 h-[1px] bg-gray-300"></div>
+              <div style={{ width: '24px', height: '1px', backgroundColor: '#ddd' }}></div>
               Hide replies
             </button>
           )}
         </div>
 
-        {/* Nested Replies Rendering */}
+        {/* Nested Replies */}
         {showReplies && (
-          <div className="mt-3">
+          <div style={{ marginTop: '12px' }}>
              {isLoadingReplies ? (
-                <div className="flex items-center gap-2 text-xs text-gray-400">
-                   <Loader2 size={12} className="animate-spin" /> Loading replies...
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#aaa' }}>
+                   <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Loading replies...
                 </div>
              ) : (
                 repliesData?.comments?.map(reply => (
@@ -108,15 +107,15 @@ const CommentItem = ({ comment, token, API_URL, onReply, storyId, isReply = fals
 
       </div>
       
-      <div className="flex flex-col items-center gap-1 flex-shrink-0 px-2">
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0, padding: '0 8px' }}>
         <motion.button 
           whileTap={{ scale: 0.8 }}
           onClick={() => likeMutation.mutate()}
-          className="text-gray-400"
+          style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', padding: 0 }}
         >
           <Heart size={14} fill={isLiked ? '#ef4444' : 'none'} color={isLiked ? '#ef4444' : 'currentColor'} />
         </motion.button>
-        <span className="text-[10px] text-gray-500">{comment.likes_count + (isLiked ? 1 : 0)}</span>
+        <span style={{ fontSize: '10px', color: '#888' }}>{comment.likes_count + (isLiked ? 1 : 0)}</span>
       </div>
     </div>
   );
@@ -146,12 +145,12 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
     enabled: !!story?._id && isOpen,
   });
 
-  const flatComments = data?.pages.flatMap(page => page.comments) || [];
+  const flatComments = data?.pages?.flatMap(page => page.comments) || [];
 
   const rowVirtualizer = useVirtualizer({
     count: hasNextPage ? flatComments.length + 1 : flatComments.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 100, // Increased estimate size because of potential replies
+    estimateSize: () => 100,
     overscan: 5,
   });
 
@@ -163,10 +162,8 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
     }
   }, [hasNextPage, fetchNextPage, flatComments.length, isFetchingNextPage, rowVirtualizer.getVirtualItems()]);
 
-  // Handle setting reply focus
   useEffect(() => {
     if (replyingTo) {
-      // Auto populate mention
       if (!commentInput.includes(`@${replyingTo.user?.username}`)) {
         setCommentInput(`@${replyingTo.user?.username} `);
       }
@@ -175,7 +172,6 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
 
   const postMutation = useMutation({
     mutationFn: async (text) => {
-      // If we are replying to a reply, attach to its parent to keep it 1-level deep
       const parentId = replyingTo ? (replyingTo.parent_id || replyingTo._id) : null;
       const res = await fetch(`${API_URL}/api/stories/${story._id}/comments`, {
         method: 'POST',
@@ -199,22 +195,21 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
       };
 
       if (!replyingTo) {
-        // Root comment optimistic update
         queryClient.setQueryData(['comments', story._id], (old) => {
           if (!old) return old;
           const newPages = [...old.pages];
           newPages[0] = { ...newPages[0], comments: [newComment, ...newPages[0].comments] };
           return { ...old, pages: newPages };
         });
-      } else {
-        // Reply optimistic update (invalidate for simplicity so it fetches)
       }
       
       updateCommentCount(1);
       return { previousComments };
     },
     onError: (err, newComment, context) => {
-      queryClient.setQueryData(['comments', story._id], context.previousComments);
+      if(context?.previousComments) {
+         queryClient.setQueryData(['comments', story._id], context.previousComments);
+      }
       updateCommentCount(-1);
     },
     onSettled: () => {
@@ -241,7 +236,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.5 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black z-[60]"
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000', zIndex: 999999 }}
             onClick={onClose}
           />
           <motion.div
@@ -249,43 +244,43 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 h-[80vh] bg-white rounded-t-2xl z-[60] flex flex-col shadow-2xl"
+            style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: '80vh', backgroundColor: '#fff', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', zIndex: 999999, display: 'flex', flexDirection: 'column', boxShadow: '0 -10px 40px rgba(0,0,0,0.3)' }}
           >
             {/* Drag Handle */}
-            <div className="w-full flex justify-center pt-3 pb-1" onClick={onClose}>
-               <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'center', paddingTop: '16px', paddingBottom: '8px', cursor: 'pointer' }} onClick={onClose}>
+               <div style={{ width: '48px', height: '6px', backgroundColor: '#ddd', borderRadius: '4px' }}></div>
             </div>
             
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pb-3 border-b border-gray-100">
-              <h3 className="font-bold text-gray-900 text-center w-full">Comments</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px 16px', borderBottom: '1px solid #f3f4f6' }}>
+              <h3 style={{ fontWeight: '700', color: '#111', textAlign: 'center', width: '100%', margin: 0, fontSize: '18px' }}>Comments</h3>
             </div>
 
             {/* Comments List (Virtual) */}
-            <div ref={parentRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div ref={parentRef} style={{ flex: 1, overflowY: 'auto', padding: '20px', WebkitOverflowScrolling: 'touch' }}>
               {status === 'pending' ? (
-                <div className="space-y-6">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                   {[...Array(5)].map((_, i) => (
-                    <div key={i} className="flex gap-3 animate-pulse">
-                      <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0" />
-                      <div className="flex-1 space-y-2 mt-1">
-                        <div className="h-3 bg-gray-200 rounded w-1/4" />
-                        <div className="h-3 bg-gray-200 rounded w-3/4" />
-                        <div className="h-3 bg-gray-200 rounded w-1/2" />
+                    <div key={i} style={{ display: 'flex', gap: '12px', opacity: 0.6 }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#eee', flexShrink: 0 }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                        <div style={{ height: '12px', backgroundColor: '#eee', borderRadius: '4px', width: '25%' }} />
+                        <div style={{ height: '12px', backgroundColor: '#eee', borderRadius: '4px', width: '75%' }} />
+                        <div style={{ height: '12px', backgroundColor: '#eee', borderRadius: '4px', width: '50%' }} />
                       </div>
                     </div>
                   ))}
                 </div>
               ) : status === 'error' ? (
-                <div className="flex flex-col items-center justify-center h-full text-red-500">
-                  <MessageCircle size={32} className="mb-2 opacity-50" />
-                  <p>Error loading comments.</p>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#ef4444' }}>
+                  <MessageCircle size={40} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                  <p style={{ margin: 0 }}>Error loading comments.</p>
                 </div>
               ) : flatComments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                  <MessageCircle size={48} className="mb-3 opacity-20" />
-                  <p className="font-medium text-gray-600">No comments yet</p>
-                  <p className="text-sm">Be the first to start the conversation.</p>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af' }}>
+                  <MessageCircle size={56} style={{ marginBottom: '16px', opacity: 0.2 }} />
+                  <p style={{ fontWeight: '600', color: '#4b5563', margin: '0 0 8px 0', fontSize: '16px' }}>No comments yet</p>
+                  <p style={{ fontSize: '14px', margin: 0 }}>Be the first to start the conversation.</p>
                 </div>
               ) : (
                 <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
@@ -305,7 +300,9 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
                         }}
                       >
                         {isLoaderRow ? (
-                          <div className="flex justify-center py-4"><Loader2 className="animate-spin text-gray-400" /></div>
+                          <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
+                             <Loader2 style={{ animation: 'spin 1s linear infinite', color: '#9ca3af' }} />
+                          </div>
                         ) : (
                           <CommentItem 
                             comment={comment} 
@@ -323,43 +320,47 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
             </div>
 
             {/* Input Footer */}
-            <div className="p-3 border-t border-gray-100 bg-white">
+            <div style={{ padding: '16px 20px', borderTop: '1px solid #f3f4f6', backgroundColor: '#fff', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
               <AnimatePresence>
                 {replyingTo && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="flex justify-between items-center bg-gray-50 p-2 rounded-t-lg text-xs text-gray-600 px-3 mb-1"
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9fafb', padding: '10px 12px', borderTopLeftRadius: '12px', borderTopRightRadius: '12px', fontSize: '13px', color: '#4b5563', marginBottom: '8px' }}
                   >
-                    <span>Replying to <span className="font-semibold">{replyingTo.user?.username}</span></span>
+                    <span>Replying to <span style={{ fontWeight: '600' }}>{replyingTo.user?.username}</span></span>
                     <button type="button" onClick={() => {
                         setReplyingTo(null);
                         setCommentInput(commentInput.replace(`@${replyingTo.user?.username} `, ''));
-                    }} className="hover:text-gray-900 bg-gray-200 p-0.5 rounded-full"><X size={12} /></button>
+                    }} style={{ background: '#e5e7eb', border: 'none', padding: '4px', borderRadius: '50%', cursor: 'pointer', display: 'flex' }}>
+                       <X size={14} />
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
-              <form onSubmit={handleSubmit} className="flex items-center gap-2 relative">
+              <form onSubmit={handleSubmit} style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative' }}>
                 <img 
                   src={`https://api.dicebear.com/7.x/initials/svg?seed=You`} 
-                  className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0" 
+                  style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#eee', flexShrink: 0, objectFit: 'cover' }} 
                   alt=""
                 />
-                <input
-                  type="text"
-                  placeholder={replyingTo ? 'Add a reply...' : 'Add a comment...'}
-                  value={commentInput}
-                  onChange={(e) => setCommentInput(e.target.value)}
-                  className="flex-1 bg-gray-100 rounded-full py-2.5 px-4 pr-12 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
-                />
-                <button 
-                  type="submit" 
-                  disabled={!commentInput.trim() || postMutation.isPending}
-                  className="absolute right-2 p-1.5 bg-blue-500 text-white rounded-full disabled:opacity-50 transition-transform active:scale-95"
-                >
-                  {postMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} className="ml-0.5" />}
-                </button>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder={replyingTo ? 'Add a reply...' : 'Add a comment...'}
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '24px', padding: '12px 48px 12px 20px', fontSize: '15px', outline: 'none' }}
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={!commentInput.trim() || postMutation.isPending}
+                    style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', padding: '8px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '50%', cursor: (!commentInput.trim() || postMutation.isPending) ? 'default' : 'pointer', opacity: (!commentInput.trim() || postMutation.isPending) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    {postMutation.isPending ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={16} style={{ marginLeft: '1px' }} />}
+                  </button>
+                </div>
               </form>
             </div>
           </motion.div>
