@@ -1202,54 +1202,40 @@ app.post('/api/stories/:id/comments/:commentId/like', authenticateToken, async (
     if (!comment) return res.status(404).json({ message: 'Comment not found' });
 
     const userId = req.user.userId;
-    const hasLiked = comment.liked_by && comment.liked_by.some(id => id.toString() === userId.toString());
-
-    let incVal = 0;
-    let modified = false;
     const userObjId = new mongoose.Types.ObjectId(userId);
 
+    const hasLiked = comment.liked_by && comment.liked_by.some(id => id.toString() === userId.toString());
+
     if (hasLiked) {
-      const result = await Comment.updateOne(
-        { _id: comment._id, liked_by: { $in: [userObjId, userId] } }, 
-        { $pull: { liked_by: { $in: [userObjId, userId] } }, $inc: { likes_count: -1 } }
-      );
-      if (result.modifiedCount > 0) {
-        incVal = -1;
-        modified = true;
-      }
+      comment.liked_by = comment.liked_by.filter(id => id.toString() !== userId.toString());
     } else {
-      const result = await Comment.updateOne(
-        { _id: comment._id, liked_by: { $nin: [userObjId, userId] } }, 
-        { $addToSet: { liked_by: userObjId }, $inc: { likes_count: 1 } }
-      );
-      if (result.modifiedCount > 0) {
-        incVal = 1;
-        modified = true;
-      }
+      if (!comment.liked_by) comment.liked_by = [];
+      comment.liked_by.push(userObjId);
     }
     
-    if (modified) {
-      // Write-Through to Redis
-      await redisService.updateCommentScore(req.params.id, comment._id.toString(), incVal);
+    // Ensure all existing strings are ObjectIds
+    comment.liked_by = [...new Set(comment.liked_by.map(id => id.toString()))].map(id => new mongoose.Types.ObjectId(id));
+    comment.likes_count = comment.liked_by.length;
 
-      const newLikesCount = comment.likes_count + incVal;
-      
-      // Broadcast to room
-      io.to(`story_${req.params.id}`).emit('update_comment_like', {
-        commentId: comment._id,
-        likesCount: newLikesCount,
-        senderId: userId,
-        isLiked: !hasLiked,
-        parentId: comment.parent_id
-      });
+    await comment.save();
 
-      res.json({ success: true, likes_count: newLikesCount, isLiked: !hasLiked });
-    } else {
-      // Fetch latest state from DB to return actual state since our initial read was stale
-      const freshComment = await Comment.findById(comment._id);
-      const currentlyLiked = freshComment.liked_by.some(id => id.toString() === userId.toString());
-      res.json({ success: true, likes_count: freshComment.likes_count, isLiked: currentlyLiked });
-    }
+    const newLikesCount = comment.likes_count;
+    const isLiked = !hasLiked;
+
+    // Write-Through to Redis
+    await redisService.updateCommentScore(req.params.id, comment._id.toString(), isLiked ? 1 : -1);
+
+    // Broadcast to room
+    io.to(`story_${req.params.id}`).emit('update_comment_like', {
+      commentId: comment._id,
+      likesCount: newLikesCount,
+      senderId: userId,
+      isLiked: isLiked,
+      parentId: comment.parent_id
+    });
+
+    res.json({ success: true, likes_count: newLikesCount, isLiked: isLiked });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
