@@ -131,18 +131,25 @@ const StorySlide = ({
 
   const [touchStartX, setTouchStartX] = React.useState(null);
   const [touchEndX, setTouchEndX] = React.useState(null);
+  const [touchStartY, setTouchStartY] = React.useState(null);
+  const [touchEndY, setTouchEndY] = React.useState(null);
 
-  const handlePointerDown = (clientX) => {
+  const handlePointerDown = (clientX, clientY) => {
     storyPausedRef.current = true;
     setStoryPaused(true);
     if (storyVideoRef.current) storyVideoRef.current.pause();
     if (storyAudioRef.current) storyAudioRef.current.pause();
     setTouchStartX(clientX);
+    setTouchStartY(clientY);
     setTouchEndX(null);
+    setTouchEndY(null);
   };
 
-  const handlePointerMove = (clientX) => {
-    if (touchStartX !== null) setTouchEndX(clientX);
+  const handlePointerMove = (clientX, clientY) => {
+    if (touchStartX !== null) {
+      setTouchEndX(clientX);
+      setTouchEndY(clientY);
+    }
   };
 
   const handlePointerUp = (e) => {
@@ -151,29 +158,35 @@ const StorySlide = ({
     if (storyVideoRef.current) storyVideoRef.current.play()?.catch(() => {});
     if (storyAudioRef.current) storyAudioRef.current.play()?.catch(() => {});
 
-    if (touchStartX !== null && touchEndX !== null) {
+    if (touchStartX !== null && touchEndX !== null && touchStartY !== null && touchEndY !== null) {
       const distanceX = touchStartX - touchEndX;
+      const distanceY = touchStartY - touchEndY;
       const isLeftSwipe = distanceX > 50;
       const isRightSwipe = distanceX < -50;
-      if (isLeftSwipe) {
-        if (handleNextUser) handleNextUser();
-      } else if (isRightSwipe) {
-        if (handlePrevUser) handlePrevUser();
+      
+      if (Math.abs(distanceX) > Math.abs(distanceY)) {
+        if (isLeftSwipe) {
+          if (handleNextUser) handleNextUser();
+        } else if (isRightSwipe) {
+          if (handlePrevUser) handlePrevUser();
+        }
       }
     }
     setTouchStartX(null);
     setTouchEndX(null);
+    setTouchStartY(null);
+    setTouchEndY(null);
   };
 
   return (
     <div 
       style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px 10px', boxSizing: 'border-box', touchAction: 'none' }}
-      onPointerDown={(e) => handlePointerDown(e.touches ? e.touches[0].clientX : e.clientX)}
-      onPointerMove={(e) => handlePointerMove(e.touches ? e.touches[0].clientX : e.clientX)}
+      onPointerDown={(e) => handlePointerDown(e.touches ? e.touches[0].clientX : e.clientX, e.touches ? e.touches[0].clientY : e.clientY)}
+      onPointerMove={(e) => handlePointerMove(e.touches ? e.touches[0].clientX : e.clientX, e.touches ? e.touches[0].clientY : e.clientY)}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
-      onTouchStart={(e) => handlePointerDown(e.targetTouches[0].clientX)}
-      onTouchMove={(e) => handlePointerMove(e.targetTouches[0].clientX)}
+      onTouchStart={(e) => handlePointerDown(e.targetTouches[0].clientX, e.targetTouches[0].clientY)}
+      onTouchMove={(e) => handlePointerMove(e.targetTouches[0].clientX, e.targetTouches[0].clientY)}
       onTouchEnd={handlePointerUp}
     >
       <div style={{
@@ -874,6 +887,7 @@ export default function Dashboard() {
   const storyVideoRef = useRef(null);
   const lastScrollTime = useRef(0);
   const touchStartYRef = useRef(0);
+  const touchStartXRef = useRef(0);
 
   const handleNextUser = () => {
     if (currentStoryUserIndex < viewerStories.length - 1) {
@@ -921,6 +935,7 @@ export default function Dashboard() {
 
   const handleStoryTouchStart = (e) => {
     touchStartYRef.current = e.touches[0].clientY;
+    touchStartXRef.current = e.touches[0].clientX;
   };
 
   const handleStoryTouchEnd = (e) => {
@@ -929,7 +944,9 @@ export default function Dashboard() {
     if (now - lastScrollTime.current < 600) return;
 
     const diffY = touchStartYRef.current - e.changedTouches[0].clientY;
-    if (Math.abs(diffY) > 40) {
+    const diffX = touchStartXRef.current - e.changedTouches[0].clientX;
+    
+    if (Math.abs(diffY) > 40 && Math.abs(diffY) > Math.abs(diffX)) {
       if (diffY > 0) {
         handleNextUser();
       } else {
