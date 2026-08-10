@@ -45,7 +45,7 @@ const CommentItem = ({ comment, token, API_URL, onReply, storyId, isReply = fals
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontWeight: '600', fontSize: '14px', color: '#111' }}>{comment.user?.username}</span>
           <span style={{ fontSize: '12px', color: '#888' }}>
-            {comment.createdAt ? formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true }) : ''}
+            {(comment.created_at || comment.createdAt) ? formatDistanceToNow(new Date(comment.created_at || comment.createdAt), { addSuffix: true }) : ''}
           </span>
         </div>
         <p style={{ fontSize: '14px', color: '#333', wordBreak: 'break-word', marginTop: '2px', marginBottom: '0' }}>
@@ -155,12 +155,14 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
   });
 
   useEffect(() => {
-    const [lastItem] = [...rowVirtualizer.getVirtualItems()].reverse();
-    if (!lastItem) return;
+    const virtualItems = rowVirtualizer.getVirtualItems();
+    if (virtualItems.length === 0) return;
+    const lastItem = virtualItems[virtualItems.length - 1];
+    
     if (lastItem.index >= flatComments.length - 1 && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [hasNextPage, fetchNextPage, flatComments.length, isFetchingNextPage, rowVirtualizer.getVirtualItems()]);
+  }, [hasNextPage, fetchNextPage, flatComments.length, isFetchingNextPage, rowVirtualizer]);
 
   useEffect(() => {
     if (replyingTo) {
@@ -188,7 +190,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
         _id: Date.now().toString(),
         text,
         user: { username: 'You', avatarUrl: '' },
-        createdAt: new Date().toISOString(),
+        created_at: new Date().toISOString(),
         likes_count: 0,
         reply_count: 0,
         parent_id: replyingTo ? (replyingTo.parent_id || replyingTo._id) : null
@@ -351,7 +353,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
                     placeholder={replyingTo ? 'Add a reply...' : 'Add a comment...'}
                     value={commentInput}
                     onChange={(e) => setCommentInput(e.target.value)}
-                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '24px', padding: '12px 48px 12px 20px', fontSize: '15px', outline: 'none' }}
+                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '24px', padding: '12px 48px 12px 20px', fontSize: '15px', outline: 'none', color: '#111' }}
                   />
                   <button 
                     type="submit" 
