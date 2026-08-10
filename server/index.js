@@ -1183,6 +1183,10 @@ app.post('/api/stories/:id/comments', authenticateToken, async (req, res) => {
     }
     const populatedComment = await Comment.findById(newComment._id).populate('user_id', 'username avatarUrl').lean();
     populatedComment.user = populatedComment.user_id;
+    
+    // Broadcast to room
+    io.to(`story_${story._id}`).emit('new_comment', populatedComment);
+    
     res.json({ comment: populatedComment });
   } catch (error) {
     console.error(error);
@@ -1217,7 +1221,18 @@ app.post('/api/stories/:id/comments/:commentId/like', authenticateToken, async (
     // Write-Through to Redis
     await redisService.updateCommentScore(req.params.id, comment._id.toString(), incVal);
 
-    res.json({ success: true, likes_count: comment.likes_count + incVal, isLiked: !hasLiked });
+    const newLikesCount = comment.likes_count + incVal;
+    
+    // Broadcast to room
+    io.to(`story_${req.params.id}`).emit('update_comment_like', {
+      commentId: comment._id,
+      likesCount: newLikesCount,
+      senderId: userId,
+      isLiked: !hasLiked,
+      parentId: comment.parent_id
+    });
+
+    res.json({ success: true, likes_count: newLikesCount, isLiked: !hasLiked });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -2507,6 +2522,15 @@ io.on('connection', (socket) => {
         socket.emit('globe_status_update', cachedGlobeStatus);
       }
     } catch (e) {}
+  });
+
+  // Story Comments Rooms
+  socket.on('join_story_room', (storyId) => {
+    socket.join(`story_${storyId}`);
+  });
+  
+  socket.on('leave_story_room', (storyId) => {
+    socket.leave(`story_${storyId}`);
   });
 
   // Handle incoming private message

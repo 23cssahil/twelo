@@ -4,6 +4,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Heart, Loader2, MessageCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { SocketContext } from '../App';
+import { useContext } from 'react';
 
 const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply = false }) => {
   const queryClient = useQueryClient();
@@ -183,6 +185,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
   const [replyingTo, setReplyingTo] = useState(null);
   const parentRef = useRef(null);
   const queryClient = useQueryClient();
+  const socket = useContext(SocketContext);
 
   const {
     data,
@@ -228,6 +231,93 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
       }
     }
   }, [replyingTo]);
+
+  // Socket.io Real-time Updates
+  useEffect(() => {
+    if (isOpen && socket && story?._id) {
+      socket.emit('join_story_room', story._id);
+      
+      const handleNewComment = (newComment) => {
+        const uid = user?.id || user?._id;
+        if (newComment.user._id === uid) return; // Handled by optimistic update
+        
+        const isReply = !!newComment.parent_id;
+        if (isReply) {
+          queryClient.setQueryData(['comments', story._id, 'replies', newComment.parent_id], (old) => {
+            if (!old) return old;
+            return {
+              ...old,
+              comments: [newComment, ...old.comments]
+            };
+          });
+        } else {
+          queryClient.setQueryData(['comments', story._id], (old) => {
+            if (!old || !old.pages || old.pages.length === 0) return old;
+            const newPages = [...old.pages];
+            newPages[0] = { ...newPages[0], comments: [newComment, ...newPages[0].comments] };
+            return { ...old, pages: newPages };
+          });
+          updateCommentCount(1);
+        }
+      };
+
+      const handleLikeUpdate = ({ commentId, likesCount, senderId, isLiked, parentId }) => {
+        const uid = user?.id || user?._id;
+        if (senderId === uid) return; // Handled by local mutation
+        
+        const updateCache = (old) => {
+          if (!old) return old;
+          if (old.pages) {
+            return {
+              ...old,
+              pages: old.pages.map(page => ({
+                ...page,
+                comments: page.comments.map(c => {
+                  if (c._id === commentId) {
+                    const newLikedBy = isLiked 
+                      ? [...(c.liked_by || []), senderId]
+                      : (c.liked_by || []).filter(id => id !== senderId);
+                    return { ...c, likes_count: likesCount, liked_by: newLikedBy };
+                  }
+                  return c;
+                })
+              }))
+            };
+          }
+          if (old.comments) {
+             return {
+               ...old,
+               comments: old.comments.map(c => {
+                 if (c._id === commentId) {
+                   const newLikedBy = isLiked 
+                     ? [...(c.liked_by || []), senderId]
+                     : (c.liked_by || []).filter(id => id !== senderId);
+                   return { ...c, likes_count: likesCount, liked_by: newLikedBy };
+                 }
+                 return c;
+               })
+             };
+          }
+          return old;
+        };
+        
+        if (parentId) {
+          queryClient.setQueryData(['comments', story._id, 'replies', parentId], updateCache);
+        } else {
+          queryClient.setQueryData(['comments', story._id], updateCache);
+        }
+      };
+
+      socket.on('new_comment', handleNewComment);
+      socket.on('update_comment_like', handleLikeUpdate);
+
+      return () => {
+        socket.emit('leave_story_room', story._id);
+        socket.off('new_comment', handleNewComment);
+        socket.off('update_comment_like', handleLikeUpdate);
+      };
+    }
+  }, [isOpen, socket, story?._id, queryClient, user, updateCommentCount]);
 
   const postMutation = useMutation({
     mutationFn: async (text) => {
