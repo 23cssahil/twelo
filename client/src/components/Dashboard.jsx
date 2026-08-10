@@ -392,23 +392,36 @@ const StorySlide = ({
       {activeTab !== 'everyone-stories' && (
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
           {group.user._id === (user?._id || user?.id) ? (
-            <div 
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: 'rgba(255,255,255,0.2)', padding: '8px 15px', borderRadius: '20px' }}
-              onClick={(e) => { e.stopPropagation(); setShowStoryViewsModal(true); }}
-            >
-              <Eye size={18} color="#fff" />
-              <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                {story.viewedBy?.length || 0}
-              </span>
-              <Heart size={16} color="#fff" style={{ marginLeft: '10px' }} />
-              <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                {story.likedBy?.length ? formatCount(story.likedBy.length) : 0}
-              </span>
-              <MessageCircle size={16} color="#fff" style={{ marginLeft: '10px' }} onClick={(e) => { e.stopPropagation(); setStoryPaused(true); setShowCommentsModal(true); }} />
-              <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                {story.comment_count ? formatCount(story.comment_count) : 0}
-              </span>
-            </div>
+            <>
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: 'rgba(255,255,255,0.2)', padding: '8px 15px', borderRadius: '20px' }}
+                onClick={(e) => { e.stopPropagation(); setShowStoryViewsModal(true); }}
+              >
+                <Eye size={18} color="#fff" />
+                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                  {story.viewedBy?.length || 0}
+                </span>
+                <Heart size={16} color="#fff" style={{ marginLeft: '10px' }} />
+                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                  {story.likedBy?.length ? formatCount(story.likedBy.length) : 0}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                <button 
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', zIndex: 15, display: 'flex', alignItems: 'center' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setStoryPaused(true);
+                    setShowCommentsModal(true);
+                  }}
+                >
+                  <MessageCircle size={32} color="#fff" />
+                  <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', marginLeft: '5px' }}>
+                    {story.comment_count ? formatCount(story.comment_count) : 0}
+                  </span>
+                </button>
+              </div>
+            </>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
               <button 
