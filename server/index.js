@@ -613,6 +613,7 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
     const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } })
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
+      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
@@ -703,6 +704,7 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
     const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } })
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
+      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
@@ -727,6 +729,7 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
     const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } })
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
+      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
@@ -748,6 +751,7 @@ app.get('/api/users/:id/global_stories', authenticateToken, async (req, res) => 
     const globalStories = await Story.find({ user: req.params.id, visibility: { $in: ['global', 'everyone'] } })
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
+      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -1266,6 +1270,7 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
       .populate('user', 'username avatarUrl uniqueId')
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
+      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: 1 })
       .lean();
       
@@ -1337,6 +1342,7 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
       .populate('user', 'username avatarUrl uniqueId country countryCode')
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
+      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: 1 })
       .lean();
       
@@ -2064,7 +2070,8 @@ app.get('/api/admin/stories', adminAuth, async (req, res) => {
     const stories = await Story.find({ isAdminStory: true })
       .sort({ createdAt: -1 })
       .populate('viewedBy', 'username avatarUrl uniqueId name')
-      .populate('likedBy', 'username avatarUrl uniqueId name');
+      .populate('likedBy', 'username avatarUrl uniqueId name')
+      .populate('comments.user', 'username avatarUrl');
     res.json(stories);
   } catch (error) {
     console.error('Error fetching admin stories:', error);

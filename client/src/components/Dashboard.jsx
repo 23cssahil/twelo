@@ -337,7 +337,8 @@ const StorySlide = ({
                 style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.alert('Comments feature coming soon!');
+                  setStoryPaused(true);
+                  setShowCommentsModal(true);
                 }}
               >
                 <MessageCircle size={22} color="#fff" />
@@ -781,6 +782,9 @@ export default function Dashboard() {
   const [activeStoryTimeout, setActiveStoryTimeout] = useState(null);
   const [storyProgress, setStoryProgress] = useState(0);
   const [storyPaused, setStoryPaused] = useState(false);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [commentInput, setCommentInput] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const storyPausedRef = useRef(false);
   const storyAudioRef = useRef(null); // Holds the current story background song
 
@@ -3553,9 +3557,78 @@ export default function Dashboard() {
                   )}
                 </>
               )}
+        
+      {/* Comments Bottom Sheet Modal */}
+      {showCommentsModal && storyViewerActive && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000000, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', pointerEvents: 'none' }}>
+          {/* Backdrop */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', pointerEvents: 'auto' }} onClick={() => {
+            setShowCommentsModal(false);
+            setStoryPaused(false);
+          }}></div>
+          
+          {/* Modal Content */}
+          <div style={{ background: '#1a1a1a', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', padding: '20px', pointerEvents: 'auto', zIndex: 1, maxHeight: '70vh', display: 'flex', flexDirection: 'column', position: 'relative', boxShadow: '0 -5px 20px rgba(0,0,0,0.5)' }}>
+            <div style={{ width: '40px', height: '4px', background: '#333', borderRadius: '2px', margin: '0 auto 15px' }}></div>
+            <h3 style={{ margin: '0 0 15px 0', textAlign: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>Comments</h3>
+            
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '15px' }}>
+              {(() => {
+                const currentStory = viewerStories[currentStoryUserIndex]?.stories[currentStoryIndex];
+                if (!currentStory?.comments || currentStory.comments.length === 0) {
+                  return <div style={{ textAlign: 'center', color: '#888', padding: '20px 0' }}>No comments yet. Start the conversation!</div>;
+                }
+                return currentStory.comments.map(comment => (
+                  <div key={comment._id} style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#333' }}>
+                      <img src={comment.user?.avatarUrl || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="avatar" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{comment.user?.username || 'User'}</span>
+                        <span style={{ color: '#888', fontSize: '0.75rem' }}>{new Date(comment.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                      </div>
+                      <div style={{ fontSize: '0.95rem', color: '#eee', marginTop: '2px', wordBreak: 'break-word' }}>{comment.text}</div>
+                    </div>
+                    {((user?._id || user?.id) === (comment.user?._id || comment.user) || (user?._id || user?.id) === (currentStory.user?._id || currentStory.user?._id)) && (
+                      <button 
+                        onClick={() => handleCommentDelete(comment._id)}
+                        style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', padding: '4px', alignSelf: 'flex-start' }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                ));
+              })()}
             </div>
-          );
-        }
+            
+            <form onSubmit={handleCommentSubmit} style={{ display: 'flex', gap: '10px', alignItems: 'center', borderTop: '1px solid #333', paddingTop: '15px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#333' }}>
+                <img src={user?.avatarUrl || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="my avatar" />
+              </div>
+              <input 
+                type="text" 
+                placeholder="Add a comment..."
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                style={{ flex: 1, background: '#333', border: 'none', borderRadius: '20px', padding: '10px 15px', color: '#fff', fontSize: '0.9rem', outline: 'none' }}
+              />
+              <button 
+                type="submit" 
+                disabled={!commentInput.trim() || isSubmittingComment}
+                style={{ background: 'transparent', border: 'none', color: commentInput.trim() ? 'var(--brand-blue)' : '#555', fontWeight: 'bold', cursor: commentInput.trim() ? 'pointer' : 'default', padding: '8px' }}
+              >
+                Post
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
       case 'home':
         return (
           <div className="space-container" style={{ overflow: 'hidden' }}>
@@ -4846,6 +4919,67 @@ export default function Dashboard() {
 
   const totalUnreadUsers = Object.values(unreadMessages).filter(count => count > 0).length;
   const viewerStories = profileStoryGroups ? profileStoryGroups : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
+
+  
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    if (!commentInput.trim() || isSubmittingComment) return;
+
+    const currentStory = viewerStories[currentStoryUserIndex]?.stories[currentStoryIndex];
+    if (!currentStory) return;
+
+    setIsSubmittingComment(true);
+    try {
+      const res = await fetch(`${API_URL}/api/stories/${currentStory._id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ text: commentInput.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCommentInput('');
+        // Optimistic update
+        const updatedViewerStories = [...viewerStories];
+        updatedViewerStories[currentStoryUserIndex].stories[currentStoryIndex].comments = data.comments;
+        if (profileStoryGroups) {
+           setProfileStoryGroups([...updatedViewerStories]);
+        } else if (activeTab === 'everyone-stories') {
+           setEveryoneStories([...updatedViewerStories]);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  const handleCommentDelete = async (commentId) => {
+    const currentStory = viewerStories[currentStoryUserIndex]?.stories[currentStoryIndex];
+    if (!currentStory) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/stories/${currentStory._id}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const updatedViewerStories = [...viewerStories];
+        const comments = updatedViewerStories[currentStoryUserIndex].stories[currentStoryIndex].comments;
+        updatedViewerStories[currentStoryUserIndex].stories[currentStoryIndex].comments = comments.filter(c => c._id !== commentId);
+        if (profileStoryGroups) {
+           setProfileStoryGroups([...updatedViewerStories]);
+        } else if (activeTab === 'everyone-stories') {
+           setEveryoneStories([...updatedViewerStories]);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <div className="dashboard-container">
