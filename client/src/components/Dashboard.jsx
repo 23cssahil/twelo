@@ -769,6 +769,14 @@ export default function Dashboard() {
   // Story Editor State
   const [storyEditorOpen, setStoryEditorOpen] = useState(false);
   const [storyCameraOpen, setStoryCameraOpen] = useState(false);
+
+  const [cameraMode, setCameraMode] = useState('story');
+  
+  const openCamera = (mode) => {
+    setCameraMode(mode);
+    startStoryCamera('user');
+  };
+
   const [storyCameraStream, setStoryCameraStream] = useState(null);
   const [storyCapturedImage, setStoryCapturedImage] = useState(null);
   const [storyCameraFacingMode, setStoryCameraFacingMode] = useState('user');
@@ -5062,7 +5070,7 @@ export default function Dashboard() {
         </div>
         <div className="sidebar-footer">
 
-              <div className="nav-item" onClick={() => avatarFileInputRef.current?.click()} style={{ color: '#00ffff' }}>
+              <div className="nav-item" onClick={() => openCamera('avatar')} style={{ color: '#00ffff' }}>
                 <ImageIcon size={24} /><span>Change Avatar</span>
               </div>
               <input 
@@ -5170,7 +5178,7 @@ export default function Dashboard() {
               </button>
               
               
-              <button className="settings-item-btn" onClick={() => { setShowSettingsModal(false); avatarFileInputRef.current?.click(); }}>
+              <button className="settings-item-btn" onClick={() => { setShowSettingsModal(false); openCamera('avatar'); }}>
                 Change Profile Avatar
               </button>
 
@@ -5874,7 +5882,13 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <button onClick={() => { if (storyFileInputRef.current) storyFileInputRef.current.click(); }} style={{ background: 'transparent', border: 'none', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', width: '60px' }}>
+                <button onClick={() => { 
+    if (cameraMode === 'avatar') {
+      if (avatarFileInputRef.current) avatarFileInputRef.current.click();
+    } else {
+      if (storyFileInputRef.current) storyFileInputRef.current.click(); 
+    }
+  }} style={{ background: 'transparent', border: 'none', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', width: '60px' }}>
                   <div style={{ border: '2px solid #fff', borderRadius: '8px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <PlusCircle size={20} />
                   </div>
