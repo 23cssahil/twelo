@@ -212,6 +212,33 @@ mongoose.connection.once('open', async () => {
   } catch(e) {
     // Ignore if index doesn't exist
   }
+
+  try {
+    const comments = await Comment.find({});
+    let fixedCount = 0;
+    for (let c of comments) {
+      const actualLikes = c.liked_by ? c.liked_by.length : 0;
+      if (c.likes_count !== actualLikes) {
+        c.likes_count = actualLikes;
+        await c.save();
+        fixedCount++;
+      }
+    }
+    if (fixedCount > 0) {
+      console.log(`Fixed likes_count for ${fixedCount} comments.`);
+      const redisUrl = process.env.REDIS_URL;
+      if (redisUrl) {
+        const tempRedis = new (require('ioredis'))(redisUrl, {
+          tls: redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined
+        });
+        const keys = await tempRedis.keys('story:*:top_comments');
+        if (keys.length > 0) await tempRedis.del(...keys);
+        tempRedis.quit();
+      }
+    }
+  } catch(e) {
+    console.error('Error fixing comment likes:', e);
+  }
 });
 
 const io = socketIo(server, {
