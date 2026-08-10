@@ -9,10 +9,10 @@ import { useContext } from 'react';
 
 const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply = false }) => {
   const queryClient = useQueryClient();
-  const [isLiked, setIsLiked] = useState(() => {
-    return comment.liked_by && comment.liked_by.includes(user?.id || user?._id);
+  const [likeData, setLikeData] = useState({
+    isLiked: comment.liked_by && comment.liked_by.includes(user?.id || user?._id),
+    count: comment.likes_count || 0
   });
-  const [likesCount, setLikesCount] = useState(comment.likes_count || 0);
   const [showReplies, setShowReplies] = useState(false);
   
   const likeMutation = useMutation({
@@ -24,16 +24,14 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply 
       return res.json();
     },
     onMutate: async () => {
-      setIsLiked(prev => {
-        const nextState = !prev;
-        setLikesCount(prevCount => prevCount + (nextState ? 1 : -1));
-        return nextState;
-      });
+      setLikeData(prev => ({
+        isLiked: !prev.isLiked,
+        count: prev.count + (!prev.isLiked ? 1 : -1)
+      }));
     },
     onSuccess: (data) => {
       if (data.success) {
-        setIsLiked(data.isLiked);
-        setLikesCount(data.likes_count);
+        setLikeData({ isLiked: data.isLiked, count: data.likes_count });
         
         const updateCache = (old) => {
           if (!old) return old;
@@ -117,7 +115,7 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply 
           <button 
             onClick={() => !comment.isOptimistic && onReply(comment)} 
             style={{ background: 'none', border: 'none', color: comment.isOptimistic ? '#ddd' : '#888', cursor: comment.isOptimistic ? 'default' : 'pointer', padding: 0 }}
-            disabled={comment.isOptimistic}
+            disabled={comment.isOptimistic || likeMutation.isPending}
           >
             Reply
           </button>
@@ -173,11 +171,11 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply 
           whileTap={{ scale: comment.isOptimistic ? 1 : 0.8 }}
           onClick={() => !comment.isOptimistic && likeMutation.mutate()}
           style={{ background: 'none', border: 'none', color: comment.isOptimistic ? '#eee' : '#aaa', cursor: comment.isOptimistic ? 'default' : 'pointer', padding: 0 }}
-          disabled={comment.isOptimistic}
+          disabled={comment.isOptimistic || likeMutation.isPending}
         >
-          <Heart size={14} fill={isLiked ? '#ef4444' : 'none'} color={isLiked ? '#ef4444' : 'currentColor'} />
+          <Heart size={14} fill={likeData.isLiked ? '#ef4444' : 'none'} color={likeData.isLiked ? '#ef4444' : 'currentColor'} />
         </motion.button>
-        <span style={{ fontSize: '10px', color: '#888' }}>{likesCount}</span>
+        <span style={{ fontSize: '10px', color: '#888' }}>{likeData.count}</span>
       </div>
     </div>
   );
