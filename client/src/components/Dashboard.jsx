@@ -384,6 +384,7 @@ const StorySlide = ({
               <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
                 {story.likedBy?.length || 0}
               </span>
+              <MessageCircle size={16} color="#fff" style={{ marginLeft: '10px' }} onClick={(e) => { e.stopPropagation(); setStoryPaused(true); setShowCommentsModal(true); }} />
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
@@ -399,6 +400,16 @@ const StorySlide = ({
                   fill={story.likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : 'transparent'} 
                   color={story.likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id)) ? '#ff2a2a' : '#fff'} 
                 />
+              </button>
+              <button 
+                style={{ background: 'none', border: 'none', cursor: 'pointer', zIndex: 15, marginLeft: '15px' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setStoryPaused(true);
+                  setShowCommentsModal(true);
+                }}
+              >
+                <MessageCircle size={32} color="#fff" />
               </button>
             </div>
           )}
