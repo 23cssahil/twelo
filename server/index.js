@@ -219,12 +219,10 @@ mongoose.connection.once('open', async () => {
     for (let c of comments) {
       if (!c.liked_by) c.liked_by = [];
       const uniqueLikes = [...new Set(c.liked_by.map(id => id.toString()))];
-      if (c.likes_count !== uniqueLikes.length || c.liked_by.length !== uniqueLikes.length) {
-        c.liked_by = uniqueLikes.map(id => new mongoose.Types.ObjectId(id));
-        c.likes_count = uniqueLikes.length;
-        await c.save();
-        fixedCount++;
-      }
+      c.liked_by = uniqueLikes.map(id => new mongoose.Types.ObjectId(id));
+      c.likes_count = uniqueLikes.length;
+      await c.save();
+      fixedCount++;
     }
     if (fixedCount > 0) {
       console.log(`Fixed likes_count for ${fixedCount} comments.`);
@@ -1212,8 +1210,8 @@ app.post('/api/stories/:id/comments/:commentId/like', authenticateToken, async (
 
     if (hasLiked) {
       const result = await Comment.updateOne(
-        { _id: comment._id, liked_by: userObjId }, 
-        { $pull: { liked_by: userObjId }, $inc: { likes_count: -1 } }
+        { _id: comment._id, liked_by: { $in: [userObjId, userId] } }, 
+        { $pull: { liked_by: { $in: [userObjId, userId] } }, $inc: { likes_count: -1 } }
       );
       if (result.modifiedCount > 0) {
         incVal = -1;
@@ -1221,7 +1219,7 @@ app.post('/api/stories/:id/comments/:commentId/like', authenticateToken, async (
       }
     } else {
       const result = await Comment.updateOne(
-        { _id: comment._id, liked_by: { $ne: userObjId } }, 
+        { _id: comment._id, liked_by: { $nin: [userObjId, userId] } }, 
         { $addToSet: { liked_by: userObjId }, $inc: { likes_count: 1 } }
       );
       if (result.modifiedCount > 0) {
