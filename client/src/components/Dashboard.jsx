@@ -4988,6 +4988,18 @@ export default function Dashboard() {
           </nav>
         </div>
         <div className="sidebar-footer">
+
+              <div className="nav-item" onClick={() => avatarFileInputRef.current?.click()} style={{ color: '#00ffff' }}>
+                <ImageIcon size={24} /><span>Change Avatar</span>
+              </div>
+              <input 
+                type="file" 
+                accept="image/*" 
+                ref={avatarFileInputRef} 
+                style={{ display: 'none' }} 
+                onChange={handleAvatarSelect} 
+              />
+
           <div className="nav-item" onClick={() => setShowLogoutConfirm(true)} style={{ color: 'var(--brand-red)' }}><LogOut size={24} /><span>Logout</span></div>
         </div>
       </aside>
@@ -5084,7 +5096,12 @@ export default function Dashboard() {
                 About Us
               </button>
               
-              <button className="settings-item-btn" onClick={() => navigate('/privacy-policy')}>
+              
+              <button className="settings-item-btn" onClick={() => { setShowSettingsModal(false); avatarFileInputRef.current?.click(); }}>
+                Change Profile Avatar
+              </button>
+
+<button className="settings-item-btn" onClick={() => navigate('/privacy-policy')}>
                 Privacy Policy
               </button>
               
