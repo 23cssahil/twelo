@@ -293,6 +293,8 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
                     return (
                       <div
                         key={virtualRow.index}
+                        ref={rowVirtualizer.measureElement}
+                        data-index={virtualRow.index}
                         style={{
                           position: 'absolute',
                           top: 0,

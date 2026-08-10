@@ -1318,7 +1318,7 @@ export default function Dashboard() {
       const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
       if (currentStory && currentStory.mediaType === 'image') {
         interval = setInterval(() => {
-          if (storyPausedRef.current) return; // Don't advance while held
+          if (storyPausedRef.current || storyPaused) return; // Don't advance while held
           setStoryProgress(prev => {
             if (prev >= 100) {
               clearInterval(interval);
@@ -1343,7 +1343,7 @@ export default function Dashboard() {
       }
     }
     return () => clearInterval(interval);
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, showStoryViewsModal]);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, showStoryViewsModal, storyPaused]);
 
   useEffect(() => {
     if (storyVideoRef.current) {
@@ -5105,8 +5105,12 @@ export default function Dashboard() {
       
       
       <CommentsModal 
+        key={viewerStories[currentStoryUserIndex]?.stories[currentStoryIndex]?._id}
         isOpen={showCommentsModal}
-        onClose={() => setShowCommentsModal(false)}
+        onClose={() => {
+          setShowCommentsModal(false);
+          setStoryPaused(false);
+        }}
         story={viewerStories[currentStoryUserIndex]?.stories[currentStoryIndex]}
         token={token}
         API_URL={API_URL}
