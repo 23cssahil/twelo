@@ -1181,9 +1181,10 @@ app.post('/api/stories/:id/comments', authenticateToken, async (req, res) => {
     } else {
       await redisService.addCommentToCache(story._id.toString(), newComment);
     }
-    await newComment.populate({ path: 'user_id', select: 'username avatarUrl' });
+    const commentUser = await User.findById(req.user.userId).select('username avatarUrl').lean();
     const populatedComment = newComment.toObject();
-    populatedComment.user = populatedComment.user_id;
+    populatedComment.user = commentUser;
+    populatedComment.user_id = commentUser;
     
     // Broadcast to room
     io.to(`story_${story._id}`).emit('new_comment', populatedComment);
