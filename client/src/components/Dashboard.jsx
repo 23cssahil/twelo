@@ -5125,6 +5125,7 @@ export default function Dashboard() {
         }}
         story={viewerStories[currentStoryUserIndex]?.stories[currentStoryIndex]}
         token={token}
+        user={user}
         API_URL={API_URL}
         updateCommentCount={updateCommentCount}
       />
