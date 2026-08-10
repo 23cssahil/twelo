@@ -5102,6 +5102,15 @@ export default function Dashboard() {
       )}
 
       
+      
+      <CommentsModal 
+        isOpen={showCommentsModal}
+        onClose={() => setShowCommentsModal(false)}
+        story={viewerStories[currentStoryUserIndex]?.stories[currentStoryIndex]}
+        token={token}
+        API_URL={API_URL}
+        updateCommentCount={updateCommentCount}
+      />
       {/* Share Modal */}
       {showShareModal && (
         <div className="call-overlay" style={{ zIndex: 12000 }}>
