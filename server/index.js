@@ -1441,12 +1441,14 @@ app.post('/api/stories', authenticateToken, async (req, res) => {
     }
     
     await newStory.save();
-    await newStory.populate('user', 'username avatarUrl uniqueId');
+    const storyUser = await User.findById(req.user.userId).select('username avatarUrl uniqueId').lean();
+    const populatedStory = newStory.toObject();
+    populatedStory.user = storyUser;
     
     // Emit socket event to notify all connected clients
     io.emit('new_story');
     
-    res.status(201).json(newStory);
+    res.status(201).json(populatedStory);
   } catch (error) {
     console.error('Error creating story:', error);
     res.status(500).json({ message: 'Error creating story' });
