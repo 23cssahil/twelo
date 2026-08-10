@@ -116,7 +116,7 @@ const StorySlide = ({
   storyVideoRef, storyAudioRef,
   user, activeTab, fetchStories, API_URL, token,
   handleStoryLike, setShowShareModal, setShowStoryViewsModal, viewerStoriesLength,
-  viewPublicProfile, setActiveTab
+  viewPublicProfile, setActiveTab, setShowCommentsModal
 }) => {
   const story = group.stories[isActiveSlide ? currentStoryIndex : 0];
   if (!story) return null;
@@ -6051,6 +6051,7 @@ export default function Dashboard() {
                           viewerStoriesLength={viewerStories.length}
                           viewPublicProfile={viewPublicProfile}
                           setActiveTab={setActiveTab}
+                          setShowCommentsModal={setShowCommentsModal}
                       />
                    )}
                 </div>
@@ -6081,7 +6082,8 @@ export default function Dashboard() {
                    viewerStoriesLength={viewerStories.length}
                    viewPublicProfile={viewPublicProfile}
                    setActiveTab={setActiveTab}
-                />
+                          setShowCommentsModal={setShowCommentsModal}
+                      />
              </div>
           )}
         </div>
