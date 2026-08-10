@@ -1194,13 +1194,13 @@ export default function Dashboard() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ avatarUrl: uploadData.imageUrl })
+        body: JSON.stringify({ avatarUrl: uploadData.url })
       });
       const updateData = await updateRes.json();
 
       if (!updateRes.ok) throw new Error(updateData.message || 'Update failed');
 
-      login({ ...user, avatarUrl: uploadData.imageUrl }, token);
+      login({ ...user, avatarUrl: uploadData.url }, token);
       setAvatarCropperOpen(false);
       setAvatarImageSrc(null);
     } catch (err) {
