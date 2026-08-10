@@ -3578,7 +3578,7 @@ export default function Dashboard() {
                 if (!currentStory?.comments || currentStory.comments.length === 0) {
                   return <div style={{ textAlign: 'center', color: '#888', padding: '20px 0' }}>No comments yet. Start the conversation!</div>;
                 }
-                return currentStory.comments.map(comment => (
+                return [...currentStory.comments].reverse().map(comment => (
                   <div key={comment._id} style={{ display: 'flex', gap: '10px' }}>
                     <div style={{ width: '36px', height: '36px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#333' }}>
                       <img src={comment.user?.avatarUrl || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="avatar" />
