@@ -4330,8 +4330,8 @@ export default function Dashboard() {
                   WebkitTextStroke: '0px'
                 }}>Chats</h2>
                 <div style={{ display: 'flex', gap: '15px' }}>
-                  <SearchIcon size={20} color="#a8a8a8" style={{ cursor: 'pointer' }} />
-                  <Edit size={20} color="#a8a8a8" style={{ cursor: 'pointer' }} />
+                  <SearchIcon size={20} color="#a8a8a8" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('search')} />
+                  <Edit size={20} color="#a8a8a8" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('search')} />
                 </div>
               </div>
               
