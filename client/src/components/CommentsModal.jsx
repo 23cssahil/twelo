@@ -7,7 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { SocketContext } from '../App';
 import { useContext } from 'react';
 
-const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply = false }) => {
+const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwnerId, updateCommentCount, isReply = false }) => {
   const queryClient = useQueryClient();
   const [likeData, setLikeData] = useState({
     isLiked: comment.liked_by && comment.liked_by.includes(user?.id || user?._id),
@@ -80,6 +80,46 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply 
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${API_URL}/api/stories/${storyId}/comments/${comment._id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        const updateCache = (old) => {
+          if (!old) return old;
+          if (old.pages) {
+            return {
+              ...old,
+              pages: old.pages.map(page => ({
+                ...page,
+                comments: page.comments.filter(c => c._id !== comment._id)
+              }))
+            };
+          }
+          if (old.comments) {
+             return {
+               ...old,
+               comments: old.comments.filter(c => c._id !== comment._id)
+             };
+          }
+          return old;
+        };
+
+        if (isReply) {
+          queryClient.setQueryData(['comments', storyId, 'replies', comment.parent_id], updateCache);
+        } else {
+          queryClient.setQueryData(['comments', storyId], updateCache);
+          if (updateCommentCount) updateCommentCount(-1);
+        }
+      }
+    }
+  });
+
   const { data: repliesData, isLoading: isLoadingReplies } = useQuery({
     queryKey: ['comments', storyId, 'replies', comment._id],
     queryFn: async () => {
@@ -115,10 +155,24 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply 
           <button 
             onClick={() => !comment.isOptimistic && onReply(comment)} 
             style={{ background: 'none', border: 'none', color: comment.isOptimistic ? '#ddd' : '#888', cursor: comment.isOptimistic ? 'default' : 'pointer', padding: 0 }}
-            disabled={comment.isOptimistic || likeMutation.isPending}
+            disabled={comment.isOptimistic || likeMutation.isPending || deleteMutation.isPending}
           >
             Reply
           </button>
+
+          {((user?.id || user?._id) === comment.user?._id || (user?.id || user?._id) === storyOwnerId) && (
+            <button 
+              onClick={() => {
+                if (window.confirm('Delete this comment?')) {
+                  deleteMutation.mutate();
+                }
+              }}
+              style={{ background: 'none', border: 'none', color: deleteMutation.isPending ? '#ddd' : '#ef4444', cursor: deleteMutation.isPending ? 'default' : 'pointer', padding: 0 }}
+              disabled={comment.isOptimistic || deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </button>
+          )}
           
           {!isReply && comment.reply_count > 0 && !showReplies && (
             <button 
@@ -156,7 +210,9 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply 
                     user={user}
                     API_URL={API_URL} 
                     onReply={onReply} 
-                    storyId={storyId} 
+                    storyId={storyId}
+                    storyOwnerId={storyOwnerId}
+                    updateCommentCount={updateCommentCount}
                     isReply={true} 
                   />
                 ))
@@ -469,6 +525,8 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
                             API_URL={API_URL} 
                             onReply={setReplyingTo}
                             storyId={story._id}
+                            storyOwnerId={story?.user?._id || story?.user}
+                            updateCommentCount={updateCommentCount}
                           />
                         )}
                       </div>
