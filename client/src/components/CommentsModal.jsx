@@ -328,7 +328,12 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ text, parent_id: parentId })
       });
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) {
+        console.error('BACKEND ERROR:', data);
+        throw new Error(data.message || 'Server error');
+      }
+      return data;
     },
     onMutate: async (text) => {
       await queryClient.cancelQueries({ queryKey: ['comments', story._id] });

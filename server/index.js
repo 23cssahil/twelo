@@ -1192,7 +1192,7 @@ app.post('/api/stories/:id/comments', authenticateToken, async (req, res) => {
     res.json({ comment: populatedComment });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', errorMsg: error.message, stack: error.stack });
   }
 });
 
