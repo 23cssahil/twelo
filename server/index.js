@@ -312,7 +312,7 @@ app.post('/api/upload', upload.single('file'), nudityCheck, async (req, res) => 
       (error, result) => {
         if (error) {
           console.error('Cloudinary upload error:', error);
-          return res.status(500).json({ message: 'Upload failed', error: error.message });
+          return res.status(500).json({ message: 'Upload failed', errorMsg: error.message, stack: error.stack });
         }
         
         console.log('Cloudinary upload success, URL:', result.secure_url, 'Moderation Status:', result.moderation ? result.moderation[0].status : 'N/A');
@@ -321,7 +321,7 @@ app.post('/api/upload', upload.single('file'), nudityCheck, async (req, res) => 
     ).end(req.file.buffer);
   } catch (err) {
     console.error('Upload setup error:', err.message);
-    res.status(500).json({ message: 'Upload failed', error: err.message });
+    res.status(500).json({ message: 'Upload setup failed', errorMsg: err.message, stack: err.stack });
   }
 });
 
