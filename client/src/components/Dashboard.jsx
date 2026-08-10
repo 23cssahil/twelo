@@ -785,6 +785,10 @@ export default function Dashboard() {
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [commentInput, setCommentInput] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [commentsList, setCommentsList] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
   const storyPausedRef = useRef(false);
   const storyAudioRef = useRef(null); // Holds the current story background song
 
@@ -3573,6 +3577,16 @@ export default function Dashboard() {
             <h3 style={{ margin: '0 0 15px 0', textAlign: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>Comments</h3>
             
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '15px' }}>
+
+                {hasMoreComments && (
+                  <button 
+                    onClick={() => loadComments(true)}
+                    disabled={isLoadingComments}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--brand-blue)', padding: '10px', cursor: 'pointer', textAlign: 'center', width: '100%' }}
+                  >
+                    {isLoadingComments ? 'Loading...' : 'Load older comments'}
+                  </button>
+                )}
               {(() => {
                 const currentStory = viewerStories[currentStoryUserIndex]?.stories[currentStoryIndex];
                 if (!currentStory?.comments || currentStory.comments.length === 0) {
@@ -4921,6 +4935,42 @@ export default function Dashboard() {
   const viewerStories = profileStoryGroups ? profileStoryGroups : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
 
   
+  
+  const loadComments = async (isLoadMore = false) => {
+    const currentStory = viewerStories[currentStoryUserIndex]?.stories[currentStoryIndex];
+    if (!currentStory) return;
+
+    setIsLoadingComments(true);
+    try {
+      let url = `${API_URL}/api/stories/${currentStory._id}/comments?limit=20`;
+      if (isLoadMore && nextCursor) {
+        url += `&cursor=${nextCursor}`;
+      }
+
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        if (isLoadMore) {
+          setCommentsList(prev => [...prev, ...data.comments]);
+        } else {
+          setCommentsList(data.comments);
+        }
+        setNextCursor(data.next_cursor);
+        setHasMoreComments(data.has_more);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showCommentsModal) {
+      loadComments(false);
+    }
+  }, [showCommentsModal, currentStoryIndex, currentStoryUserIndex]);
+
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!commentInput.trim() || isSubmittingComment) return;
