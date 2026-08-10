@@ -155,8 +155,6 @@ const StorySlide = ({
       const distanceX = touchStartX - touchEndX;
       const isLeftSwipe = distanceX > 50;
       const isRightSwipe = distanceX < -50;
-      const isTap = Math.abs(distanceX) < 10;
-
       if (isLeftSwipe) {
         if ((isActiveSlide ? currentStoryIndex : 0) < group.stories.length - 1) {
           setCurrentStoryIndex(prev => prev + 1); setStoryProgress(0);
@@ -169,23 +167,6 @@ const StorySlide = ({
         } else if (handlePrevUser) {
           handlePrevUser();
         }
-      } else if (isTap) {
-         const screenWidth = window.innerWidth;
-         if (touchEndX > screenWidth / 2) {
-            // Tap right -> Next story
-            if ((isActiveSlide ? currentStoryIndex : 0) < group.stories.length - 1) {
-              setCurrentStoryIndex(prev => prev + 1); setStoryProgress(0);
-            } else if (handleNextUser) {
-              handleNextUser();
-            }
-         } else {
-            // Tap left -> Prev story
-            if ((isActiveSlide ? currentStoryIndex : 0) > 0) {
-              setCurrentStoryIndex(prev => prev - 1); setStoryProgress(0);
-            } else if (handlePrevUser) {
-              handlePrevUser();
-            }
-         }
       }
     }
     setTouchStartX(null);
@@ -325,6 +306,8 @@ const StorySlide = ({
             if ((isActiveSlide ? currentStoryIndex : 0) > 0) {
               setCurrentStoryIndex(prev => prev - 1);
               setStoryProgress(0);
+            } else if (handlePrevUser) {
+              handlePrevUser();
             }
           }}
         />
@@ -335,8 +318,8 @@ const StorySlide = ({
             if ((isActiveSlide ? currentStoryIndex : 0) < group.stories.length - 1) {
               setCurrentStoryIndex(prev => prev + 1);
               setStoryProgress(0);
-            } else if (activeTab !== 'everyone-stories') {
-              window.history.back();
+            } else if (handleNextUser) {
+              handleNextUser();
             }
           }}
         />
