@@ -5,9 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Heart, Loader2, MessageCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
-const CommentItem = ({ comment, token, API_URL, onReply, storyId, isReply = false }) => {
+const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, isReply = false }) => {
   const queryClient = useQueryClient();
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLiked, setIsLiked] = useState(() => {
+    return comment.liked_by && comment.liked_by.includes(user?.id || user?._id);
+  });
+  const [likesCount, setLikesCount] = useState(comment.likes_count || 0);
   const [showReplies, setShowReplies] = useState(false);
   
   const likeMutation = useMutation({
@@ -20,6 +23,13 @@ const CommentItem = ({ comment, token, API_URL, onReply, storyId, isReply = fals
     },
     onMutate: async () => {
       setIsLiked(prev => !prev);
+      setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setIsLiked(data.isLiked);
+        setLikesCount(data.likes_count);
+      }
     }
   });
 
@@ -56,8 +66,9 @@ const CommentItem = ({ comment, token, API_URL, onReply, storyId, isReply = fals
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', fontSize: '12px', color: '#888', fontWeight: '500' }}>
           <button 
-            onClick={() => onReply(comment)} 
-            style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: 0 }}
+            onClick={() => !comment.isOptimistic && onReply(comment)} 
+            style={{ background: 'none', border: 'none', color: comment.isOptimistic ? '#ddd' : '#888', cursor: comment.isOptimistic ? 'default' : 'pointer', padding: 0 }}
+            disabled={comment.isOptimistic}
           >
             Reply
           </button>
@@ -95,6 +106,7 @@ const CommentItem = ({ comment, token, API_URL, onReply, storyId, isReply = fals
                     key={reply._id} 
                     comment={reply} 
                     token={token} 
+                    user={user}
                     API_URL={API_URL} 
                     onReply={onReply} 
                     storyId={storyId} 
@@ -109,19 +121,20 @@ const CommentItem = ({ comment, token, API_URL, onReply, storyId, isReply = fals
       
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0, padding: '0 8px' }}>
         <motion.button 
-          whileTap={{ scale: 0.8 }}
-          onClick={() => likeMutation.mutate()}
-          style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', padding: 0 }}
+          whileTap={{ scale: comment.isOptimistic ? 1 : 0.8 }}
+          onClick={() => !comment.isOptimistic && likeMutation.mutate()}
+          style={{ background: 'none', border: 'none', color: comment.isOptimistic ? '#eee' : '#aaa', cursor: comment.isOptimistic ? 'default' : 'pointer', padding: 0 }}
+          disabled={comment.isOptimistic}
         >
           <Heart size={14} fill={isLiked ? '#ef4444' : 'none'} color={isLiked ? '#ef4444' : 'currentColor'} />
         </motion.button>
-        <span style={{ fontSize: '10px', color: '#888' }}>{comment.likes_count + (isLiked ? 1 : 0)}</span>
+        <span style={{ fontSize: '10px', color: '#888' }}>{likesCount}</span>
       </div>
     </div>
   );
 };
 
-export default function CommentsModal({ story, isOpen, onClose, token, API_URL, updateCommentCount }) {
+export default function CommentsModal({ story, isOpen, onClose, token, user, API_URL, updateCommentCount }) {
   const [commentInput, setCommentInput] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
   const parentRef = useRef(null);
@@ -193,7 +206,8 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
         created_at: new Date().toISOString(),
         likes_count: 0,
         reply_count: 0,
-        parent_id: replyingTo ? (replyingTo.parent_id || replyingTo._id) : null
+        parent_id: replyingTo ? (replyingTo.parent_id || replyingTo._id) : null,
+        isOptimistic: true
       };
 
       if (!replyingTo) {
@@ -311,6 +325,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, API_URL, 
                           <CommentItem 
                             comment={comment} 
                             token={token} 
+                            user={user}
                             API_URL={API_URL} 
                             onReply={setReplyingTo}
                             storyId={story._id}
