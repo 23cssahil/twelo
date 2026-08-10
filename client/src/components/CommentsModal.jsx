@@ -174,7 +174,7 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwn
             </button>
           )}
           
-          {!isReply && comment.reply_count > 0 && !showReplies && (
+          {comment.reply_count > 0 && !showReplies && (
             <button 
               onClick={() => setShowReplies(true)}
               style={{ background: 'none', border: 'none', color: '#111', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -183,7 +183,7 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwn
               View {comment.reply_count} replies
             </button>
           )}
-          {!isReply && showReplies && (
+          {showReplies && (
             <button 
               onClick={() => setShowReplies(false)}
               style={{ background: 'none', border: 'none', color: '#111', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -378,7 +378,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
 
   const postMutation = useMutation({
     mutationFn: async (text) => {
-      const parentId = replyingTo ? (replyingTo.parent_id || replyingTo._id) : null;
+      const parentId = replyingTo ? replyingTo._id : null;
       const res = await fetch(`${API_URL}/api/stories/${story._id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -402,7 +402,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
         created_at: new Date().toISOString(),
         likes_count: 0,
         reply_count: 0,
-        parent_id: replyingTo ? (replyingTo.parent_id || replyingTo._id) : null,
+        parent_id: replyingTo ? replyingTo._id : null,
         isOptimistic: true
       };
 
@@ -427,9 +427,10 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', story._id] });
       if (replyingTo) {
-         queryClient.invalidateQueries({ queryKey: ['comments', story._id, 'replies', replyingTo.parent_id || replyingTo._id] });
+         queryClient.invalidateQueries({ queryKey: ['comments', story._id, 'replies', replyingTo._id] });
       }
       setReplyingTo(null);
+      setCommentInput('');
     }
   });
 
