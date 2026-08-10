@@ -399,7 +399,7 @@ const StorySlide = ({
               >
                 <Eye size={18} color="#fff" />
                 <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                  {story.viewedBy?.length || 0}
+                  {Math.max(story.viewedBy?.length || 0, story.likedBy?.length || 0)}
                 </span>
                 <Heart size={16} color="#fff" style={{ marginLeft: '10px' }} />
                 <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>

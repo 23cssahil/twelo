@@ -1611,8 +1611,10 @@ app.post('/api/stories/:id/like', authenticateToken, async (req, res) => {
       // Unlike
       updated = await Story.findByIdAndUpdate(storyId, { $pull: { likedBy: userId } }, { new: true });
     } else {
-      // Like
-      updated = await Story.findByIdAndUpdate(storyId, { $addToSet: { likedBy: userId } }, { new: true });
+      // Like (Also ensure they are in viewedBy)
+      updated = await Story.findByIdAndUpdate(storyId, { 
+        $addToSet: { likedBy: userId, viewedBy: userId } 
+      }, { new: true });
     }
     
     if (!hasLiked && updated) {
