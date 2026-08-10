@@ -5904,7 +5904,7 @@ export default function Dashboard() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', position: 'absolute', top: 0, width: '100%', zIndex: 10 }}>
             {cameraMode === 'avatar' ? (
               <button onClick={() => setShowAvatarLibrary(true)} style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: '20px', padding: '8px 15px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(5px)' }}>
-                <User size={18} />
+                <UserIcon size={18} />
                 <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>3D Avatars</span>
               </button>
             ) : <div />}
