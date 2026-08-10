@@ -122,6 +122,13 @@ const StorySlide = ({
   const story = group.stories[isActiveSlide ? currentStoryIndex : 0];
   if (!story) return null;
 
+  const formatCount = (count) => {
+    if (!count) return 0;
+    if (count >= 1000000) return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
+    if (count >= 1000) return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return count;
+  };
+
   const [touchStartX, setTouchStartX] = React.useState(null);
   const [touchEndX, setTouchEndX] = React.useState(null);
 
@@ -345,7 +352,7 @@ const StorySlide = ({
                 <MessageCircle size={22} color="#fff" />
               </button>
               <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: '600', marginTop: '4px', textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}>
-                0
+                {story.comment_count ? formatCount(story.comment_count) : 0}
               </span>
             </div>
 
@@ -382,9 +389,12 @@ const StorySlide = ({
               </span>
               <Heart size={16} color="#fff" style={{ marginLeft: '10px' }} />
               <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                {story.likedBy?.length || 0}
+                {story.likedBy?.length ? formatCount(story.likedBy.length) : 0}
               </span>
               <MessageCircle size={16} color="#fff" style={{ marginLeft: '10px' }} onClick={(e) => { e.stopPropagation(); setStoryPaused(true); setShowCommentsModal(true); }} />
+              <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                {story.comment_count ? formatCount(story.comment_count) : 0}
+              </span>
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
@@ -411,6 +421,9 @@ const StorySlide = ({
               >
                 <MessageCircle size={32} color="#fff" />
               </button>
+              <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', marginLeft: '5px' }}>
+                {story.comment_count ? formatCount(story.comment_count) : 0}
+              </span>
             </div>
           )}
         </div>
