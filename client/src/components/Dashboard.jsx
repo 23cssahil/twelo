@@ -156,17 +156,9 @@ const StorySlide = ({
       const isLeftSwipe = distanceX > 50;
       const isRightSwipe = distanceX < -50;
       if (isLeftSwipe) {
-        if ((isActiveSlide ? currentStoryIndex : 0) < group.stories.length - 1) {
-          setCurrentStoryIndex(prev => prev + 1); setStoryProgress(0);
-        } else if (handleNextUser) {
-          handleNextUser();
-        }
+        if (handleNextUser) handleNextUser();
       } else if (isRightSwipe) {
-        if ((isActiveSlide ? currentStoryIndex : 0) > 0) {
-          setCurrentStoryIndex(prev => prev - 1); setStoryProgress(0);
-        } else if (handlePrevUser) {
-          handlePrevUser();
-        }
+        if (handlePrevUser) handlePrevUser();
       }
     }
     setTouchStartX(null);
@@ -4234,6 +4226,7 @@ export default function Dashboard() {
                   <div key={group.user._id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 }} onClick={() => {
                     let firstUnseenIdx = group.stories.findIndex(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
                     if (firstUnseenIdx === -1) firstUnseenIdx = 0;
+                    setProfileStoryGroups(null);
                     setCurrentStoryUserIndex(idx);
                     setCurrentStoryIndex(firstUnseenIdx);
                     setStoryProgress(0);
