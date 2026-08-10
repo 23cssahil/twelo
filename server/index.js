@@ -682,26 +682,6 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
     if (!newUsername || newUsername.trim().length < 3) {
       return res.status(400).json({ message: 'Username must be at least 3 characters' });
 
-// Profile Avatar Update Endpoint
-app.post('/api/users/update_avatar', authenticateToken, async (req, res) => {
-  try {
-    const { avatarUrl } = req.body;
-    if (!avatarUrl) return res.status(400).json({ message: 'Avatar URL is required' });
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.userId,
-      { avatarUrl },
-      { new: true }
-    );
-    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
-    
-    res.json({ message: 'Avatar updated successfully', avatarUrl: updatedUser.avatarUrl });
-  } catch (error) {
-    console.error('Update avatar error:', error);
-    res.status(500).json({ message: 'Server error updating avatar' });
-  }
-});
-
     }
 
     const trimmedUsername = newUsername.trim().toLowerCase();
@@ -1391,6 +1371,27 @@ app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: 'Error marking story viewed' });
+  }
+});
+
+
+// Profile Avatar Update Endpoint
+app.post('/api/users/update_avatar', authenticateToken, async (req, res) => {
+  try {
+    const { avatarUrl } = req.body;
+    if (!avatarUrl) return res.status(400).json({ message: 'Avatar URL is required' });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      { avatarUrl },
+      { new: true }
+    );
+    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
+    
+    res.json({ message: 'Avatar updated successfully', avatarUrl: updatedUser.avatarUrl });
+  } catch (error) {
+    console.error('Update avatar error:', error);
+    res.status(500).json({ message: 'Server error updating avatar' });
   }
 });
 
