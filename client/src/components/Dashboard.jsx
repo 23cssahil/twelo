@@ -223,6 +223,19 @@ const StorySlide = ({
               <span style={{ color: '#aaa', fontSize: '0.8rem', flexShrink: 0, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                 {new Date(story.createdAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
               </span>
+              <span style={{ color: '#aaa', fontSize: '0.8rem', flexShrink: 0 }}>•</span>
+              <span style={{ 
+                color: story.visibility === 'custom' ? '#1cf23b' : (story.visibility === 'followers' ? '#ff3366' : '#00ffff'), 
+                fontSize: '0.7rem', 
+                fontWeight: 'bold',
+                flexShrink: 0,
+                border: `1px solid ${story.visibility === 'custom' ? '#1cf23b' : (story.visibility === 'followers' ? '#ff3366' : '#00ffff')}`,
+                borderRadius: '4px',
+                padding: '1px 4px',
+                textTransform: 'uppercase'
+              }}>
+                {story.visibility === 'custom' ? 'Close Friends' : (story.visibility === 'followers' ? 'Followers' : 'Global')}
+              </span>
             </div>
           </div>
         </div>
