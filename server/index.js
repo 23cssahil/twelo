@@ -1464,8 +1464,10 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
     
     // Get stories of current user + users they follow + custom visible
     const followingIds = currentUser.following || [];
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
     const stories = await Story.find({
+      createdAt: { $gt: twentyFourHoursAgo },
       $or: [
         { user: currentUserId }, // Self
         { user: { $in: followingIds }, visibility: 'followers' }, // Followers only
