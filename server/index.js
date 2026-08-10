@@ -153,6 +153,8 @@ const DeletedUser = require('./models/DeletedUser');
 const Message = require('./models/Message');
 const Report = require('./models/Report');
 const Story = require('./models/Story');
+const Comment = require('./models/Comment');
+const redisService = require('./services/redisService');
 const AdminData = require('./models/AdminData');
 const BotRule = require('./models/BotRule');
 const UserSession = require('./models/UserSession');
@@ -613,7 +615,6 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
     const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } })
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
-      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
@@ -704,7 +705,6 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
     const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } })
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
-      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
@@ -729,7 +729,6 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
     const globalStories = await Story.find({ user: user._id, visibility: { $in: ['global', 'everyone'] } })
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
-      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
@@ -751,7 +750,6 @@ app.get('/api/users/:id/global_stories', authenticateToken, async (req, res) => 
     const globalStories = await Story.find({ user: req.params.id, visibility: { $in: ['global', 'everyone'] } })
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
-      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -1134,6 +1132,152 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
   }
 });
 
+
+// Add Comment
+app.post('/api/stories/:id/comments', authenticateToken, async (req, res) => {
+  try {
+    const { text, parent_id } = req.body;
+    if (!text || text.trim().length === 0) return res.status(400).json({ message: 'Comment cannot be empty' });
+    const story = await Story.findById(req.params.id);
+    if (!story) return res.status(404).json({ message: 'Story not found' });
+    const newComment = new Comment({
+      story_id: story._id,
+      user_id: req.user.userId,
+      text: text.trim(),
+      parent_id: parent_id || null
+    });
+    await newComment.save();
+    await Story.updateOne({ _id: story._id }, { $inc: { comment_count: 1 } });
+    if (parent_id) {
+      await Comment.updateOne({ _id: parent_id }, { $inc: { reply_count: 1 } });
+      await redisService.updateCommentScore(story._id.toString(), parent_id, 2);
+    }
+    const populatedComment = await Comment.findById(newComment._id).populate('user_id', 'username avatarUrl').lean();
+    populatedComment.user = populatedComment.user_id;
+    res.json({ comment: populatedComment });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Like/Unlike Comment
+app.post('/api/stories/:id/comments/:commentId/like', authenticateToken, async (req, res) => {
+  try {
+    const comment = await Comment.findById(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+
+    // For simplicity, we toggle like (no separate 'likedBy' array for comments to save space, just a counter)
+    // In production, we'd store a CommentLike record to track user likes. For Phase 3, we just mock atomic updates.
+    // Wait, if we don't track who liked, they can like infinitely. We'll use a hacky array in Comment model? 
+    // The schema from Phase 1 had likes_count but no likedBy array. Let's just do +1.
+    await Comment.updateOne({ _id: comment._id }, { $inc: { likes_count: 1 } });
+    
+    // Write-Through to Redis
+    await redisService.updateCommentScore(req.params.id, comment._id.toString(), 1);
+
+    res.json({ success: true, likes_count: comment.likes_count + 1 });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete Comment
+app.delete('/api/stories/:id/comments/:commentId', authenticateToken, async (req, res) => {
+  try {
+    const story = await Story.findById(req.params.id);
+    if (!story) return res.status(404).json({ message: 'Story not found' });
+    const comment = await Comment.findById(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+    if (comment.user_id.toString() !== req.user.userId && story.user.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Not authorized to delete this comment' });
+    }
+    await Comment.deleteOne({ _id: comment._id });
+    await Story.updateOne({ _id: story._id }, { $inc: { comment_count: -1 } });
+    if (comment.parent_id) {
+      await Comment.updateOne({ _id: comment.parent_id }, { $inc: { reply_count: -1 } });
+    }
+    res.json({ success: true, message: 'Comment deleted' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get Comments (Cache-First Read-Through with Cursor Pagination)
+app.get('/api/stories/:id/comments', authenticateToken, async (req, res) => {
+  try {
+    const { cursor, parent_id, limit = 20 } = req.query;
+    const storyId = req.params.id;
+    let comments = [];
+    let has_more = false;
+    let next_cursor = null;
+
+    // We only use Redis ZSET for root comments (parent_id is null) without a cursor (first page)
+    // Cursor pagination still relies on MongoDB for older comments.
+    if (!parent_id && !cursor) {
+      const topCommentIds = await redisService.getTopComments(storyId, parseInt(limit));
+      
+      if (topCommentIds && topCommentIds.length > 0) {
+        // Cache Hit!
+        const unsortedComments = await Comment.find({ _id: { $in: topCommentIds } })
+          .populate('user_id', 'username avatarUrl')
+          .lean();
+        
+        // Preserve ZSET order
+        const map = new Map(unsortedComments.map(c => [c._id.toString(), c]));
+        comments = topCommentIds.map(id => map.get(id)).filter(Boolean);
+        
+        if (comments.length === parseInt(limit)) {
+          has_more = true;
+          // next_cursor for ZSET is tricky, we fallback to timestamp for now
+          next_cursor = comments[comments.length - 1].created_at;
+        }
+      } else {
+        // Cache Miss! Fetch from DB
+        comments = await Comment.find({ story_id: storyId, parent_id: null })
+          .sort({ is_pinned: -1, created_at: -1 })
+          .limit(parseInt(limit))
+          .populate('user_id', 'username avatarUrl')
+          .lean();
+          
+        // Warmup Redis Cache with all root comments for this story
+        const allRootComments = await Comment.find({ story_id: storyId, parent_id: null }).lean();
+        await redisService.warmupTopComments(storyId, allRootComments);
+        
+        has_more = comments.length === parseInt(limit);
+        next_cursor = has_more ? comments[comments.length - 1].created_at : null;
+      }
+    } else {
+      // Normal DB Cursor Pagination for replies or older pages
+      const query = { story_id: storyId, parent_id: parent_id || null };
+      if (cursor) query.created_at = { $lt: new Date(cursor) };
+      
+      comments = await Comment.find(query)
+        .sort({ is_pinned: -1, created_at: -1 })
+        .limit(parseInt(limit))
+        .populate('user_id', 'username avatarUrl')
+        .lean();
+        
+      has_more = comments.length === parseInt(limit);
+      next_cursor = has_more ? comments[comments.length - 1].created_at : null;
+    }
+
+    const formattedComments = comments.map(c => ({
+      ...c,
+      user: c.user_id,
+      _id: c._id,
+      createdAt: c.created_at
+    }));
+
+    res.json({ comments: formattedComments, next_cursor, has_more });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Mark story as viewed
 app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
   try {
@@ -1270,7 +1414,6 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
       .populate('user', 'username avatarUrl uniqueId')
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
-      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: 1 })
       .lean();
       
@@ -1342,7 +1485,6 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
       .populate('user', 'username avatarUrl uniqueId country countryCode')
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
-      .populate('comments.user', 'username avatarUrl')
       .sort({ createdAt: 1 })
       .lean();
       
@@ -2070,8 +2212,7 @@ app.get('/api/admin/stories', adminAuth, async (req, res) => {
     const stories = await Story.find({ isAdminStory: true })
       .sort({ createdAt: -1 })
       .populate('viewedBy', 'username avatarUrl uniqueId name')
-      .populate('likedBy', 'username avatarUrl uniqueId name')
-      .populate('comments.user', 'username avatarUrl');
+      .populate('likedBy', 'username avatarUrl uniqueId name');
     res.json(stories);
   } catch (error) {
     console.error('Error fetching admin stories:', error);

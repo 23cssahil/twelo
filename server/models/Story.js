@@ -39,11 +39,10 @@ const storySchema = new mongoose.Schema({
   songUrl: {
     type: String
   },
-  comments: [{
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    text: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
-  }],
+  comment_count: {
+    type: Number,
+    default: 0
+  },
   createdAt: {
     type: Date,
     default: Date.now
