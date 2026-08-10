@@ -274,26 +274,24 @@ app.post('/api/upload', upload.single('file'), nudityCheck, async (req, res) => 
     return res.status(400).json({ message: 'No file uploaded' });
   }
   try {
-    const FormData = require('form-data');
-    const axios = require('axios');
-    
-    const formData = new FormData();
-    formData.append('file', req.file.buffer, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype
-    });
-    formData.append('upload_preset', 'twelo_unsigned');
-    
-    const cloudinaryRes = await axios.post(
-      'https://api.cloudinary.com/v1_1/srgyaihc/auto/upload', 
-      formData, 
-      { headers: formData.getHeaders() }
-    );
-    
-    console.log('Cloudinary upload success, URL:', cloudinaryRes.data.secure_url);
-    res.json({ url: cloudinaryRes.data.secure_url });
+    // Use Cloudinary SDK with automatic moderation (Amazon Rekognition)
+    cloudinary.uploader.upload_stream(
+      {
+        resource_type: 'auto',
+        moderation: 'aws_rek' // Enable automatic moderation to detect and remove prohibited content
+      },
+      (error, result) => {
+        if (error) {
+          console.error('Cloudinary upload error:', error);
+          return res.status(500).json({ message: 'Upload failed', error: error.message });
+        }
+        
+        console.log('Cloudinary upload success, URL:', result.secure_url, 'Moderation Status:', result.moderation ? result.moderation[0].status : 'N/A');
+        res.json({ url: result.secure_url });
+      }
+    ).end(req.file.buffer);
   } catch (err) {
-    console.error('Cloudinary upload error:', err.response?.data || err.message);
+    console.error('Upload setup error:', err.message);
     res.status(500).json({ message: 'Upload failed', error: err.message });
   }
 });
