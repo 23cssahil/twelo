@@ -1758,14 +1758,16 @@ export default function Dashboard() {
 
   // SPA Back Button Handling for Overlays & Chats
   useEffect(() => {
-    const isOverlayOpen = showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || storyViewerActive || storyEditorOpen || showCloseFriendsModal || showStoryViewsModal || storyCameraOpen;
+    const isOverlayOpen = showCommentsModal || showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || storyViewerActive || storyEditorOpen || showCloseFriendsModal || showStoryViewsModal || storyCameraOpen;
     
     if (isOverlayOpen) {
       window.history.pushState({ overlayOpen: true }, '');
     }
 
     const handlePopState = (e) => {
-      if (showStoryViewsModal) {
+      if (showCommentsModal) {
+        setShowCommentsModal(false);
+      } else if (showStoryViewsModal) {
         setShowStoryViewsModal(false);
       } else if (showCloseFriendsModal) {
         setShowCloseFriendsModal(false);
