@@ -459,6 +459,15 @@ const StorySlide = ({
   );
 };
 export default function Dashboard() {
+
+  const [avatarCropperOpen, setAvatarCropperOpen] = useState(false);
+  const [avatarImageSrc, setAvatarImageSrc] = useState(null);
+  const [avatarCrop, setAvatarCrop] = useState({ unit: '%', width: 50, aspect: 1 });
+  const [avatarCompletedCrop, setAvatarCompletedCrop] = useState(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarImgRef = useRef(null);
+  const avatarFileInputRef = useRef(null);
+
   const [activeTab, _setActiveTab] = useState('home');
   const [visibleeveryoneStories, setVisibleeveryoneStories] = useState(12);
 
