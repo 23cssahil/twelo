@@ -2396,6 +2396,7 @@ export default function Dashboard() {
       const data = await res.json();
       
       if (!res.ok) {
+        console.error('BACKEND UPLOAD ERROR:', data);
         if (res.status === 400 && data.message && data.message.includes('Nudity')) {
           setShowNudityWarning(true);
         } else {
