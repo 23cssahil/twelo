@@ -4308,8 +4308,31 @@ export default function Dashboard() {
         return (
           <div className="chat-container">
             <div className={`chat-list ${activeChatUser ? 'hide-on-mobile' : ''}`}>
-              <div className="chat-list-header">
-                <h2>Chats</h2>
+              <div className="chat-list-header" style={{
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                position: 'sticky',
+                top: 0,
+                zIndex: 20,
+                background: '#121212',
+                backdropFilter: 'blur(10px)'
+              }}>
+                <h2 style={{ 
+                  margin: 0, 
+                  fontSize: '1.5rem', 
+                  fontWeight: '800', 
+                  color: '#ffffff',
+                  letterSpacing: '0.2px',
+                  textShadow: 'none',
+                  WebkitTextStroke: '0px'
+                }}>Chats</h2>
+                <div style={{ display: 'flex', gap: '15px' }}>
+                  <SearchIcon size={20} color="#a8a8a8" style={{ cursor: 'pointer' }} />
+                  <Edit size={20} color="#a8a8a8" style={{ cursor: 'pointer' }} />
+                </div>
               </div>
               
               <div className="story-bar-container" style={{
