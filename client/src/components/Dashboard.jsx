@@ -1138,6 +1138,79 @@ export default function Dashboard() {
     }
   };
 
+  
+  const handleAvatarSelect = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        setAvatarImageSrc(reader.result);
+        setAvatarCropperOpen(true);
+      });
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!avatarCompletedCrop || !avatarImgRef.current) return;
+    setIsUploadingAvatar(true);
+
+    try {
+      const image = avatarImgRef.current;
+      const canvas = document.createElement('canvas');
+      const scaleX = image.naturalWidth / image.width;
+      const scaleY = image.naturalHeight / image.height;
+      canvas.width = avatarCompletedCrop.width;
+      canvas.height = avatarCompletedCrop.height;
+      const ctx = canvas.getContext('2d');
+
+      ctx.drawImage(
+        image,
+        avatarCompletedCrop.x * scaleX,
+        avatarCompletedCrop.y * scaleY,
+        avatarCompletedCrop.width * scaleX,
+        avatarCompletedCrop.height * scaleY,
+        0,
+        0,
+        avatarCompletedCrop.width,
+        avatarCompletedCrop.height
+      );
+
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
+      const formData = new FormData();
+      formData.append('image', blob, 'avatar.jpg');
+
+      const uploadRes = await fetch(`${API_URL}/api/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+      const uploadData = await uploadRes.json();
+
+      if (!uploadRes.ok) throw new Error(uploadData.message || 'Upload failed');
+
+      const updateRes = await fetch(`${API_URL}/api/users/update_avatar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ avatarUrl: uploadData.imageUrl })
+      });
+      const updateData = await updateRes.json();
+
+      if (!updateRes.ok) throw new Error(updateData.message || 'Update failed');
+
+      login({ ...user, avatarUrl: uploadData.imageUrl }, token);
+      setAvatarCropperOpen(false);
+      setAvatarImageSrc(null);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update avatar.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setDeleteError('');
     if (deleteUsernameInput !== user.username) {
