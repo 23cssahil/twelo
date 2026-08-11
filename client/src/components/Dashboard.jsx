@@ -4495,7 +4495,7 @@ export default function Dashboard() {
                     if (isCloseFriend) {
                       ringBackground = '#1cf23b'; // green for close friends
                     } else {
-                      ringBackground = 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
+                      ringBackground = '#f09433'; // orange for regular stories
                     }
                   }
 
