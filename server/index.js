@@ -675,6 +675,24 @@ app.get('/api/users/connections', authenticateToken, async (req, res) => {
   }
 });
 
+// Check Username Availability
+app.get('/api/users/check-username', authenticateToken, async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username || username.trim().length < 3) {
+      return res.status(400).json({ message: 'Username must be at least 3 characters' });
+    }
+    const trimmedUsername = username.trim().toLowerCase();
+    const existingUser = await User.findOne({ username: trimmedUsername });
+    if (existingUser && existingUser._id.toString() !== req.user.userId) {
+      return res.json({ available: false });
+    }
+    res.json({ available: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error checking username' });
+  }
+});
+
 // Change Username
 app.post('/api/users/change_username', authenticateToken, async (req, res) => {
   try {
