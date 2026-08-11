@@ -4129,7 +4129,9 @@ export default function Dashboard() {
                     anonymous_request_accepted: 'Random room stranger has accepted your request',
                     follow_request: 'wants to follow you',
                     anonymous_follow_request: 'Random room stranger request',
-                    follow_back_request: 'sent you a follow back request'
+                    follow_back_request: 'also wants to follow you',
+                    started_following_you: 'started following you',
+                    request_rejected: 'rejected your follow request'
                   };
                   const text = textMap[notif.type] || 'interacted with you';
                   
