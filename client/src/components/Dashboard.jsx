@@ -2458,7 +2458,8 @@ export default function Dashboard() {
         }]);
         setCurrentStoryUserIndex(0);
         setCurrentStoryIndex(0);
-        setStoryViewerOpen(true);
+        setStoryViewerActive(true);
+        window.history.pushState({ page: 'story-viewer' }, 'Story Viewer', window.location.pathname);
       } else {
         showToastMsg('Story is no longer available', 'error');
       }
