@@ -2458,6 +2458,8 @@ export default function Dashboard() {
         }]);
         setCurrentStoryUserIndex(0);
         setCurrentStoryIndex(0);
+        setStoryProgress(0);
+        setStoryPaused(false);
         setStoryViewerActive(true);
         window.history.pushState({ page: 'story-viewer' }, 'Story Viewer', window.location.pathname);
       } else {
