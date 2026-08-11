@@ -5177,6 +5177,9 @@ export default function Dashboard() {
               <button onClick={() => setShowSettingsModal(false)} className="close-btn"><X size={24} /></button>
             </div>
             <div className="settings-options">
+              <button className="settings-item-btn" onClick={() => setShowInnerSettingsModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <SettingsIcon size={20} /> Settings
+              </button>
               {editUsernameMode ? (
                 <div className="settings-edit-username">
                   <input 
