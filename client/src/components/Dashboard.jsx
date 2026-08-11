@@ -1935,7 +1935,21 @@ export default function Dashboard() {
   }, [globeStatus.isEnabled, globeStatus.enableAt]);
 
   // SPA Back Button Handling for Overlays & Chats
-  const openOverlaysCount = [showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, !!publicProfileData, !!activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen].filter(Boolean).length;
+  const openOverlaysCount = [
+    showChangeUsernameModal, 
+    showInnerSettingsModal, 
+    showCommentsModal, 
+    showSettingsModal, 
+    !!activeChatUser, 
+    isAnonymousChatActive, 
+    connectionsModal.isOpen, 
+    storyViewerActive, 
+    storyEditorOpen, 
+    showCloseFriendsModal, 
+    showStoryViewsModal, 
+    storyCameraOpen, 
+    showLogoutConfirm
+  ].filter(Boolean).length;
   const prevOverlaysCount = useRef(0);
 
   useEffect(() => {
@@ -1958,7 +1972,6 @@ export default function Dashboard() {
       } else if (showCloseFriendsModal) {
         setShowCloseFriendsModal(false);
       } else if (storyCameraOpen) {
-        // Need to close stream cleanly too
         if (storyLiveCameraRef.current && storyLiveCameraRef.current.srcObject) {
            storyLiveCameraRef.current.srcObject.getTracks().forEach(t => t.stop());
         }
@@ -1972,18 +1985,19 @@ export default function Dashboard() {
         setProfileStoryGroups(null);
         fetchStories();
         fetcheveryoneStories();
-      } else if (showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || showLogoutConfirm) {
-        setShowSettingsModal(false);
+      } else if (showLogoutConfirm) {
         setShowLogoutConfirm(false);
-        setPublicProfileData(null);
-        setActiveChatUser(null);
-        if (isAnonymousChatActive) {
-          if (socket) {
-             socket.emit('leave_anonymous_chat', { roomId: anonymousRoomId });
-          }
-          setIsAnonymousChatActive(false);
-        }
+      } else if (connectionsModal.isOpen) {
         setConnectionsModal({ isOpen: false, title: '', users: [] });
+      } else if (isAnonymousChatActive) {
+        if (socket) {
+           socket.emit('leave_anonymous_chat', { roomId: anonymousRoomId });
+        }
+        setIsAnonymousChatActive(false);
+      } else if (activeChatUser) {
+        setActiveChatUser(null);
+      } else if (showSettingsModal) {
+        setShowSettingsModal(false);
       } else if (e.state && e.state.tab) {
         _setActiveTab(e.state.tab);
       } else {
