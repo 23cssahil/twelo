@@ -3226,14 +3226,38 @@ io.on('connection', (socket) => {
   socket.on('mark_viewed', async ({ messageId, receiverId, senderId }) => {
     try {
       const now = new Date();
-      await Message.findByIdAndUpdate(messageId, { isViewed: true, viewedAt: now });
-      const senderSocketId = onlineUsers.get(senderId);
-      if (senderSocketId) {
-        io.to(senderSocketId).emit('message_viewed', { messageId, receiverId, viewedAt: now });
-      }
-      const receiverSocketId = onlineUsers.get(receiverId);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('message_viewed', { messageId, receiverId, viewedAt: now });
+      const msg = await Message.findById(messageId);
+      if (!msg) return;
+
+      msg.isViewed = true;
+      msg.viewedAt = now;
+      await msg.save();
+
+      if (!msg.isViewOnce) {
+        // Mark all older regular messages from the same sender as viewed
+        await Message.updateMany(
+          { sender: senderId, receiver: receiverId, createdAt: { $lte: msg.createdAt }, isViewed: false, isViewOnce: { $ne: true } },
+          { $set: { isViewed: true, viewedAt: now } }
+        );
+        // Emit messages_marked_read to update the entire chat state
+        const senderSocketId = onlineUsers.get(senderId);
+        if (senderSocketId) {
+          io.to(senderSocketId).emit('messages_marked_read', { readerId: receiverId, viewedAt: now });
+        }
+        const receiverSocketId = onlineUsers.get(receiverId);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit('messages_marked_read', { readerId: receiverId, viewedAt: now });
+        }
+      } else {
+        // For view-once, just update this specific message
+        const senderSocketId = onlineUsers.get(senderId);
+        if (senderSocketId) {
+          io.to(senderSocketId).emit('message_viewed', { messageId, receiverId, viewedAt: now });
+        }
+        const receiverSocketId = onlineUsers.get(receiverId);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit('message_viewed', { messageId, receiverId, viewedAt: now });
+        }
       }
     } catch (error) {
       console.error('Error marking viewed:', error);
