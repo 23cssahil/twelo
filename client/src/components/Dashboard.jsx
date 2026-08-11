@@ -4530,7 +4530,8 @@ export default function Dashboard() {
                   const unreadCount = unreadMessages[chatUser._id] || 0;
                   
                   // Check if this chat user has a story
-                  const chatUserStoryGroup = groupedStories.find(g => g.user._id === chatUser._id);
+                  const chatUserStoryGroupIndex = groupedStories.findIndex(g => g.user._id === chatUser._id);
+                  const chatUserStoryGroup = chatUserStoryGroupIndex !== -1 ? groupedStories[chatUserStoryGroupIndex] : null;
                   let ringStyle = 'none';
                   if (chatUserStoryGroup) {
                     const myId = user?._id || user?.id;
@@ -4551,7 +4552,23 @@ export default function Dashboard() {
                       className={`chat-user-item ${activeChatUser?._id === chatUser._id ? 'active' : ''}`}
                       onClick={() => startChatWithUser(chatUser)}
                     >
-                      <div className="user-avatar-small" style={{ border: ringStyle, padding: ringStyle !== 'none' ? '2px' : '0', boxSizing: 'border-box' }}>
+                      <div 
+                        className="user-avatar-small" 
+                        style={{ border: ringStyle, padding: ringStyle !== 'none' ? '2px' : '0', boxSizing: 'border-box', cursor: chatUserStoryGroup ? 'pointer' : 'default' }}
+                        onClick={(e) => {
+                          if (chatUserStoryGroup) {
+                            e.stopPropagation();
+                            const myId = user?._id || user?.id;
+                            let firstUnseenIdx = chatUserStoryGroup.stories.findIndex(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
+                            if (firstUnseenIdx === -1) firstUnseenIdx = 0;
+                            setProfileStoryGroups(null);
+                            setCurrentStoryUserIndex(chatUserStoryGroupIndex);
+                            setCurrentStoryIndex(firstUnseenIdx);
+                            setStoryProgress(0);
+                            setStoryViewerActive(true);
+                          }
+                        }}
+                      >
                         {chatUser.avatarUrl ? <img src={chatUser.avatarUrl} alt='avatar' /> : chatUser.username.charAt(0).toUpperCase()}
                       </div>
                       <div className="user-names">
