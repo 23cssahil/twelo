@@ -1365,7 +1365,10 @@ app.get('/api/stories/:id', authenticateToken, async (req, res, next) => {
   try {
     const storyId = req.params.id;
     if (storyId === 'everyone') return next(); // Let the /everyone route handle it
-    const story = await Story.findById(storyId).populate('user', 'username avatar gender isOnline lastSeen');
+    const story = await Story.findById(storyId)
+      .populate('user', 'username avatarUrl avatar gender isOnline lastSeen uniqueId country countryCode')
+      .populate('viewedBy', 'username avatarUrl')
+      .populate('likedBy', 'username avatarUrl');
     if (!story) return res.status(404).json({ message: 'Story not found' });
     res.json({ story });
   } catch (error) {
