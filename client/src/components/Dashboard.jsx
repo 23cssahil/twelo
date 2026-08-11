@@ -337,7 +337,7 @@ const StorySlide = ({
         />
 
         {/* Action Bar for Everyone Stories */}
-        {activeTab === 'everyone-stories' && (
+        {(activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone') && (
           <div style={{ position: 'absolute', right: '12px', bottom: '80px', zIndex: 15, display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
             {/* Like Button */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -396,7 +396,7 @@ const StorySlide = ({
       </div>
 
       {/* Bottom Controls (Only for normal stories) */}
-      {activeTab !== 'everyone-stories' && (
+      {!(activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone') && (
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
           {group.user._id === (user?._id || user?.id) ? (
             <>

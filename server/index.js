@@ -1376,13 +1376,26 @@ app.get('/api/stories/:id', authenticateToken, async (req, res, next) => {
       query = { user: requestedStory.user, createdAt: { $gt: twentyFourHoursAgo } };
     }
 
-    const userStories = await Story.find(query)
+    let userStories = await Story.find(query)
       .populate('user', 'username avatarUrl avatar gender isOnline lastSeen uniqueId country countryCode')
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
       .sort({ createdAt: 1 });
 
-    const storyIndex = userStories.findIndex(s => s._id.toString() === storyId);
+    let storyIndex = userStories.findIndex(s => s._id.toString() === storyId);
+    
+    // If the specific story isn't in the active list (e.g., > 24h old but still accessible via direct link)
+    if (storyIndex === -1 && requestedStory) {
+      const populatedReqStory = await Story.findById(storyId)
+        .populate('user', 'username avatarUrl avatar gender isOnline lastSeen uniqueId country countryCode')
+        .populate('viewedBy', 'username avatarUrl')
+        .populate('likedBy', 'username avatarUrl');
+      if (populatedReqStory) {
+        userStories.push(populatedReqStory);
+        userStories.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        storyIndex = userStories.findIndex(s => s._id.toString() === storyId);
+      }
+    }
     
     // Construct user object for admin if needed
     let groupUser = null;
