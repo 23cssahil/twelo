@@ -4408,7 +4408,7 @@ export default function Dashboard() {
                         </div>
                       )})}
                     </div>
-                    {publicProfileData.globalStories.length === 3 && (
+                    {groupStoriesByDay(publicProfileData.globalStories).length > 3 && (
                       <button 
                         onClick={() => {
                           setUserGlobalStoriesUserId(publicProfileData._id);
@@ -5079,7 +5079,7 @@ export default function Dashboard() {
                         </div>
                       )})}
                     </div>
-                    {profileStats.globalStories.length === 3 && (
+                    {groupStoriesByDay(profileStats.globalStories).length > 3 && (
                       <button 
                         onClick={() => {
                           setUserGlobalStoriesUserId(user.id || user._id);
