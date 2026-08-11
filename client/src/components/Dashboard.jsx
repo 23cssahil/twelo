@@ -6,6 +6,7 @@ import {
   Search as SearchIcon, 
   MessageSquare, 
   User as UserIcon,
+  Settings as SettingsIcon,
   Edit, 
   LogOut, 
   Video, 
@@ -699,6 +700,7 @@ export default function Dashboard() {
 
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showInnerSettingsModal, setShowInnerSettingsModal] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [editUsernameMode, setEditUsernameMode] = useState(false);
   const [newUsernameInput, setNewUsernameInput] = useState('');
@@ -5148,6 +5150,25 @@ export default function Dashboard() {
 
       {/* CONNECTIONS MODAL */}
       {/* Modals and Overlays */}
+      {showInnerSettingsModal && (
+        <div className="settings-drawer-overlay" onClick={() => setShowInnerSettingsModal(false)} style={{ zIndex: 10001 }}>
+          <div className="settings-drawer" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Settings</h2>
+              <button onClick={() => setShowInnerSettingsModal(false)} className="close-btn"><X size={24} /></button>
+            </div>
+            <div className="settings-options">
+              <button className="settings-item-btn">My Profile</button>
+              <button className="settings-item-btn">Account</button>
+              <button className="settings-item-btn">Privacy</button>
+              <button className="settings-item-btn">Notifications</button>
+              <button className="settings-item-btn">More Info</button>
+              <button className="settings-item-btn">Invite Friend</button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {showSettingsModal && (
         <div className="settings-drawer-overlay" onClick={() => setShowSettingsModal(false)}>
           <div className="settings-drawer" onClick={e => e.stopPropagation()}>
