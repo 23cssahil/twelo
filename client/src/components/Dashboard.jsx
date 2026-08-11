@@ -1501,7 +1501,9 @@ export default function Dashboard() {
       }
       return newGroups;
     };
-    if (activeTab === 'everyone-stories') {
+    if (profileStoryGroups) {
+      setProfileStoryGroups(updateStories);
+    } else if (activeTab === 'everyone-stories') {
       seteveryoneStories(updateStories);
     } else {
       setGroupedStories(updateStories);
