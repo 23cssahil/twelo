@@ -1995,7 +1995,11 @@ export default function Dashboard() {
         }
         setIsAnonymousChatActive(false);
       } else if (activeChatUser) {
-        setActiveChatUser(null);
+        if (activeTabRef.current === 'publicProfile') {
+          _setActiveTab('messages');
+        } else {
+          setActiveChatUser(null);
+        }
       } else if (showSettingsModal) {
         setShowSettingsModal(false);
       } else if (e.state && e.state.tab) {
