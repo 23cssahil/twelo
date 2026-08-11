@@ -701,6 +701,7 @@ export default function Dashboard() {
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showInnerSettingsModal, setShowInnerSettingsModal] = useState(false);
+  const [showChangeUsernameModal, setShowChangeUsernameModal] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState(null); // null, true, false
   const [checkingUsername, setCheckingUsername] = useState(false);
   const checkUsernameTimeout = useRef(null);
@@ -5195,15 +5196,16 @@ export default function Dashboard() {
 
       {/* CONNECTIONS MODAL */}
       {/* Modals and Overlays */}
-      {showInnerSettingsModal && (
-        <div className="settings-drawer-overlay" onClick={() => setShowInnerSettingsModal(false)} style={{ zIndex: 10001 }}>
-          <div className="settings-drawer" onClick={e => e.stopPropagation()}>
+      
+      {/* Change Username Modal */}
+      {showChangeUsernameModal && (
+        <div className="settings-drawer-overlay" onClick={() => setShowChangeUsernameModal(false)} style={{ zIndex: 10002 }}>
+          <div className="settings-drawer" onClick={e => e.stopPropagation()} style={{ height: 'auto', maxHeight: '80vh', top: '10%', bottom: 'auto', borderRadius: '20px' }}>
             <div className="modal-header">
-              <h2>Settings</h2>
-              <button onClick={() => setShowInnerSettingsModal(false)} className="close-btn"><X size={24} /></button>
+              <h2>Change Username</h2>
+              <button onClick={() => setShowChangeUsernameModal(false)} className="close-btn"><X size={24} /></button>
             </div>
-            <div className="settings-options">
-              {editUsernameMode ? (
+            <div className="settings-options" style={{ padding: '20px' }}>
                 <div className="settings-edit-username premium-username-edit">
                   <div className="input-wrapper" style={{ position: 'relative' }}>
                     <input 
@@ -5220,7 +5222,7 @@ export default function Dashboard() {
                     {checkingUsername && <div className="spinner" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', width: '15px', height: '15px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>}
                   </div>
                   {usernameError && <p className="error-text" style={{fontSize: '0.85rem', marginTop: '6px', color: 'var(--brand-red)', fontWeight: 'bold'}}>{usernameError}</p>}
-                  {usernameAvailable === true && <p style={{fontSize: '0.85rem', marginTop: '6px', color: '#2bd856', fontWeight: 'bold'}}>Username is available!</p>}
+                  {usernameAvailable === true && <p style={{fontSize: '0.85rem', marginTop: '6px', color: '#2bd856', fontWeight: 'bold'}}>Username is perfect!</p>}
                   
                   {user.pastUsernames && user.pastUsernames.length > 0 && (
                     <div className="past-usernames-section" style={{ marginTop: '20px', textAlign: 'left' }}>
@@ -5236,18 +5238,34 @@ export default function Dashboard() {
                   )}
 
                   <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
-                    <button className="premium-btn primary" onClick={handleUpdateUsername} disabled={usernameAvailable === false || checkingUsername || newUsernameInput === user.username}>Save Changes</button>
-                    <button className="premium-btn secondary" onClick={() => { setEditUsernameMode(false); setUsernameAvailable(null); setUsernameError(''); }}>Cancel</button>
+                    <button className="premium-btn primary" onClick={async () => {
+                        await handleUpdateUsername();
+                        setShowChangeUsernameModal(false);
+                    }} disabled={usernameAvailable === false || checkingUsername || newUsernameInput === user.username}>Save Changes</button>
+                    <button className="premium-btn secondary" onClick={() => { setShowChangeUsernameModal(false); setUsernameAvailable(null); setUsernameError(''); }}>Cancel</button>
                   </div>
                 </div>
-              ) : (
-                <button className="settings-item-btn" onClick={() => {
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showInnerSettingsModal && (
+        <div className="settings-drawer-overlay" onClick={() => setShowInnerSettingsModal(false)} style={{ zIndex: 10001 }}>
+          <div className="settings-drawer" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Settings</h2>
+              <button onClick={() => setShowInnerSettingsModal(false)} className="close-btn"><X size={24} /></button>
+            </div>
+            <div className="settings-options">
+              <button className="settings-item-btn" onClick={() => {
                   setNewUsernameInput(user.username);
-                  setEditUsernameMode(true);
+                  setShowChangeUsernameModal(true);
+                  setUsernameAvailable(null);
+                  setUsernameError('');
                 }}>
                   Change Username
                 </button>
-              )}
               <button className="settings-item-btn" onClick={() => { setShowInnerSettingsModal(false); setShowSettingsModal(false); openCamera('avatar'); }}>
                 Change Profile Avatar
               </button>
