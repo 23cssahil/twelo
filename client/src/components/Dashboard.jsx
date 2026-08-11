@@ -1723,9 +1723,6 @@ export default function Dashboard() {
     socket.on('new_notification', () => {
       fetchNotifications();
       fetchProfile();
-      if (activeTabRef.current !== 'notifications') {
-        setUnreadNotifsCount(prev => prev + 1);
-      }
     });
 
     socket.on('request_accepted_alert', () => {
