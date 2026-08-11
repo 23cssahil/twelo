@@ -5117,9 +5117,9 @@ export default function Dashboard() {
 
       {/* Globe always mounted to prevent WebGL context loss / black screen */}
       <div style={{
-        position: 'fixed', top: '-5vh', left: '0', width: '100%', height: '130vh', zIndex: 0,
+        position: 'fixed', top: '-5vh', left: '0', width: '100%', height: '130vh', /* zIndex handled below */
         opacity: activeTab === 'home' ? 1 : 0,
-        visibility: activeTab === 'home' ? 'visible' : 'hidden',
+        zIndex: activeTab === 'home' ? 0 : -999, /* Prevent WebGL context loss by not using visibility: hidden */
         pointerEvents: activeTab === 'home' && !activeChatUser ? 'auto' : 'none',
         transition: 'opacity 0.3s ease-in-out'
       }}>
