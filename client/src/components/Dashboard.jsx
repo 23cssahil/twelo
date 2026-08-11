@@ -4634,7 +4634,42 @@ export default function Dashboard() {
                       >
                         ←
                       </button>
-                      <div className="user-avatar-small" onClick={() => viewPublicProfile(activeChatUser._id)} style={{ cursor: 'pointer' }}>
+                      <div 
+                        className="user-avatar-small" 
+                        onClick={() => {
+                          const chatUserStoryGroupIndex = groupedStories.findIndex(g => g.user._id === activeChatUser._id);
+                          const chatUserStoryGroup = chatUserStoryGroupIndex !== -1 ? groupedStories[chatUserStoryGroupIndex] : null;
+                          if (chatUserStoryGroup) {
+                            const myId = user?._id || user?.id;
+                            let firstUnseenIdx = chatUserStoryGroup.stories.findIndex(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
+                            if (firstUnseenIdx === -1) firstUnseenIdx = 0;
+                            setProfileStoryGroups(null);
+                            setCurrentStoryUserIndex(chatUserStoryGroupIndex);
+                            setCurrentStoryIndex(firstUnseenIdx);
+                            setStoryProgress(0);
+                            setStoryViewerActive(true);
+                          } else {
+                            viewPublicProfile(activeChatUser._id);
+                          }
+                        }}
+                        style={(() => {
+                          const chatUserStoryGroupIndex = groupedStories.findIndex(g => g.user._id === activeChatUser._id);
+                          const chatUserStoryGroup = chatUserStoryGroupIndex !== -1 ? groupedStories[chatUserStoryGroupIndex] : null;
+                          let ringStyle = 'none';
+                          if (chatUserStoryGroup) {
+                            const myId = user?._id || user?.id;
+                            const unseenStories = chatUserStoryGroup.stories.filter(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
+                            const hasUnseen = unseenStories.length > 0;
+                            const isCloseFriend = hasUnseen ? unseenStories.some(s => s.visibility === 'custom') : chatUserStoryGroup.stories.some(s => s.visibility === 'custom');
+                            if (hasUnseen) {
+                              ringStyle = isCloseFriend ? '3px solid #2bd856' : '3px solid #00f2fe';
+                            } else {
+                              ringStyle = '3px solid #444';
+                            }
+                          }
+                          return { border: ringStyle, padding: ringStyle !== 'none' ? '2px' : '0', boxSizing: 'border-box', cursor: 'pointer' };
+                        })()}
+                      >
                         {activeChatUser.avatarUrl ? <img src={activeChatUser.avatarUrl} alt='avatar' /> : activeChatUser.username.charAt(0).toUpperCase()}
                       </div>
                       <div className="user-names" onClick={() => viewPublicProfile(activeChatUser._id)} style={{ cursor: 'pointer' }}>
