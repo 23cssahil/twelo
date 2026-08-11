@@ -982,13 +982,15 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
     // Remove from friendRequests so it doesn't stay pending forever
     currentUser.friendRequests = currentUser.friendRequests.filter(id => id.toString() !== requesterId);
     
-    // Clean up old request notifications from current user so they don't reappear
-    currentUser.notifications = (currentUser.notifications || []).filter(n => 
-      !(
-        ['follow_request', 'anonymous_follow_request', 'follow_back_request'].includes(n.type) &&
-        n.user && n.user.toString() === requesterId
-      )
-    );
+    // Change old request notifications to "started_following_you" so the user can follow back from the same notification
+    if (currentUser.notifications) {
+      currentUser.notifications.forEach(n => {
+        if (['follow_request', 'anonymous_follow_request', 'follow_back_request'].includes(n.type) && n.user && n.user.toString() === requesterId) {
+          n.type = 'started_following_you';
+        }
+      });
+      currentUser.markModified('notifications');
+    }
 
     // Add to followers
     if (!currentUser.followers.includes(requesterId)) {
@@ -1036,8 +1038,21 @@ app.post('/api/users/reject/:id', authenticateToken, async (req, res) => {
         n.user && n.user.toString() === requesterId
       )
     );
-
     await currentUser.save();
+
+    // Notify the requester that they were rejected
+    const requester = await User.findById(requesterId);
+    if (requester) {
+      requester.notifications = (requester.notifications || []).filter(n => !(n.type === 'request_rejected' && n.user && n.user.toString() === req.user.userId));
+      requester.notifications.push({ type: 'request_rejected', user: req.user.userId });
+      await requester.save();
+      
+      const reqSocketId = onlineUsers.get(requesterId.toString());
+      if (reqSocketId) {
+        io.to(reqSocketId).emit('request_rejected_alert');
+        io.to(reqSocketId).emit('new_notification');
+      }
+    }
 
     res.json({ message: "Request rejected" });
   } catch (error) {
