@@ -1361,9 +1361,10 @@ app.get('/api/stories/:id/comments', authenticateToken, async (req, res) => {
 });
 
 // Get single story by ID
-app.get('/api/stories/:id', authenticateToken, async (req, res) => {
+app.get('/api/stories/:id', authenticateToken, async (req, res, next) => {
   try {
     const storyId = req.params.id;
+    if (storyId === 'everyone') return next(); // Let the /everyone route handle it
     const story = await Story.findById(storyId).populate('user', 'username avatar gender isOnline lastSeen');
     if (!story) return res.status(404).json({ message: 'Story not found' });
     res.json({ story });
