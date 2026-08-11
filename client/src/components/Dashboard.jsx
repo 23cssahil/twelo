@@ -1020,6 +1020,7 @@ export default function Dashboard() {
   const swipeStartX = useRef(null);
   const swipeCurrentX = useRef(null);
   const [swipeMsgId, setSwipeMsgId] = useState(null);
+  const [selectedMsgId, setSelectedMsgId] = useState(null);
   
   const isCallerRef = useRef(false);
   const callStartTimeRef = useRef(null);
@@ -4669,7 +4670,11 @@ export default function Dashboard() {
                         onTouchMove={(e) => handleTouchMove(e, msg, msg.sender === user.id)}
                         onTouchEnd={(e) => handleTouchEnd(e, msg, msg.sender === user.id)}
                       >
-                        <div id={`msg-bubble-${msg._id}`} className="msg-bubble">
+                        <div 
+                          id={`msg-bubble-${msg._id}`} 
+                          className="msg-bubble"
+                          onClick={() => setSelectedMsgId(prev => prev === msg._id ? null : msg._id)}
+                        >
                           {msg.replyTo && (
                             <div className="msg-reply-box" onClick={() => {
                                const el = document.getElementById(`msg-bubble-${msg.replyTo.messageId}`);
@@ -4772,14 +4777,16 @@ export default function Dashboard() {
                               return msg.message;
                             })()}
                           </p>
-                          <div className="msg-time" style={{ display: 'flex', alignItems: 'center', justifyContent: msg.sender === user.id ? 'flex-end' : 'flex-start', gap: '4px' }}>
-                            <span>{formatTime(msg.createdAt)}</span>
-                            {msg.sender === user.id && (
-                              <span style={{ fontSize: '0.65rem', opacity: 0.8, fontWeight: 'bold' }}>
-                                {msg.isViewed ? `✓ ${formatSeenTime(msg.viewedAt)}` : '✓ Sent'}
-                              </span>
-                            )}
-                          </div>
+                          {selectedMsgId === msg._id && (
+                            <div className="msg-time" style={{ display: 'flex', alignItems: 'center', justifyContent: msg.sender === user.id ? 'flex-end' : 'flex-start', gap: '4px' }}>
+                              <span>{formatTime(msg.createdAt)}</span>
+                              {msg.sender === user.id && (
+                                <span style={{ fontSize: '0.65rem', opacity: 0.8, fontWeight: 'bold' }}>
+                                  {msg.isViewed ? `✓ ${formatSeenTime(msg.viewedAt)}` : '✓ Sent'}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                         {swipeMsgId === msg._id && (
                           <div className={`swipe-reply-icon ${msg.sender === user.id ? 'sent-icon' : 'received-icon'}`}>
