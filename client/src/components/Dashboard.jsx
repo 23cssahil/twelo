@@ -5273,29 +5273,7 @@ export default function Dashboard() {
               <button className="settings-item-btn" onClick={() => setShowInnerSettingsModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <SettingsIcon size={20} /> Settings
               </button>
-              {editUsernameMode ? (
-                <div className="settings-edit-username">
-                  <input 
-                    type="text" 
-                    value={newUsernameInput} 
-                    onChange={(e) => setNewUsernameInput(e.target.value)} 
-                    placeholder="New Username" 
-                    className="premium-input"
-                  />
-                  {usernameError && <p className="error-text" style={{fontSize: '0.85rem', marginTop: '6px', color: 'var(--brand-red)'}}>{usernameError}</p>}
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                    <button className="premium-btn primary" onClick={handleUpdateUsername}>Save Changes</button>
-                    <button className="premium-btn secondary" onClick={() => setEditUsernameMode(false)}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <button className="settings-item-btn" onClick={() => {
-                  setNewUsernameInput(user.username);
-                  setEditUsernameMode(true);
-                }}>
-                  Change Username
-                </button>
-              )}
+              
               
               <div className="settings-item-btn" onClick={handleToggleNotifications} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
                 <span>Push Notifications</span>
@@ -5321,9 +5299,7 @@ export default function Dashboard() {
               </button>
               
               
-              <button className="settings-item-btn" onClick={() => { setShowSettingsModal(false); openCamera('avatar'); }}>
-                Change Profile Avatar
-              </button>
+              
 
 <button className="settings-item-btn" onClick={() => navigate('/privacy-policy')}>
                 Privacy Policy
