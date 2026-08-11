@@ -5234,7 +5234,7 @@ export default function Dashboard() {
                   {user.pastUsernames && user.pastUsernames.length > 0 && (
                     <div className="past-usernames-section" style={{ marginTop: '20px', textAlign: 'left' }}>
                       <h4 style={{ fontSize: '0.9rem', color: '#888', marginBottom: '8px', borderBottom: '1px solid #333', paddingBottom: '4px' }}>Previous Usernames</h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
                         {user.pastUsernames.slice().reverse().map((pu, i) => (
                           <div key={i} style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.9rem', color: '#ccc' }}>
                             @{pu}
