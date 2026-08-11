@@ -1140,6 +1140,13 @@ export default function Dashboard() {
       return;
     }
     
+    if (user.pastUsernames && user.pastUsernames.includes(val)) {
+      setUsernameAvailable(false);
+      setUsernameError('This username already taken please choose another');
+      setCheckingUsername(false);
+      return;
+    }
+    
     setCheckingUsername(true);
     if (checkUsernameTimeout.current) clearTimeout(checkUsernameTimeout.current);
     
