@@ -59,7 +59,7 @@ const UserSchema = new mongoose.Schema({
   searchHistory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   isBlocked: { type: Boolean, default: false },
   notifications: [{
-    type: { type: String, enum: ['follow_request', 'request_accepted', 'system_alert', 'anonymous_follow_request', 'anonymous_request_accepted', 'follow_back_request'], required: true },
+    type: { type: String, enum: ['follow_request', 'request_accepted', 'system_alert', 'anonymous_follow_request', 'anonymous_request_accepted', 'follow_back_request', 'started_following_you', 'request_rejected'], required: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     message: { type: String },
     createdAt: { type: Date, default: Date.now },
