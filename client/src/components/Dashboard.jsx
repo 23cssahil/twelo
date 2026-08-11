@@ -2448,7 +2448,7 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (res.ok && data.story) {
-        setViewerStories([{
+        setProfileStoryGroups([{
           user: data.story.user,
           stories: [data.story]
         }]);
