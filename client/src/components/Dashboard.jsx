@@ -252,11 +252,11 @@ const StorySlide = ({
               </span>
               <span style={{ color: '#aaa', fontSize: '0.8rem', flexShrink: 0 }}>•</span>
               <span style={{ 
-                color: story.visibility === 'custom' ? '#1cf23b' : (story.visibility === 'followers' ? '#ff3366' : '#00ffff'), 
+                color: story.visibility === 'custom' ? '#1cf23b' : (story.visibility === 'followers' ? '#f09433' : '#00ffff'), 
                 fontSize: '0.7rem', 
                 fontWeight: 'bold',
                 flexShrink: 0,
-                border: `1px solid ${story.visibility === 'custom' ? '#1cf23b' : (story.visibility === 'followers' ? '#ff3366' : '#00ffff')}`,
+                border: `1px solid ${story.visibility === 'custom' ? '#1cf23b' : (story.visibility === 'followers' ? '#f09433' : '#00ffff')}`,
                 borderRadius: '4px',
                 padding: '1px 4px',
                 textTransform: 'uppercase'
@@ -4538,7 +4538,7 @@ export default function Dashboard() {
                     const isCloseFriend = hasUnseen ? unseenStories.some(s => s.visibility === 'custom') : chatUserStoryGroup.stories.some(s => s.visibility === 'custom');
                     
                     if (hasUnseen) {
-                      ringStyle = isCloseFriend ? '3px solid #2bd856' : '3px solid #00f2fe';
+                      ringStyle = isCloseFriend ? '3px solid #2bd856' : '3px solid #f09433';
                     } else {
                       ringStyle = '3px solid #444';
                     }
