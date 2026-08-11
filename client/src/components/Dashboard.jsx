@@ -2479,6 +2479,7 @@ export default function Dashboard() {
 
 
   const openStoryCamera = async (mode = 'user') => {
+    setCameraMode('story');
     try {
       if (storyCameraStream) {
         storyCameraStream.getTracks().forEach(track => track.stop());
