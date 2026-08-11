@@ -2370,8 +2370,10 @@ export default function Dashboard() {
       ...prev,
       followers: [...(prev.followers || []), requesterId]
     }));
-    setNotifications(prev => prev.filter(notif => 
-      !(['follow_request', 'anonymous_follow_request', 'follow_back_request'].includes(notif.type) && notif.user?._id === requesterId)
+    setNotifications(prev => prev.map(notif => 
+      (['follow_request', 'anonymous_follow_request', 'follow_back_request'].includes(notif.type) && notif.user?._id === requesterId)
+        ? { ...notif, type: 'started_following_you' }
+        : notif
     ));
 
     try {
@@ -4156,6 +4158,16 @@ export default function Dashboard() {
                           <button className="chat-now-btn accept-btn" style={{ flex: 1 }} onClick={() => acceptRequest(reqUser._id)}>Accept</button>
                           <button className="chat-now-btn" style={{ flex: 1, background: '#333' }} onClick={() => rejectRequest(reqUser._id)}>Reject</button>
                         </div>
+                      ) : notif.type === 'started_following_you' ? (
+                        isFollowingBack ? (
+                          <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWithUser(reqUser)}>Chat</button>
+                        ) : hasSentFollowBack ? (
+                          <button className="chat-now-btn" style={{ background: '#333', cursor: 'default' }} disabled>Request Sent</button>
+                        ) : (
+                          <button className="chat-now-btn" style={{ background: '#10b981' }} onClick={() => sendFollowRequest(reqUser._id)}>Follow Back</button>
+                        )
+                      ) : notif.type === 'request_rejected' ? (
+                        <button className="chat-now-btn" style={{ background: '#333', cursor: 'default' }} disabled>Rejected</button>
                       ) : null}
                     </div>
                   );
