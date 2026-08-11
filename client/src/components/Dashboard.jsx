@@ -1989,7 +1989,7 @@ export default function Dashboard() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen]);
+  }, [showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen]);
 
   // Lock document scroll when chat is active to prevent keyboard from pushing header out of view
   useEffect(() => {
