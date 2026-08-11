@@ -4670,8 +4670,9 @@ export default function Dashboard() {
                         onTouchMove={(e) => handleTouchMove(e, msg, msg.sender === user.id)}
                         onTouchEnd={(e) => handleTouchEnd(e, msg, msg.sender === user.id)}
                       >
-                        <div 
-                          id={`msg-bubble-${msg._id}`} 
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: msg.sender === user.id ? 'flex-end' : 'flex-start', maxWidth: '100%' }}>
+                          <div 
+                            id={`msg-bubble-${msg._id}`} 
                           className="msg-bubble"
                           onClick={() => setSelectedMsgId(prev => prev === msg._id ? null : msg._id)}
                         >
@@ -4787,12 +4788,13 @@ export default function Dashboard() {
                               )}
                             </div>
                           )}
-                        </div>
-                        {msg.sender === user.id && index === messages.length - 1 && (
-                          <div style={{ fontSize: '0.7rem', color: '#a8a8a8', marginTop: '4px', textAlign: 'right', paddingRight: '12px' }}>
-                            {msg.isViewed ? 'Seen just now' : 'Sent'}
                           </div>
-                        )}
+                          {msg.sender === user.id && index === messages.length - 1 && (
+                            <div style={{ fontSize: '0.7rem', color: '#a8a8a8', marginTop: '4px', textAlign: 'right', paddingRight: '12px' }}>
+                              {msg.isViewed ? 'Seen just now' : 'Sent'}
+                            </div>
+                          )}
+                        </div>
                         {swipeMsgId === msg._id && (
                           <div className={`swipe-reply-icon ${msg.sender === user.id ? 'sent-icon' : 'received-icon'}`}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
