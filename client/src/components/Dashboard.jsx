@@ -4556,7 +4556,7 @@ export default function Dashboard() {
                     >
                       <div 
                         className="user-avatar-small" 
-                        style={{ background: ringBackground, padding: hasRing ? '2px' : '0', borderRadius: '50%', cursor: chatUserStoryGroup ? 'pointer' : 'default' }}
+                        style={{ background: ringBackground, padding: hasRing ? '2px' : '0', borderRadius: '50%', cursor: chatUserStoryGroup ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent' }}
                         onClick={(e) => {
                           if (chatUserStoryGroup) {
                             e.stopPropagation();
@@ -4673,7 +4673,7 @@ export default function Dashboard() {
                               ringBackground = '#444';
                             }
                           }
-                          return { background: ringBackground, padding: hasRing ? '2px' : '0', borderRadius: '50%', cursor: 'pointer' };
+                          return { background: ringBackground, padding: hasRing ? '2px' : '0', borderRadius: '50%', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' };
                         })()}
                       >
                         <div style={{ 
