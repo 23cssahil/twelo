@@ -702,7 +702,7 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ message: 'Username updated successfully', token: jwtToken, username: user.username });
+    res.json({ message: 'Username updated successfully', token: jwtToken, username: user.username, pastUsernames: user.pastUsernames });
   } catch (error) {
     res.status(500).json({ message: 'Error updating username' });
   }

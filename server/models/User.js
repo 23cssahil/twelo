@@ -7,6 +7,9 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     trim: true,
   },
+  pastUsernames: [{
+    type: String
+  }],
   name: {
     type: String,
     required: true,

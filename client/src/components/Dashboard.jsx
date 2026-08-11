@@ -701,6 +701,9 @@ export default function Dashboard() {
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showInnerSettingsModal, setShowInnerSettingsModal] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState(null); // null, true, false
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const checkUsernameTimeout = useRef(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [editUsernameMode, setEditUsernameMode] = useState(false);
   const [newUsernameInput, setNewUsernameInput] = useState('');
@@ -1121,6 +1124,45 @@ export default function Dashboard() {
     }
   };
 
+  const handleUsernameChange = (e) => {
+    const val = e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, '');
+    setNewUsernameInput(val);
+    setUsernameAvailable(null);
+    setUsernameError('');
+    
+    if (val.length < 3) {
+      if (val.length > 0) setUsernameError('Username must be at least 3 characters');
+      return;
+    }
+    if (val === user.username) {
+      setUsernameAvailable(null);
+      return;
+    }
+    
+    setCheckingUsername(true);
+    if (checkUsernameTimeout.current) clearTimeout(checkUsernameTimeout.current);
+    
+    checkUsernameTimeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/users/check-username?username=${val}`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await res.json();
+        if (data.available === false) {
+          setUsernameAvailable(false);
+          setUsernameError('This username already exists please choose another');
+        } else if (data.available === true) {
+          setUsernameAvailable(true);
+          setUsernameError('');
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500);
+  };
+
   const handleUpdateUsername = async () => {
     setUsernameError('');
     if (newUsernameInput.trim().length < 3) {
@@ -1141,6 +1183,9 @@ export default function Dashboard() {
           const savedUser = JSON.parse(localStorage.getItem('user'));
           if (savedUser) {
             savedUser.username = data.username;
+            if (data.pastUsernames) {
+              savedUser.pastUsernames = data.pastUsernames;
+            }
             localStorage.setItem('user', JSON.stringify(savedUser));
             login(savedUser, data.token);
           }
@@ -5159,18 +5204,40 @@ export default function Dashboard() {
             </div>
             <div className="settings-options">
               {editUsernameMode ? (
-                <div className="settings-edit-username">
-                  <input 
-                    type="text" 
-                    value={newUsernameInput} 
-                    onChange={(e) => setNewUsernameInput(e.target.value)} 
-                    placeholder="New Username" 
-                    className="premium-input"
-                  />
-                  {usernameError && <p className="error-text" style={{fontSize: '0.85rem', marginTop: '6px', color: 'var(--brand-red)'}}>{usernameError}</p>}
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                    <button className="premium-btn primary" onClick={handleUpdateUsername}>Save Changes</button>
-                    <button className="premium-btn secondary" onClick={() => setEditUsernameMode(false)}>Cancel</button>
+                <div className="settings-edit-username premium-username-edit">
+                  <div className="input-wrapper" style={{ position: 'relative' }}>
+                    <input 
+                      type="text" 
+                      value={newUsernameInput} 
+                      onChange={handleUsernameChange} 
+                      placeholder="New Username" 
+                      className="premium-input"
+                      style={{ 
+                        border: usernameAvailable === false ? '2px solid var(--brand-red)' : (usernameAvailable === true ? '2px solid #2bd856' : ''),
+                        paddingRight: '30px'
+                      }}
+                    />
+                    {checkingUsername && <div className="spinner" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', width: '15px', height: '15px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>}
+                  </div>
+                  {usernameError && <p className="error-text" style={{fontSize: '0.85rem', marginTop: '6px', color: 'var(--brand-red)', fontWeight: 'bold'}}>{usernameError}</p>}
+                  {usernameAvailable === true && <p style={{fontSize: '0.85rem', marginTop: '6px', color: '#2bd856', fontWeight: 'bold'}}>Username is available!</p>}
+                  
+                  {user.pastUsernames && user.pastUsernames.length > 0 && (
+                    <div className="past-usernames-section" style={{ marginTop: '20px', textAlign: 'left' }}>
+                      <h4 style={{ fontSize: '0.9rem', color: '#888', marginBottom: '8px', borderBottom: '1px solid #333', paddingBottom: '4px' }}>Previous Usernames</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {user.pastUsernames.map((pu, i) => (
+                          <div key={i} style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.9rem', color: '#ccc' }}>
+                            @{pu}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
+                    <button className="premium-btn primary" onClick={handleUpdateUsername} disabled={usernameAvailable === false || checkingUsername || newUsernameInput === user.username}>Save Changes</button>
+                    <button className="premium-btn secondary" onClick={() => { setEditUsernameMode(false); setUsernameAvailable(null); setUsernameError(''); }}>Cancel</button>
                   </div>
                 </div>
               ) : (
