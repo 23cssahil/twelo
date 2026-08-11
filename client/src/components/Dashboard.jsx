@@ -4532,17 +4532,19 @@ export default function Dashboard() {
                   // Check if this chat user has a story
                   const chatUserStoryGroupIndex = groupedStories.findIndex(g => g.user._id === chatUser._id);
                   const chatUserStoryGroup = chatUserStoryGroupIndex !== -1 ? groupedStories[chatUserStoryGroupIndex] : null;
-                  let ringStyle = 'none';
+                  let ringBackground = 'transparent';
+                  let hasRing = false;
                   if (chatUserStoryGroup) {
                     const myId = user?._id || user?.id;
                     const unseenStories = chatUserStoryGroup.stories.filter(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
                     const hasUnseen = unseenStories.length > 0;
                     const isCloseFriend = hasUnseen ? unseenStories.some(s => s.visibility === 'custom') : chatUserStoryGroup.stories.some(s => s.visibility === 'custom');
                     
+                    hasRing = true;
                     if (hasUnseen) {
-                      ringStyle = isCloseFriend ? '3px solid #2bd856' : '3px solid #00f2fe';
+                      ringBackground = isCloseFriend ? '#1cf23b' : 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
                     } else {
-                      ringStyle = '3px solid #444';
+                      ringBackground = '#444';
                     }
                   }
 
@@ -4554,7 +4556,7 @@ export default function Dashboard() {
                     >
                       <div 
                         className="user-avatar-small" 
-                        style={{ border: ringStyle, padding: ringStyle !== 'none' ? '2px' : '0', boxSizing: 'border-box', cursor: chatUserStoryGroup ? 'pointer' : 'default' }}
+                        style={{ background: ringBackground, padding: hasRing ? '2px' : '0', borderRadius: '50%', cursor: chatUserStoryGroup ? 'pointer' : 'default' }}
                         onClick={(e) => {
                           if (chatUserStoryGroup) {
                             e.stopPropagation();
@@ -4569,7 +4571,9 @@ export default function Dashboard() {
                           }
                         }}
                       >
-                        {chatUser.avatarUrl ? <img src={chatUser.avatarUrl} alt='avatar' /> : chatUser.username.charAt(0).toUpperCase()}
+                        <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: hasRing ? '2px solid #000' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#333' }}>
+                          {chatUser.avatarUrl ? <img src={chatUser.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : chatUser.username.charAt(0).toUpperCase()}
+                        </div>
                       </div>
                       <div className="user-names">
                         <span className="user-username">@{chatUser.username}</span>
@@ -4655,22 +4659,34 @@ export default function Dashboard() {
                         style={(() => {
                           const chatUserStoryGroupIndex = groupedStories.findIndex(g => g.user._id === activeChatUser._id);
                           const chatUserStoryGroup = chatUserStoryGroupIndex !== -1 ? groupedStories[chatUserStoryGroupIndex] : null;
-                          let ringStyle = 'none';
+                          let ringBackground = 'transparent';
+                          let hasRing = false;
                           if (chatUserStoryGroup) {
                             const myId = user?._id || user?.id;
                             const unseenStories = chatUserStoryGroup.stories.filter(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
                             const hasUnseen = unseenStories.length > 0;
                             const isCloseFriend = hasUnseen ? unseenStories.some(s => s.visibility === 'custom') : chatUserStoryGroup.stories.some(s => s.visibility === 'custom');
+                            hasRing = true;
                             if (hasUnseen) {
-                              ringStyle = isCloseFriend ? '3px solid #2bd856' : '3px solid #00f2fe';
+                              ringBackground = isCloseFriend ? '#1cf23b' : 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
                             } else {
-                              ringStyle = '3px solid #444';
+                              ringBackground = '#444';
                             }
                           }
-                          return { border: ringStyle, padding: ringStyle !== 'none' ? '2px' : '0', boxSizing: 'border-box', cursor: 'pointer' };
+                          return { background: ringBackground, padding: hasRing ? '2px' : '0', borderRadius: '50%', cursor: 'pointer' };
                         })()}
                       >
-                        {activeChatUser.avatarUrl ? <img src={activeChatUser.avatarUrl} alt='avatar' /> : activeChatUser.username.charAt(0).toUpperCase()}
+                        <div style={{ 
+                          width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', 
+                          border: (() => {
+                            const chatUserStoryGroupIndex = groupedStories.findIndex(g => g.user._id === activeChatUser._id);
+                            const hasRing = chatUserStoryGroupIndex !== -1;
+                            return hasRing ? '2px solid #000' : 'none';
+                          })(),
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#333'
+                        }}>
+                          {activeChatUser.avatarUrl ? <img src={activeChatUser.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : activeChatUser.username.charAt(0).toUpperCase()}
+                        </div>
                       </div>
                       <div className="user-names" onClick={() => viewPublicProfile(activeChatUser._id)} style={{ cursor: 'pointer' }}>
                         <span className="user-username">@{activeChatUser.username}</span>
