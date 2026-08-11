@@ -1943,7 +1943,11 @@ export default function Dashboard() {
     }
 
     const handlePopState = (e) => {
-      if (showCommentsModal) {
+      if (showChangeUsernameModal) {
+        setShowChangeUsernameModal(false);
+      } else if (showInnerSettingsModal) {
+        setShowInnerSettingsModal(false);
+      } else if (showCommentsModal) {
         setShowCommentsModal(false);
       } else if (showStoryViewsModal) {
         setShowStoryViewsModal(false);
