@@ -4670,7 +4670,7 @@ export default function Dashboard() {
                         onTouchMove={(e) => handleTouchMove(e, msg, msg.sender === user.id)}
                         onTouchEnd={(e) => handleTouchEnd(e, msg, msg.sender === user.id)}
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: msg.sender === user.id ? 'flex-end' : 'flex-start', maxWidth: '100%' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: msg.sender === user.id ? 'flex-end' : 'flex-start', width: '100%' }}>
                           <div 
                             id={`msg-bubble-${msg._id}`} 
                           className="msg-bubble"
