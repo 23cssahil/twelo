@@ -692,6 +692,10 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
     }
 
     const user = await User.findById(req.user.userId);
+    if (!user.pastUsernames) user.pastUsernames = [];
+    if (!user.pastUsernames.includes(user.username) && user.username !== trimmedUsername) {
+      user.pastUsernames.push(user.username);
+    }
     user.username = trimmedUsername;
     await user.save();
 
