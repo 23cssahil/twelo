@@ -1936,7 +1936,7 @@ export default function Dashboard() {
 
   // SPA Back Button Handling for Overlays & Chats
   useEffect(() => {
-    const isOverlayOpen = showCommentsModal || showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || storyViewerActive || storyEditorOpen || showCloseFriendsModal || showStoryViewsModal || storyCameraOpen;
+    const isOverlayOpen = showChangeUsernameModal || showInnerSettingsModal || showCommentsModal || showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || storyViewerActive || storyEditorOpen || showCloseFriendsModal || showStoryViewsModal || storyCameraOpen;
     
     if (isOverlayOpen) {
       window.history.pushState({ overlayOpen: true }, '');
