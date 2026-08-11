@@ -5200,7 +5200,7 @@ export default function Dashboard() {
       {/* Change Username Modal */}
       {showChangeUsernameModal && (
         <div className="settings-drawer-overlay" onClick={() => setShowChangeUsernameModal(false)} style={{ zIndex: 10002 }}>
-          <div className="settings-drawer" onClick={e => e.stopPropagation()} style={{ height: 'auto', maxHeight: '80vh', top: '10%', bottom: 'auto', borderRadius: '20px' }}>
+          <div className="settings-drawer" onClick={e => e.stopPropagation()} style={{ height: '100%', maxHeight: '100%', width: '100%', maxWidth: '100%', top: '0', bottom: '0', left: '0', right: '0', borderRadius: '0', position: 'fixed', transform: 'none', transition: 'none' }}>
             <div className="modal-header">
               <h2>Change Username</h2>
               <button onClick={() => setShowChangeUsernameModal(false)} className="close-btn"><X size={24} /></button>
