@@ -123,7 +123,8 @@ const StorySlide = ({
   storyVideoRef, storyAudioRef,
   user, activeTab, fetchStories, API_URL, token,
   handleStoryLike, setShowShareModal, setShowStoryViewsModal, viewerStoriesLength,
-  viewPublicProfile, setActiveTab, setShowCommentsModal
+  viewPublicProfile, setActiveTab, setShowCommentsModal,
+  handleNextUser, handlePrevUser
 }) => {
   const story = group.stories[isActiveSlide ? currentStoryIndex : 0];
   if (!story) return null;
