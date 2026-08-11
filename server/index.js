@@ -1365,12 +1365,40 @@ app.get('/api/stories/:id', authenticateToken, async (req, res, next) => {
   try {
     const storyId = req.params.id;
     if (storyId === 'everyone') return next(); // Let the /everyone route handle it
-    const story = await Story.findById(storyId)
+    const requestedStory = await Story.findById(storyId);
+    if (!requestedStory) return res.status(404).json({ message: 'Story not found' });
+    
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    let query = {};
+    if (requestedStory.isAdminStory) {
+      query = { isAdminStory: true, createdAt: { $gt: twentyFourHoursAgo } };
+    } else {
+      query = { user: requestedStory.user, createdAt: { $gt: twentyFourHoursAgo } };
+    }
+
+    const userStories = await Story.find(query)
       .populate('user', 'username avatarUrl avatar gender isOnline lastSeen uniqueId country countryCode')
       .populate('viewedBy', 'username avatarUrl')
-      .populate('likedBy', 'username avatarUrl');
-    if (!story) return res.status(404).json({ message: 'Story not found' });
-    res.json({ story });
+      .populate('likedBy', 'username avatarUrl')
+      .sort({ createdAt: 1 });
+
+    const storyIndex = userStories.findIndex(s => s._id.toString() === storyId);
+    
+    // Construct user object for admin if needed
+    let groupUser = null;
+    if (requestedStory.isAdminStory) {
+      groupUser = {
+        _id: 'admin_twelo',
+        username: 'TWELO',
+        name: 'TWELO',
+        avatarUrl: '/twelo-admin-logo.jpg',
+        uniqueId: 'twelo_admin'
+      };
+    } else if (userStories.length > 0 && userStories[0].user) {
+      groupUser = userStories[0].user;
+    }
+
+    res.json({ stories: userStories, storyIndex: storyIndex >= 0 ? storyIndex : 0, user: groupUser });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching story' });
   }

@@ -2452,13 +2452,13 @@ export default function Dashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (res.ok && data.story) {
+      if (res.ok && data.stories && data.stories.length > 0) {
         setProfileStoryGroups([{
-          user: data.story.user,
-          stories: [data.story]
+          user: data.user,
+          stories: data.stories
         }]);
         setCurrentStoryUserIndex(0);
-        setCurrentStoryIndex(0);
+        setCurrentStoryIndex(data.storyIndex || 0);
         setStoryProgress(0);
         setStoryPaused(false);
         setStoryViewerActive(true);
