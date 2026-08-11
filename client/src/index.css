@@ -291,6 +291,8 @@ input, button, textarea {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  flex: 1;
 }
 
 .user-avatar-small {
@@ -331,6 +333,10 @@ input, button, textarea {
 .user-id {
   font-size: 0.85rem;
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .chat-now-btn {
