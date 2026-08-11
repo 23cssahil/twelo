@@ -1110,6 +1110,11 @@ app.post('/api/users/unfollow/:id', authenticateToken, async (req, res) => {
       
       await currentUser.save();
       await targetUser.save();
+      
+      const targetSocketId = onlineUsers.get(targetUserId.toString());
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('new_notification');
+      }
     }
 
     res.json({ message: "Unfollowed successfully" });
