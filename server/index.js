@@ -885,9 +885,9 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
     const targetUser = await User.findById(targetUserId);
     if (!targetUser) return res.status(404).json({ message: "User not found" });
 
-    // Check if already following or request already sent
-    if (targetUser.followers.some(id => id.toString() === req.user.userId)) return res.status(400).json({ message: "Already following" });
-    if (targetUser.friendRequests.some(id => id.toString() === req.user.userId)) return res.status(400).json({ message: "Request already sent" });
+    // Check if already following or request already sent (make it idempotent so it doesn't throw 400 on double clicks)
+    if (targetUser.followers.some(id => id && id.toString() === req.user.userId)) return res.json({ message: "Already following" });
+    if (targetUser.friendRequests.some(id => id && id.toString() === req.user.userId)) return res.json({ message: "Request already sent" });
 
     const currentUser = await User.findById(req.user.userId);
     const isFollowBack = (currentUser.followers || []).some(id => id && id.toString() === targetUserId);
