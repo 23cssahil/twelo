@@ -1935,13 +1935,17 @@ export default function Dashboard() {
   }, [globeStatus.isEnabled, globeStatus.enableAt]);
 
   // SPA Back Button Handling for Overlays & Chats
+  const openOverlaysCount = [showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, !!publicProfileData, !!activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen].filter(Boolean).length;
+  const prevOverlaysCount = useRef(0);
+
   useEffect(() => {
-    const isOverlayOpen = showChangeUsernameModal || showInnerSettingsModal || showCommentsModal || showSettingsModal || publicProfileData || activeChatUser || isAnonymousChatActive || connectionsModal.isOpen || storyViewerActive || storyEditorOpen || showCloseFriendsModal || showStoryViewsModal || storyCameraOpen;
-    
-    if (isOverlayOpen) {
+    if (openOverlaysCount > prevOverlaysCount.current) {
       window.history.pushState({ overlayOpen: true }, '');
     }
+    prevOverlaysCount.current = openOverlaysCount;
+  }, [openOverlaysCount]);
 
+  useEffect(() => {
     const handlePopState = (e) => {
       if (showChangeUsernameModal) {
         setShowChangeUsernameModal(false);
