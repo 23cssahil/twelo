@@ -337,7 +337,7 @@ const StorySlide = ({
         />
 
         {/* Action Bar for Everyone Stories */}
-        {(activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone') && group.user._id !== (user?._id || user?.id) && (
+        {(activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone') && (
           <div style={{ position: 'absolute', right: '12px', bottom: '80px', zIndex: 15, display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
             {/* Like Button */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -414,19 +414,21 @@ const StorySlide = ({
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                <button 
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', zIndex: 15, display: 'flex', alignItems: 'center' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setStoryPaused(true);
-                    setShowCommentsModal(true);
-                  }}
-                >
-                  <MessageCircle size={32} color="#fff" />
-                  <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', marginLeft: '5px' }}>
-                    {story.comment_count ? formatCount(story.comment_count) : 0}
-                  </span>
-                </button>
+                {!(activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone') && (
+                  <button 
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', zIndex: 15, display: 'flex', alignItems: 'center' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setStoryPaused(true);
+                      setShowCommentsModal(true);
+                    }}
+                  >
+                    <MessageCircle size={32} color="#fff" />
+                    <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', marginLeft: '5px' }}>
+                      {story.comment_count ? formatCount(story.comment_count) : 0}
+                    </span>
+                  </button>
+                )}
               </div>
             </>
           ) : (
