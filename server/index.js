@@ -1360,6 +1360,18 @@ app.get('/api/stories/:id/comments', authenticateToken, async (req, res) => {
   }
 });
 
+// Get single story by ID
+app.get('/api/stories/:id', authenticateToken, async (req, res) => {
+  try {
+    const storyId = req.params.id;
+    const story = await Story.findById(storyId).populate('user', 'username avatar gender isOnline lastSeen');
+    if (!story) return res.status(404).json({ message: 'Story not found' });
+    res.json({ story });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching story' });
+  }
+});
+
 // Mark story as viewed
 app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
   try {

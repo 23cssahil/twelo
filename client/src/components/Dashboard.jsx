@@ -2441,6 +2441,29 @@ export default function Dashboard() {
     setStoryCameraOpen(false);
     setStoryCapturedImage(null);
   };
+  const openSharedStory = async (storyId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/stories/${storyId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.story) {
+        setViewerStories([{
+          user: data.story.user,
+          stories: [data.story]
+        }]);
+        setCurrentStoryUserIndex(0);
+        setCurrentStoryIndex(0);
+        setStoryViewerOpen(true);
+      } else {
+        showToastMsg('Story is no longer available', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToastMsg('Error loading story', 'error');
+    }
+  };
+
 
   const openStoryCamera = async (mode = 'user') => {
     try {
@@ -4686,7 +4709,27 @@ export default function Dashboard() {
                           <p className="msg-text" style={msg.isDeletedForEveryone ? { fontStyle: 'italic', color: 'rgba(255,255,255,0.6)' } : {}}>
                             {msg.isDeletedForEveryone 
                               ? (msg.sender === user.id ? '🚫 You deleted this message' : '🚫 This message was deleted') 
-                              : msg.message}
+                              : msg.message && msg.message.startsWith('Check out this story: ') ? (
+                                <div 
+                                  onClick={() => {
+                                    const storyId = msg.message.split('/stories/')[1];
+                                    if (storyId) openSharedStory(storyId);
+                                  }}
+                                  style={{ 
+                                    display: 'flex', alignItems: 'center', gap: '10px', 
+                                    background: 'rgba(255,255,255,0.1)', padding: '10px', 
+                                    borderRadius: '10px', cursor: 'pointer', marginTop: '5px' 
+                                  }}
+                                >
+                                  <div style={{ background: '#0095f6', borderRadius: '50%', padding: '8px', display: 'flex' }}>
+                                    <Play size={20} color="#fff" />
+                                  </div>
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>Story Shared</span>
+                                    <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>Click to view story</span>
+                                  </div>
+                                </div>
+                              ) : msg.message}
                           </p>
                           <div className="msg-time" style={{ display: 'flex', alignItems: 'center', justifyContent: msg.sender === user.id ? 'flex-end' : 'flex-start', gap: '4px' }}>
                             <span>{formatTime(msg.createdAt)}</span>
