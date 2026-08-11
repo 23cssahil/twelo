@@ -46,7 +46,11 @@ import {
   Heart,
   Eye,
   Download,
-  MessageCircle
+  MessageCircle,
+  Info,
+  Shield,
+  FileText,
+  Mail
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -5327,7 +5331,7 @@ export default function Dashboard() {
               
               
               <div className="settings-item-btn" onClick={handleToggleNotifications} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
-                <span>Push Notifications</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><Bell size={20} /> Push Notifications</span>
                 <div style={{
                   width: '46px', height: '26px', borderRadius: '13px',
                   background: pushNotifEnabled ? '#2bd856' : 'rgba(255,255,255,0.15)',
@@ -5345,27 +5349,27 @@ export default function Dashboard() {
               </div>
 
               
-              <button className="settings-item-btn" onClick={() => navigate('/about-us')}>
-                About Us
+              <button className="settings-item-btn" onClick={() => navigate('/about-us')} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Info size={20} /> About Us
               </button>
               
               
               
 
-<button className="settings-item-btn" onClick={() => navigate('/privacy-policy')}>
-                Privacy Policy
+<button className="settings-item-btn" onClick={() => navigate('/privacy-policy')} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Shield size={20} /> Privacy Policy
               </button>
               
-              <button className="settings-item-btn" onClick={() => navigate('/terms')}>
-                Terms & Conditions
+              <button className="settings-item-btn" onClick={() => navigate('/terms')} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FileText size={20} /> Terms & Conditions
               </button>
 
-              <button className="settings-item-btn" onClick={() => navigate('/contact-us')}>
-                Contact Us
+              <button className="settings-item-btn" onClick={() => navigate('/contact-us')} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Mail size={20} /> Contact Us
               </button>
               
-              <button className="settings-item-btn logout-danger" onClick={() => { setShowSettingsModal(false); setShowLogoutConfirm(true); }}>
-                Log Out
+              <button className="settings-item-btn logout-danger" onClick={() => { setShowSettingsModal(false); setShowLogoutConfirm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <LogOut size={20} /> Log Out
               </button>
 
               {showDeleteConfirm ? (
@@ -5386,8 +5390,8 @@ export default function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <button className="settings-item-btn logout-danger" onClick={() => setShowDeleteConfirm(true)} style={{ marginTop: '24px' }}>
-                  Delete My Account
+                <button className="settings-item-btn logout-danger" onClick={() => setShowDeleteConfirm(true)} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '24px' }}>
+                  <Trash2 size={20} /> Delete My Account
                 </button>
               )}
             </div>
