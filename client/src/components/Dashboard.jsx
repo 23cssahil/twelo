@@ -1145,7 +1145,7 @@ export default function Dashboard() {
     
     checkUsernameTimeout.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/users/check-username?username=${val}`, {
+        const res = await fetch(`${API_URL}/api/users/check-username?username=${val}`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
         const data = await res.json();
