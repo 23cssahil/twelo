@@ -840,12 +840,16 @@ export default function Dashboard() {
     setIsSharing(true);
     const storyId = viewerStories[currentStoryUserIndex].stories[currentStoryIndex]._id;
     const storyLink = `${window.location.origin}/stories/${storyId}`;
+    const storyUser = viewerStories[currentStoryUserIndex].user;
+    const storyOwnerUsername = storyUser?.username || 'Unknown';
+    const storyOwnerAvatar = storyUser?.avatar || '';
+    const storyOwnerGender = storyUser?.gender || 'male';
     const tempId = Date.now().toString();
     const msgData = {
       tempId,
       senderId: user.id || user._id,
       receiverId: targetUserId,
-      messageText: `Check out this story: ${storyLink}`,
+      messageText: `Check out this story: ${storyLink}|:::|${storyOwnerUsername}|:::|${storyOwnerAvatar}|:::|${storyOwnerGender}`,
       messageType: 'text',
       fileUrl: null,
       replyTo: null
@@ -4709,27 +4713,47 @@ export default function Dashboard() {
                           <p className="msg-text" style={msg.isDeletedForEveryone ? { fontStyle: 'italic', color: 'rgba(255,255,255,0.6)' } : {}}>
                             {msg.isDeletedForEveryone 
                               ? (msg.sender === user.id ? '🚫 You deleted this message' : '🚫 This message was deleted') 
-                              : msg.message && msg.message.startsWith('Check out this story: ') ? (
-                                <div 
-                                  onClick={() => {
-                                    const storyId = msg.message.split('/stories/')[1];
-                                    if (storyId) openSharedStory(storyId);
-                                  }}
-                                  style={{ 
-                                    display: 'flex', alignItems: 'center', gap: '10px', 
-                                    background: 'rgba(255,255,255,0.1)', padding: '10px', 
-                                    borderRadius: '10px', cursor: 'pointer', marginTop: '5px' 
-                                  }}
-                                >
-                                  <div style={{ background: '#0095f6', borderRadius: '50%', padding: '8px', display: 'flex' }}>
-                                    <Play size={20} color="#fff" />
+                              : (() => {
+                              if (msg.message && msg.message.startsWith('Check out this story: ')) {
+                                const parts = msg.message.split('|:::|');
+                                const linkPart = parts[0];
+                                const storyId = linkPart.split('/stories/')[1];
+                                const storyOwnerUsername = parts[1] || 'Unknown';
+                                const storyOwnerAvatar = parts[2] || '';
+                                const storyOwnerGender = parts[3] || 'male';
+                                
+                                return (
+                                  <div 
+                                    onClick={() => {
+                                      if (storyId) openSharedStory(storyId);
+                                    }}
+                                    style={{ 
+                                      display: 'flex', alignItems: 'center', gap: '10px', 
+                                      background: 'rgba(255,255,255,0.1)', padding: '10px', 
+                                      borderRadius: '10px', cursor: 'pointer', marginTop: '5px',
+                                      width: '240px', maxWidth: '100%'
+                                    }}
+                                  >
+                                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                                      <img 
+                                        src={storyOwnerAvatar ? (storyOwnerAvatar.startsWith('http') ? storyOwnerAvatar : `${API_URL}${storyOwnerAvatar}`) : (storyOwnerGender === 'female' ? '/female-avatar.png' : '/default-avatar.png')}
+                                        alt="avatar"
+                                        style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #0095f6' }}
+                                        onError={(e) => { e.target.src = storyOwnerGender === 'female' ? '/female-avatar.png' : '/default-avatar.png'; }}
+                                      />
+                                      <div style={{ position: 'absolute', bottom: -2, right: -2, background: '#0095f6', borderRadius: '50%', padding: '4px', border: '2px solid #111' }}>
+                                        <Play size={10} color="#fff" fill="#fff" />
+                                      </div>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                                      <span style={{ fontWeight: 'bold', fontSize: '0.95rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{storyOwnerUsername}'s Story</span>
+                                      <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>Click to view story</span>
+                                    </div>
                                   </div>
-                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>Story Shared</span>
-                                    <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>Click to view story</span>
-                                  </div>
-                                </div>
-                              ) : msg.message}
+                                );
+                              }
+                              return msg.message;
+                            })()}
                           </p>
                           <div className="msg-time" style={{ display: 'flex', alignItems: 'center', justifyContent: msg.sender === user.id ? 'flex-end' : 'flex-start', gap: '4px' }}>
                             <span>{formatTime(msg.createdAt)}</span>
