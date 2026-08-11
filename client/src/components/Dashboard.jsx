@@ -1720,6 +1720,7 @@ export default function Dashboard() {
 
     socket.on('new_notification', () => {
       fetchNotifications();
+      fetchProfile();
       if (activeTabRef.current !== 'notifications') {
         setUnreadNotifsCount(prev => prev + 1);
       }
@@ -4148,22 +4149,14 @@ export default function Dashboard() {
                           <span className="user-id" style={{ fontSize: '0.8rem' }}>{text}</span>
                         </div>
                       </div>
-                      {(notif.type === 'request_accepted' || notif.type === 'anonymous_request_accepted') ? (
+                      {['request_accepted', 'anonymous_request_accepted'].includes(notif.type) ? (
                         <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWithUser(reqUser)}>Chat</button>
-                      ) : isAccepted ? (
-                        isFollowingBack ? (
-                          <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWithUser(reqUser)}>Chat</button>
-                        ) : hasSentFollowBack ? (
-                          <button className="chat-now-btn" style={{ background: '#333', cursor: 'default' }} disabled>Request Sent</button>
-                        ) : (
-                          <button className="chat-now-btn" style={{ background: '#10b981' }} onClick={() => sendFollowRequest(reqUser._id)}>Follow Back</button>
-                        )
-                      ) : (
+                      ) : ['follow_request', 'anonymous_follow_request', 'follow_back_request'].includes(notif.type) ? (
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button className="chat-now-btn accept-btn" style={{ flex: 1 }} onClick={() => acceptRequest(reqUser._id)}>Accept</button>
                           <button className="chat-now-btn" style={{ flex: 1, background: '#333' }} onClick={() => rejectRequest(reqUser._id)}>Reject</button>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}
