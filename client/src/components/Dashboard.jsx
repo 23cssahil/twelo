@@ -1215,6 +1215,9 @@ export default function Dashboard() {
       reader.addEventListener('load', () => {
         setAvatarImageSrc(reader.result);
         setAvatarCropperOpen(true);
+        if (typeof closeStoryCamera === 'function') {
+           closeStoryCamera();
+        }
       });
       reader.readAsDataURL(e.target.files[0]);
     }
@@ -6160,7 +6163,7 @@ export default function Dashboard() {
       {/* Story Editor Overlay */}
       
       {avatarCropperOpen && (
-        <div className="modal-overlay" style={{ zIndex: 9999 }}>
+        <div className="modal-overlay" style={{ zIndex: 13000 }}>
           <div className="story-camera-container" style={{ background: '#111', padding: '20px', borderRadius: '15px', maxWidth: '400px', width: '90%' }}>
             <h3 style={{ color: '#fff', marginBottom: '15px' }}>Crop Avatar</h3>
             <ReactCrop
