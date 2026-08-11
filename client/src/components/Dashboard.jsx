@@ -789,8 +789,7 @@ export default function Dashboard() {
   const [isProcessingLibraryAvatar, setIsProcessingLibraryAvatar] = useState(false);
   
   const openCamera = (mode) => {
-    setCameraMode(mode);
-    openStoryCamera('user');
+    openStoryCamera('user', mode);
   };
 
   const [storyCameraStream, setStoryCameraStream] = useState(null);
@@ -2478,8 +2477,9 @@ export default function Dashboard() {
   };
 
 
-  const openStoryCamera = async (mode = 'user') => {
-    setCameraMode('story');
+  const openStoryCamera = async (facing = 'user', captureMode = 'story') => {
+    const mode = typeof facing === 'string' ? facing : 'user';
+    setCameraMode(captureMode);
     try {
       if (storyCameraStream) {
         storyCameraStream.getTracks().forEach(track => track.stop());
@@ -2503,7 +2503,8 @@ export default function Dashboard() {
       setStoryCapturedImage(null);
     } catch (err) {
       console.error("Camera access denied or unavailable", err);
-      if (storyFileInputRef.current) storyFileInputRef.current.click();
+      const fallbackInput = captureMode === 'avatar' ? avatarFileInputRef.current : storyFileInputRef.current;
+      if (fallbackInput) fallbackInput.click();
     }
   };
 
@@ -5299,6 +5300,13 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-container">
+      <input
+        type="file"
+        accept="image/*"
+        ref={avatarFileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleAvatarSelect}
+      />
       {/* Coin Deduction Popup */}
       {coinPopup.show && (
         <div className="coin-deduction-popup">
@@ -5354,13 +5362,6 @@ export default function Dashboard() {
               <div className="nav-item" onClick={() => openCamera('avatar')} style={{ color: '#00ffff' }}>
                 <ImageIcon size={24} /><span>Change Avatar</span>
               </div>
-              <input 
-                type="file" 
-                accept="image/*" 
-                ref={avatarFileInputRef} 
-                style={{ display: 'none' }} 
-                onChange={handleAvatarSelect} 
-              />
 
           <div className="nav-item" onClick={() => setShowLogoutConfirm(true)} style={{ color: 'var(--brand-red)' }}><LogOut size={24} /><span>Logout</span></div>
         </div>
@@ -6301,12 +6302,11 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <button onClick={() => { 
-    if (cameraMode === 'avatar') {
-      if (avatarFileInputRef.current) avatarFileInputRef.current.click();
-    } else {
-      if (storyFileInputRef.current) storyFileInputRef.current.click(); 
-    }
+                <button onClick={() => {
+    const targetInput = cameraMode === 'avatar'
+      ? avatarFileInputRef.current
+      : (storyFileInputRef.current || avatarFileInputRef.current);
+    if (targetInput) targetInput.click();
   }} style={{ background: 'transparent', border: 'none', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', width: '60px' }}>
                   <div style={{ border: '2px solid #fff', borderRadius: '8px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <PlusCircle size={20} />
