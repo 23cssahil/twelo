@@ -4664,7 +4664,7 @@ export default function Dashboard() {
                         {isFetchingMessages && messages.length > 0 && (
                           <div style={{ textAlign: 'center', padding: '10px', color: '#888', fontSize: '0.85rem' }}>Loading older messages...</div>
                         )}
-                        {messages.map((msg) => (
+                        {messages.map((msg, index) => (
                       <div key={msg._id} className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`} 
                         onTouchStart={(e) => handleTouchStart(e, msg)}
                         onTouchMove={(e) => handleTouchMove(e, msg, msg.sender === user.id)}
@@ -4788,6 +4788,11 @@ export default function Dashboard() {
                             </div>
                           )}
                         </div>
+                        {msg.sender === user.id && index === messages.length - 1 && (
+                          <div style={{ fontSize: '0.7rem', color: '#a8a8a8', marginTop: '4px', textAlign: 'right', paddingRight: '12px' }}>
+                            {msg.isViewed ? 'Seen just now' : 'Sent'}
+                          </div>
+                        )}
                         {swipeMsgId === msg._id && (
                           <div className={`swipe-reply-icon ${msg.sender === user.id ? 'sent-icon' : 'received-icon'}`}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
