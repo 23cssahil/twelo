@@ -854,7 +854,7 @@ export default function Dashboard() {
     setTimeout(() => {
       setIsSharing(false);
       setShowShareModal(false);
-      window.alert('Story shared successfully!');
+      showToastMsg('Story shared successfully!', 'success');
     }, 500);
   };
 
