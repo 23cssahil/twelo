@@ -4735,12 +4735,17 @@ export default function Dashboard() {
                                     }}
                                   >
                                     <div style={{ position: 'relative', flexShrink: 0 }}>
-                                      <img 
-                                        src={storyOwnerAvatar ? (storyOwnerAvatar.startsWith('http') ? storyOwnerAvatar : `${API_URL}${storyOwnerAvatar}`) : (storyOwnerGender === 'female' ? '/female-avatar.png' : '/default-avatar.png')}
-                                        alt="avatar"
-                                        style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #0095f6' }}
-                                        onError={(e) => { e.target.src = storyOwnerGender === 'female' ? '/female-avatar.png' : '/default-avatar.png'; }}
-                                      />
+                                      {storyOwnerAvatar ? (
+                                        <img 
+                                          src={storyOwnerAvatar.startsWith('http') ? storyOwnerAvatar : `${API_URL}${storyOwnerAvatar}`}
+                                          alt="avatar"
+                                          style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #0095f6' }}
+                                        />
+                                      ) : (
+                                        <div style={{ width: '45px', height: '45px', borderRadius: '50%', border: '2px solid #0095f6', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#333', fontSize: '1.2rem', fontWeight: 'bold' }}>
+                                          {storyOwnerUsername.charAt(0).toUpperCase()}
+                                        </div>
+                                      )}
                                       <div style={{ position: 'absolute', bottom: -2, right: -2, background: '#0095f6', borderRadius: '50%', padding: '4px', border: '2px solid #111' }}>
                                         <Play size={10} color="#fff" fill="#fff" />
                                       </div>
