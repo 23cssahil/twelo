@@ -1102,8 +1102,11 @@ app.post('/api/users/unfollow/:id', authenticateToken, async (req, res) => {
       currentUser.following = currentUser.following.filter(id => id.toString() !== targetUserId);
       targetUser.followers = targetUser.followers.filter(id => id.toString() !== currentUserId);
       targetUser.friendRequests = targetUser.friendRequests.filter(id => id.toString() !== currentUserId);
-      // Also remove follow_request notification to avoid spam when someone cancels a request
-      targetUser.notifications = targetUser.notifications.filter(n => !(n.type === 'follow_request' && n.user && n.user.toString() === currentUserId));
+      // Also remove follow requests and 'started_following_you' notifications to avoid dead notifications
+      targetUser.notifications = targetUser.notifications.filter(n => !(
+        ['follow_request', 'anonymous_follow_request', 'follow_back_request', 'started_following_you'].includes(n.type) && 
+        n.user && n.user.toString() === currentUserId
+      ));
       
       await currentUser.save();
       await targetUser.save();
