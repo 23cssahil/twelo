@@ -724,7 +724,8 @@ export default function Dashboard() {
   const [expandedAlerts, setExpandedAlerts] = useState(new Set());
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [publicProfileData, setPublicProfileData] = useState(null);
-  const [connectionsModal, setConnectionsModal] = useState({ isOpen: false, title: '', users: [] });
+  const [connectionsPage, setConnectionsPage] = useState({ title: '', users: [], returnTab: 'profile' });
+  const [connectionsSearch, setConnectionsSearch] = useState('');
   const [showAllGlobalStoriesPublic, setShowAllGlobalStoriesPublic] = useState(false);
   const [showAllGlobalStoriesMy, setShowAllGlobalStoriesMy] = useState(false);
   const [profileStoryGroups, setProfileStoryGroups] = useState(null);
@@ -1956,7 +1957,6 @@ export default function Dashboard() {
     showSettingsModal, 
     !!activeChatUser, 
     isAnonymousChatActive, 
-    connectionsModal.isOpen, 
     storyViewerActive, 
     storyEditorOpen, 
     showCloseFriendsModal, 
@@ -2001,8 +2001,6 @@ export default function Dashboard() {
         fetcheveryoneStories();
       } else if (showLogoutConfirm) {
         setShowLogoutConfirm(false);
-      } else if (connectionsModal.isOpen) {
-        setConnectionsModal({ isOpen: false, title: '', users: [] });
       } else if (isAnonymousChatActive) {
         if (socket) {
            socket.emit('leave_anonymous_chat', { roomId: anonymousRoomId });
@@ -2025,7 +2023,7 @@ export default function Dashboard() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, connectionsModal.isOpen, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen]);
+  }, [showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen]);
 
   // Lock document scroll when chat is active to prevent keyboard from pushing header out of view
   useEffect(() => {
@@ -2409,7 +2407,13 @@ export default function Dashboard() {
       const res = await fetch(`${API_URL}/api/users/connections/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
-        setConnectionsModal({ isOpen: true, title: type.charAt(0).toUpperCase() + type.slice(1), users: data[type] });
+        setConnectionsSearch('');
+        setConnectionsPage({
+          title: type.charAt(0).toUpperCase() + type.slice(1),
+          users: data[type] || [],
+          returnTab: activeTab === 'publicProfile' ? 'publicProfile' : 'profile'
+        });
+        setActiveTab('connections');
       } else {
         alert(data.message || "Not authorized to view connections. You must follow this user first.");
       }
@@ -4269,6 +4273,70 @@ export default function Dashboard() {
           </div>
         );
 
+      case 'connections': {
+        const normalizedSearch = connectionsSearch.trim().toLowerCase();
+        const visibleConnections = connectionsPage.users.filter(connection => {
+          const username = (connection.username || '').toLowerCase();
+          const name = (connection.name || '').toLowerCase();
+          return !normalizedSearch || username.includes(normalizedSearch) || name.includes(normalizedSearch);
+        });
+        return (
+          <div style={{ minHeight: '100%', width: '100%', boxSizing: 'border-box', padding: '20px', background: '#0b0b0d', color: '#f5f5f5' }}>
+            <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '22px' }}>
+                <button
+                  aria-label="Back to profile"
+                  onClick={() => setActiveTab(connectionsPage.returnTab)}
+                  style={{ width: '42px', height: '42px', display: 'grid', placeItems: 'center', color: '#fff', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', cursor: 'pointer' }}
+                >
+                  <ArrowLeft size={21} />
+                </button>
+                <div>
+                  <h1 style={{ margin: 0, fontSize: '1.45rem', lineHeight: 1.2 }}>{connectionsPage.title}</h1>
+                  <p style={{ margin: '4px 0 0', color: '#a8a8a8', fontSize: '0.9rem' }}>{connectionsPage.users.length} {connectionsPage.title.toLowerCase()}</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '18px' }}>
+                <SearchIcon size={20} color="#a8a8a8" />
+                <input
+                  autoFocus
+                  type="search"
+                  value={connectionsSearch}
+                  onChange={(event) => setConnectionsSearch(event.target.value)}
+                  placeholder={`Search your ${connectionsPage.title.toLowerCase()}...`}
+                  style={{ width: '100%', padding: '15px 0', outline: 'none', border: 'none', background: 'transparent', color: '#fff', fontSize: '1rem' }}
+                />
+                {connectionsSearch && <button onClick={() => setConnectionsSearch('')} aria-label="Clear search" style={{ color: '#a8a8a8', background: 'transparent', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={19} /></button>}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                {visibleConnections.map(connection => (
+                  <button
+                    key={connection._id}
+                    onClick={() => viewPublicProfile(connection._id)}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '13px', padding: '12px', textAlign: 'left', color: '#f5f5f5', background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '15px', cursor: 'pointer' }}
+                  >
+                    <div className="user-avatar-small" style={{ width: '48px', height: '48px', flexShrink: 0 }}>
+                      {connection.avatarUrl ? <img src={connection.avatarUrl} alt="avatar" /> : (connection.username || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '650' }}>@{connection.username}</div>
+                      {connection.name && <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '3px', color: '#a8a8a8', fontSize: '0.88rem' }}>{connection.name}</div>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {visibleConnections.length === 0 && (
+                <div style={{ padding: '52px 20px', textAlign: 'center', color: '#a8a8a8' }}>
+                  {connectionsSearch ? `No ${connectionsPage.title.toLowerCase()} match your search.` : `No ${connectionsPage.title.toLowerCase()} yet.`}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
       case 'publicProfile':
         if (!publicProfileData) return null;
         if (publicProfileData.isLoading) {
@@ -5570,42 +5638,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {connectionsModal.isOpen && (
-        <div className="call-overlay" style={{ zIndex: 100 }}>
-          <div className="auth-card" style={{ maxWidth: '400px', width: '90%', background: '#121212', padding: '24px', borderRadius: '12px', position: 'relative' }}>
-            <button 
-              className="back-btn" 
-              style={{ position: 'absolute', top: '16px', right: '16px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#f5f5f5' }} 
-              onClick={() => setConnectionsModal({ isOpen: false, title: '', users: [] })}
-            >
-              <X size={24} />
-            </button>
-            <h2 style={{ marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '12px', color: '#f5f5f5' }}>{connectionsModal.title}</h2>
-            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              {connectionsModal.users.map(u => (
-                <div 
-                  className="user-card-info" 
-                  key={u._id} 
-                  style={{ padding: '8px 0', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} 
-                  onClick={() => {
-                    setConnectionsModal({ isOpen: false, title: '', users: [] });
-                    viewPublicProfile(u._id);
-                  }}
-                >
-                  <div className="user-avatar-small">{u.avatarUrl ? <img src={u.avatarUrl} alt='avatar' /> : u.username.charAt(0).toUpperCase()}</div>
-                  <div className="user-names">
-                    <span className="user-username">@{u.username?.length > 10 ? u.username.substring(0, 10) + '...' : u.username}</span>
-                  </div>
-                </div>
-              ))}
-              {connectionsModal.users.length === 0 && <p style={{ color: '#a8a8a8', textAlign: 'center' }}>No {connectionsModal.title.toLowerCase()} yet.</p>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      
-      
       <CommentsModal 
         key={viewerStories[currentStoryUserIndex]?.stories[currentStoryIndex]?._id}
         isOpen={showCommentsModal}
