@@ -1102,6 +1102,17 @@ export default function Dashboard() {
       } catch (e) { console.log('Push check error:', e); }
     };
     checkPushStatus();
+
+    // When user returns to the tab, clear any push notifications
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(reg => {
+          if (reg.active) reg.active.postMessage({ type: 'CLEAR_NOTIFICATIONS' });
+        }).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const handleToggleNotifications = async () => {
@@ -3322,7 +3333,11 @@ export default function Dashboard() {
             { urls: 'stun:stun1.l.google.com:19302' },
             { urls: 'stun:stun2.l.google.com:19302' },
             { urls: 'stun:stun.cloudflare.com:3478' },
-            { urls: 'stun:global.stun.twilio.com:3478' }
+            { urls: 'stun:global.stun.twilio.com:3478' },
+            { urls: 'turn:a.relay.metered.ca:80', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' },
+            { urls: 'turn:a.relay.metered.ca:80?transport=tcp', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' },
+            { urls: 'turn:a.relay.metered.ca:443', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' },
+            { urls: 'turns:a.relay.metered.ca:443?transport=tcp', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' }
           ]
         }
       });
@@ -3344,12 +3359,12 @@ export default function Dashboard() {
       });
 
       peer.on('close', () => {
-        handleEndCallQuietly();
+        if (connectionRef.current) handleEndCallQuietly();
       });
 
       peer.on('error', (err) => {
-        console.error('Peer error in callUser:', err);
-        handleEndCallQuietly();
+        console.log('Peer event in callUser:', err?.message || err);
+        if (connectionRef.current) handleEndCallQuietly();
       });
 
       connectionRef.current = peer;
@@ -3393,7 +3408,11 @@ export default function Dashboard() {
             { urls: 'stun:stun1.l.google.com:19302' },
             { urls: 'stun:stun2.l.google.com:19302' },
             { urls: 'stun:stun.cloudflare.com:3478' },
-            { urls: 'stun:global.stun.twilio.com:3478' }
+            { urls: 'stun:global.stun.twilio.com:3478' },
+            { urls: 'turn:a.relay.metered.ca:80', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' },
+            { urls: 'turn:a.relay.metered.ca:80?transport=tcp', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' },
+            { urls: 'turn:a.relay.metered.ca:443', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' },
+            { urls: 'turns:a.relay.metered.ca:443?transport=tcp', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' }
           ]
         }
       });
@@ -3407,12 +3426,12 @@ export default function Dashboard() {
       });
 
       peer.on('close', () => {
-        handleEndCallQuietly();
+        if (connectionRef.current) handleEndCallQuietly();
       });
 
       peer.on('error', (err) => {
-        console.error('Peer error in acceptCall:', err);
-        handleEndCallQuietly();
+        console.log('Peer event in acceptCall:', err?.message || err);
+        if (connectionRef.current) handleEndCallQuietly();
       });
 
       peer.signal(callerSignal);
@@ -3466,7 +3485,10 @@ export default function Dashboard() {
       ringtoneOutRef.current.src = '';
       setTimeout(() => { if (ringtoneOutRef.current) ringtoneOutRef.current.src = '/ringtone.wav'; }, 500);
     }
-    if (connectionRef.current) { connectionRef.current.destroy(); connectionRef.current = null; }
+    // Destroy peer connection safely — grab ref first, null it, then destroy
+    const peer = connectionRef.current;
+    connectionRef.current = null;
+    if (peer) { try { peer.destroy(); } catch(e) {} }
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
   };
 
