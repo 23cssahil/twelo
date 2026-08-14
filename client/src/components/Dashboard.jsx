@@ -5554,7 +5554,6 @@ export default function Dashboard() {
             100% { filter: drop-shadow(0 0 25px rgba(255,253,231,0.6)); }
           }
         `}</style>
-      </div>
 
       {/* Globe always mounted to prevent WebGL context loss / black screen */}
       <div style={{
