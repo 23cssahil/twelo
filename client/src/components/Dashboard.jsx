@@ -718,6 +718,8 @@ export default function Dashboard() {
   const [newUsernameInput, setNewUsernameInput] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [pushNotifEnabled, setPushNotifEnabled] = useState(false);
+  const pushNotifEnabledRef = useRef(pushNotifEnabled);
+  useEffect(() => { pushNotifEnabledRef.current = pushNotifEnabled; }, [pushNotifEnabled]);
 
   // Profile & Social State
   const [profileStats, setProfileStats] = useState(null);
@@ -1693,13 +1695,15 @@ export default function Dashboard() {
             socket.emit('mark_viewed', { messageId: msg._id, receiverId: user.id, senderId: msg.sender });
           }
         } else {
-          // Message from someone else (not in active chat) - play sound + update unread
-          try {
-            const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-            audio.play()?.catch(e => console.log('Audio blocked', e));
-          } catch (e) {}
+          // Message from someone else (not in active chat) - update unread
+          if (pushNotifEnabledRef.current) {
+            try {
+              const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+              audio.play()?.catch(e => console.log('Audio blocked', e));
+            } catch (e) {}
+            showToastMsg('New message received!', 'info');
+          }
           setUnreadMessages(prev => ({...prev, [msg.sender]: (prev[msg.sender] || 0) + 1}));
-          showToastMsg('New message received!', 'info');
         }
         // Only fetch recent chats for incoming messages from others
         fetchRecentChats();
