@@ -5491,6 +5491,81 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Night Sky Background - only visible on home tab */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+        background: 'linear-gradient(180deg, #0a0e27 0%, #141852 25%, #2a1b5e 50%, #4a2060 70%, #8b3a62 85%, #d4748a 95%, #f0a0b0 100%)',
+        opacity: activeTab === 'home' ? 1 : 0,
+        zIndex: activeTab === 'home' ? -1 : -1000,
+        transition: 'opacity 0.4s ease-in-out',
+        overflow: 'hidden'
+      }}>
+        {/* Stars */}
+        <div className="night-sky-stars" />
+        {/* Crescent Moon */}
+        <div style={{
+          position: 'absolute',
+          top: '8%',
+          right: '12%',
+          width: '45px',
+          height: '45px',
+          borderRadius: '50%',
+          background: 'transparent',
+          boxShadow: '10px -2px 0 0 #fffde7, 10px -2px 12px 2px rgba(255,253,231,0.25)',
+          filter: 'drop-shadow(0 0 15px rgba(255,253,231,0.4))',
+          animation: 'moonGlow 4s ease-in-out infinite alternate'
+        }} />
+        <style>{`
+          .night-sky-stars {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 65%;
+            background-image:
+              radial-gradient(1px 1px at 10% 8%, rgba(255,255,255,0.9), transparent),
+              radial-gradient(1px 1px at 25% 15%, rgba(255,255,255,0.7), transparent),
+              radial-gradient(1.5px 1.5px at 40% 5%, rgba(255,255,255,1), transparent),
+              radial-gradient(1px 1px at 55% 22%, rgba(255,255,255,0.6), transparent),
+              radial-gradient(1px 1px at 70% 10%, rgba(255,255,255,0.8), transparent),
+              radial-gradient(1.5px 1.5px at 85% 18%, rgba(255,255,255,0.9), transparent),
+              radial-gradient(1px 1px at 15% 30%, rgba(255,255,255,0.5), transparent),
+              radial-gradient(1px 1px at 30% 25%, rgba(255,255,255,0.7), transparent),
+              radial-gradient(1.2px 1.2px at 50% 12%, rgba(255,255,255,0.8), transparent),
+              radial-gradient(1px 1px at 65% 28%, rgba(255,255,255,0.6), transparent),
+              radial-gradient(1px 1px at 80% 6%, rgba(255,255,255,0.7), transparent),
+              radial-gradient(1px 1px at 90% 25%, rgba(255,255,255,0.5), transparent),
+              radial-gradient(1.3px 1.3px at 5% 18%, rgba(255,255,255,0.9), transparent),
+              radial-gradient(1px 1px at 20% 40%, rgba(255,255,255,0.4), transparent),
+              radial-gradient(1px 1px at 35% 35%, rgba(255,255,255,0.6), transparent),
+              radial-gradient(1px 1px at 48% 32%, rgba(255,255,255,0.5), transparent),
+              radial-gradient(1.5px 1.5px at 60% 38%, rgba(255,255,255,0.7), transparent),
+              radial-gradient(1px 1px at 75% 42%, rgba(255,255,255,0.4), transparent),
+              radial-gradient(1px 1px at 88% 35%, rgba(255,255,255,0.6), transparent),
+              radial-gradient(1px 1px at 95% 15%, rgba(255,255,255,0.5), transparent),
+              radial-gradient(1px 1px at 12% 45%, rgba(255,255,255,0.3), transparent),
+              radial-gradient(1.2px 1.2px at 42% 20%, rgba(255,255,255,0.8), transparent),
+              radial-gradient(1px 1px at 78% 30%, rgba(255,255,255,0.5), transparent),
+              radial-gradient(1px 1px at 3% 35%, rgba(255,255,255,0.6), transparent),
+              radial-gradient(1px 1px at 58% 45%, rgba(255,255,255,0.3), transparent),
+              radial-gradient(1.4px 1.4px at 22% 7%, rgba(255,255,255,0.9), transparent),
+              radial-gradient(1px 1px at 68% 3%, rgba(255,255,255,0.7), transparent),
+              radial-gradient(1px 1px at 33% 48%, rgba(255,255,255,0.3), transparent),
+              radial-gradient(1px 1px at 92% 8%, rgba(255,255,255,0.8), transparent),
+              radial-gradient(1px 1px at 45% 42%, rgba(255,255,255,0.4), transparent);
+            animation: starsTwinkle 5s ease-in-out infinite alternate;
+          }
+          @keyframes starsTwinkle {
+            0% { opacity: 0.7; }
+            25% { opacity: 0.9; }
+            50% { opacity: 0.6; }
+            75% { opacity: 1; }
+            100% { opacity: 0.75; }
+          }
+          @keyframes moonGlow {
+            0% { filter: drop-shadow(0 0 12px rgba(255,253,231,0.3)); }
+            100% { filter: drop-shadow(0 0 25px rgba(255,253,231,0.6)); }
+          }
+        `}</style>
+      </div>
+
       {/* Globe always mounted to prevent WebGL context loss / black screen */}
       <div style={{
         position: 'fixed', top: '-5vh', left: '0', width: '100%', height: '130vh', /* zIndex handled below */
