@@ -720,6 +720,12 @@ export default function Dashboard() {
   const [pushNotifEnabled, setPushNotifEnabled] = useState(false);
   const pushNotifEnabledRef = useRef(pushNotifEnabled);
   useEffect(() => { pushNotifEnabledRef.current = pushNotifEnabled; }, [pushNotifEnabled]);
+  const [notifPopEnabled, setNotifPopEnabled] = useState(() => localStorage.getItem('notifPop') !== 'false');
+  const [notifSoundEnabled, setNotifSoundEnabled] = useState(() => localStorage.getItem('notifSound') !== 'false');
+  const notifPopEnabledRef = useRef(notifPopEnabled);
+  const notifSoundEnabledRef = useRef(notifSoundEnabled);
+  useEffect(() => { notifPopEnabledRef.current = notifPopEnabled; localStorage.setItem('notifPop', notifPopEnabled); }, [notifPopEnabled]);
+  useEffect(() => { notifSoundEnabledRef.current = notifSoundEnabled; localStorage.setItem('notifSound', notifSoundEnabled); }, [notifSoundEnabled]);
 
   // Profile & Social State
   const [profileStats, setProfileStats] = useState(null);
@@ -1095,20 +1101,22 @@ export default function Dashboard() {
   }, []);
 
   const handleToggleNotifications = async () => {
-    try {
-      if (pushNotifEnabled) {
-        // Turn OFF - unsubscribe
+    if (pushNotifEnabled) {
+      // Turn OFF immediately
+      setPushNotifEnabled(false);
+      // Async cleanup in background
+      try {
         if ('serviceWorker' in navigator && 'PushManager' in window) {
           const registration = await navigator.serviceWorker.ready;
           const subscription = await registration.pushManager.getSubscription();
-          if (subscription) {
-            await subscription.unsubscribe();
-          }
+          if (subscription) await subscription.unsubscribe();
         }
-        setPushNotifEnabled(false);
-        showToastMsg('Push notifications disabled', 'info');
-      } else {
-        // Turn ON - subscribe
+      } catch (e) { console.log('Unsubscribe error:', e); }
+      showToastMsg('Push notifications disabled', 'info');
+    } else {
+      // Turn ON immediately (optimistic), then verify
+      setPushNotifEnabled(true);
+      try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
           const registration = await navigator.serviceWorker.ready;
@@ -1133,19 +1141,23 @@ export default function Dashboard() {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(subscription)
           });
-          if (res.ok) {
-            setPushNotifEnabled(true);
-            showToastMsg('Push notifications enabled!', 'info');
-          } else {
+          if (!res.ok) {
+            setPushNotifEnabled(false);
             showToastMsg('Failed to enable notifications.', 'error');
+          } else {
+            showToastMsg('Push notifications enabled!', 'info');
           }
         } else if (permission === 'denied') {
+          setPushNotifEnabled(false);
           showToastMsg('Notifications blocked by browser. Allow in browser settings.', 'error');
+        } else {
+          setPushNotifEnabled(false);
         }
+      } catch (err) {
+        setPushNotifEnabled(false);
+        console.error('Push toggle error:', err);
+        showToastMsg('Error toggling notifications.', 'error');
       }
-    } catch (err) {
-      console.error('Push toggle error:', err);
-      showToastMsg('Error toggling notifications.', 'error');
     }
   };
 
@@ -1705,14 +1717,18 @@ export default function Dashboard() {
         } else {
           // Message from someone else (not in active chat) - update unread
           if (pushNotifEnabledRef.current) {
-            try {
-              const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-              audio.play()?.catch(e => console.log('Audio blocked', e));
-            } catch (e) {}
-            showMsgToast(
-              { username: msg.senderUsername || 'Someone', avatarUrl: msg.senderAvatarUrl || '' },
-              msg.messageType === 'text' ? msg.message : `Sent a ${msg.messageType || 'file'}`
-            );
+            if (notifSoundEnabledRef.current) {
+              try {
+                const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+                audio.play()?.catch(e => console.log('Audio blocked', e));
+              } catch (e) {}
+            }
+            if (notifPopEnabledRef.current) {
+              showMsgToast(
+                { username: msg.senderUsername || 'Someone', avatarUrl: msg.senderAvatarUrl || '' },
+                msg.messageType === 'text' ? msg.message : `Sent a ${msg.messageType || 'file'}`
+              );
+            }
           }
           setUnreadMessages(prev => ({...prev, [msg.sender]: (prev[msg.sender] || 0) + 1}));
         }
@@ -5621,30 +5637,55 @@ export default function Dashboard() {
             <button onClick={() => setShowNotificationsModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowLeft size={24} /></button>
             <h2 style={{ marginLeft: '20px', fontSize: '1.2rem', margin: '0 0 0 20px' }}>Notifications</h2>
           </div>
-          <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
-            <div onClick={handleToggleNotifications} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}><Bell size={24} /> Push Notifications</span>
-              <div style={{
-                width: '50px', height: '28px', borderRadius: '14px',
-                background: pushNotifEnabled ? '#2bd856' : 'rgba(255,255,255,0.15)',
-                position: 'relative', transition: 'background 0.3s ease',
-                flexShrink: 0
-              }}>
-                <div style={{
-                  width: '24px', height: '24px', borderRadius: '50%',
-                  background: '#fff', position: 'absolute', top: '2px',
-                  left: pushNotifEnabled ? '24px' : '2px',
-                  transition: 'left 0.3s ease',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
-                }} />
-              </div>
-            </div>
-            <p style={{ color: '#a8a8a8', fontSize: '0.95rem', marginTop: '15px', lineHeight: '1.6' }}>
-              Enable push notifications to stay updated on new messages, followers, and activity even when you are not using the app. In-app sounds and message pop-ups are also linked to this setting.
+          <div style={{ padding: '20px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+            {/* Main push toggle */}
+            {(() => {
+              const ToggleSwitch = ({ enabled }) => (
+                <div style={{ width: '50px', height: '28px', borderRadius: '14px', background: enabled ? '#2bd856' : 'rgba(255,255,255,0.15)', position: 'relative', transition: 'background 0.2s ease', flexShrink: 0 }}>
+                  <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: enabled ? '24px' : '2px', transition: 'left 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                </div>
+              );
+              return (
+                <>
+                  <div onClick={handleToggleNotifications} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '16px', background: 'rgba(255,255,255,0.06)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1.05rem', fontWeight: '600' }}><Bell size={22} /> Push Notifications</span>
+                    <ToggleSwitch enabled={pushNotifEnabled} />
+                  </div>
+
+                  {/* Sub-options — only show when push is ON */}
+                  {pushNotifEnabled && (
+                    <div style={{ marginLeft: '12px', display: 'flex', flexDirection: 'column', gap: '10px', borderLeft: '2px solid rgba(255,255,255,0.1)', paddingLeft: '16px' }}>
+                      {/* Pop-up toggle */}
+                      <div onClick={() => setNotifPopEnabled(p => !p)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '14px', background: 'rgba(255,255,255,0.04)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div>
+                          <div style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '3px' }}>🔔 Notification Pop-up</div>
+                          <div style={{ fontSize: '0.8rem', color: '#888' }}>Show message preview on screen</div>
+                        </div>
+                        <ToggleSwitch enabled={notifPopEnabled} />
+                      </div>
+
+                      {/* Sound toggle */}
+                      <div onClick={() => setNotifSoundEnabled(s => !s)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '14px', background: 'rgba(255,255,255,0.04)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div>
+                          <div style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '3px' }}>🔊 Notification Sound</div>
+                          <div style={{ fontSize: '0.8rem', color: '#888' }}>Play sound when message arrives</div>
+                        </div>
+                        <ToggleSwitch enabled={notifSoundEnabled} />
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            <p style={{ color: '#555', fontSize: '0.88rem', marginTop: '8px', lineHeight: '1.6' }}>
+              Enable push notifications to stay updated. You can fine-tune whether to show a pop-up, play a sound, or both.
             </p>
           </div>
         </div>
       )}
+
       
       {showSettingsModal && (
         <div className="settings-drawer-overlay" onClick={() => setShowSettingsModal(false)}>
