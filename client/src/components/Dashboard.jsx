@@ -931,6 +931,14 @@ export default function Dashboard() {
     }, 3000);
   };
 
+  const [msgToast, setMsgToast] = useState({ show: false, sender: null, messageText: '' });
+  const showMsgToast = (sender, messageText) => {
+    setMsgToast({ show: true, sender, messageText });
+    setTimeout(() => {
+      setMsgToast(prev => ({ ...prev, show: false }));
+    }, 4000);
+  };
+
   // Call Details
   const [callerId, setCallerId] = useState('');
   const [callerName, setCallerName] = useState('');
@@ -1701,7 +1709,10 @@ export default function Dashboard() {
               const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
               audio.play()?.catch(e => console.log('Audio blocked', e));
             } catch (e) {}
-            showToastMsg('New message received!', 'info');
+            showMsgToast(
+              { username: msg.senderUsername || 'Someone', avatarUrl: msg.senderAvatarUrl || '' },
+              msg.messageType === 'text' ? msg.message : `Sent a ${msg.messageType || 'file'}`
+            );
           }
           setUnreadMessages(prev => ({...prev, [msg.sender]: (prev[msg.sender] || 0) + 1}));
         }
@@ -6263,6 +6274,50 @@ export default function Dashboard() {
               10% { top: 20px; opacity: 1; }
               80% { top: 20px; opacity: 1; }
               100% { top: -50px; opacity: 0; }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Rich Message Incoming Toast */}
+      {msgToast.show && msgToast.sender && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 99999,
+          background: 'rgba(20, 20, 20, 0.95)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          backdropFilter: 'blur(20px)',
+          color: '#fff',
+          padding: '14px 18px',
+          borderRadius: '18px',
+          boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          animation: 'msgToastSlide 4s forwards',
+          minWidth: '260px',
+          maxWidth: '340px',
+        }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366)', padding: '2px' }}>
+            <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', background: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>
+              {msgToast.sender.avatarUrl
+                ? <img src={msgToast.sender.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : msgToast.sender.username?.charAt(0)?.toUpperCase()}
+            </div>
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', marginBottom: '2px' }}>@{msgToast.sender.username}</div>
+            <div style={{ fontSize: '0.88rem', color: '#ccc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msgToast.messageText}</div>
+          </div>
+          <style>{`
+            @keyframes msgToastSlide {
+              0% { top: -80px; opacity: 0; }
+              12% { top: 20px; opacity: 1; }
+              80% { top: 20px; opacity: 1; }
+              100% { top: -80px; opacity: 0; }
             }
           `}</style>
         </div>

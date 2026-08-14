@@ -2700,10 +2700,7 @@ io.on('connection', (socket) => {
         createdAt: message.createdAt
       };
 
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('receive_message', payload);
-      }
-      
+
       // Echo real message ID back to sender to update their UI
       io.to(socket.id).emit('message_sent', { tempId, message: payload });
       
@@ -2713,8 +2710,16 @@ io.on('connection', (socket) => {
       }
 
       // Check if they are mutual followers (friends) to send a push notification
-      const senderObj = await User.findById(senderId).select('username followers following');
+      const senderObj = await User.findById(senderId).select('username avatarUrl followers following');
       const receiverObj = await User.findById(receiverId).select('pushSubscriptions followers following');
+      
+      // Enrich payload with sender info for rich toast
+      payload.senderUsername = senderObj?.username || '';
+      payload.senderAvatarUrl = senderObj?.avatarUrl || '';
+      // Re-emit enriched payload
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('receive_message', payload);
+      }
       
       if (senderObj && receiverObj) {
         const isMutual = senderObj.followers.some(id => id.toString() === receiverId.toString()) && 
