@@ -3743,7 +3743,6 @@ export default function Dashboard() {
     <Globe
       ref={globeEl}
       globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-      backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
       bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
       backgroundColor="rgba(0,0,0,0)"
       showAtmosphere={false}
@@ -5475,7 +5474,7 @@ export default function Dashboard() {
 
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container" style={{ background: activeTab === 'home' ? 'linear-gradient(180deg, #0a0e27 0%, #141852 25%, #2a1b5e 50%, #4a2060 70%, #8b3a62 85%, #d4748a 95%, #f0a0b0 100%)' : 'var(--bg-color)', transition: 'background 0.4s ease-in-out' }}>
       <input
         type="file"
         accept="image/*"
@@ -5491,15 +5490,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Night Sky Background - only visible on home tab */}
-      <div style={{
-        position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-        background: 'linear-gradient(180deg, #0a0e27 0%, #141852 25%, #2a1b5e 50%, #4a2060 70%, #8b3a62 85%, #d4748a 95%, #f0a0b0 100%)',
-        opacity: activeTab === 'home' ? 1 : 0,
-        zIndex: activeTab === 'home' ? -1 : -1000,
-        transition: 'opacity 0.4s ease-in-out',
-        overflow: 'hidden'
-      }}>
         {/* Stars */}
         <div className="night-sky-stars" />
         {/* Crescent Moon */}
