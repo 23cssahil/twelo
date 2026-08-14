@@ -5474,7 +5474,7 @@ export default function Dashboard() {
 
 
   return (
-    <div className="dashboard-container" style={{ background: activeTab === 'home' ? 'linear-gradient(180deg, #0a0e27 0%, #141852 25%, #2a1b5e 50%, #4a2060 70%, #8b3a62 85%, #d4748a 95%, #f0a0b0 100%)' : 'var(--bg-color)', transition: 'background 0.4s ease-in-out' }}>
+    <div className="dashboard-container" style={{ background: activeTab === 'home' ? 'linear-gradient(180deg, #1A2359 0%, #293875 25%, #423285 50%, #764A8E 70%, #B86788 85%, #E6889B 95%, #FAC8D2 100%)' : 'var(--bg-color)', transition: 'background 0.4s ease-in-out' }}>
       <input
         type="file"
         accept="image/*"
@@ -5495,7 +5495,7 @@ export default function Dashboard() {
         {/* Crescent Moon */}
         <div style={{
           position: 'absolute',
-          top: '8%',
+          top: '15%',
           right: '12%',
           width: '45px',
           height: '45px',
