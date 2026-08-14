@@ -2722,9 +2722,12 @@ io.on('connection', (socket) => {
       }
       
       if (senderObj && receiverObj) {
+        // Only send push notifications when receiver is OFFLINE (not connected via socket)
+        // When online, the in-app toast handles notifications
+        const isReceiverOnline = !!receiverSocketId;
         const isMutual = senderObj.followers.some(id => id.toString() === receiverId.toString()) && 
                          senderObj.following.some(id => id.toString() === receiverId.toString());
-        if (isMutual && !receiverObj.ownedByAdmin && receiverObj.pushSubscriptions && receiverObj.pushSubscriptions.length > 0) {
+        if (isMutual && !isReceiverOnline && !receiverObj.ownedByAdmin && receiverObj.pushSubscriptions && receiverObj.pushSubscriptions.length > 0) {
             const pushPayload = JSON.stringify({
               title: `New message from ${senderObj.username}`,
               body: messageType === 'text' ? messageText : `Sent a ${messageType}`,

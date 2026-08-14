@@ -1094,6 +1094,10 @@ export default function Dashboard() {
           const registration = await navigator.serviceWorker.ready;
           const subscription = await registration.pushManager.getSubscription();
           setPushNotifEnabled(!!subscription && Notification.permission === 'granted');
+          // Clear any lingering push notifications since user is now on the site
+          if (registration.active) {
+            registration.active.postMessage({ type: 'CLEAR_NOTIFICATIONS' });
+          }
         }
       } catch (e) { console.log('Push check error:', e); }
     };
@@ -3255,6 +3259,12 @@ export default function Dashboard() {
     fetchMessages(targetUser._id);
     if (socket) {
       socket.emit('mark_all_read', { senderId: targetUser._id, receiverId: user.id });
+    }
+    // Clear push notifications when entering a chat
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(reg => {
+        if (reg.active) reg.active.postMessage({ type: 'CLEAR_NOTIFICATIONS' });
+      }).catch(() => {});
     }
     window.history.pushState({ view: 'chat' }, '', '');
   };
