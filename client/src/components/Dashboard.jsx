@@ -762,6 +762,7 @@ export default function Dashboard() {
   // Chat state
   const [recentChats, setRecentChats] = useState([]);
   const [chatsError, setChatsError] = useState(null);
+  const [showChatSettingsMenu, setShowChatSettingsMenu] = useState(false);
   
   // Stories State
   const [groupedStories, setGroupedStories] = useState([]);
@@ -4764,28 +4765,70 @@ export default function Dashboard() {
                         </span>
                       </div>
                     </div>
-                    <div className="chat-actions">
-                      <button 
-                        className="action-icon-btn" 
-                        onClick={handleDeleteChat}
-                        title="Delete Chat"
-                        style={{ color: '#ff4b4b' }}
-                      >
-                        <Trash2 size={20} />
-                      </button>
-                      <button 
-                        className="action-icon-btn" 
-                        onClick={() => {
-                          setReportTarget({ id: activeChatUser._id, username: activeChatUser.username, isAnonymous: false });
-                          setShowReportModal(true);
-                        }} 
-                        title="Report User"
-                        style={{ color: '#ff4b4b' }}
-                      >
-                        <Flag size={20} />
-                      </button>
+                    <div className="chat-actions" style={{ position: 'relative' }}>
                       <button className="action-icon-btn call-audio" onClick={() => callUser(String(activeChatUser._id), activeChatUser.username, false)}><Phone size={22} /></button>
                       <button className="action-icon-btn call-video" onClick={() => callUser(String(activeChatUser._id), activeChatUser.username, true)}><Video size={22} /></button>
+                      <button className="action-icon-btn" onClick={() => setShowChatSettingsMenu(!showChatSettingsMenu)}><MoreVertical size={22} /></button>
+                      
+                      {showChatSettingsMenu && (
+                        <>
+                          <div 
+                            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} 
+                            onClick={() => setShowChatSettingsMenu(false)}
+                          />
+                          <div style={{
+                            position: 'absolute',
+                            top: '45px',
+                            right: '0',
+                            background: '#1a1a1a',
+                            border: '1px solid #333',
+                            borderRadius: '12px',
+                            padding: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '5px',
+                            zIndex: 100,
+                            minWidth: '200px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                          }}>
+                            <button 
+                              onClick={() => {
+                                setShowChatSettingsMenu(false);
+                                handleDeleteChat();
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                                background: 'transparent', border: 'none', color: '#ff4b4b',
+                                padding: '10px', cursor: 'pointer', borderRadius: '8px',
+                                fontSize: '0.9rem', fontWeight: 'bold', textAlign: 'left',
+                                width: '100%'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 75, 75, 0.1)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              <Trash2 size={18} /> Delete all chats
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setShowChatSettingsMenu(false);
+                                setReportTarget({ id: activeChatUser._id, username: activeChatUser.username, isAnonymous: false });
+                                setShowReportModal(true);
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                                background: 'transparent', border: 'none', color: '#ff4b4b',
+                                padding: '10px', cursor: 'pointer', borderRadius: '8px',
+                                fontSize: '0.9rem', fontWeight: 'bold', textAlign: 'left',
+                                width: '100%'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 75, 75, 0.1)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              <Flag size={18} /> Report user
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
