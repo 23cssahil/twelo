@@ -5605,34 +5605,32 @@ export default function Dashboard() {
       )}
 
       {showNotificationsModal && (
-        <div className="settings-drawer-overlay" onClick={() => setShowNotificationsModal(false)} style={{ zIndex: 10002 }}>
-          <div className="settings-drawer" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Notifications</h2>
-              <button onClick={() => setShowNotificationsModal(false)} className="close-btn"><X size={24} /></button>
-            </div>
-            <div className="settings-options" style={{ padding: '20px' }}>
-              <div className="settings-item-btn" onClick={handleToggleNotifications} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}><Bell size={24} /> Push Notifications</span>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10002, background: '#111', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #333', background: '#000' }}>
+            <button onClick={() => setShowNotificationsModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowLeft size={24} /></button>
+            <h2 style={{ marginLeft: '20px', fontSize: '1.2rem', margin: '0 0 0 20px' }}>Notifications</h2>
+          </div>
+          <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
+            <div onClick={handleToggleNotifications} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}><Bell size={24} /> Push Notifications</span>
+              <div style={{
+                width: '50px', height: '28px', borderRadius: '14px',
+                background: pushNotifEnabled ? '#2bd856' : 'rgba(255,255,255,0.15)',
+                position: 'relative', transition: 'background 0.3s ease',
+                flexShrink: 0
+              }}>
                 <div style={{
-                  width: '50px', height: '28px', borderRadius: '14px',
-                  background: pushNotifEnabled ? '#2bd856' : 'rgba(255,255,255,0.15)',
-                  position: 'relative', transition: 'background 0.3s ease',
-                  flexShrink: 0
-                }}>
-                  <div style={{
-                    width: '24px', height: '24px', borderRadius: '50%',
-                    background: '#fff', position: 'absolute', top: '2px',
-                    left: pushNotifEnabled ? '24px' : '2px',
-                    transition: 'left 0.3s ease',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
-                  }} />
-                </div>
+                  width: '24px', height: '24px', borderRadius: '50%',
+                  background: '#fff', position: 'absolute', top: '2px',
+                  left: pushNotifEnabled ? '24px' : '2px',
+                  transition: 'left 0.3s ease',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                }} />
               </div>
-              <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginTop: '15px', lineHeight: '1.5' }}>
-                Enable push notifications to stay updated on new messages, followers, and activity even when you are not using the app.
-              </p>
             </div>
+            <p style={{ color: '#a8a8a8', fontSize: '0.95rem', marginTop: '15px', lineHeight: '1.6' }}>
+              Enable push notifications to stay updated on new messages, followers, and activity even when you are not using the app. In-app sounds and message pop-ups are also linked to this setting.
+            </p>
           </div>
         </div>
       )}
