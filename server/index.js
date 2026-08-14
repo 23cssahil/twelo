@@ -1779,20 +1779,18 @@ app.delete('/api/stories/:id', authenticateToken, async (req, res) => {
   }
 });
 
-
-// Get Messages Route (with Pagination)
+// Get Messages Route (with Cursor Pagination)
 app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
   try {
     const { otherUserId } = req.params;
     const currentUserId = req.user.userId;
-    const page = parseInt(req.query.page) || 1;
+    const cursor = req.query.cursor; // expects an ObjectId string or empty
     const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
 
     // Mark messages sent by the other user to current user as viewed (Async in background)
-    // Only update if it's the first page (latest messages) to avoid redundant DB calls on older pages
+    // Only update if it's the first fetch (no cursor) to avoid redundant DB calls
     // IMPORTANT: Skip view-once messages — they must only be marked viewed when explicitly opened by user
-    if (page === 1) {
+    if (!cursor || cursor === 'null' || cursor === 'undefined') {
       Message.updateMany(
         { sender: otherUserId, receiver: currentUserId, isViewed: false, isViewOnce: { $ne: true } },
         { $set: { isViewed: true, viewedAt: new Date() } }
@@ -1811,22 +1809,24 @@ app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
       ]
     };
 
+    if (cursor && cursor !== 'null' && cursor !== 'undefined') {
+      query._id = { $lt: cursor };
+    }
+
     const messages = await Message.find(query)
-      .sort({ createdAt: -1 }) // Get newest first
-      .skip(skip)
+      .sort({ _id: -1 }) // Get newest first
       .limit(limit);
       
-    const totalMessages = await Message.countDocuments(query);
-    const hasMore = totalMessages > (skip + messages.length);
-
-    // Reverse the array so the frontend receives them in chronological order
-    const chronologicalMessages = messages.reverse();
+    const hasMore = messages.length === limit;
+    const nextCursor = messages.length > 0 ? messages[messages.length - 1]._id : null;
 
     res.json({
-      messages: chronologicalMessages,
-      hasMore: hasMore
+      messages: messages.reverse(), // Reverse to have oldest first in UI
+      hasMore,
+      nextCursor
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error fetching messages', error: error.message });
   }
 });

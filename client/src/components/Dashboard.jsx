@@ -629,7 +629,7 @@ export default function Dashboard() {
   const [hasMoreSearch, setHasMoreSearch] = useState(true);
   const [isFetchingSearchHistory, setIsFetchingSearchHistory] = useState(true);
   const [isFetchingMessages, setIsFetchingMessages] = useState(false);
-  const [messagePage, setMessagePage] = useState(1);
+  const [messageCursor, setMessageCursor] = useState(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [settingsLoading, setSettingsLoading] = useState(false);
   
@@ -2184,9 +2184,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (activeChatUser) {
-      setMessagePage(1);
+      setMessageCursor(null);
       setHasMoreMessages(true);
-      fetchMessages(activeChatUser._id, 1);
+      fetchMessages(activeChatUser._id, null);
     }
   }, [activeChatUser]);
 
@@ -2214,32 +2214,36 @@ export default function Dashboard() {
     }
   };
 
-  const fetchMessages = async (otherId, page = 1) => {
+  const fetchMessages = async (otherId, cursor = null) => {
     try {
-      if (page === 1) setIsFetchingMessages(true);
-      const res = await fetch(`${API_URL}/api/messages/${otherId}?page=${page}&limit=20`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!cursor) setIsFetchingMessages(true);
+      const url = new URL(`${API_URL}/api/messages/${otherId}`);
+      url.searchParams.append('limit', '20');
+      if (cursor) url.searchParams.append('cursor', cursor);
+
+      const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
-        if (page === 1) {
+        if (!cursor) {
           setMessages(data.messages);
         } else {
           // Prepend older messages while maintaining the existing ones
           setMessages(prev => [...data.messages, ...prev]);
         }
         setHasMoreMessages(data.hasMore);
+        if (data.nextCursor) {
+          setMessageCursor(data.nextCursor);
+        }
       }
     } catch (err) { console.error(err); } finally {
-      if (page === 1) setIsFetchingMessages(false);
+      if (!cursor) setIsFetchingMessages(false);
     }
   };
 
   const handleChatScroll = async (e) => {
-    if (e.target.scrollTop === 0 && hasMoreMessages && !isFetchingMessages) {
+    if (e.target.scrollTop === 0 && hasMoreMessages && !isFetchingMessages && messageCursor) {
       scrollHeightBeforeUpdate.current = e.target.scrollHeight;
-      const nextPage = messagePage + 1;
-      setMessagePage(nextPage);
-      
-      await fetchMessages(activeChatUser._id, nextPage);
+      await fetchMessages(activeChatUser._id, messageCursor);
     }
   };
 
