@@ -708,6 +708,7 @@ export default function Dashboard() {
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showInnerSettingsModal, setShowInnerSettingsModal] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showChangeUsernameModal, setShowChangeUsernameModal] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState(null); // null, true, false
   const [checkingUsername, setCheckingUsername] = useState(false);
@@ -5591,9 +5592,42 @@ export default function Dashboard() {
               <button className="settings-item-btn">My Profile</button>
               <button className="settings-item-btn">Account</button>
               <button className="settings-item-btn">Privacy</button>
-              <button className="settings-item-btn">Notifications</button>
+              <button className="settings-item-btn" onClick={() => setShowNotificationsModal(true)}>Notifications</button>
               <button className="settings-item-btn">More Info</button>
               <button className="settings-item-btn">Invite Friend</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNotificationsModal && (
+        <div className="settings-drawer-overlay" onClick={() => setShowNotificationsModal(false)} style={{ zIndex: 10002 }}>
+          <div className="settings-drawer" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Notifications</h2>
+              <button onClick={() => setShowNotificationsModal(false)} className="close-btn"><X size={24} /></button>
+            </div>
+            <div className="settings-options" style={{ padding: '20px' }}>
+              <div className="settings-item-btn" onClick={handleToggleNotifications} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}><Bell size={24} /> Push Notifications</span>
+                <div style={{
+                  width: '50px', height: '28px', borderRadius: '14px',
+                  background: pushNotifEnabled ? '#2bd856' : 'rgba(255,255,255,0.15)',
+                  position: 'relative', transition: 'background 0.3s ease',
+                  flexShrink: 0
+                }}>
+                  <div style={{
+                    width: '24px', height: '24px', borderRadius: '50%',
+                    background: '#fff', position: 'absolute', top: '2px',
+                    left: pushNotifEnabled ? '24px' : '2px',
+                    transition: 'left 0.3s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                  }} />
+                </div>
+              </div>
+              <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginTop: '15px', lineHeight: '1.5' }}>
+                Enable push notifications to stay updated on new messages, followers, and activity even when you are not using the app.
+              </p>
             </div>
           </div>
         </div>
@@ -5611,25 +5645,6 @@ export default function Dashboard() {
                 <SettingsIcon size={20} /> Settings
               </button>
               
-              
-              <div className="settings-item-btn" onClick={handleToggleNotifications} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><Bell size={20} /> Push Notifications</span>
-                <div style={{
-                  width: '46px', height: '26px', borderRadius: '13px',
-                  background: pushNotifEnabled ? '#2bd856' : 'rgba(255,255,255,0.15)',
-                  position: 'relative', transition: 'background 0.3s ease',
-                  flexShrink: 0
-                }}>
-                  <div style={{
-                    width: '22px', height: '22px', borderRadius: '50%',
-                    background: '#fff', position: 'absolute', top: '2px',
-                    left: pushNotifEnabled ? '22px' : '2px',
-                    transition: 'left 0.3s ease',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
-                  }} />
-                </div>
-              </div>
-
               
               <button className="settings-item-btn" onClick={() => navigate('/about-us')} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Info size={20} /> About Us
