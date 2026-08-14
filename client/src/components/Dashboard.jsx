@@ -937,9 +937,9 @@ export default function Dashboard() {
     }, 3000);
   };
 
-  const [msgToast, setMsgToast] = useState({ show: false, sender: null, messageText: '' });
-  const showMsgToast = (sender, messageText) => {
-    setMsgToast({ show: true, sender, messageText });
+  const [msgToast, setMsgToast] = useState({ show: false, sender: null, messageText: '', senderId: null });
+  const showMsgToast = (sender, messageText, senderId) => {
+    setMsgToast({ show: true, sender, messageText, senderId });
     setTimeout(() => {
       setMsgToast(prev => ({ ...prev, show: false }));
     }, 4000);
@@ -1726,7 +1726,8 @@ export default function Dashboard() {
             if (notifPopEnabledRef.current) {
               showMsgToast(
                 { username: msg.senderUsername || 'Someone', avatarUrl: msg.senderAvatarUrl || '' },
-                msg.messageType === 'text' ? msg.message : `Sent a ${msg.messageType || 'file'}`
+                msg.messageType === 'text' ? msg.message : `Sent a ${msg.messageType || 'file'}`,
+                msg.sender
               );
             }
           }
@@ -6322,26 +6323,34 @@ export default function Dashboard() {
 
       {/* Rich Message Incoming Toast */}
       {msgToast.show && msgToast.sender && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 99999,
-          background: 'rgba(20, 20, 20, 0.95)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          backdropFilter: 'blur(20px)',
-          color: '#fff',
-          padding: '14px 18px',
-          borderRadius: '18px',
-          boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          animation: 'msgToastSlide 4s forwards',
-          minWidth: '260px',
-          maxWidth: '340px',
-        }}>
+        <div
+          onClick={() => {
+            if (msgToast.senderId) {
+              startChatWithUser({ _id: msgToast.senderId, username: msgToast.sender.username, avatarUrl: msgToast.sender.avatarUrl });
+            }
+            setMsgToast(prev => ({ ...prev, show: false }));
+          }}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 99999,
+            background: 'rgba(20, 20, 20, 0.95)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            backdropFilter: 'blur(20px)',
+            color: '#fff',
+            padding: '14px 18px',
+            borderRadius: '18px',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            animation: 'msgToastSlide 4s forwards',
+            minWidth: '260px',
+            maxWidth: '340px',
+            cursor: 'pointer',
+          }}>
           <div style={{ width: '44px', height: '44px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366)', padding: '2px' }}>
             <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', background: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>
               {msgToast.sender.avatarUrl
@@ -6350,9 +6359,10 @@ export default function Dashboard() {
             </div>
           </div>
           <div style={{ flex: 1, overflow: 'hidden' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', marginBottom: '2px' }}>@{msgToast.sender.username}</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', marginBottom: '3px' }}>@{msgToast.sender.username}</div>
             <div style={{ fontSize: '0.88rem', color: '#ccc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msgToast.messageText}</div>
           </div>
+          <div style={{ fontSize: '0.7rem', color: '#666', flexShrink: 0 }}>Tap to open</div>
           <style>{`
             @keyframes msgToastSlide {
               0% { top: -80px; opacity: 0; }
