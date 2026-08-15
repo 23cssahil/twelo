@@ -817,25 +817,27 @@ app.get('/api/users/:id/global_stories', authenticateToken, async (req, res) => 
   }
 });
 
-// Get Notifications (auto-migrates old friendRequests)
+// Get Notifications with cursor-based pagination (auto-migrates old friendRequests)
 app.get('/api/users/notifications', authenticateToken, async (req, res) => {
   try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+    const cursor = req.query.cursor || null;
+
     const formatNotifications = (notifications) => notifications.map(notification => {
       const item = notification.toObject ? notification.toObject() : notification;
       const requestUser = item.user;
       const followBackRequested = Boolean(
         requestUser?.friendRequests?.some(id => id.toString() === req.user.userId)
       );
-
       if (requestUser) delete requestUser.friendRequests;
       return { ...item, followBackRequested };
     });
 
-    const user = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl friendRequests');
-    
-    // Auto-migrate old friendRequests to notifications
+    let user = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl friendRequests');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
     let migrated = false;
-    for (let reqId of (user.friendRequests || [])) {
+    for (const reqId of (user.friendRequests || [])) {
       const exists = user.notifications.some(n => n.user && n.user._id && n.user._id.toString() === reqId.toString());
       if (!exists) {
         user.notifications.push({ type: 'follow_request', user: reqId, createdAt: new Date(Date.now() - 10000) });
@@ -845,13 +847,40 @@ app.get('/api/users/notifications', authenticateToken, async (req, res) => {
 
     if (migrated) {
       await user.save();
-      const populatedUser = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl friendRequests');
-      const sorted = populatedUser.notifications.sort((a, b) => b.createdAt - a.createdAt);
-      return res.json(formatNotifications(sorted));
+      user = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl friendRequests');
     }
-    
-    const sorted = user.notifications.sort((a, b) => b.createdAt - a.createdAt);
-    res.json(formatNotifications(sorted));
+
+    let sorted = [...user.notifications].sort((a, b) => {
+      const time = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return time || String(b._id).localeCompare(String(a._id));
+    });
+
+    if (cursor) {
+      let decoded;
+      try {
+        decoded = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+      } catch (e) {
+        return res.status(400).json({ message: 'Invalid notification cursor' });
+      }
+      const cursorTime = new Date(decoded.createdAt).getTime();
+      const cursorId = String(decoded.id || '');
+      if (!Number.isFinite(cursorTime) || !cursorId) {
+        return res.status(400).json({ message: 'Invalid notification cursor' });
+      }
+      sorted = sorted.filter(n => {
+        const itemTime = new Date(n.createdAt).getTime();
+        const itemId = String(n._id);
+        return itemTime < cursorTime || (itemTime === cursorTime && itemId < cursorId);
+      });
+    }
+
+    const page = sorted.slice(0, limit);
+    const last = page[page.length - 1];
+    const nextCursor = page.length === limit && last
+      ? Buffer.from(JSON.stringify({ createdAt: last.createdAt, id: String(last._id) })).toString('base64url')
+      : null;
+
+    res.json({ notifications: formatNotifications(page), nextCursor });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching notifications' });
