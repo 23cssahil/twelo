@@ -1,0 +1,195 @@
+name: Implement notification cursor pagination
+
+on:
+  push:
+    branches:
+      - feature/notifications-cursor-pagination
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Implement cursor pagination
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_route(text, marker, replacement):
+              start = text.find(marker)
+              if start < 0:
+                  raise SystemExit(f'route/function not found: {marker}')
+              brace = text.find('{', start)
+              if brace < 0:
+                  raise SystemExit('handler body not found')
+              depth = 0
+              in_str = None
+              esc = False
+              line_comment = False
+              block_comment = False
+              i = brace
+              while i < len(text):
+                  c = text[i]
+                  n = text[i+1] if i + 1 < len(text) else ''
+                  if line_comment:
+                      if c == '\n': line_comment = False
+                  elif block_comment:
+                      if c == '*' and n == '/': block_comment = False; i += 1
+                  elif in_str:
+                      if esc: esc = False
+                      elif c == '\\': esc = True
+                      elif c == in_str: in_str = None
+                  elif c in "'\"`":
+                      in_str = c
+                  elif c == '/' and n == '/': line_comment = True; i += 1
+                  elif c == '/' and n == '*': block_comment = True; i += 1
+                  elif c == '{': depth += 1
+                  elif c == '}':
+                      depth -= 1
+                      if depth == 0:
+                          end = i + 1
+                          semi = text.find(';', end)
+                          if semi < 0 or semi - end > 20:
+                              raise SystemExit('could not find statement end')
+                          return text[:start] + replacement + text[semi+1:]
+                  i += 1
+              raise SystemExit('could not find matching closing brace')
+
+          server = Path('server/index.js')
+          text = server.read_text()
+          new_route = r'''app.get('/api/users/notifications', authMiddleware, async (req, res) => {
+    try {
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+      const cursor = req.query.cursor || null;
+      const user = await User.findById(req.user.id).select('notifications').lean();
+      if (!user) return res.status(404).json({ message: 'User not found' });
+
+      let notifications = Array.isArray(user.notifications) ? [...user.notifications] : [];
+      notifications.sort((a, b) => {
+        const timeDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return String(b._id).localeCompare(String(a._id));
+      });
+
+      if (cursor) {
+        let decoded;
+        try {
+          decoded = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+        } catch (e) {
+          return res.status(400).json({ message: 'Invalid notification cursor' });
+        }
+        const cursorTime = new Date(decoded.createdAt).getTime();
+        const cursorId = String(decoded.id || '');
+        if (!Number.isFinite(cursorTime) || !cursorId) {
+          return res.status(400).json({ message: 'Invalid notification cursor' });
+        }
+        notifications = notifications.filter((n) => {
+          const itemTime = new Date(n.createdAt).getTime();
+          const itemId = String(n._id);
+          return itemTime < cursorTime || (itemTime === cursorTime && itemId < cursorId);
+        });
+      }
+
+      const page = notifications.slice(0, limit);
+      const last = page[page.length - 1];
+      const nextCursor = page.length === limit && last
+        ? Buffer.from(JSON.stringify({ createdAt: last.createdAt, id: String(last._id) })).toString('base64url')
+        : null;
+
+      return res.json({ notifications: page, nextCursor });
+    } catch (e) {
+      console.error('Failed to fetch notifications:', e);
+      return res.status(500).json({ message: 'Failed to fetch notifications' });
+    }
+  });'''
+          text = replace_route(text, "app.get('/api/users/notifications'", new_route)
+          server.write_text(text)
+
+          client = Path('client/src/components/Dashboard.jsx')
+          text = client.read_text()
+          old = "  const [notifications, setNotifications] = useState([]);"
+          new = "  const [notifications, setNotifications] = useState([]);\n  const [notificationsCursor, setNotificationsCursor] = useState(null);\n  const [notificationsLoading, setNotificationsLoading] = useState(false);"
+          if old not in text: raise SystemExit('notification state declaration not found')
+          text = text.replace(old, new, 1)
+
+          fetch_fn = r'''  const fetchNotifications = async ({ cursor = null, append = false } = {}) {
+    if (notificationsLoading) return;
+    setNotificationsLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: '20' });
+      if (cursor) params.set('cursor', cursor);
+      const res = await fetch(`${API_URL}/api/users/notifications?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        const page = Array.isArray(data.notifications) ? data.notifications : [];
+        setNotifications(prev => append ? [...prev, ...page] : page);
+        setNotificationsCursor(data.nextCursor || null);
+        if (!append && activeTab !== 'notifications') setUnreadNotifsCount(page.filter(n => !n.read).length);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };'''
+          # Correct the declaration marker to preserve the existing semicolon style.
+          start = text.find('  const fetchNotifications = async () => {')
+          if start < 0: raise SystemExit('fetchNotifications function not found')
+          brace = text.find('{', start)
+          depth = 0
+          in_str = None
+          esc = False
+          i = brace
+          while i < len(text):
+              c = text[i]
+              if in_str:
+                  if esc: esc = False
+                  elif c == '\\': esc = True
+                  elif c == in_str: in_str = None
+              elif c in "'\"`": in_str = c
+              elif c == '{': depth += 1
+              elif c == '}':
+                  depth -= 1
+                  if depth == 0:
+                      end = i + 1
+                      break
+              i += 1
+          else: raise SystemExit('fetchNotifications function end not found')
+          text = text[:start] + fetch_fn + text[end+1:]
+
+          old_effect = """  useEffect(() => {\n    if (activeTab === 'notifications') {\n      setUnreadNotifsCount(0);"""
+          new_effect = """  useEffect(() => {\n    if (activeTab === 'notifications') {\n      setUnreadNotifsCount(0);\n      setNotificationsCursor(null);\n      fetchNotifications({ cursor: null, append: false });"""
+          if old_effect not in text: raise SystemExit('notifications tab effect not found')
+          text = text.replace(old_effect, new_effect, 1)
+          text = text.replace('      fetchNotifications();\n      fetchStories();', '      fetchNotifications({ cursor: null, append: false });\n      fetchStories();', 1)
+          text = text.replace('      fetchNotifications();\n      fetchProfile();', '      fetchNotifications({ cursor: null, append: false });\n      fetchProfile();', 1)
+
+          text = text.replace("            {notifications.length === 0 ? (", "            {notifications.length === 0 && !notificationsLoading ? (", 1)
+          anchor = "                })}\n              </div>\n            )}\n          </div>\n        );\n\n      case 'messages':"
+          if anchor not in text: raise SystemExit('notifications render end marker not found')
+          replacement = """                })}\n              </div>\n              {notificationsLoading && (\n                <div style={{ textAlign: 'center', color: '#a8a8a8', padding: '16px' }}>Loading notifications...</div>\n              )}\n              {notificationsCursor && !notificationsLoading && (\n                <div style={{ display: 'flex', justifyContent: 'center', padding: '18px 0 8px' }}>\n                  <button onClick={() => fetchNotifications({ cursor: notificationsCursor, append: true })} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#fff', padding: '10px 18px', cursor: 'pointer' }}>Load more</button>\n                </div>\n              )}\n            )}\n          </div>\n        );\n\n      case 'messages':"""
+          text = text.replace(anchor, replacement, 1)
+          client.write_text(text)
+
+          Path('.github/workflows/implement-notification-pagination.yml').unlink()
+      - name: Verify changes
+        run: |
+          node --check server/index.js
+          cd client
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Commit and push implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/index.js client/src/components/Dashboard.jsx .github/workflows/implement-notification-pagination.yml
+          git diff --cached --check
+          git commit -m "feat: add cursor pagination for notifications"
+          git push origin HEAD:feature/notifications-cursor-pagination
