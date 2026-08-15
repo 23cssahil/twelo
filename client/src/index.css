@@ -211,7 +211,7 @@ input, button, textarea {
 }
 
 .nav-item.active {
-  color: var(--brand-blue);
+  color: var(--brand-red);
 }
 
 .nav-item span {
