@@ -730,8 +730,6 @@ export default function Dashboard() {
   // Profile & Social State
   const [profileStats, setProfileStats] = useState(null);
   const [notifications, setNotifications] = useState([]);
-  const [notificationsCursor, setNotificationsCursor] = useState(null);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [expandedAlerts, setExpandedAlerts] = useState(new Set());
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [publicProfileData, setPublicProfileData] = useState(null);
@@ -1423,35 +1421,26 @@ export default function Dashboard() {
     }
   };
 
-  const fetchNotifications = async ({ cursor = null, append = false } = {}) => {
-  if (notificationsLoading) return;
-  setNotificationsLoading(true);
-  try {
-    const params = new URLSearchParams({ limit: '20' });
-    if (cursor) params.set('cursor', cursor);
-    const res = await fetch(`${API_URL}/api/users/notifications?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json();
-    if (res.ok) {
-      const page = Array.isArray(data.notifications) ? data.notifications : [];
-      setNotifications(prev => append ? [...prev, ...page] : page);
-      setNotificationsCursor(data.nextCursor || null);
-      if (!append && activeTab !== 'notifications') {
-        setUnreadNotifsCount(page.filter(n => !n.read).length);
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/notifications`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        setNotifications(data);
+        const unreadCount = data.filter(n => !n.read).length;
+        if (activeTab !== 'notifications') {
+          setUnreadNotifsCount(unreadCount);
+        }
       }
-    }
-  } catch (e) {
-    console.error(e);
-  } finally {
-    setNotificationsLoading(false);
-  }
-};
+    } catch (e) { console.error(e); }
+  };
 
   useEffect(() => {
     if (token) {
       fetchRecentChats();
       fetchProfile();
       fetchConnections();
-      fetchNotifications({ cursor: null, append: false });
+      fetchNotifications();
       fetchStories();
       fetcheveryoneStories();
     }
@@ -1789,7 +1778,7 @@ export default function Dashboard() {
     });
 
     socket.on('new_notification', () => {
-      fetchNotifications({ cursor: null, append: false });
+      fetchNotifications();
       fetchProfile();
     });
 
@@ -4647,19 +4636,6 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-  {notificationsLoading && notifications.length > 0 && (
-    <div style={{ textAlign: 'center', color: '#aaa', padding: '12px' }}>Loading...</div>
-  )}
-  {notificationsCursor && !notificationsLoading && (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
-      <button
-        onClick={() => fetchNotifications({ cursor: notificationsCursor, append: true })}
-        style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#fff', padding: '10px 18px', cursor: 'pointer' }}
-      >
-        Load more
-      </button>
-    </div>
-  )}
           </div>
         );
 
