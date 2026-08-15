@@ -518,11 +518,11 @@ input, button, textarea {
 }
 
 .msg-wrapper.sent .msg-bubble {
-  background-color: var(--instagram-sender-gradient);
-  color: #fff;
-  border-bottom-right-radius: 4px;
-   color: #ffffff;
+    background: var(--instagram-sender-gradient); /* background-color hata kar sirf background kiya */
+    border-bottom-right-radius: 4px;
+    color: #ffffff; /* color ko double likhne ki zaroorat nahi hai, ek baar kaafi hai */
 }
+
 
 .msg-wrapper.received .msg-bubble {
   background-color: #262626;
