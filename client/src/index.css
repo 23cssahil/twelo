@@ -517,7 +517,7 @@ input, button, textarea {
 }
 
 .msg-wrapper.sent .msg-bubble {
-  background-color: var(--insta-gradient);
+  background-color: var(--brand-red);
   color: #fff;
   border-bottom-right-radius: 4px;
 }
