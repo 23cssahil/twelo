@@ -521,6 +521,7 @@ input, button, textarea {
   background-color: var(--instagram-sender-gradient);
   color: #fff;
   border-bottom-right-radius: 4px;
+   color: #ffffff;
 }
 
 .msg-wrapper.received .msg-bubble {
