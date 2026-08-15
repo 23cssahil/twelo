@@ -344,7 +344,7 @@ input, button, textarea {
 }
 
 .chat-now-btn {
-  background-color: var(--brand-blue);
+  background-color: var(--app-sender-unique-color);
   color: #fff;
   padding: 8px 16px;
   border-radius: 8px;
