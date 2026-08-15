@@ -13,7 +13,8 @@
   --insta-gradient: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
   --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --instagram-sender-gradient: linear-gradient(135deg, #bc1888 0%, #cc2366 25%, #dc2743 50%, #e6683c 75%, #f09433 100%);
+  --instagram-sender-gradient1: linear-gradient(135deg, #bc1888 0%, #cc2366 25%, #dc2743 50%, #e6683c 75%, #f09433 100%);
+  --instagram-sender-gradient2: linear-gradient(135deg, #00f0ff 0%, #7000ff 50%, #ff007f 100%);
 }
 
 * {
@@ -518,10 +519,11 @@ input, button, textarea {
 }
 
 .msg-wrapper.sent .msg-bubble {
-    background: var(--instagram-sender-gradient); /* background-color hata kar sirf background kiya */
+    background: var(--instagram-sender-gradient2); /* background-color ki jagah sirf background kiya */
     border-bottom-right-radius: 4px;
-    color: #ffffff; /* color ko double likhne ki zaroorat nahi hai, ek baar kaafi hai */
+    color: #ffffff; /* White text color taaki neon par saaf dikhe */
 }
+
 
 
 .msg-wrapper.received .msg-bubble {
