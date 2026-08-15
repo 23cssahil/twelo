@@ -733,8 +733,11 @@ export default function Dashboard() {
   const [expandedAlerts, setExpandedAlerts] = useState(new Set());
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [publicProfileData, setPublicProfileData] = useState(null);
-  const [connectionsPage, setConnectionsPage] = useState({ title: '', users: [], returnTab: 'profile' });
+  const [connectionsPage, setConnectionsPage] = useState({ title: '', users: [], returnTab: 'profile', userId: null, total: 0 });
   const [connectionsSearch, setConnectionsSearch] = useState('');
+  const [connectionsCursor, setConnectionsCursor] = useState(null);
+  const [connectionsHasMore, setConnectionsHasMore] = useState(false);
+  const [connectionsLoading, setConnectionsLoading] = useState(false);
   const [showAllGlobalStoriesPublic, setShowAllGlobalStoriesPublic] = useState(false);
   const [showAllGlobalStoriesMy, setShowAllGlobalStoriesMy] = useState(false);
   const [profileStoryGroups, setProfileStoryGroups] = useState(null);
@@ -2457,20 +2460,54 @@ export default function Dashboard() {
 
   const handleConnectionsClick = async (type, userId) => {
     try {
-      const res = await fetch(`${API_URL}/api/users/connections/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+      setConnectionsLoading(true);
+      const res = await fetch(`${API_URL}/api/users/connections/${userId}?type=${type}&limit=20`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
         setConnectionsSearch('');
+        setConnectionsCursor(data.nextCursor);
+        setConnectionsHasMore(data.hasMore);
         setConnectionsPage({
           title: type.charAt(0).toUpperCase() + type.slice(1),
-          users: data[type] || [],
-          returnTab: activeTab === 'publicProfile' ? 'publicProfile' : 'profile'
+          users: data.users || [],
+          returnTab: activeTab === 'publicProfile' ? 'publicProfile' : 'profile',
+          userId,
+          total: data.total || 0
         });
         setActiveTab('connections');
       } else {
         alert(data.message || "Not authorized to view connections. You must follow this user first.");
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error(err); } finally {
+      setConnectionsLoading(false);
+    }
+  };
+
+  const loadMoreConnections = async () => {
+    if (!connectionsHasMore || connectionsLoading || !connectionsCursor) return;
+    try {
+      setConnectionsLoading(true);
+      const type = connectionsPage.title.toLowerCase();
+      const res = await fetch(`${API_URL}/api/users/connections/${connectionsPage.userId}?type=${type}&cursor=${connectionsCursor}&limit=20`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        setConnectionsCursor(data.nextCursor);
+        setConnectionsHasMore(data.hasMore);
+        setConnectionsPage(prev => ({
+          ...prev,
+          users: [...prev.users, ...data.users]
+        }));
+      }
+    } catch (err) { console.error(err); } finally {
+      setConnectionsLoading(false);
+    }
+  };
+
+  const handleConnectionsScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    if (scrollHeight - scrollTop - clientHeight < 100 && connectionsHasMore && !connectionsLoading) {
+      loadMoreConnections();
+    }
   };
 
   const uploadFile = async (file) => {
@@ -4350,57 +4387,68 @@ export default function Dashboard() {
           return !normalizedSearch || username.includes(normalizedSearch) || name.includes(normalizedSearch);
         });
         return (
-          <div style={{ minHeight: '100%', width: '100%', boxSizing: 'border-box', padding: '20px', background: '#0b0b0d', color: '#f5f5f5' }}>
-            <div style={{ maxWidth: '720px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '22px' }}>
-                <button
-                  aria-label="Back to profile"
-                  onClick={() => setActiveTab(connectionsPage.returnTab)}
-                  style={{ width: '42px', height: '42px', display: 'grid', placeItems: 'center', color: '#fff', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', cursor: 'pointer' }}
-                >
-                  <ArrowLeft size={21} />
-                </button>
-                <div>
-                  <h1 style={{ margin: 0, fontSize: '1.45rem', lineHeight: 1.2 }}>{connectionsPage.title}</h1>
-                  <p style={{ margin: '4px 0 0', color: '#a8a8a8', fontSize: '0.9rem' }}>{connectionsPage.users.length} {connectionsPage.title.toLowerCase()}</p>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '18px' }}>
-                <SearchIcon size={20} color="#a8a8a8" />
-                <input
-                  autoFocus
-                  type="search"
-                  value={connectionsSearch}
-                  onChange={(event) => setConnectionsSearch(event.target.value)}
-                  placeholder={`Search your ${connectionsPage.title.toLowerCase()}...`}
-                  style={{ width: '100%', padding: '15px 0', outline: 'none', border: 'none', background: 'transparent', color: '#fff', fontSize: '1rem' }}
-                />
-                {connectionsSearch && <button onClick={() => setConnectionsSearch('')} aria-label="Clear search" style={{ color: '#a8a8a8', background: 'transparent', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={19} /></button>}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
-                {visibleConnections.map(connection => (
+          <div style={{ height: '100%', width: '100%', boxSizing: 'border-box', background: '#0b0b0d', color: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
+            {/* Sticky Header + Search */}
+            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#0b0b0d', padding: '20px 20px 0 20px' }}>
+              <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
                   <button
-                    key={connection._id}
-                    onClick={() => viewPublicProfile(connection._id)}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '13px', padding: '12px', textAlign: 'left', color: '#f5f5f5', background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '15px', cursor: 'pointer' }}
+                    aria-label="Back to profile"
+                    onClick={() => setActiveTab(connectionsPage.returnTab)}
+                    style={{ width: '42px', height: '42px', display: 'grid', placeItems: 'center', color: '#fff', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', cursor: 'pointer' }}
                   >
-                    <div className="user-avatar-small" style={{ width: '48px', height: '48px', flexShrink: 0 }}>
-                      {connection.avatarUrl ? <img src={connection.avatarUrl} alt="avatar" /> : (connection.username || '?').charAt(0).toUpperCase()}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '650' }}>@{connection.username}</div>
-                      {connection.name && <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '3px', color: '#a8a8a8', fontSize: '0.88rem' }}>{connection.name}</div>}
-                    </div>
+                    <ArrowLeft size={21} />
                   </button>
-                ))}
-              </div>
-              {visibleConnections.length === 0 && (
-                <div style={{ padding: '52px 20px', textAlign: 'center', color: '#a8a8a8' }}>
-                  {connectionsSearch ? `No ${connectionsPage.title.toLowerCase()} match your search.` : `No ${connectionsPage.title.toLowerCase()} yet.`}
+                  <div>
+                    <h1 style={{ margin: 0, fontSize: '1.45rem', lineHeight: 1.2 }}>{connectionsPage.title}</h1>
+                    <p style={{ margin: '4px 0 0', color: '#a8a8a8', fontSize: '0.9rem' }}>{connectionsPage.total} {connectionsPage.title.toLowerCase()}</p>
+                  </div>
                 </div>
-              )}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '18px' }}>
+                  <SearchIcon size={20} color="#a8a8a8" />
+                  <input
+                    autoFocus
+                    type="search"
+                    value={connectionsSearch}
+                    onChange={(event) => setConnectionsSearch(event.target.value)}
+                    placeholder={`Search your ${connectionsPage.title.toLowerCase()}...`}
+                    style={{ width: '100%', padding: '15px 0', outline: 'none', border: 'none', background: 'transparent', color: '#fff', fontSize: '1rem' }}
+                  />
+                  {connectionsSearch && <button onClick={() => setConnectionsSearch('')} aria-label="Clear search" style={{ color: '#a8a8a8', background: 'transparent', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={19} /></button>}
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 100px 20px' }} onScroll={handleConnectionsScroll}>
+              <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                  {visibleConnections.map(connection => (
+                    <button
+                      key={connection._id}
+                      onClick={() => viewPublicProfile(connection._id)}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '13px', padding: '12px', textAlign: 'left', color: '#f5f5f5', background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '15px', cursor: 'pointer' }}
+                    >
+                      <div className="user-avatar-small" style={{ width: '48px', height: '48px', flexShrink: 0 }}>
+                        {connection.avatarUrl ? <img src={connection.avatarUrl} alt="avatar" /> : (connection.username || '?').charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '650' }}>@{connection.username}</div>
+                        {connection.name && <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '3px', color: '#a8a8a8', fontSize: '0.88rem' }}>{connection.name}</div>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {connectionsLoading && (
+                  <div style={{ textAlign: 'center', padding: '18px', color: '#a8a8a8', fontSize: '0.9rem' }}>Loading more...</div>
+                )}
+                {visibleConnections.length === 0 && !connectionsLoading && (
+                  <div style={{ padding: '52px 20px', textAlign: 'center', color: '#a8a8a8' }}>
+                    {connectionsSearch ? `No ${connectionsPage.title.toLowerCase()} match your search.` : `No ${connectionsPage.title.toLowerCase()} yet.`}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );

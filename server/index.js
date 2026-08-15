@@ -1182,24 +1182,57 @@ app.post('/api/users/subscribe', authenticateToken, async (req, res) => {
 
 app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id)
-      .populate('followers', 'username uniqueId avatarUrl gender')
-      .populate('following', 'username uniqueId avatarUrl gender');
+    const type = req.query.type || 'followers'; // 'followers' or 'following'
+    const cursor = req.query.cursor || null;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const user = await User.findById(req.params.id).select('followers following');
     if (!user) return res.status(404).json({ message: "User not found" });
-    
+
     // Privacy check: only allow viewing if mutually connected or viewing own profile
     const isOwnProfile = req.params.id === req.user.userId;
-    const isFollowing = user.followers.some(f => f && f._id && f._id.toString() === req.user.userId);
-    
+    const isFollowing = (user.followers || []).some(f => f && f.toString() === req.user.userId);
+
     if (!isOwnProfile && !isFollowing) {
       return res.status(403).json({ message: "Not authorized to view connections" });
     }
 
-    res.json({ 
-      followers: user.followers.filter(u => u != null), 
-      following: user.following.filter(u => u != null) 
+    // Get the full array of IDs for the requested type
+    const allIds = (user[type] || []).filter(id => id != null);
+    const total = allIds.length;
+
+    // Find the cursor position in the array
+    let startIndex = 0;
+    if (cursor && cursor !== 'null') {
+      const cursorIndex = allIds.findIndex(id => id.toString() === cursor);
+      if (cursorIndex !== -1) {
+        startIndex = cursorIndex + 1;
+      }
+    }
+
+    // Slice the IDs for this page
+    const pageIds = allIds.slice(startIndex, startIndex + limit);
+
+    // Populate only the sliced IDs
+    const populatedUsers = await User.find({ _id: { $in: pageIds } })
+      .select('username uniqueId avatarUrl gender')
+      .lean();
+
+    // Maintain the original order from the array
+    const idOrder = pageIds.map(id => id.toString());
+    const orderedUsers = idOrder.map(id => populatedUsers.find(u => u._id.toString() === id)).filter(Boolean);
+
+    const hasMore = startIndex + limit < total;
+    const nextCursor = orderedUsers.length > 0 ? orderedUsers[orderedUsers.length - 1]._id : null;
+
+    res.json({
+      users: orderedUsers,
+      total,
+      hasMore,
+      nextCursor
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error fetching connections' });
   }
 });
