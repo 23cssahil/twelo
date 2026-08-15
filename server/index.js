@@ -1893,6 +1893,8 @@ app.delete('/api/messages/chat/:otherUserId', authenticateToken, async (req, res
 app.get('/api/chats/recent', authenticateToken, async (req, res) => {
   try {
     const currentUserId = new mongoose.Types.ObjectId(req.user.userId);
+    const limit = parseInt(req.query.limit) || 20;
+    const cursor = req.query.cursor || null; // ISO timestamp string of lastMessageAt
     
     // Fetch latest sent and received messages using index-friendly separate queries
     const [sentChats, receivedChats, unreadCounts] = await Promise.all([
@@ -1947,12 +1949,24 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
     });
 
     const combinedChats = Array.from(chatMap.values()).sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+    const total = combinedChats.length;
 
-    const userIds = combinedChats.map(c => c._id);
+    // Apply cursor-based pagination: find chats older than the cursor timestamp
+    let startIndex = 0;
+    if (cursor) {
+      const cursorDate = new Date(cursor);
+      startIndex = combinedChats.findIndex(c => c.lastMessageAt < cursorDate);
+      if (startIndex === -1) startIndex = total; // cursor is older than all chats
+    }
+
+    const pageChats = combinedChats.slice(startIndex, startIndex + limit);
+    const hasMore = startIndex + limit < total;
+
+    const userIds = pageChats.map(c => c._id);
     const users = await User.find({ _id: { $in: userIds } }).select('username uniqueId avatarUrl gender').lean();
     const usersMap = new Map(users.map(u => [u._id.toString(), u]));
 
-    const finalChats = combinedChats.map(chat => {
+    const finalChats = pageChats.map(chat => {
       const u = usersMap.get(chat._id.toString());
       return {
         _id: chat._id,
@@ -1973,7 +1987,14 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
       User.updateOne({ _id: chat._id }, { $set: { avatarUrl: chat.avatarUrl } }).catch(console.error);
     });
 
-    res.json(finalChats);
+    const nextCursor = finalChats.length > 0 ? finalChats[finalChats.length - 1].lastMessageAt : null;
+
+    res.json({
+      chats: finalChats,
+      total,
+      hasMore,
+      nextCursor
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching recent chats', error: error.message });
   }

@@ -894,6 +894,8 @@ export default function Dashboard() {
   const storyAudioRef = useRef(null); // Holds the current story background song
 
   const [isFetchingChats, setIsFetchingChats] = useState(true);
+  const [chatsCursor, setChatsCursor] = useState(null);
+  const [chatsHasMore, setChatsHasMore] = useState(true);
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -2193,27 +2195,45 @@ export default function Dashboard() {
     }
   }, [activeChatUser]);
 
-  const fetchRecentChats = async () => {
+  const fetchRecentChats = async (cursorParam = null) => {
     try {
       setChatsError(null);
-      const res = await fetch(`${API_URL}/api/chats/recent`, { headers: { Authorization: `Bearer ${token}` } });
+      const url = new URL(`${API_URL}/api/chats/recent`);
+      url.searchParams.append('limit', '20');
+      if (cursorParam) url.searchParams.append('cursor', cursorParam);
+
+      const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
-        setRecentChats(data);
+        if (!cursorParam) {
+          setRecentChats(data.chats || []);
+        } else {
+          setRecentChats(prev => [...prev, ...(data.chats || [])]);
+        }
+        setChatsCursor(data.nextCursor);
+        setChatsHasMore(data.hasMore);
         const unreads = {};
-        data.forEach(chat => {
+        (data.chats || []).forEach(chat => {
           unreads[chat._id] = chat.unreadCount || 0;
         });
-        setUnreadMessages(unreads);
+        setUnreadMessages(prev => cursorParam ? { ...prev, ...unreads } : unreads);
       } else {
         setChatsError(`API Error: ${data.message || res.status}`);
       }
     } catch (err) { 
       console.error(err); 
       setChatsError(`Network Error: ${err.message}`);
-      setRecentChats([]); // Fallback
+      if (!cursorParam) setRecentChats([]); // Fallback
     } finally {
       setIsFetchingChats(false);
+    }
+  };
+
+  const handleChatsScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    if (scrollHeight - scrollTop - clientHeight < 100 && chatsHasMore && !isFetchingChats && chatsCursor) {
+      setIsFetchingChats(true);
+      fetchRecentChats(chatsCursor);
     }
   };
 
@@ -4710,7 +4730,7 @@ export default function Dashboard() {
                 )})}
               </div>
 
-              <div className="chat-users-scroll">
+              <div className="chat-users-scroll" onScroll={handleChatsScroll}>
                 {recentChats.map((chatUser) => {
                   const isOnline = onlineUsers.includes(chatUser._id);
                   const unreadCount = unreadMessages[chatUser._id] || 0;
@@ -4782,6 +4802,9 @@ export default function Dashboard() {
                     </div>
                   );
                 })}
+                {isFetchingChats && recentChats.length > 0 && (
+                  <div style={{ textAlign: 'center', padding: '12px', color: '#888', fontSize: '0.85rem' }}>Loading more...</div>
+                )}
                 {isFetchingChats && recentChats.length === 0 ? (
                   <div className="chats-skeleton-loader" style={{ padding: '10px' }}>
                     {[1, 2, 3, 4, 5].map(i => (
