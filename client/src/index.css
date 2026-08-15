@@ -15,6 +15,7 @@
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --instagram-sender-gradient1: linear-gradient(135deg, #bc1888 0%, #cc2366 25%, #dc2743 50%, #e6683c 75%, #f09433 100%);
   --instagram-sender-gradient2: linear-gradient(135deg, #00f0ff 0%, #7000ff 50%, #ff007f 100%);
+  --app-sender-unique-color: #584175;
 }
 
 * {
@@ -519,11 +520,11 @@ input, button, textarea {
 }
 
 .msg-wrapper.sent .msg-bubble {
-    background: var(--instagram-sender-gradient2); /* background-color ki jagah sirf background kiya */
+    /* 1. Sahi property: Single color ke liye background-color use hota hai */
+    background-color: var(--app-sender-unique-color); 
     border-bottom-right-radius: 4px;
-    color: #ffffff; /* White text color taaki neon par saaf dikhe */
+    color: #ffffff; /* White text code */
 }
-
 
 
 .msg-wrapper.received .msg-bubble {
