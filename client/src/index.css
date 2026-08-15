@@ -16,6 +16,7 @@
   --instagram-sender-gradient1: linear-gradient(135deg, #bc1888 0%, #cc2366 25%, #dc2743 50%, #e6683c 75%, #f09433 100%);
   --instagram-sender-gradient2: linear-gradient(135deg, #00f0ff 0%, #7000ff 50%, #ff007f 100%);
   --app-sender-unique-color: #584175;
+  --profile-color: #FF8D75;
 }
 
 * {
@@ -637,7 +638,7 @@ input, button, textarea {
   position: relative;
   width: 100%;
   max-width: 400px;
-  background: var(--app-sender-unique-color);
+  background: var(--profile-color);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 24px;
   padding: 32px 20px;
