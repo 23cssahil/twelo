@@ -1,0 +1,127 @@
+name: Implement notification cursor pagination
+on:
+  push:
+    branches: [feature/notifications-cursor-pagination]
+permissions:
+  contents: write
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Apply targeted implementation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('client/src/components/Dashboard.jsx'); s=p.read_text()
+          s=s.replace("  const [notifications, setNotifications] = useState([]);", "  const [notifications, setNotifications] = useState([]);\n  const [notificationsCursor, setNotificationsCursor] = useState(null);\n  const [notificationsLoading, setNotificationsLoading] = useState(false);", 1)
+          old="""  const fetchNotifications = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/notifications`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        setNotifications(data);
+        const unreadCount = data.filter(n => !n.read).length;
+        if (activeTab !== 'notifications') {
+          setUnreadNotifsCount(unreadCount);
+        }
+      }
+    } catch (e) { console.error(e); }
+  };"""
+          new="""  const fetchNotifications = async ({ cursor = null, append = false } = {}) => {
+    if (notificationsLoading) return;
+    setNotificationsLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: '20' });
+      if (cursor) params.set('cursor', cursor);
+      const res = await fetch(`${API_URL}/api/users/notifications?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        const page = Array.isArray(data.notifications) ? data.notifications : [];
+        setNotifications(prev => append ? [...prev, ...page] : page);
+        setNotificationsCursor(data.nextCursor || null);
+        if (!append && activeTab !== 'notifications') setUnreadNotifsCount(page.filter(n => !n.read).length);
+      }
+    } catch (e) { console.error(e); }
+    finally { setNotificationsLoading(false); }
+  };"""
+          if old not in s: raise SystemExit('fetchNotifications not found')
+          s=s.replace(old,new,1)
+          s=s.replace("      fetchNotifications();\n      fetchProfile();", "      fetchNotifications({ cursor: null, append: false });\n      fetchProfile();", 1)
+          s=s.replace("      fetchNotifications();\n      fetchStories();", "      fetchNotifications({ cursor: null, append: false });\n      fetchStories();", 1)
+          marker="""          <div className=\"notifications-container\" style={{ padding: '16px' }}>\n            <h2 className=\"search-header-text\">Notifications</h2>"""
+          if marker not in s: raise SystemExit('notifications marker not found')
+          s=s.replace(marker, marker+"\n            {notificationsLoading && notifications.length === 0 && <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>Loading notifications...</div>}",1)
+          end="""              </div>
+            )}
+          </div>
+        );
+
+      case 'messages':"""
+          rep="""              </div>
+              {notificationsLoading && notifications.length > 0 && <div style={{ textAlign: 'center', color: '#a8a8a8', padding: '12px' }}>Loading...</div>}
+              {notificationsCursor && !notificationsLoading && <div style={{ display: 'flex', justifyContent: 'center', padding: '18px 0' }}><button onClick={() => fetchNotifications({ cursor: notificationsCursor, append: true })} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#fff', padding: '10px 18px', cursor: 'pointer' }}>Load more</button></div>}
+            )}
+          </div>
+        );
+
+      case 'messages':"""
+          if end not in s: raise SystemExit('notification render end not found')
+          s=s.replace(end,rep,1)
+          p.write_text(s)
+
+          p=Path('server/index.js'); s=p.read_text()
+          marker="app.get('/api/users/notifications'"
+          start=s.find(marker)
+          if start<0: raise SystemExit('notifications route not found')
+          brace=s.find('{',start); depth=0; quote=None; esc=False; i=brace
+          while i<len(s):
+            c=s[i]
+            if quote:
+              if esc: esc=False
+              elif c=='\\': esc=True
+              elif c==quote: quote=None
+            elif c in "'\"`": quote=c
+            elif c=='{': depth+=1
+            elif c=='}':
+              depth-=1
+              if depth==0:
+                endi=s.find(';',i)+1
+                break
+            i+=1
+          route=r'''app.get('/api/users/notifications', authMiddleware, async (req, res) => {
+    try {
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+      const cursor = req.query.cursor || null;
+      const user = await User.findById(req.user.id).select('notifications').lean();
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      let notifications = Array.isArray(user.notifications) ? [...user.notifications] : [];
+      notifications.sort((a,b) => { const t=new Date(b.createdAt)-new Date(a.createdAt); return t || String(b._id).localeCompare(String(a._id)); });
+      if (cursor) {
+        let decoded;
+        try { decoded=JSON.parse(Buffer.from(cursor,'base64url').toString('utf8')); } catch(e) { return res.status(400).json({ message:'Invalid notification cursor' }); }
+        const ct=new Date(decoded.createdAt).getTime(), cid=String(decoded.id||'');
+        if (!Number.isFinite(ct)||!cid) return res.status(400).json({ message:'Invalid notification cursor' });
+        notifications=notifications.filter(n => { const t=new Date(n.createdAt).getTime(), id=String(n._id); return t<ct || (t===ct && id<cid); });
+      }
+      const page=notifications.slice(0,limit), last=page[page.length-1];
+      const nextCursor=page.length===limit && last ? Buffer.from(JSON.stringify({createdAt:last.createdAt,id:String(last._id)})).toString('base64url') : null;
+      res.json({ notifications: page, nextCursor });
+    } catch(e) { console.error('Failed to fetch notifications:',e); res.status(500).json({message:'Failed to fetch notifications'}); }
+  });'''
+          p.write_text(s[:start]+route+s[endi:])
+          PY
+      - name: Verify
+        run: |
+          node --check server/index.js
+          cd client && npm ci --no-audit --no-fund && npm run build
+      - name: Commit implementation
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/implement-notification-pagination.yml
+          git add client/src/components/Dashboard.jsx server/index.js
+          git diff --cached --check
+          git commit -m "feat: add cursor pagination for notifications"
+          git push origin HEAD:feature/notifications-cursor-pagination
