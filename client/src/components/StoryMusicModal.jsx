@@ -62,6 +62,20 @@ export default function StoryMusicModal({ isOpen, onClose, onSelectSong }) {
       previewAudioRef.current.play().catch(() => {});
       setPlayingUrl(audioUrl);
 
+      // Beautify MediaSession notification
+      const track = songs.find(t => t.downloadUrl?.some(d => d.url === audioUrl) || t.downloadUrl?.[0]?.url === audioUrl);
+      if (track && 'mediaSession' in navigator) {
+        const title = track.name;
+        const artist = track.artists?.primary?.[0]?.name || "Unknown Artist";
+        const image = track.image?.find((i) => i.quality === "150x150")?.url || track.image?.[0]?.url || "";
+        
+        navigator.mediaSession.metadata = new window.MediaMetadata({
+          title: title,
+          artist: artist,
+          artwork: [{ src: image || '/logo.png', sizes: '512x512', type: 'image/png' }]
+        });
+      }
+
       previewAudioRef.current.onended = () => {
         setPlayingUrl(null);
       };
