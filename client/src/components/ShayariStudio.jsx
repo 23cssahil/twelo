@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import * as htmlToImage from 'html-to-image';
 import { X, Check, AlignLeft, AlignCenter, AlignRight, Type, Palette, Image as ImageIcon, Sparkles, Upload } from 'lucide-react';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import "./ShayariStudio.css";
 
 const GRADIENTS = [
@@ -52,13 +54,52 @@ export default function ShayariStudio({ onClose, onComplete }) {
   const canvasRef = useRef(null);
   const textareaRef = useRef(null);
   const imageInputRef = useRef(null);
+  const bgImgRef = useRef(null);
+
+  // Crop states
+  const [isCroppingImage, setIsCroppingImage] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState(null);
+  const [crop, setCrop] = useState({ unit: '%', width: 100, height: 100, aspect: 9 / 16 });
+  const [completedCrop, setCompletedCrop] = useState(null);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setBgImage(URL.createObjectURL(file));
-      setBgGradient(null);
+      setCropImageSrc(URL.createObjectURL(file));
+      setIsCroppingImage(true);
+      // Reset input so the same file can be selected again
+      e.target.value = '';
     }
+  };
+
+  const handleConfirmCrop = async () => {
+    if (!completedCrop || !bgImgRef.current) return;
+    
+    const canvas = document.createElement('canvas');
+    const scaleX = bgImgRef.current.naturalWidth / bgImgRef.current.width;
+    const scaleY = bgImgRef.current.naturalHeight / bgImgRef.current.height;
+    
+    canvas.width = completedCrop.width;
+    canvas.height = completedCrop.height;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.drawImage(
+      bgImgRef.current,
+      completedCrop.x * scaleX,
+      completedCrop.y * scaleY,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY,
+      0,
+      0,
+      completedCrop.width,
+      completedCrop.height
+    );
+    
+    const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+    setBgImage(base64Image);
+    setBgGradient(null);
+    setIsCroppingImage(false);
+    setCropImageSrc(null);
   };
 
   useEffect(() => {
@@ -139,7 +180,8 @@ export default function ShayariStudio({ onClose, onComplete }) {
             style={{ 
               background: bgImage ? `url(${bgImage})` : bgGradient,
               backgroundSize: 'cover',
-              backgroundPosition: 'center'
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
             }}
           >
             <textarea
@@ -330,6 +372,51 @@ export default function ShayariStudio({ onClose, onComplete }) {
           )}
         </div>
       </div>
+
+      {/* Cropper Modal Overlay */}
+      {isCroppingImage && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 14000, background: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ padding: '20px', background: '#1a1a1a', borderRadius: '20px', width: '90%', maxWidth: '400px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <h3 style={{ color: '#fff', marginBottom: '15px' }}>Crop Background</h3>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
+              <ReactCrop
+                crop={crop}
+                onChange={(_, percentCrop) => setCrop(percentCrop)}
+                onComplete={(c) => setCompletedCrop(c)}
+                aspect={9 / 16}
+                style={{ maxHeight: '60vh' }}
+              >
+                <img
+                  ref={bgImgRef}
+                  src={cropImageSrc}
+                  alt="Crop preview"
+                  style={{ maxHeight: '60vh', width: 'auto', objectFit: 'contain' }}
+                />
+              </ReactCrop>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px', width: '100%' }}>
+              <button 
+                className="nav-done-btn" 
+                style={{ flex: 1, background: '#333', color: '#fff' }}
+                onClick={() => {
+                  setIsCroppingImage(false);
+                  setCropImageSrc(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="nav-done-btn" 
+                style={{ flex: 1 }}
+                onClick={handleConfirmCrop}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
