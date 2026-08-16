@@ -326,7 +326,11 @@ const StorySlide = ({
         {/* 👇 Background Music Player with Trim & Loop */}
         {isActiveSlide && (story.song?.audioUrl || story.songUrl) && (
           <audio
-            ref={storyAudioRef}
+            ref={(el) => {
+              if (isActiveSlide) {
+                storyAudioRef.current = el;
+              }
+            }}
             key={`${story._id}-${story.song?.startTime || 0}`}
             src={story.song?.audioUrl || story.songUrl}
             autoPlay
