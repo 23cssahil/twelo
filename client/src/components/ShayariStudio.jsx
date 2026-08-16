@@ -79,20 +79,24 @@ export default function ShayariStudio({ onClose, onComplete }) {
     const scaleX = bgImgRef.current.naturalWidth / bgImgRef.current.width;
     const scaleY = bgImgRef.current.naturalHeight / bgImgRef.current.height;
     
-    canvas.width = completedCrop.width;
-    canvas.height = completedCrop.height;
+    // Use natural resolution for high-quality background
+    const pixelWidth = completedCrop.width * scaleX;
+    const pixelHeight = completedCrop.height * scaleY;
+    
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
     const ctx = canvas.getContext('2d');
     
     ctx.drawImage(
       bgImgRef.current,
       completedCrop.x * scaleX,
       completedCrop.y * scaleY,
-      completedCrop.width * scaleX,
-      completedCrop.height * scaleY,
+      pixelWidth,
+      pixelHeight,
       0,
       0,
-      completedCrop.width,
-      completedCrop.height
+      pixelWidth,
+      pixelHeight
     );
     
     const base64Image = canvas.toDataURL('image/jpeg', 0.9);
@@ -177,11 +181,13 @@ export default function ShayariStudio({ onClose, onComplete }) {
           <div 
             className="shayari-canvas" 
             ref={canvasRef}
-            style={{ 
-              background: bgImage ? `url(${bgImage})` : bgGradient,
+            style={bgImage ? { 
+              backgroundImage: `url(${bgImage})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat'
+            } : { 
+              background: bgGradient 
             }}
           >
             <textarea

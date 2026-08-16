@@ -836,6 +836,7 @@ export default function Dashboard() {
   const [profileStats, setProfileStats] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [notifsCursor, setNotifsCursor] = useState(null);
+  const fetchingCursorRef = useRef(null);
   const [notifsHasMore, setNotifsHasMore] = useState(true);
   const [notifsFetching, setNotifsFetching] = useState(false);
   const notifsFetchingRef = useRef(false);
@@ -1534,7 +1535,11 @@ export default function Dashboard() {
   const fetchNotifications = async (cursorParam = null) => {
     try {
       if (notifsFetchingRef.current) return;
+      if (cursorParam && fetchingCursorRef.current === cursorParam) return; // Prevent duplicate requests for the same cursor
+      
       notifsFetchingRef.current = true;
+      if (cursorParam) fetchingCursorRef.current = cursorParam;
+      
       setNotifsFetching(true);
       const url = new URL(`${API_URL}/api/users/notifications`);
       url.searchParams.append('limit', '20');
@@ -1554,9 +1559,16 @@ export default function Dashboard() {
           setUnreadNotifsCount(data.totalUnread || 0);
         }
       }
-    } catch (e) { console.error(e); } finally {
-      notifsFetchingRef.current = false;
-      setNotifsFetching(false);
+    } catch (e) { 
+      console.error(e); 
+      if (cursorParam) fetchingCursorRef.current = null; // Reset on failure so it can be retried
+    } finally {
+      // Small timeout to allow React to render the new items and increase scrollHeight
+      // before unlocking the fetcher.
+      setTimeout(() => {
+        notifsFetchingRef.current = false;
+        setNotifsFetching(false);
+      }, 500);
     }
   };
 
