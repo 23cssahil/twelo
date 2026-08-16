@@ -43,6 +43,7 @@ export default function ShayariStudio({ onClose, onComplete }) {
   const [fontFamily, setFontFamily] = useState(FONTS[0].value);
   const [textAlign, setTextAlign] = useState("center");
   const [textEffect, setTextEffect] = useState("none"); // none, shadow, glow, neon
+  const [fontSize, setFontSize] = useState(32);
   
   // UI states
   const [activeTab, setActiveTab] = useState("text"); // text, background, style, templates
@@ -66,6 +67,17 @@ export default function ShayariStudio({ onClose, onComplete }) {
       textareaRef.current.focus();
     }
   }, []);
+
+  // Auto-shrink text if it overflows the container
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    
+    // Check if scroll height exceeds client height (meaning it's overflowing)
+    if (el.scrollHeight > el.clientHeight && fontSize > 12) {
+      setFontSize(prev => prev - 1);
+    }
+  }, [text, fontSize]);
 
   const handleDone = async () => {
     if (!canvasRef.current) return;
@@ -134,11 +146,7 @@ export default function ShayariStudio({ onClose, onComplete }) {
               ref={textareaRef}
               className="shayari-canvas-text"
               value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height = e.target.scrollHeight + "px";
-              }}
+              onChange={(e) => setText(e.target.value)}
               onFocus={(e) => e.target.placeholder = ''}
               onBlur={(e) => e.target.placeholder = 'Dil ki baat yahan likhein...'}
               placeholder="Dil ki baat yahan likhein..."
@@ -146,6 +154,7 @@ export default function ShayariStudio({ onClose, onComplete }) {
                 '--shayari-text-color': textColor,
                 fontFamily: fontFamily,
                 textAlign: textAlign,
+                fontSize: `${fontSize}px`,
                 overflow: 'hidden',
                 ...getEffectStyle()
               }}
@@ -193,6 +202,19 @@ export default function ShayariStudio({ onClose, onComplete }) {
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}
               />
+              <label style={{ display: 'block', margin: '15px 0 8px', color: '#cbd5e1', fontSize: '0.9rem' }}>Text Size</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '12px' }}>A</span>
+                <input 
+                  type="range" 
+                  min="12" 
+                  max="60" 
+                  value={fontSize} 
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ fontSize: '20px' }}>A</span>
+              </div>
               
               <label style={{ display: 'block', margin: '15px 0 8px', color: '#cbd5e1', fontSize: '0.9rem' }}>Alignment</label>
               <div style={{ display: 'flex', gap: '10px' }}>
