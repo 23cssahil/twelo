@@ -69,7 +69,8 @@
 .shayari-canvas {
   width: 100%;
   max-width: 400px;
-  aspect-ratio: 9 / 16;
+  min-height: 70vh;
+  height: auto;
   border-radius: 20px;
   display: flex;
   flex-direction: column;
@@ -79,7 +80,6 @@
   text-align: center;
   position: relative;
   box-shadow: 0 15px 35px rgba(0,0,0,0.5);
-  overflow: hidden;
   transition: background 0.3s ease;
 }
 

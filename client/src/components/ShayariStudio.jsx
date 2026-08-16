@@ -120,12 +120,19 @@ export default function ShayariStudio({ onClose, onComplete }) {
               ref={textareaRef}
               className="shayari-canvas-text"
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = e.target.scrollHeight + "px";
+              }}
+              onFocus={(e) => e.target.placeholder = ''}
+              onBlur={(e) => e.target.placeholder = 'Dil ki baat yahan likhein...'}
               placeholder="Dil ki baat yahan likhein..."
               style={{
                 '--shayari-text-color': textColor,
                 fontFamily: fontFamily,
                 textAlign: textAlign,
+                overflow: 'hidden',
                 ...getEffectStyle()
               }}
             />
