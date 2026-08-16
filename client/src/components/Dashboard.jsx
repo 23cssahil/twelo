@@ -2914,6 +2914,8 @@ const handleStoryUpload = async () => {
           setSelectedSongUrl('');
           setSelectedStorySongData(null);
           setSongTrimSettings({ startTime: 0, durationLimit: 15 });
+          setIsTrimmerActive(false);
+          setShowDurationPicker(false);
 
           showToastMsg('Status added successfully!', 'success');
         } else {
