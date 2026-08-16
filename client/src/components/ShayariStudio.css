@@ -95,6 +95,8 @@
   background: transparent;
   resize: none;
   text-align: inherit;
+  color: var(--shayari-text-color, #ffffff) !important;
+  -webkit-text-fill-color: var(--shayari-text-color, #ffffff) !important;
 }
 
 .shayari-canvas-text::placeholder {

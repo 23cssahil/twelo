@@ -110,7 +110,7 @@ export default function ShayariStudio({ onClose, onComplete }) {
 
       <div className="studio-main-area">
         {/* Canvas Preview Area */}
-        <div className="canvas-container-wrapper">
+        <div className="canvas-container-wrapper" onClick={() => setActiveTab(null)}>
           <div 
             className="shayari-canvas" 
             ref={canvasRef}
@@ -123,7 +123,7 @@ export default function ShayariStudio({ onClose, onComplete }) {
               onChange={(e) => setText(e.target.value)}
               placeholder="Dil ki baat yahan likhein..."
               style={{
-                color: textColor,
+                '--shayari-text-color': textColor,
                 fontFamily: fontFamily,
                 textAlign: textAlign,
                 ...getEffectStyle()
@@ -146,18 +146,17 @@ export default function ShayariStudio({ onClose, onComplete }) {
 
         {/* Controls Panel */}
         <div className="studio-controls-panel">
-          {/* Tabs */}
           <div className="control-tabs">
-            <button className={`control-tab-btn ${activeTab === 'text' ? 'active' : ''}`} onClick={() => setActiveTab('text')}>
+            <button className={`control-tab-btn ${activeTab === 'text' ? 'active' : ''}`} onClick={() => setActiveTab(activeTab === 'text' ? null : 'text')}>
               <Type size={16} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'text-bottom' }} /> Text
             </button>
-            <button className={`control-tab-btn ${activeTab === 'background' ? 'active' : ''}`} onClick={() => setActiveTab('background')}>
+            <button className={`control-tab-btn ${activeTab === 'background' ? 'active' : ''}`} onClick={() => setActiveTab(activeTab === 'background' ? null : 'background')}>
               <ImageIcon size={16} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'text-bottom' }} /> Background
             </button>
-            <button className={`control-tab-btn ${activeTab === 'style' ? 'active' : ''}`} onClick={() => setActiveTab('style')}>
+            <button className={`control-tab-btn ${activeTab === 'style' ? 'active' : ''}`} onClick={() => setActiveTab(activeTab === 'style' ? null : 'style')}>
               <Palette size={16} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'text-bottom' }} /> Style
             </button>
-            <button className={`control-tab-btn ${activeTab === 'templates' ? 'active' : ''}`} onClick={() => setActiveTab('templates')}>
+            <button className={`control-tab-btn ${activeTab === 'templates' ? 'active' : ''}`} onClick={() => setActiveTab(activeTab === 'templates' ? null : 'templates')}>
               <Sparkles size={16} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'text-bottom' }} /> Ideas
             </button>
           </div>
