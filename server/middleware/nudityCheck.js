@@ -11,6 +11,12 @@ const nudityCheck = async (req, res, next) => {
     return next();
   }
 
+  // Bypass nudity check for explicitly safe content (e.g. generated text/gradients)
+  if (req.body && req.body.bypassNudityCheck === 'true') {
+    console.log('Bypassing nudity check for safe content');
+    return next();
+  }
+
   try {
     const data = new FormData();
     data.append('media', req.file.buffer, {

@@ -2852,6 +2852,10 @@ const handleStoryUpload = async () => {
     }
     
     const formData = new FormData();
+    // Must append fields before file so multer can parse them first
+    if (storyPreviewSafety === 'safe') {
+      formData.append('bypassNudityCheck', 'true');
+    }
     formData.append('file', finalFile);
     
     try {

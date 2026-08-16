@@ -123,7 +123,7 @@
   box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
   z-index: 10;
   max-height: 45vh;
-  overflow-y: auto;
+  /* Removed overflow-y: auto to keep tabs fixed */
 }
 
 /* Custom Scrollbar for Controls */
@@ -142,6 +142,7 @@
   border-bottom: 1px solid #334155;
   padding-bottom: 10px;
   overflow-x: auto;
+  flex-shrink: 0; /* Prevent tabs from shrinking */
 }
 
 .control-tabs::-webkit-scrollbar {
@@ -297,4 +298,10 @@
     max-height: 100%;
     border-left: 1px solid #334155;
   }
+}
+
+.tab-content {
+  overflow-y: auto;
+  flex: 1;
+  padding-bottom: 20px;
 }
