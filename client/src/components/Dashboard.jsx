@@ -5203,12 +5203,14 @@ const handleStoryUpload = async () => {
                               )}
                             </div>
                           )}
-                          </div>
-                          {msg.sender === user.id && index === messages.length - 1 && (
-                            <div style={{ fontSize: '0.7rem', color: '#a8a8a8', marginTop: '4px', textAlign: 'right', paddingRight: '12px' }}>
+                          
+                          {/* Message Receipt placed inside the bubble at the bottom right */}
+                          {msg.sender === user.id && index === messages.length - 1 && !selectedMsgId && (
+                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)', marginTop: '4px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px' }}>
                               {msg.isViewed ? 'Seen just now' : 'Sent'}
                             </div>
                           )}
+                          </div>
                         </div>
                         {swipeMsgId === msg._id && (
                           <div className={`swipe-reply-icon ${msg.sender === user.id ? 'sent-icon' : 'received-icon'}`}>
