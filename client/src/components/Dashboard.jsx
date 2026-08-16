@@ -4429,7 +4429,7 @@ const handleStoryUpload = async () => {
 
       case 'search':
         return (
-          <div className="search-container" style={{ padding: 0 }}>
+          <div className="search-container" style={{ padding: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-color)', padding: '16px 16px 5px 16px', borderBottom: '1px solid #1a1a1a' }}>
               <h2 className="search-header-text" style={{ marginTop: 0 }}>Search</h2>
               <div className="search-box-wrapper" style={{ marginBottom: '10px' }}>
@@ -4444,7 +4444,7 @@ const handleStoryUpload = async () => {
               </div>
             </div>
             
-            <div style={{ padding: '0 16px 16px 16px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px 16px' }} onScroll={handleSearchResultsScroll}>
               {searchLoading && !searchCursor && <div style={{ textAlign: 'center', color: '#a8a8a8', padding: '10px 0' }}>Searching...</div>}
             
             {isFetchingSearchHistory && !searchQuery && searchResults.length === 0 ? (
@@ -4463,7 +4463,7 @@ const handleStoryUpload = async () => {
                 <div style={{ textAlign: 'center', marginTop: '15px', color: '#888', fontSize: '0.85rem' }}>Loading recent searches...</div>
               </div>
             ) : (
-            <div className="search-results" onScroll={handleSearchResultsScroll}>
+            <div className="search-results">
               {searchResults.map((searchUser) => {
                 const isFollowing = profileStats?.following?.includes(searchUser._id);
                 const hasRequested = searchUser.friendRequests?.includes(user.id);
