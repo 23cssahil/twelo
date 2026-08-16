@@ -2455,15 +2455,15 @@ app.post('/api/admin/block', adminAuth, async (req, res) => {
 
 app.post('/api/admin/broadcast', adminAuth, async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, alertType } = req.body;
     
     // Save to all users' notifications
-    const newNotif = { type: 'system_alert', message, read: false };
+    const newNotif = { type: 'system_alert', message, alertType: alertType || 'info', read: false };
     await User.updateMany({}, { $push: { notifications: newNotif } });
 
     // Emit to online users
     io.emit('new_notification');
-    io.emit('system_alert_toast', { message, type: 'broadcast' });
+    io.emit('system_alert_toast', { message, type: 'broadcast', alertType: alertType || 'info' });
     
     res.json({ success: true });
   } catch (error) {

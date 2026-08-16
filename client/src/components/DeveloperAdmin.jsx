@@ -398,7 +398,7 @@ export default function DeveloperAdmin() {
       await fetch(`${API_URL}/api/admin/broadcast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
-        body: JSON.stringify({ message: finalMessage })
+        body: JSON.stringify({ message: finalMessage, alertType: broadcastType })
       });
       setBroadcastMessage('');
       setBroadcastTopic('');

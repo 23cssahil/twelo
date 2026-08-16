@@ -4303,15 +4303,29 @@ const handleStoryUpload = async () => {
               <div className="requests-list">
                 {notifications.map(notif => {
                   if (notif.type === 'system_alert') {
+                    let borderLeftColor = '#3b82f6'; // info - blue
+                    let bgColor = 'rgba(59, 130, 246, 0.05)';
+                    
+                    if (notif.alertType === 'urgent') {
+                      borderLeftColor = '#ef4444'; // red
+                      bgColor = 'rgba(239, 68, 68, 0.05)';
+                    } else if (notif.alertType === 'warning') {
+                      borderLeftColor = '#f59e0b'; // amber/orange
+                      bgColor = 'rgba(245, 158, 11, 0.05)';
+                    } else if (notif.alertType === 'success') {
+                      borderLeftColor = '#10b981'; // green
+                      bgColor = 'rgba(16, 185, 129, 0.05)';
+                    }
+
                     return (
-                      <div className="user-card" key={notif._id} style={{ position: 'relative' }}>
+                      <div className="user-card" key={notif._id} style={{ position: 'relative', borderLeft: `4px solid ${borderLeftColor}`, backgroundColor: bgColor }}>
                         <div className="user-card-info" style={{ cursor: 'default', alignItems: 'flex-start' }}>
-                          <div className="user-avatar-small">
-                            <img src="/icon-192.png" alt="Twelo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                          <div className="user-avatar-small" style={{ padding: '2px', background: borderLeftColor, borderRadius: '50%' }}>
+                            <img src="/icon-192.png" alt="Twelo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', background: '#000' }} />
                           </div>
-                          <div className="user-names" style={{ flex: 1 }}>
-                            <span className="user-username">@twelo</span>
-                            <span className="user-id" style={{ fontSize: '0.8rem', lineHeight: '1.4', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                          <div className="user-names" style={{ flex: 1, marginLeft: '10px' }}>
+                            <span className="user-username" style={{ color: borderLeftColor }}>@twelo <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 'normal' }}>• Official</span></span>
+                            <span className="user-id" style={{ fontSize: '0.8rem', lineHeight: '1.4', wordBreak: 'break-word', whiteSpace: 'pre-wrap', color: '#e2e8f0', marginTop: '4px', display: 'block' }}>
                               {notif.message.length > 100 && !expandedAlerts.has(notif._id)
                                 ? notif.message.substring(0, 100) + '...'
                                 : notif.message}
@@ -4327,15 +4341,15 @@ const handleStoryUpload = async () => {
                                   });
                                 }}
                                 style={{
-                                  background: 'none', border: 'none', color: 'var(--brand-blue)',
-                                  fontSize: '0.8rem', cursor: 'pointer', padding: 0, marginTop: '2px',
+                                  background: 'none', border: 'none', color: borderLeftColor,
+                                  fontSize: '0.8rem', cursor: 'pointer', padding: 0, marginTop: '4px',
                                   fontWeight: '600'
                                 }}
                               >
                                 {expandedAlerts.has(notif._id) ? 'Show Less' : 'Read More'}
                               </button>
                             )}
-                            <span style={{ fontSize: '0.7rem', color: '#666', marginTop: '4px', display: 'block' }}>
+                            <span style={{ fontSize: '0.7rem', color: '#666', marginTop: '6px', display: 'block' }}>
                               {new Date(notif.createdAt).toLocaleString()}
                             </span>
                           </div>
