@@ -373,7 +373,7 @@ const StorySlide = ({
             }
           }}
         />
-        
+
         {/* Click Navigation Areas */}
         <div 
           style={{ position: 'absolute', top: 0, left: 0, width: '30%', height: '100%', zIndex: 5, cursor: 'w-resize' }} 
@@ -536,6 +536,8 @@ export default function Dashboard() {
   const [isStoryMusicModalOpen, setIsStoryMusicModalOpen] = useState(false);
   const [selectedStorySong, setSelectedStorySong] = useState(null);
   const [songTrimSettings, setSongTrimSettings] = useState({ startTime: 0, durationLimit: 15 });
+  const [showDurationPicker, setShowDurationPicker] = useState(false);
+  const [isTrimmerActive, setIsTrimmerActive] = useState(false); // Done click karne par false hoga
   const [selectedStorySongData, setSelectedStorySongData] = useState(null);
   const [avatarCropperOpen, setAvatarCropperOpen] = useState(false);
   const [avatarImageSrc, setAvatarImageSrc] = useState(null);
@@ -6849,8 +6851,188 @@ const handleStoryUpload = async () => {
   onSelectSong={(song) => {
     setSelectedSongUrl(song.audioUrl);
     setSelectedStorySongData(song);
+    // 👇 Ye 2 lines add karein
+    setSongTrimSettings({ startTime: 0, durationLimit: 15 });
+    setIsTrimmerActive(true);
+    setShowMusicPicker(false);
   }}
 />
+
+{/* --- INSTAGRAM-STYLE FULLSCREEN MUSIC TRIMMER --- */}
+{isTrimmerActive && selectedStorySongData && (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100vw',
+    height: '100vh',
+    background: '#000',
+    zIndex: 99999,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    padding: '24px 20px',
+    boxSizing: 'border-box'
+  }}>
+    
+    {/* Top Header Bar */}
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 100000 }}>
+      
+      {/* Top Left: Duration Selector (Instagram Style 15s Badge) */}
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          onClick={() => setShowDurationPicker(!showDurationPicker)}
+          style={{
+            background: 'rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.3)',
+            padding: '8px 16px',
+            borderRadius: '20px',
+            fontWeight: 'bold',
+            fontSize: '0.9rem',
+            cursor: 'pointer'
+          }}
+        >
+          ⏱️ {songTrimSettings.durationLimit || 15}s
+        </button>
+
+        {/* Duration Dropdown Menu */}
+        {showDurationPicker && (
+          <div style={{
+            position: 'absolute',
+            top: '45px',
+            left: 0,
+            background: '#1f1f1f',
+            border: '1px solid #333',
+            borderRadius: '12px',
+            padding: '6px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+            zIndex: 100001,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.8)'
+          }}>
+            {[5, 10, 15, 30].map(sec => (
+              <button
+                type="button"
+                key={sec}
+                onClick={() => {
+                  setSongTrimSettings(prev => ({ ...prev, durationLimit: sec }));
+                  setShowDurationPicker(false);
+                }}
+                style={{
+                  background: (songTrimSettings.durationLimit === sec) ? '#0072ff' : 'transparent',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '8px 18px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontWeight: 'bold'
+                }}
+              >
+                {sec} Seconds
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Top Right: Done Button */}
+      <button
+        type="button"
+        onClick={() => {
+          setIsTrimmerActive(false);
+          setShowDurationPicker(false);
+        }}
+        style={{
+          background: '#fff',
+          color: '#000',
+          border: 'none',
+          padding: '8px 24px',
+          borderRadius: '20px',
+          fontWeight: 'bold',
+          fontSize: '0.95rem',
+          cursor: 'pointer'
+        }}
+      >
+        Done
+      </button>
+    </div>
+
+    {/* Center: Song Artwork & Title */}
+    <div style={{ textAlign: 'center', margin: 'auto 0' }}>
+      <img
+        src={selectedStorySongData.image || 'https://via.placeholder.com/150'}
+        alt="album"
+        style={{
+          width: '140px',
+          height: '140px',
+          borderRadius: '50%',
+          objectFit: 'cover',
+          margin: '0 auto 16px',
+          border: '3px solid rgba(255,255,255,0.8)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.6)'
+        }}
+      />
+      <h3 style={{ color: '#fff', margin: '0 0 6px', fontSize: '1.25rem' }}>
+        {selectedStorySongData.title}
+      </h3>
+      <p style={{ color: '#aaa', margin: 0, fontSize: '0.95rem' }}>
+        {selectedStorySongData.artist}
+      </p>
+    </div>
+
+    {/* Bottom: Instagram Trimmer Slider */}
+    <div style={{
+      background: 'rgba(255,255,255,0.1)',
+      backdropFilter: 'blur(12px)',
+      padding: '18px 16px',
+      borderRadius: '20px',
+      border: '1px solid rgba(255,255,255,0.15)'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ddd', fontSize: '0.85rem', marginBottom: '10px' }}>
+        <span>Start: {Math.floor(songTrimSettings.startTime || 0)}s</span>
+        <span>Clip Length: {songTrimSettings.durationLimit || 15}s</span>
+      </div>
+
+      <input
+        type="range"
+        min={0}
+        max={Math.max(0, (selectedStorySongData.duration || 120) - (songTrimSettings.durationLimit || 15))}
+        step={0.5}
+        value={songTrimSettings.startTime || 0}
+        onChange={(e) => {
+          const newStart = parseFloat(e.target.value);
+          setSongTrimSettings(prev => ({ ...prev, startTime: newStart }));
+        }}
+        style={{ width: '100%', accentColor: '#0072ff', cursor: 'pointer' }}
+      />
+
+      {/* Looper Audio while Trimming */}
+      <audio
+        src={selectedStorySongData.audioUrl}
+        autoPlay
+        ref={(el) => {
+          if (el) {
+            el.currentTime = songTrimSettings.startTime || 0;
+            el.ontimeupdate = () => {
+              const start = songTrimSettings.startTime || 0;
+              const dur = songTrimSettings.durationLimit || 15;
+              if (el.currentTime >= start + dur || el.currentTime < start) {
+                el.currentTime = start;
+                el.play().catch(() => {});
+              }
+            };
+          }
+        }}
+      />
+    </div>
+
+  </div>
+)}
 
 {/* Instagram Audio Trimmer & Player */}
 {selectedStorySongData && (
