@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import * as htmlToImage from 'html-to-image';
-import { X, Check, AlignLeft, AlignCenter, AlignRight, Type, Palette, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { X, Check, AlignLeft, AlignCenter, AlignRight, Type, Palette, Image as ImageIcon, Sparkles, Upload } from 'lucide-react';
 import "./ShayariStudio.css";
 
 const GRADIENTS = [
@@ -38,6 +38,7 @@ export default function ShayariStudio({ onClose, onComplete }) {
   
   // Style states
   const [bgGradient, setBgGradient] = useState(GRADIENTS[0].value);
+  const [bgImage, setBgImage] = useState(null);
   const [textColor, setTextColor] = useState(TEXT_COLORS[0]);
   const [fontFamily, setFontFamily] = useState(FONTS[0].value);
   const [textAlign, setTextAlign] = useState("center");
@@ -49,6 +50,15 @@ export default function ShayariStudio({ onClose, onComplete }) {
   
   const canvasRef = useRef(null);
   const textareaRef = useRef(null);
+  const imageInputRef = useRef(null);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setBgImage(URL.createObjectURL(file));
+      setBgGradient(null);
+    }
+  };
 
   useEffect(() => {
     // Focus textarea on load if empty
@@ -114,7 +124,11 @@ export default function ShayariStudio({ onClose, onComplete }) {
           <div 
             className="shayari-canvas" 
             ref={canvasRef}
-            style={{ background: bgGradient }}
+            style={{ 
+              background: bgImage ? `url(${bgImage})` : bgGradient,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }}
           >
             <textarea
               ref={textareaRef}
@@ -198,14 +212,32 @@ export default function ShayariStudio({ onClose, onComplete }) {
           {/* Tab Content: BACKGROUND */}
           {activeTab === 'background' && (
             <div className="tab-content">
-              <label style={{ display: 'block', marginBottom: '10px', color: '#cbd5e1', fontSize: '0.9rem' }}>Premium Gradients</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <label style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>Background</label>
+                <button 
+                  onClick={() => imageInputRef.current?.click()}
+                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '15px', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', cursor: 'pointer' }}
+                >
+                  <Upload size={14} /> Custom Image
+                </button>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  ref={imageInputRef} 
+                  style={{ display: 'none' }} 
+                  onChange={handleImageUpload} 
+                />
+              </div>
               <div className="scroll-options-row">
                 {GRADIENTS.map((grad, idx) => (
                   <div
                     key={idx}
-                    className={`color-circle ${bgGradient === grad.value ? 'active' : ''}`}
+                    className={`color-circle ${(bgGradient === grad.value && !bgImage) ? 'active' : ''}`}
                     style={{ background: grad.value }}
-                    onClick={() => setBgGradient(grad.value)}
+                    onClick={() => {
+                      setBgGradient(grad.value);
+                      setBgImage(null);
+                    }}
                   />
                 ))}
               </div>
