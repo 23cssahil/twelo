@@ -1755,8 +1755,9 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
       .sort({ createdAt: 1 })
       .lean();
       
-    // Group stories by user
+    // Group stories by user and 24-hour windows
     const groupedStoriesMap = new Map();
+    const userGroupTracker = {};
     
     stories.forEach(story => {
       let uId;
@@ -1776,8 +1777,23 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
         uId = story.user._id.toString();
       }
 
-      if (!groupedStoriesMap.has(uId)) {
-        groupedStoriesMap.set(uId, {
+      const storyTime = new Date(story.createdAt).getTime();
+
+      if (!userGroupTracker[uId]) {
+        userGroupTracker[uId] = { groupIndex: 0, groupStartTime: storyTime };
+      } else {
+        const timeDiff = storyTime - userGroupTracker[uId].groupStartTime;
+        if (timeDiff > 24 * 60 * 60 * 1000) {
+          // Exceeded 24 hours, start a new group
+          userGroupTracker[uId].groupIndex++;
+          userGroupTracker[uId].groupStartTime = storyTime;
+        }
+      }
+
+      const mapKey = `${uId}_${userGroupTracker[uId].groupIndex}`;
+
+      if (!groupedStoriesMap.has(mapKey)) {
+        groupedStoriesMap.set(mapKey, {
           user: story.user,
           userId: uId,
           username: story.user.username,
@@ -1785,7 +1801,7 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
           stories: [],
         });
       }
-      groupedStoriesMap.get(uId).stories.push(story);
+      groupedStoriesMap.get(mapKey).stories.push(story);
     });
 
     let groupedStoriesArray = Array.from(groupedStoriesMap.values());
