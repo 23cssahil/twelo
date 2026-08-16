@@ -143,6 +143,17 @@ const StorySlide = ({
   const [touchStartY, setTouchStartY] = React.useState(null);
   const [touchEndY, setTouchEndY] = React.useState(null);
 
+  // 🎵 Sync story audio with pause / resume state
+  React.useEffect(() => {
+    if (isActiveSlide && storyAudioRef?.current) {
+      if (storyPaused) {
+        storyAudioRef.current.pause();
+      } else {
+        storyAudioRef.current.play()?.catch(() => {});
+      }
+    }
+  }, [storyPaused, isActiveSlide, storyAudioRef]);
+
   const handlePointerDown = (clientX, clientY) => {
     storyPausedRef.current = true;
     setStoryPaused(true);
