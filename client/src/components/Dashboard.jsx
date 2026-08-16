@@ -143,16 +143,28 @@ const StorySlide = ({
   const [touchStartY, setTouchStartY] = React.useState(null);
   const [touchEndY, setTouchEndY] = React.useState(null);
 
-  // 🎵 Sync story audio with pause / resume state
+  const localAudioRef = React.useRef(null);
+
+  // 🎵 Sync story audio with pause / resume state and preload next slides
   React.useEffect(() => {
-    if (isActiveSlide && storyAudioRef?.current) {
-      if (storyPaused) {
-        storyAudioRef.current.pause();
-      } else {
-        storyAudioRef.current.play()?.catch(() => {});
+    if (isActiveSlide) {
+      storyAudioRef.current = localAudioRef.current;
+      if (localAudioRef.current) {
+        if (storyPaused) {
+          localAudioRef.current.pause();
+        } else {
+          localAudioRef.current.play()?.then(() => {
+            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; // Hack attempt to hide notification
+          }).catch(() => {});
+        }
+      }
+    } else {
+      if (localAudioRef.current) {
+        localAudioRef.current.pause();
+        localAudioRef.current.currentTime = story?.song?.startTime || 0;
       }
     }
-  }, [storyPaused, isActiveSlide, storyAudioRef]);
+  }, [storyPaused, isActiveSlide, storyAudioRef, story]);
 
   const handlePointerDown = (clientX, clientY) => {
     storyPausedRef.current = true;
@@ -172,11 +184,15 @@ const StorySlide = ({
     }
   };
 
-  const handlePointerUp = (e) => {
+  const handlePointerUp = () => {
     storyPausedRef.current = false;
     setStoryPaused(false);
     if (storyVideoRef.current) storyVideoRef.current.play()?.catch(() => {});
-    if (storyAudioRef.current) storyAudioRef.current.play()?.catch(() => {});
+    if (storyAudioRef.current) {
+      storyAudioRef.current.play()?.then(() => {
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+      }).catch(() => {});
+    }
 
     if (touchStartX !== null && touchEndX !== null && touchStartY !== null && touchEndY !== null) {
       const distanceX = touchStartX - touchEndX;
@@ -324,21 +340,19 @@ const StorySlide = ({
         )}
 
         {/* 👇 Background Music Player with Trim & Loop */}
-        {isActiveSlide && (story.song?.audioUrl || story.songUrl) && (
+        {(story.song?.audioUrl || story.songUrl) && (
           <audio
-            ref={(el) => {
-              if (isActiveSlide) {
-                storyAudioRef.current = el;
-              }
-            }}
+            ref={localAudioRef}
             key={`${story._id}-${story.song?.startTime || 0}`}
             src={story.song?.audioUrl || story.songUrl}
-            autoPlay
+            preload="auto"
             onLoadedMetadata={(e) => {
               const startTime = story.song?.startTime || 0;
               e.currentTarget.currentTime = startTime;
-              if (!storyPaused) {
-                e.currentTarget.play().catch(() => {});
+              if (isActiveSlide && !storyPaused) {
+                e.currentTarget.play().then(() => {
+                  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+                }).catch(() => {});
               }
               if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new window.MediaMetadata({
@@ -346,6 +360,7 @@ const StorySlide = ({
                   artist: story.song?.artist || story.user?.username || 'Twelo',
                   artwork: [{ src: story.song?.image || '/logo.png', sizes: '512x512', type: 'image/png' }]
                 });
+                navigator.mediaSession.playbackState = 'none';
               }
             }}
             onTimeUpdate={(e) => {
@@ -356,7 +371,9 @@ const StorySlide = ({
               if (audio.currentTime >= startTime + duration || audio.currentTime < startTime) {
                 audio.currentTime = startTime;
                 if (!storyPaused) {
-                  audio.play().catch(() => {});
+                  audio.play().then(() => {
+                    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+                  }).catch(() => {});
                 }
               }
             }}

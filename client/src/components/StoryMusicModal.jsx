@@ -59,7 +59,9 @@ export default function StoryMusicModal({ isOpen, onClose, onSelectSong }) {
       setPlayingUrl(null);
     } else {
       previewAudioRef.current.src = audioUrl;
-      previewAudioRef.current.play().catch(() => {});
+      previewAudioRef.current.play()?.then(() => {
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+      }).catch(() => {});
       setPlayingUrl(audioUrl);
 
       // Beautify MediaSession notification
