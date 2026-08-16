@@ -7029,19 +7029,6 @@ const handleStoryUpload = async () => {
   </div>
 )}
 
-{/* Instagram Audio Trimmer & Player */}
-{selectedStorySongData && (
-  <StoryAudioTrimmer
-    song={selectedStorySongData}
-    onRemove={() => {
-      setSelectedSongUrl('');
-      setSelectedStorySongData(null);
-    }}
-    onTimeChange={(settings) => {
-      console.log("Trim settings:", settings);
-    }}
-  />
-)}
 
           {/* Media Preview Area */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}>
