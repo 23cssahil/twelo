@@ -2903,8 +2903,8 @@ const handleStoryUpload = async () => {
         });
         
         if (storyRes.ok) {
-          fetchStories();
-          fetcheveryoneStories();
+          await fetchStories();
+          await fetcheveryoneStories();
           setStoryEditorOpen(false);
           setStoryFile(null);
           
