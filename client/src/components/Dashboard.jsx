@@ -6771,6 +6771,15 @@ export default function Dashboard() {
     setSelectedSongUrl(song.audioUrl);
   }}
 />
+{/* Background Audio Playback on Add */}
+          {selectedSongUrl && (
+            <audio 
+              key={selectedSongUrl} 
+              src={selectedSongUrl} 
+              autoPlay 
+              loop 
+            />
+          )}
 
           {/* Media Preview Area */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}>
