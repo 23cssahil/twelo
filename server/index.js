@@ -532,34 +532,35 @@ app.post('/api/auth/google', async (req, res) => {
 app.get('/api/users/search', authenticateToken, async (req, res) => {
   try {
     const query = req.query.q;
-    const page = parseInt(req.query.page) || 1;
+    const cursor = req.query.cursor;
     const limit = parseInt(req.query.limit) || 20;
 
-    if (!query) return res.json({ users: [], hasMore: false });
+    const filter = {};
 
-    const skip = (page - 1) * limit;
-    
-    // Prefix regex to enable MongoDB Index Seek on B-Tree index
-    // Escape regex control characters to prevent invalid regex errors
-    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regexQuery = new RegExp('^' + escapedQuery, 'i');
-
-    const filter = {
-      $or: [
+    if (query) {
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regexQuery = new RegExp('^' + escapedQuery, 'i');
+      filter.$or = [
         { username: regexQuery },
         { uniqueId: regexQuery }
-      ]
-    };
+      ];
+    }
+
+    if (cursor) {
+      filter._id = { $lt: cursor };
+    }
 
     const users = await User.find(filter)
-      .skip(skip)
+      .sort({ _id: -1 })
       .limit(limit + 1)
       .select('username uniqueId avatarUrl friendRequests followers');
       
     const hasMore = users.length > limit;
     if (hasMore) users.pop();
 
-    res.json({ users, hasMore });
+    const nextCursor = hasMore ? users[users.length - 1]._id : null;
+
+    res.json({ users, nextCursor });
   } catch (error) {
     res.status(500).json({ message: 'Search error' });
   }

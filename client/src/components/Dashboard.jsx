@@ -730,7 +730,7 @@ export default function Dashboard() {
   };
 
   const [searchLoading, setSearchLoading] = useState(false);
-  const [searchPage, setSearchPage] = useState(1);
+  const [searchCursor, setSearchCursor] = useState(null);
   const [hasMoreSearch, setHasMoreSearch] = useState(true);
   const [isFetchingSearchHistory, setIsFetchingSearchHistory] = useState(true);
   const [isFetchingMessages, setIsFetchingMessages] = useState(false);
@@ -2394,55 +2394,54 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (activeTab === 'search' && !searchQuery.trim()) {
-      fetchSearchHistory();
+      handleSearch('', null);
     }
   }, [activeTab, searchQuery]);
 
   const currentSearchId = useRef(0);
 
-  const handleSearch = async (eOrValue, page = 1) => {
+  const handleSearch = async (eOrValue, cursor = null) => {
     let value = typeof eOrValue === 'string' ? eOrValue : eOrValue.target.value;
     
-    if (page === 1) {
+    if (!cursor) {
       setSearchQuery(value);
-      setSearchPage(1);
+      setSearchCursor(null);
       setHasMoreSearch(true);
-    }
-
-    if (!value.trim()) {
-      fetchSearchHistory();
-      return;
     }
     
     const searchId = ++currentSearchId.current;
     
-    if (page === 1) setSearchLoading(true);
+    if (!cursor) setSearchLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/users/search?q=${value}&page=${page}&limit=20`, { headers: { Authorization: `Bearer ${token}` } });
+      const url = new URL(`${API_URL}/api/users/search`);
+      if (value.trim()) url.searchParams.append('q', value.trim());
+      if (cursor) url.searchParams.append('cursor', cursor);
+      url.searchParams.append('limit', '20');
+
+      const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       
-      if (searchId !== currentSearchId.current && page === 1) return; // Prevent race conditions on new searches
+      if (searchId !== currentSearchId.current && !cursor) return; // Prevent race conditions on new searches
       
       if (res.ok) {
-        if (page === 1) {
+        if (!cursor) {
           setSearchResults(data.users);
         } else {
           setSearchResults(prev => [...prev, ...data.users]);
         }
-        setHasMoreSearch(data.hasMore);
+        setSearchCursor(data.nextCursor);
+        setHasMoreSearch(!!data.nextCursor);
       }
     } catch (err) { console.error(err); } finally {
-      if (page === 1 && searchId === currentSearchId.current) setSearchLoading(false);
+      if (!cursor && searchId === currentSearchId.current) setSearchLoading(false);
     }
   };
 
   const handleSearchResultsScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
     // When scrolled to near bottom
-    if (scrollHeight - scrollTop - clientHeight < 50 && hasMoreSearch && !searchLoading) {
-      const nextPage = searchPage + 1;
-      setSearchPage(nextPage);
-      handleSearch(searchQuery, nextPage);
+    if (scrollHeight - scrollTop - clientHeight < 50 && searchCursor && !searchLoading) {
+      handleSearch(searchQuery, searchCursor);
     }
   };
 
@@ -4430,20 +4429,23 @@ const handleStoryUpload = async () => {
 
       case 'search':
         return (
-          <div className="search-container">
-            <h2 className="search-header-text">Search</h2>
-            <div className="search-box-wrapper">
-              <SearchIcon className="search-icon-inside" size={20} />
-              <input
-                type="text"
-                placeholder="Search by Unique ID or Username..."
-                className="search-input"
-                value={searchQuery}
-                onChange={handleSearch}
-              />
+          <div className="search-container" style={{ padding: 0 }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-color)', padding: '16px 16px 5px 16px', borderBottom: '1px solid #1a1a1a' }}>
+              <h2 className="search-header-text" style={{ marginTop: 0 }}>Search</h2>
+              <div className="search-box-wrapper" style={{ marginBottom: '10px' }}>
+                <SearchIcon className="search-icon-inside" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search by Unique ID or Username..."
+                  className="search-input"
+                  value={searchQuery}
+                  onChange={handleSearch}
+                />
+              </div>
             </div>
             
-            {searchLoading && <div style={{ textAlign: 'center', color: '#a8a8a8' }}>Searching...</div>}
+            <div style={{ padding: '0 16px 16px 16px' }}>
+              {searchLoading && !searchCursor && <div style={{ textAlign: 'center', color: '#a8a8a8', padding: '10px 0' }}>Searching...</div>}
             
             {isFetchingSearchHistory && !searchQuery && searchResults.length === 0 ? (
               <div className="chats-skeleton-loader" style={{ padding: '10px' }}>
@@ -4499,7 +4501,7 @@ const handleStoryUpload = async () => {
                 );
               })}
               
-              {searchLoading && searchPage > 1 && (
+              {searchLoading && searchCursor && (
                 <div style={{ textAlign: 'center', padding: '15px', color: '#888', fontSize: '0.85rem' }}>Loading more...</div>
               )}
               
@@ -4507,10 +4509,11 @@ const handleStoryUpload = async () => {
                 <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No users found</div>
               )}
               {!searchLoading && !searchQuery && searchResults.length === 0 && (
-                <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No recent searches.</div>
+                <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No users found.</div>
               )}
             </div>
             )}
+            </div>
           </div>
         );
 
