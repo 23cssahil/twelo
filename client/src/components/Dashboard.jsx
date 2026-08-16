@@ -5211,7 +5211,7 @@ const handleStoryUpload = async () => {
                           {/* Message Receipt placed inside the bubble at the bottom right */}
                           {msg.sender === user.id && index === messages.length - 1 && !selectedMsgId && (
                             <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)', marginTop: '4px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px' }}>
-                              {msg.isViewed ? 'Seen just now' : 'Sent'}
+                              {msg.isViewed ? formatSeenTime(msg.viewedAt) : 'Sent'}
                             </div>
                           )}
                           </div>
