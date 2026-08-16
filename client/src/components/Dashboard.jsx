@@ -7024,24 +7024,6 @@ const handleStoryUpload = async () => {
         style={{ width: '100%', accentColor: '#0072ff', cursor: 'pointer' }}
       />
 
-      {/* Looper Audio while Trimming */}
-      <audio
-        src={selectedStorySongData.audioUrl}
-        autoPlay
-        ref={(el) => {
-          if (el) {
-            el.currentTime = songTrimSettings.startTime || 0;
-            el.ontimeupdate = () => {
-              const start = songTrimSettings.startTime || 0;
-              const dur = songTrimSettings.durationLimit || 15;
-              if (el.currentTime >= start + dur || el.currentTime < start) {
-                el.currentTime = start;
-                el.play().catch(() => {});
-              }
-            };
-          }
-        }}
-      />
     </div>
 
   </div>
