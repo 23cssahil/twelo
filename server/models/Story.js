@@ -39,6 +39,15 @@ const storySchema = new mongoose.Schema({
   songUrl: {
     type: String
   },
+  // 👇 Naya Music Metadata Object (Instagram Trim & Looping ke liye)
+  song: {
+    audioUrl: { type: String, default: null },
+    title: { type: String, default: null },
+    artist: { type: String, default: null },
+    image: { type: String, default: null },
+    startTime: { type: Number, default: 0 },
+    duration: { type: Number, default: 15 }
+  },
   comment_count: {
     type: Number,
     default: 0
