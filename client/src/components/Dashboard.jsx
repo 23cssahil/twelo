@@ -312,6 +312,68 @@ const StorySlide = ({
           />
         )}
 
+        <img 
+            src={story.mediaUrl} 
+            alt="story" 
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+          />
+        )}
+
+        {/* 👇 Background Music Player with Trim & Loop */}
+        {isActiveSlide && (story.song?.audioUrl || story.songUrl) && (
+          <audio
+            ref={storyAudioRef}
+            key={`${story._id}-${story.song?.startTime || 0}`}
+            src={story.song?.audioUrl || story.songUrl}
+            autoPlay
+            onLoadedMetadata={(e) => {
+              const startTime = story.song?.startTime || 0;
+              e.currentTarget.currentTime = startTime;
+              if (!storyPaused) {
+                e.currentTarget.play().catch(() => {});
+              }
+            }}
+            onTimeUpdate={(e) => {
+              const audio = e.currentTarget;
+              const startTime = story.song?.startTime || 0;
+              const duration = story.song?.duration || 15;
+              
+              if (audio.currentTime >= startTime + duration || audio.currentTime < startTime) {
+                audio.currentTime = startTime;
+                if (!storyPaused) {
+                  audio.play().catch(() => {});
+                }
+              }
+            }}
+          />
+        )}
+
+        {/* Click Navigation Areas */}
+        <div 
+          style={{ position: 'absolute', top: 0, left: 0, width: '30%', height: '100%', zIndex: 5, cursor: 'w-resize' }} 
+          onClick={(e) => {
+            e.stopPropagation();
+            if ((isActiveSlide ? currentStoryIndex : 0) > 0) {
+              setCurrentStoryIndex(prev => prev - 1);
+              setStoryProgress(0);
+            } else if (handlePrevUser) {
+              handlePrevUser();
+            }
+          }}
+        />
+        <div 
+          style={{ position: 'absolute', top: 0, right: 0, width: activeTab === 'everyone-stories' ? '50%' : '70%', height: '100%', zIndex: 5, cursor: 'e-resize' }} 
+          onClick={(e) => {
+            e.stopPropagation();
+            if ((isActiveSlide ? currentStoryIndex : 0) < group.stories.length - 1) {
+              setCurrentStoryIndex(prev => prev + 1);
+              setStoryProgress(0);
+            } else if (handleNextUser) {
+              handleNextUser();
+            }
+          }}
+        />
+        
         {/* Click Navigation Areas */}
         <div 
           style={{ position: 'absolute', top: 0, left: 0, width: '30%', height: '100%', zIndex: 5, cursor: 'w-resize' }} 
@@ -473,6 +535,7 @@ export default function Dashboard() {
 
   const [isStoryMusicModalOpen, setIsStoryMusicModalOpen] = useState(false);
   const [selectedStorySong, setSelectedStorySong] = useState(null);
+  const [songTrimSettings, setSongTrimSettings] = useState({ startTime: 0, durationLimit: 15 });
   const [selectedStorySongData, setSelectedStorySongData] = useState(null);
   const [avatarCropperOpen, setAvatarCropperOpen] = useState(false);
   const [avatarImageSrc, setAvatarImageSrc] = useState(null);
@@ -2777,8 +2840,7 @@ export default function Dashboard() {
     }
     setIsCroppingStory(false);
   };
-
-  const handleStoryUpload = async () => {
+const handleStoryUpload = async () => {
     setStoryUploading(true);
     let finalFile = storyFile;
     
@@ -2827,7 +2889,16 @@ export default function Dashboard() {
             mediaType,
             visibility: storyVisibility,
             allowedUsers: storyVisibility === 'custom' ? selectedCloseFriends : [],
-            songUrl: selectedSongUrl
+            songUrl: selectedStorySongData?.audioUrl || selectedSongUrl || null,
+            // 👇 Naya complete song object backend ko bhej rahe hain
+            song: selectedStorySongData ? {
+              audioUrl: selectedStorySongData.audioUrl,
+              title: selectedStorySongData.title,
+              artist: selectedStorySongData.artist,
+              image: selectedStorySongData.image,
+              startTime: songTrimSettings.startTime || 0,
+              duration: songTrimSettings.durationLimit || 15
+            } : null
           })
         });
         
@@ -2836,6 +2907,12 @@ export default function Dashboard() {
           fetcheveryoneStories();
           setStoryEditorOpen(false);
           setStoryFile(null);
+          
+          // ✅ Music states reset
+          setSelectedSongUrl('');
+          setSelectedStorySongData(null);
+          setSongTrimSettings({ startTime: 0, durationLimit: 15 });
+
           showToastMsg('Status added successfully!', 'success');
         } else {
           showToastMsg('Failed to save status on server', 'error');

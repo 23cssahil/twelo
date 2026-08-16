@@ -1624,16 +1624,20 @@ app.get('/api/test-stories', async (req, res) => {
 // Create a new story
 app.post('/api/stories', authenticateToken, async (req, res) => {
   try {
-    const { mediaUrl, mediaType, visibility, allowedUsers, songUrl } = req.body;
+    const { mediaUrl, mediaType, visibility, allowedUsers, songUrl, song } = req.body;
     if (!mediaUrl) return res.status(400).json({ message: 'Media URL is required' });
     
+    // Parse song if it's sent as stringified JSON
+    const parsedSong = typeof song === 'string' ? JSON.parse(song) : (song || null);
+
     const newStory = new Story({
       user: req.user.userId,
       mediaUrl,
       mediaType: mediaType || 'image',
       visibility: visibility || 'everyone',
       allowedUsers: allowedUsers || [],
-      songUrl: songUrl || null
+      songUrl: songUrl || parsedSong?.audioUrl || null,
+      song: parsedSong
     });
     
     if (newStory.visibility !== 'global') {
