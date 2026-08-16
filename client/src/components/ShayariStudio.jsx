@@ -73,18 +73,36 @@ export default function ShayariStudio({ onClose, onComplete }) {
   };
 
   const handleConfirmCrop = async () => {
-    if (!completedCrop || !bgImgRef.current) return;
+    if (!completedCrop || !bgImgRef.current || !completedCrop.width || !completedCrop.height) return;
     
     const canvas = document.createElement('canvas');
     const scaleX = bgImgRef.current.naturalWidth / bgImgRef.current.width;
     const scaleY = bgImgRef.current.naturalHeight / bgImgRef.current.height;
     
-    // Use natural resolution for high-quality background
+    // Original crop dimensions in natural resolution
     const pixelWidth = completedCrop.width * scaleX;
     const pixelHeight = completedCrop.height * scaleY;
     
-    canvas.width = pixelWidth;
-    canvas.height = pixelHeight;
+    // Constrain to max FHD to prevent massive base64 crashes/tiling bugs on mobile browsers
+    const MAX_WIDTH = 1080;
+    const MAX_HEIGHT = 1920;
+    
+    let drawWidth = pixelWidth;
+    let drawHeight = pixelHeight;
+    
+    if (drawWidth > MAX_WIDTH) {
+      const ratio = MAX_WIDTH / drawWidth;
+      drawWidth = MAX_WIDTH;
+      drawHeight = drawHeight * ratio;
+    }
+    if (drawHeight > MAX_HEIGHT) {
+      const ratio = MAX_HEIGHT / drawHeight;
+      drawHeight = MAX_HEIGHT;
+      drawWidth = drawWidth * ratio;
+    }
+    
+    canvas.width = drawWidth;
+    canvas.height = drawHeight;
     const ctx = canvas.getContext('2d');
     
     ctx.drawImage(
@@ -95,11 +113,11 @@ export default function ShayariStudio({ onClose, onComplete }) {
       pixelHeight,
       0,
       0,
-      pixelWidth,
-      pixelHeight
+      drawWidth,
+      drawHeight
     );
     
-    const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+    const base64Image = canvas.toDataURL('image/jpeg', 0.85);
     setBgImage(base64Image);
     setBgGradient(null);
     setIsCroppingImage(false);
@@ -182,10 +200,7 @@ export default function ShayariStudio({ onClose, onComplete }) {
             className="shayari-canvas" 
             ref={canvasRef}
             style={bgImage ? { 
-              backgroundImage: `url(${bgImage})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat'
+              background: `url(${bgImage}) center/cover no-repeat`
             } : { 
               background: bgGradient 
             }}
@@ -396,7 +411,7 @@ export default function ShayariStudio({ onClose, onComplete }) {
                   ref={bgImgRef}
                   src={cropImageSrc}
                   alt="Crop preview"
-                  style={{ maxHeight: '60vh', width: 'auto', objectFit: 'contain' }}
+                  style={{ maxHeight: '60vh', maxWidth: '100%', display: 'block' }}
                 />
               </ReactCrop>
             </div>
