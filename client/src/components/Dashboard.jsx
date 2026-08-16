@@ -1,3 +1,4 @@
+import StoryAudioTrimmer from './StoryAudioTrimmer';
 import StoryMusicModal from "./StoryMusicModal";
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import CommentsModal from './CommentsModal';
@@ -472,6 +473,7 @@ export default function Dashboard() {
 
   const [isStoryMusicModalOpen, setIsStoryMusicModalOpen] = useState(false);
   const [selectedStorySong, setSelectedStorySong] = useState(null);
+  const [selectedStorySongData, setSelectedStorySongData] = useState(null);
   const [avatarCropperOpen, setAvatarCropperOpen] = useState(false);
   const [avatarImageSrc, setAvatarImageSrc] = useState(null);
   const [avatarCrop, setAvatarCrop] = useState({ unit: '%', width: 50, height: 50, x: 25, y: 25, aspect: 1 });
@@ -6769,17 +6771,23 @@ export default function Dashboard() {
   onClose={() => setShowMusicPicker(false)}
   onSelectSong={(song) => {
     setSelectedSongUrl(song.audioUrl);
+    setSelectedStorySongData(song);
   }}
 />
-{/* Background Audio Playback on Add */}
-          {selectedSongUrl && (
-            <audio 
-              key={selectedSongUrl} 
-              src={selectedSongUrl} 
-              autoPlay 
-              loop 
-            />
-          )}
+
+{/* Instagram Audio Trimmer & Player */}
+{selectedStorySongData && (
+  <StoryAudioTrimmer
+    song={selectedStorySongData}
+    onRemove={() => {
+      setSelectedSongUrl('');
+      setSelectedStorySongData(null);
+    }}
+    onTimeChange={(settings) => {
+      console.log("Trim settings:", settings);
+    }}
+  />
+)}
 
           {/* Media Preview Area */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}>
