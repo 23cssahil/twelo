@@ -4202,6 +4202,7 @@ export default function Dashboard() {
             {notifications.length === 0 && !notifsFetching ? (
               <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No notifications yet.</div>
             ) : (
+              <>
               <div className="requests-list">
                 {notifications.map(notif => {
                   if (notif.type === 'system_alert') {
@@ -4335,6 +4336,7 @@ export default function Dashboard() {
               {notifsFetching && (
                 <div style={{ textAlign: 'center', padding: '15px', color: '#888', fontSize: '0.85rem' }}>Loading more...</div>
               )}
+              </>
             )}
           </div>
         );
