@@ -1,0 +1,255 @@
+.shayari-studio-container {
+  min-height: 100vh;
+  background-color: #0f1117;
+  color: #f8fafc;
+  padding: 30px 20px;
+  font-family: 'Inter', sans-serif;
+  overflow-y: auto;
+}
+
+.studio-header {
+  text-align: center;
+  margin-bottom: 30px;
+  position: relative;
+}
+
+.close-btn-shayari {
+  position: absolute;
+  top: 0;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 24px;
+}
+
+.studio-header h1 {
+  font-size: 2.5rem;
+  background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+
+.studio-header p {
+  color: #94a3b8;
+  font-size: 1.1rem;
+}
+
+.studio-workspace {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media(max-width: 900px) {
+  .studio-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+.studio-controls {
+  background: #1e222d;
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.control-group label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #cbd5e1;
+}
+
+/* Gradient options */
+.gradient-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.grad-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.grad-btn:hover {
+  transform: scale(1.1);
+}
+
+.grad-btn.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 10px rgba(255,255,255,0.6);
+}
+
+/* Select & Inputs */
+.studio-select, .studio-input {
+  width: 100%;
+  padding: 12px;
+  background: #11141d;
+  border: 1px solid #334155;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 1rem;
+  outline: none;
+}
+
+.studio-select:focus, .studio-input:focus {
+  border-color: #f7971e;
+}
+
+/* Effect Buttons */
+.effect-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.effect-buttons button {
+  flex: 1;
+  padding: 8px;
+  background: #11141d;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.effect-buttons button.active-eff {
+  background: #f7971e;
+  color: #000;
+  font-weight: 600;
+  border-color: #f7971e;
+}
+
+/* Chips */
+.template-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chip {
+  background: #11141d;
+  border: 1px dashed #475569;
+  color: #cbd5e1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.chip:hover {
+  background: #252b3b;
+  color: #fff;
+}
+
+/* Preview Pane */
+.studio-preview-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-label {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.shayari-card {
+  width: 100%;
+  min-height: 350px;
+  border-radius: 20px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.shayari-text-content {
+  font-size: 1.5rem;
+  line-height: 1.8;
+  color: #ffffff;
+  word-break: break-word;
+}
+
+.placeholder-text {
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  font-size: 1.2rem;
+}
+
+.shayari-author {
+  margin-top: 20px;
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-style: italic;
+}
+
+/* Effects styling */
+.effect-glow .shayari-text-content {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.effect-neon .shayari-text-content {
+  text-shadow: 0 0 5px #fff, 0 0 10px #ff00de, 0 0 20px #ff00de;
+}
+
+/* Actions */
+.studio-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+  width: 100%;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-size: 1rem;
+  transition: transform 0.2s;
+}
+
+.action-btn:active {
+  transform: scale(0.98);
+}
+
+.action-btn.primary {
+  background: #f7971e;
+  color: #000;
+}
+
+.action-btn.secondary {
+  background: #334155;
+  color: #fff;
+}

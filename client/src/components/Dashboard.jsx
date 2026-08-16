@@ -1,5 +1,6 @@
 import StoryAudioTrimmer from './StoryAudioTrimmer';
 import StoryMusicModal from "./StoryMusicModal";
+import ShayariStudio from "./ShayariStudio";
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import CommentsModal from './CommentsModal';
 import { useNavigate } from 'react-router-dom';
@@ -52,7 +53,8 @@ import {
   Info,
   Shield,
   FileText,
-  Mail
+  Mail,
+  PenTool
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -903,6 +905,7 @@ export default function Dashboard() {
   // Story Editor State
   const [storyEditorOpen, setStoryEditorOpen] = useState(false);
   const [storyCameraOpen, setStoryCameraOpen] = useState(false);
+  const [showShayariStudio, setShowShayariStudio] = useState(false);
 
   const [cameraMode, setCameraMode] = useState('story');
   const [showAvatarLibrary, setShowAvatarLibrary] = useState(false);
@@ -6765,6 +6768,9 @@ const handleStoryUpload = async () => {
               </button>
             ) : <div />}
             <div style={{ display: 'flex', gap: '15px' }}>
+              <button onClick={() => setShowShayariStudio(true)} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <PenTool size={24} />
+              </button>
               {storyCapturedImage && (
                 <a href={storyCapturedImage} download="twelo_capture.jpg" style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex' }}>
                   <Download size={24} />
@@ -6834,6 +6840,13 @@ const handleStoryUpload = async () => {
               </>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Shayari Studio Modal */}
+      {showShayariStudio && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 13000, background: '#0f1117' }}>
+          <ShayariStudio onClose={() => setShowShayariStudio(false)} />
         </div>
       )}
 
