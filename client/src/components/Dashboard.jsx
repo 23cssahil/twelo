@@ -323,13 +323,6 @@ const StorySlide = ({
           />
         )}
 
-        <img 
-            src={story.mediaUrl} 
-            alt="story" 
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
-          />
-        )}
-
         {/* 👇 Background Music Player with Trim & Loop */}
         {isActiveSlide && (story.song?.audioUrl || story.songUrl) && (
           <audio
@@ -4788,7 +4781,7 @@ const handleStoryUpload = async () => {
                 scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch'
               }}>
                 <style>{`.story-bar-container::-webkit-scrollbar { display: none; }`}</style>
-                <input type="file" accept="image/*,video/*" style={{ display: 'none' }} ref={storyFileInputRef} onChange={handleStorySelect} />
+                <input type="file" accept="image/*,video/*" style={{ display: 'none' }} ref={storyFileInputRef} onChange={handleStorySelect} onClick={(e) => { e.target.value = null; }} />
                 
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 }} onClick={openStoryCamera}>
                   <div style={{ position: 'relative' }}>
@@ -6786,7 +6779,9 @@ const handleStoryUpload = async () => {
               </>
             ) : (
               <>
-                <button onClick={() => {
+                <button onClick={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
     const targetInput = cameraMode === 'avatar'
       ? avatarFileInputRef.current
       : (storyFileInputRef.current || avatarFileInputRef.current);
@@ -7027,6 +7022,7 @@ const handleStoryUpload = async () => {
 
       <input
         type="range"
+        className="insta-trimmer"
         min={0}
         max={Math.max(0, (selectedStorySongData.duration || 120) - (songTrimSettings.durationLimit || 15))}
         step={0.5}
@@ -7035,8 +7031,25 @@ const handleStoryUpload = async () => {
           const newStart = parseFloat(e.target.value);
           setSongTrimSettings(prev => ({ ...prev, startTime: newStart }));
         }}
-        style={{ width: '100%', accentColor: '#0072ff', cursor: 'pointer' }}
+        style={{ width: '100%', cursor: 'pointer', outline: 'none' }}
       />
+      <style>{`
+        .insta-trimmer {
+          -webkit-appearance: none;
+          background: rgba(255,255,255,0.2);
+          height: 40px;
+          border-radius: 8px;
+        }
+        .insta-trimmer::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          height: 40px;
+          width: 60px;
+          background: rgba(255, 255, 255, 0.4);
+          border: 2px solid white;
+          border-radius: 8px;
+          box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+      `}</style>
 
       <audio
         src={selectedStorySongData.audioUrl}
@@ -7059,6 +7072,31 @@ const handleStoryUpload = async () => {
     </div>
   </div>
 )}
+
+{/* Background preview player when trimmer is closed but song is selected */}
+{!isTrimmerActive && selectedStorySongData && (
+  <audio
+    src={selectedStorySongData.audioUrl}
+    autoPlay
+    ref={(el) => {
+      if (el) {
+        if (!el.dataset.initialized) {
+          el.currentTime = songTrimSettings.startTime || 0;
+          el.dataset.initialized = 'true';
+        }
+        el.ontimeupdate = () => {
+          const start = songTrimSettings.startTime || 0;
+          const dur = songTrimSettings.durationLimit || 15;
+          if (el.currentTime >= start + dur || el.currentTime < start) {
+            el.currentTime = start;
+            el.play().catch(() => {});
+          }
+        };
+      }
+    }}
+  />
+)}
+
           {/* Media Preview Area */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}>
             {storyFile?.type?.startsWith('video/') ? (

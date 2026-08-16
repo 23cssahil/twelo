@@ -1640,9 +1640,8 @@ app.post('/api/stories', authenticateToken, async (req, res) => {
       song: parsedSong
     });
     
-    if (newStory.visibility !== 'global') {
-      newStory.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    }
+    // Make all stories permanent in the DB (filter by 24h dynamically instead)
+    newStory.expiresAt = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000);
     
     await newStory.save();
     const storyUser = await User.findById(req.user.userId).select('username avatarUrl uniqueId').lean();
@@ -1746,7 +1745,7 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const stories = await Story.find({
       $or: [
-        { visibility: { $in: ['everyone', 'global'] }, createdAt: { $gt: twentyFourHoursAgo } }, // Global/Everyone on the app
+        { visibility: { $in: ['everyone', 'global'] } }, // Global/Everyone on the app
         { isAdminStory: true } // Admin global stories
       ]
     })
