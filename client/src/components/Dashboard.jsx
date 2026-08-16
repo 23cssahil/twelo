@@ -6797,7 +6797,7 @@ const handleStoryUpload = async () => {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 13000, background: '#0f1117' }}>
           <ShayariStudio 
             onClose={() => setShowShayariStudio(false)}
-            onComplete={(imageData) => {
+            onComplete={(imageData, hasCustomBg) => {
               const arr = imageData.split(',');
               const mime = arr[0].match(/:(.*?);/)[1];
               const bstr = atob(arr[1]);
@@ -6814,7 +6814,35 @@ const handleStoryUpload = async () => {
               setStoryVisibility('everyone');
               setSelectedSongUrl('');
               setIsCroppingStory(false);
-              setStoryPreviewSafety('safe');
+              
+              if (hasCustomBg) {
+                setStoryPreviewSafety('checking');
+                // Upload for check
+                (async () => {
+                  try {
+                    const compressedFile = await compressImage(file);
+                    const formData = new FormData();
+                    formData.append('file', compressedFile);
+                    const token = localStorage.getItem('token');
+                    
+                    const res = await fetch(`${API_URL}/api/stories/scan`, {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${token}` },
+                      body: formData
+                    });
+                    if (res.ok) {
+                      setStoryPreviewSafety('safe');
+                    } else {
+                      setStoryPreviewSafety('unsafe');
+                    }
+                  } catch (e) {
+                    console.error('Scan error:', e);
+                    setStoryPreviewSafety('safe');
+                  }
+                })();
+              } else {
+                setStoryPreviewSafety('safe');
+              }
               
               setShowShayariStudio(false);
               setStoryCameraOpen(false);

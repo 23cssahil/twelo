@@ -135,8 +135,8 @@ export default function ShayariStudio({ onClose, onComplete }) {
         pixelRatio: 2 // High resolution for mobile
       });
       
-      // Pass the image back to Dashboard
-      onComplete(dataUrl);
+      // Pass the image and whether it uses a custom bg back to Dashboard
+      onComplete(dataUrl, !!bgImage);
     } catch (err) {
       console.error("Error generating image:", err);
       alert("Failed to generate image. Please try again.");
