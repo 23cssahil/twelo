@@ -838,6 +838,7 @@ export default function Dashboard() {
   const [notifsCursor, setNotifsCursor] = useState(null);
   const [notifsHasMore, setNotifsHasMore] = useState(true);
   const [notifsFetching, setNotifsFetching] = useState(false);
+  const notifsFetchingRef = useRef(false);
   const [expandedAlerts, setExpandedAlerts] = useState(new Set());
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [publicProfileData, setPublicProfileData] = useState(null);
@@ -1532,7 +1533,8 @@ export default function Dashboard() {
 
   const fetchNotifications = async (cursorParam = null) => {
     try {
-      if (notifsFetching) return;
+      if (notifsFetchingRef.current) return;
+      notifsFetchingRef.current = true;
       setNotifsFetching(true);
       const url = new URL(`${API_URL}/api/users/notifications`);
       url.searchParams.append('limit', '20');
@@ -1553,13 +1555,15 @@ export default function Dashboard() {
         }
       }
     } catch (e) { console.error(e); } finally {
+      notifsFetchingRef.current = false;
       setNotifsFetching(false);
     }
   };
 
   const handleNotifsScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
-    if (scrollHeight - scrollTop - clientHeight < 100 && notifsHasMore && !notifsFetching && notifsCursor) {
+    // Buffer of 200px to trigger fetch before reaching the absolute bottom
+    if (scrollHeight - scrollTop - clientHeight < 200 && notifsHasMore && !notifsFetchingRef.current && notifsCursor) {
       fetchNotifications(notifsCursor);
     }
   };
