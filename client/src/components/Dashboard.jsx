@@ -336,6 +336,13 @@ const StorySlide = ({
               if (!storyPaused) {
                 e.currentTarget.play().catch(() => {});
               }
+              if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new window.MediaMetadata({
+                  title: story.song?.title || 'Story Audio',
+                  artist: story.song?.artist || story.user?.username || 'Twelo',
+                  artwork: [{ src: story.song?.image || '/logo.png', sizes: '512x512', type: 'image/png' }]
+                });
+              }
             }}
             onTimeUpdate={(e) => {
               const audio = e.currentTarget;
@@ -540,6 +547,7 @@ export default function Dashboard() {
   const [isStoryMusicModalOpen, setIsStoryMusicModalOpen] = useState(false);
   const [selectedStorySong, setSelectedStorySong] = useState(null);
   const [songTrimSettings, setSongTrimSettings] = useState({ startTime: 0, durationLimit: 15 });
+  const [trimmerCurrentTime, setTrimmerCurrentTime] = useState(0);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [isTrimmerActive, setIsTrimmerActive] = useState(false); // Done click karne par false hoga
   const [selectedStorySongData, setSelectedStorySongData] = useState(null);
@@ -1689,7 +1697,9 @@ export default function Dashboard() {
                 return 100;
               }
             }
-            return prev + 2; // 5 seconds to complete 100%
+            const totalDurationSec = currentStory.song?.duration || 5;
+            const step = 10 / totalDurationSec;
+            return prev + step;
           });
         }, 100);
       }
@@ -7020,19 +7030,32 @@ const handleStoryUpload = async () => {
         <span>Clip Length: {songTrimSettings.durationLimit || 15}s</span>
       </div>
 
-      <input
-        type="range"
-        className="insta-trimmer"
-        min={0}
-        max={Math.max(0, (selectedStorySongData.duration || 120) - (songTrimSettings.durationLimit || 15))}
-        step={0.5}
-        value={songTrimSettings.startTime || 0}
-        onChange={(e) => {
-          const newStart = parseFloat(e.target.value);
-          setSongTrimSettings(prev => ({ ...prev, startTime: newStart }));
-        }}
-        style={{ width: '100%', cursor: 'pointer', outline: 'none' }}
-      />
+      <div style={{ position: 'relative' }}>
+        <input
+          type="range"
+          className="insta-trimmer"
+          min={0}
+          max={Math.max(0, (selectedStorySongData.duration || 120) - (songTrimSettings.durationLimit || 15))}
+          step={0.5}
+          value={songTrimSettings.startTime || 0}
+          onChange={(e) => {
+            const newStart = parseFloat(e.target.value);
+            setSongTrimSettings(prev => ({ ...prev, startTime: newStart }));
+          }}
+          style={{ width: '100%', cursor: 'pointer', outline: 'none', margin: 0 }}
+        />
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: `calc(${(songTrimSettings.startTime / Math.max(1, (selectedStorySongData.duration || 120) - (songTrimSettings.durationLimit || 15))) * 100}% - ${(songTrimSettings.startTime / Math.max(1, (selectedStorySongData.duration || 120) - (songTrimSettings.durationLimit || 15))) * 60}px + ${((trimmerCurrentTime - songTrimSettings.startTime) / (songTrimSettings.durationLimit || 15)) * 60}px)`,
+          width: '2px',
+          height: '40px',
+          background: '#fff',
+          boxShadow: '0 0 5px rgba(0,0,0,0.5)',
+          pointerEvents: 'none',
+          zIndex: 10
+        }} />
+      </div>
       <style>{`
         .insta-trimmer {
           -webkit-appearance: none;
@@ -7054,10 +7077,23 @@ const handleStoryUpload = async () => {
       <audio
         src={selectedStorySongData.audioUrl}
         autoPlay
+        onLoadedMetadata={() => {
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new window.MediaMetadata({
+              title: selectedStorySongData?.title || 'Story Audio',
+              artist: selectedStorySongData?.artist || 'Twelo',
+              artwork: [{ src: selectedStorySongData?.image || '/logo.png', sizes: '512x512', type: 'image/png' }]
+            });
+          }
+        }}
         ref={(el) => {
           if (el) {
-            el.currentTime = songTrimSettings.startTime || 0;
+            if (!el.dataset.initialized) {
+              el.currentTime = songTrimSettings.startTime || 0;
+              el.dataset.initialized = 'true';
+            }
             el.ontimeupdate = () => {
+              setTrimmerCurrentTime(el.currentTime);
               const start = songTrimSettings.startTime || 0;
               const dur = songTrimSettings.durationLimit || 15;
               if (el.currentTime >= start + dur || el.currentTime < start) {
@@ -7078,6 +7114,15 @@ const handleStoryUpload = async () => {
   <audio
     src={selectedStorySongData.audioUrl}
     autoPlay
+    onLoadedMetadata={() => {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new window.MediaMetadata({
+          title: selectedStorySongData?.title || 'Story Audio',
+          artist: selectedStorySongData?.artist || 'Twelo',
+          artwork: [{ src: selectedStorySongData?.image || '/logo.png', sizes: '512x512', type: 'image/png' }]
+        });
+      }
+    }}
     ref={(el) => {
       if (el) {
         if (!el.dataset.initialized) {
