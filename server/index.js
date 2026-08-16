@@ -162,7 +162,13 @@ const UserSession = require('./models/UserSession');
 const CountryFact = require('./models/CountryFact');
 
 const app = express();
+const app = express();
 
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', time: new Date().toISOString() });
+});
+
+const countryFactIndexes = {};
 const countryFactIndexes = {};
 
 async function getRandomCountryFact(countryCode) {
