@@ -4207,47 +4207,20 @@ export default function Dashboard() {
                 {notifications.map(notif => {
                   if (notif.type === 'system_alert') {
                     return (
-                      <div className="user-card" key={notif._id} style={{ 
-                        border: '1px solid rgba(245, 158, 11, 0.3)', 
-                        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(20, 20, 20, 0.8) 100%)', 
-                        boxShadow: '0 4px 15px rgba(245, 158, 11, 0.1)',
-                        backdropFilter: 'blur(10px)',
-                        padding: '16px',
-                        borderRadius: '12px',
-                        marginBottom: '15px'
-                      }}>
-                        <div className="user-card-info" style={{ cursor: 'default', alignItems: 'flex-start', gap: '15px' }}>
-                          <div className="user-avatar-small" style={{ 
-                            background: 'transparent',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            border: 'none',
-                            width: '45px', height: '45px', borderRadius: '12px', flexShrink: 0
-                          }}>
-                             <img src="/icon-192.png" alt="Twelo" style={{ width: '40px', height: '40px', borderRadius: '10px' }} />
+                      <div className="user-card" key={notif._id} style={{ position: 'relative' }}>
+                        <div className="user-card-info" style={{ cursor: 'default', alignItems: 'flex-start' }}>
+                          <div className="user-avatar-small">
+                            <img src="/icon-192.png" alt="Twelo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                           </div>
-                          <div className="user-names">
-                            <span className="user-username" style={{ 
-                                color: '#fff', 
-                                fontWeight: '800', 
-                                letterSpacing: '1px',
-                                textTransform: 'uppercase',
-                                textShadow: '0 0 10px rgba(245, 158, 11, 0.5)'
-                            }}>Twelo</span>
-                            <span className="user-id" style={{ 
-                                fontSize: '0.95rem', 
-                                color: '#f8fafc', 
-                                marginTop: '6px',
-                                lineHeight: '1.5',
-                                display: 'block',
-                                wordBreak: 'break-word',
-                                whiteSpace: 'pre-wrap'
-                            }}>
-                              {notif.message.length > 100 && !expandedAlerts.has(notif._id) 
-                                ? notif.message.substring(0, 100) + '...' 
+                          <div className="user-names" style={{ flex: 1 }}>
+                            <span className="user-username">@twelo</span>
+                            <span className="user-id" style={{ fontSize: '0.8rem', lineHeight: '1.4', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                              {notif.message.length > 100 && !expandedAlerts.has(notif._id)
+                                ? notif.message.substring(0, 100) + '...'
                                 : notif.message}
                             </span>
                             {notif.message.length > 100 && (
-                              <button 
+                              <button
                                 onClick={() => {
                                   setExpandedAlerts(prev => {
                                     const next = new Set(prev);
@@ -4256,16 +4229,16 @@ export default function Dashboard() {
                                     return next;
                                   });
                                 }}
-                                style={{ 
-                                  background: 'none', border: 'none', color: 'var(--brand-blue)', 
-                                  fontSize: '0.85rem', cursor: 'pointer', padding: 0, marginTop: '4px',
-                                  fontWeight: 'bold'
+                                style={{
+                                  background: 'none', border: 'none', color: 'var(--brand-blue)',
+                                  fontSize: '0.8rem', cursor: 'pointer', padding: 0, marginTop: '2px',
+                                  fontWeight: '600'
                                 }}
                               >
                                 {expandedAlerts.has(notif._id) ? 'Show Less' : 'Read More'}
                               </button>
                             )}
-                            <span style={{ fontSize: '0.75rem', color: 'rgba(245, 158, 11, 0.8)', marginTop: '8px', display: 'block', fontWeight: '500' }}>
+                            <span style={{ fontSize: '0.7rem', color: '#666', marginTop: '4px', display: 'block' }}>
                               {new Date(notif.createdAt).toLocaleString()}
                             </span>
                           </div>
