@@ -6786,7 +6786,15 @@ const handleStoryUpload = async () => {
       {/* Shayari Studio Modal */}
       {showShayariStudio && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 13000, background: '#0f1117' }}>
-          <ShayariStudio onClose={() => setShowShayariStudio(false)} />
+          <ShayariStudio 
+            onClose={() => setShowShayariStudio(false)}
+            onComplete={(imageData) => {
+              setStoryCapturedImage(imageData);
+              setShowShayariStudio(false);
+              setStoryCameraOpen(false);
+              setStoryEditorOpen(true);
+            }}
+          />
         </div>
       )}
 

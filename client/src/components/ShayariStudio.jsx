@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import * as htmlToImage from 'html-to-image';
+import { X, Check, AlignLeft, AlignCenter, AlignRight, Type, Palette, Image as ImageIcon, Sparkles } from 'lucide-react';
 import "./ShayariStudio.css";
 
 const GRADIENTS = [
@@ -7,14 +9,21 @@ const GRADIENTS = [
   { name: "Sunset Crimson", value: "linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)" },
   { name: "Deep Galaxy", value: "linear-gradient(135deg, #0f2027 0%, #203a43 200%, #2c5364 100%)" },
   { name: "Emerald Myst", value: "linear-gradient(135deg, #134e5e 0%, #71b280 100%)" },
-  { name: "Rose Gold Dream", value: "linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%)" }
+  { name: "Rose Gold Dream", value: "linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%)" },
+  { name: "Dark Velvet", value: "linear-gradient(135deg, #141e30 0%, #243b55 100%)" },
+  { name: "Pure Black", value: "#000000" }
+];
+
+const TEXT_COLORS = [
+  "#ffffff", "#f8fafc", "#fcd34d", "#fca5a5", "#93c5fd", "#86efac", "#d8b4fe", "#000000"
 ];
 
 const FONTS = [
-  { name: "Classic Serif", value: "'Playfair Display', serif" },
-  { name: "Poetic Handwriting", value: "'Dancing Script', cursive" },
-  { name: "Modern Elegant", value: "'Cinzel', serif" },
-  { name: "Clean Sans", value: "'Inter', sans-serif" }
+  { name: "Classic", value: "'Playfair Display', serif" },
+  { name: "Poetic", value: "'Dancing Script', cursive" },
+  { name: "Elegant", value: "'Cinzel', serif" },
+  { name: "Modern", value: "'Inter', sans-serif" },
+  { name: "Typewriter", value: "'Courier New', Courier, monospace" }
 ];
 
 const TEMPLATES = [
@@ -23,161 +32,242 @@ const TEMPLATES = [
   "Faasle mitane se kuch nahi hota, niyat saaf honi chahiye..."
 ];
 
-export default function ShayariStudio({ onClose }) {
-  const [shayariText, setShayariText] = useState("");
-  const [authorName, setAuthorName] = useState("");
-  const [selectedGradient, setSelectedGradient] = useState(GRADIENTS[0].value);
-  const [selectedFont, setSelectedFont] = useState(FONTS[0].value);
-  const [effect, setEffect] = useState("normal"); // glow, shadow, neon
-  const [copied, setCopied] = useState(false);
+export default function ShayariStudio({ onClose, onComplete }) {
+  const [text, setText] = useState("");
+  const [author, setAuthor] = useState("");
+  
+  // Style states
+  const [bgGradient, setBgGradient] = useState(GRADIENTS[0].value);
+  const [textColor, setTextColor] = useState(TEXT_COLORS[0]);
+  const [fontFamily, setFontFamily] = useState(FONTS[0].value);
+  const [textAlign, setTextAlign] = useState("center");
+  const [textEffect, setTextEffect] = useState("none"); // none, shadow, glow, neon
+  
+  // UI states
+  const [activeTab, setActiveTab] = useState("text"); // text, background, style, templates
+  const [isGenerating, setIsGenerating] = useState(false);
+  
+  const canvasRef = useRef(null);
+  const textareaRef = useRef(null);
 
-  // Handle Copy
-  const handleCopy = () => {
-    const fullText = `${shayariText}\n\n~ ${authorName || "Anonymous"}`;
-    navigator.clipboard.writeText(fullText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  useEffect(() => {
+    // Focus textarea on load if empty
+    if (!text && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, []);
+
+  const handleDone = async () => {
+    if (!canvasRef.current) return;
+    if (!text.trim() && !author.trim()) {
+      alert("Please write something first!");
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      // Generate image from the DOM node
+      const dataUrl = await htmlToImage.toJpeg(canvasRef.current, { 
+        quality: 0.95,
+        pixelRatio: 2 // High resolution for mobile
+      });
+      
+      // Pass the image back to Dashboard
+      onComplete(dataUrl);
+    } catch (err) {
+      console.error("Error generating image:", err);
+      alert("Failed to generate image. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  // Insert Template
-  const handleTemplateSelect = (template) => {
-    setShayariText((prev) => (prev ? prev + "\n" + template : template));
+  const getEffectStyle = () => {
+    switch(textEffect) {
+      case "shadow": return { textShadow: "2px 4px 10px rgba(0,0,0,0.8)" };
+      case "glow": return { textShadow: `0 0 10px ${textColor}, 0 0 20px ${textColor}` };
+      case "neon": return { textShadow: "0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff00de, 0 0 30px #ff00de" };
+      default: return {};
+    }
   };
 
   return (
-    <div className="shayari-studio-container">
-      <header className="studio-header">
-        <button className="close-btn-shayari" onClick={onClose}>&times;</button>
-        <h1>✨ Shayari Creator Studio</h1>
-        <p>Apne jazbaaton ko ek khoobsurat rang aur roop dein</p>
-      </header>
+    <div className="shayari-studio-wrapper">
+      {/* Top Navigation */}
+      <div className="studio-top-nav">
+        <button onClick={onClose}>
+          <X size={28} />
+        </button>
+        <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>Shayari Creator</span>
+        <button 
+          className="nav-done-btn" 
+          onClick={handleDone}
+          disabled={isGenerating}
+        >
+          {isGenerating ? "Wait..." : "Done"}
+        </button>
+      </div>
 
-      <div className="studio-workspace">
-        {/* Left Side: Controls & Tools */}
-        <div className="studio-controls">
-          {/* Section 1: Unique Gradients */}
-          <div className="control-group">
-            <label>🎨 Choose Unique Background</label>
-            <div className="gradient-options">
-              {GRADIENTS.map((grad, idx) => (
-                <button
-                  key={idx}
-                  style={{ background: grad.value }}
-                  className={`grad-btn ${selectedGradient === grad.value ? "active" : ""}`}
-                  onClick={() => setSelectedGradient(grad.value)}
-                  title={grad.name}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Section 2: Font Selector */}
-          <div className="control-group">
-            <label>✍️ Typography / Font Style</label>
-            <select
-              value={selectedFont}
-              onChange={(e) => setSelectedFont(e.target.value)}
-              className="studio-select"
-            >
-              {FONTS.map((font, idx) => (
-                <option key={idx} value={font.value}>
-                  {font.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Section 3: Special Visual Effects */}
-          <div className="control-group">
-            <label>✨ Text Visual Effects</label>
-            <div className="effect-buttons">
-              <button
-                className={effect === "normal" ? "active-eff" : ""}
-                onClick={() => setEffect("normal")}
-              >
-                Normal
-              </button>
-              <button
-                className={effect === "glow" ? "active-eff" : ""}
-                onClick={() => setEffect("glow")}
-              >
-                Glow Effect
-              </button>
-              <button
-                className={effect === "neon" ? "active-eff" : ""}
-                onClick={() => setEffect("neon")}
-              >
-                Neon Touch
-              </button>
-            </div>
-          </div>
-
-          {/* Section 4: Quick Shayari Starters / Templates */}
-          <div className="control-group">
-            <label>💡 Quick Shayari Starters</label>
-            <div className="template-chips">
-              {TEMPLATES.map((tmpl, idx) => (
-                <button key={idx} onClick={() => handleTemplateSelect(tmpl)} className="chip">
-                  {tmpl.slice(0, 25)}...
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Section 5: Author Watermark */}
-          <div className="control-group">
-            <label>🖋️ Author / Pen Name</label>
-            <input
-              type="text"
-              placeholder="Aapka Naam ya Takhallus..."
-              value={authorName}
-              onChange={(e) => setAuthorName(e.target.value)}
-              className="studio-input"
-            />
-          </div>
-          
-          {/* Shayari Text Input */}
-          <div className="control-group">
-            <label>📜 Aapki Shayari</label>
+      <div className="studio-main-area">
+        {/* Canvas Preview Area */}
+        <div className="canvas-container-wrapper">
+          <div 
+            className="shayari-canvas" 
+            ref={canvasRef}
+            style={{ background: bgGradient }}
+          >
             <textarea
+              ref={textareaRef}
+              className="shayari-canvas-text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
               placeholder="Dil ki baat yahan likhein..."
-              value={shayariText}
-              onChange={(e) => setShayariText(e.target.value)}
-              className="studio-input"
-              style={{ minHeight: '100px', resize: 'vertical' }}
+              style={{
+                color: textColor,
+                fontFamily: fontFamily,
+                textAlign: textAlign,
+                ...getEffectStyle()
+              }}
             />
+            {author && (
+              <div 
+                className="shayari-watermark"
+                style={{ 
+                  color: textColor, 
+                  fontFamily: fontFamily,
+                  ...getEffectStyle()
+                }}
+              >
+                ~ {author}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right Side: Live Preview Card */}
-        <div className="studio-preview-pane">
-          <div className="preview-label">Live Canvas Preview</div>
-          <div
-            className={`shayari-card effect-${effect}`}
-            style={{ background: selectedGradient }}
-          >
-            <div
-              className="shayari-text-content"
-              style={{ fontFamily: selectedFont }}
-            >
-              {shayariText ? (
-                shayariText.split("\n").map((line, i) => <p key={i}>{line || <br />}</p>)
-              ) : (
-                <span className="placeholder-text">Yahan aapki khubsoorat shayari dikhegi...</span>
-              )}
-            </div>
-            {authorName && <div className="shayari-author" style={{ fontFamily: selectedFont }}>~ {authorName}</div>}
+        {/* Controls Panel */}
+        <div className="studio-controls-panel">
+          {/* Tabs */}
+          <div className="control-tabs">
+            <button className={`control-tab-btn ${activeTab === 'text' ? 'active' : ''}`} onClick={() => setActiveTab('text')}>
+              <Type size={16} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'text-bottom' }} /> Text
+            </button>
+            <button className={`control-tab-btn ${activeTab === 'background' ? 'active' : ''}`} onClick={() => setActiveTab('background')}>
+              <ImageIcon size={16} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'text-bottom' }} /> Background
+            </button>
+            <button className={`control-tab-btn ${activeTab === 'style' ? 'active' : ''}`} onClick={() => setActiveTab('style')}>
+              <Palette size={16} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'text-bottom' }} /> Style
+            </button>
+            <button className={`control-tab-btn ${activeTab === 'templates' ? 'active' : ''}`} onClick={() => setActiveTab('templates')}>
+              <Sparkles size={16} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'text-bottom' }} /> Ideas
+            </button>
           </div>
 
-          {/* Action Buttons */}
-          <div className="studio-actions">
-            <button className="action-btn primary" onClick={handleCopy}>
-              {copied ? "✓ Copied!" : "📋 Copy Shayari"}
-            </button>
-            <button className="action-btn secondary" onClick={() => alert("Backend API integration pending (MERN DB saving)!")}>
-              💾 Save to Database
-            </button>
-          </div>
+          {/* Tab Content: TEXT */}
+          {activeTab === 'text' && (
+            <div className="tab-content">
+              <label style={{ display: 'block', marginBottom: '8px', color: '#cbd5e1', fontSize: '0.9rem' }}>Author / Pen Name</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Aapka Naam..."
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+              />
+              
+              <label style={{ display: 'block', margin: '15px 0 8px', color: '#cbd5e1', fontSize: '0.9rem' }}>Alignment</label>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className={`alignment-btn ${textAlign === 'left' ? 'active' : ''}`} onClick={() => setTextAlign('left')}>
+                  <AlignLeft size={20} />
+                </button>
+                <button className={`alignment-btn ${textAlign === 'center' ? 'active' : ''}`} onClick={() => setTextAlign('center')}>
+                  <AlignCenter size={20} />
+                </button>
+                <button className={`alignment-btn ${textAlign === 'right' ? 'active' : ''}`} onClick={() => setTextAlign('right')}>
+                  <AlignRight size={20} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tab Content: BACKGROUND */}
+          {activeTab === 'background' && (
+            <div className="tab-content">
+              <label style={{ display: 'block', marginBottom: '10px', color: '#cbd5e1', fontSize: '0.9rem' }}>Premium Gradients</label>
+              <div className="scroll-options-row">
+                {GRADIENTS.map((grad, idx) => (
+                  <div
+                    key={idx}
+                    className={`color-circle ${bgGradient === grad.value ? 'active' : ''}`}
+                    style={{ background: grad.value }}
+                    onClick={() => setBgGradient(grad.value)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tab Content: STYLE */}
+          {activeTab === 'style' && (
+            <div className="tab-content">
+              <label style={{ display: 'block', marginBottom: '10px', color: '#cbd5e1', fontSize: '0.9rem' }}>Font Style</label>
+              <div className="scroll-options-row">
+                {FONTS.map((font, idx) => (
+                  <div
+                    key={idx}
+                    className={`font-preview-btn ${fontFamily === font.value ? 'active' : ''}`}
+                    style={{ fontFamily: font.value }}
+                    onClick={() => setFontFamily(font.value)}
+                  >
+                    <span style={{ fontSize: '1.2rem' }}>Aa</span>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>{font.name}</span>
+                  </div>
+                ))}
+              </div>
+
+              <label style={{ display: 'block', margin: '15px 0 10px', color: '#cbd5e1', fontSize: '0.9rem' }}>Text Color</label>
+              <div className="scroll-options-row">
+                {TEXT_COLORS.map((color, idx) => (
+                  <div
+                    key={idx}
+                    className={`color-circle ${textColor === color ? 'active' : ''}`}
+                    style={{ background: color, border: color === '#000000' ? '1px solid #475569' : '' }}
+                    onClick={() => setTextColor(color)}
+                  />
+                ))}
+              </div>
+
+              <label style={{ display: 'block', margin: '15px 0 10px', color: '#cbd5e1', fontSize: '0.9rem' }}>Text Effects</label>
+              <div className="scroll-options-row">
+                {['none', 'shadow', 'glow', 'neon'].map((eff) => (
+                  <button
+                    key={eff}
+                    className={`text-effect-btn ${textEffect === eff ? 'active' : ''}`}
+                    onClick={() => setTextEffect(eff)}
+                  >
+                    {eff.charAt(0).toUpperCase() + eff.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tab Content: TEMPLATES */}
+          {activeTab === 'templates' && (
+            <div className="tab-content">
+              <label style={{ display: 'block', marginBottom: '10px', color: '#cbd5e1', fontSize: '0.9rem' }}>Quick Ideas</label>
+              <div>
+                {TEMPLATES.map((tmpl, idx) => (
+                  <div 
+                    key={idx} 
+                    className="template-chip"
+                    onClick={() => setText(prev => prev ? prev + '\n' + tmpl : tmpl)}
+                  >
+                    {tmpl}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
