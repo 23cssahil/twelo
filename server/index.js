@@ -192,7 +192,9 @@ async function getRandomCountryFact(countryCode) {
   return { fact: "A beautiful country with rich culture.", countryCode: 'UN', countryName: 'Earth' };
 }
 const server = http.createServer(app);
+setupOptimizations(app, server);
 
+// Encrypt old plaintext emails on startup to ensure privacy (Ignore already hashed/encrypted ones)
 // Encrypt old plaintext emails on startup to ensure privacy (Ignore already hashed/encrypted ones)
 mongoose.connection.once('open', async () => {
   try {
