@@ -172,7 +172,7 @@ const StorySlide = ({
     storyPausedRef.current = true;
     setStoryPaused(true);
     if (storyVideoRef.current) storyVideoRef.current.pause();
-    if (storyAudioRef.current) storyAudioRef.current.pause();
+    if (localAudioRef.current) localAudioRef.current.pause();
     setTouchStartX(clientX);
     setTouchStartY(clientY);
     setTouchEndX(null);
@@ -190,8 +190,8 @@ const StorySlide = ({
     storyPausedRef.current = false;
     setStoryPaused(false);
     if (storyVideoRef.current) storyVideoRef.current.play()?.catch(() => {});
-    if (storyAudioRef.current) {
-      storyAudioRef.current.play()?.then(() => {
+    if (localAudioRef.current) {
+      localAudioRef.current.play()?.then(() => {
         if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
       }).catch(() => {});
     }
@@ -1744,67 +1744,7 @@ export default function Dashboard() {
     }
   }, [showStoryViewsModal, currentStoryIndex, currentStoryUserIndex]);
 
-  useEffect(() => {
-    let audioCtx = null;
-    let sourceNode = null;
-    let gainNode = null;
-    let abortController = null;
-    let stopped = false;
 
-    const playWithWebAudio = async (url) => {
-      try {
-        abortController = new AbortController();
-        // Fetch the audio file as ArrayBuffer (bypasses HTMLAudio/MediaSession)
-        const response = await fetch(url, { signal: abortController.signal, referrerPolicy: 'no-referrer' });
-        if (stopped) return;
-        const arrayBuffer = await response.arrayBuffer();
-        if (stopped) return;
-
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-        if (stopped) return;
-
-        gainNode = audioCtx.createGain();
-        gainNode.gain.value = 1;
-        gainNode.connect(audioCtx.destination);
-
-        const playLoop = () => {
-          if (stopped) return;
-          sourceNode = audioCtx.createBufferSource();
-          sourceNode.buffer = audioBuffer;
-          sourceNode.connect(gainNode);
-          sourceNode.loop = false;
-          sourceNode.onended = () => { if (!stopped) playLoop(); };
-          sourceNode.start(0);
-        };
-        playLoop();
-
-        // Expose pause/resume via storyAudioRef
-        storyAudioRef.current = {
-          pause: () => { if (audioCtx && audioCtx.state === 'running') audioCtx.suspend(); },
-          play: () => { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); },
-        };
-      } catch (e) {
-        if (e.name !== 'AbortError') console.error('Web Audio playback error', e);
-      }
-    };
-
-    const viewerStories = profileStoryGroups ? profileStoryGroups : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
-    if (storyViewerActive && viewerStories[currentStoryUserIndex]) {
-      const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
-      if (currentStory && currentStory.songUrl) {
-        playWithWebAudio(currentStory.songUrl);
-      }
-    }
-
-    return () => {
-      stopped = true;
-      if (abortController) abortController.abort();
-      if (sourceNode) { try { sourceNode.stop(); } catch(e) {} }
-      if (audioCtx) { try { audioCtx.close(); } catch(e) {} }
-      storyAudioRef.current = null;
-    };
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab]);
 
 
   useEffect(() => {
