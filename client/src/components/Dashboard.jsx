@@ -7024,6 +7024,40 @@ const handleStoryUpload = async () => {
         style={{ width: '100%', accentColor: '#0072ff', cursor: 'pointer' }}
       />
 
+      <input
+        type="range"
+        min={0}
+        max={Math.max(0, (selectedStorySongData.duration || 120) - (songTrimSettings.durationLimit || 15))}
+        step={0.5}
+        value={songTrimSettings.startTime || 0}
+        onChange={(e) => {
+          const newStart = parseFloat(e.target.value);
+          setSongTrimSettings(prev => ({ ...prev, startTime: newStart }));
+        }}
+        style={{ width: '100%', accentColor: '#0072ff', cursor: 'pointer' }}
+      />
+
+      {/* 👇 Yahan paste karna hai */}
+      <audio
+        src={selectedStorySongData.audioUrl}
+        autoPlay
+        ref={(el) => {
+          if (el) {
+            el.currentTime = songTrimSettings.startTime || 0;
+            el.ontimeupdate = () => {
+              const start = songTrimSettings.startTime || 0;
+              const dur = songTrimSettings.durationLimit || 15;
+              if (el.currentTime >= start + dur || el.currentTime < start) {
+                el.currentTime = start;
+                el.play().catch(() => {});
+              }
+            };
+          }
+        }}
+      />
+
+    </div>
+
     </div>
 
   </div>
