@@ -4197,7 +4197,7 @@ export default function Dashboard() {
 
       case 'notifications':
         return (
-          <div className="notifications-container" style={{ padding: '16px' }} onScroll={handleNotifsScroll}>
+          <div className="notifications-container" style={{ padding: '16px', overflowY: 'auto', height: '100%' }} onScroll={handleNotifsScroll}>
             <h2 className="search-header-text">Notifications</h2>
             {notifications.length === 0 && !notifsFetching ? (
               <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No notifications yet.</div>
