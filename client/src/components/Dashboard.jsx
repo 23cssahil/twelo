@@ -730,6 +730,9 @@ export default function Dashboard() {
   // Profile & Social State
   const [profileStats, setProfileStats] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [notifsCursor, setNotifsCursor] = useState(null);
+  const [notifsHasMore, setNotifsHasMore] = useState(true);
+  const [notifsFetching, setNotifsFetching] = useState(false);
   const [expandedAlerts, setExpandedAlerts] = useState(new Set());
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [publicProfileData, setPublicProfileData] = useState(null);
@@ -1421,18 +1424,38 @@ export default function Dashboard() {
     }
   };
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (cursorParam = null) => {
     try {
-      const res = await fetch(`${API_URL}/api/users/notifications`, { headers: { Authorization: `Bearer ${token}` } });
+      if (notifsFetching) return;
+      setNotifsFetching(true);
+      const url = new URL(`${API_URL}/api/users/notifications`);
+      url.searchParams.append('limit', '20');
+      if (cursorParam) url.searchParams.append('cursor', cursorParam);
+
+      const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
-        setNotifications(data);
-        const unreadCount = data.filter(n => !n.read).length;
+        if (!cursorParam) {
+          setNotifications(data.notifications || []);
+        } else {
+          setNotifications(prev => [...prev, ...(data.notifications || [])]);
+        }
+        setNotifsCursor(data.nextCursor);
+        setNotifsHasMore(data.hasMore);
         if (activeTab !== 'notifications') {
-          setUnreadNotifsCount(unreadCount);
+          setUnreadNotifsCount(data.totalUnread || 0);
         }
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); } finally {
+      setNotifsFetching(false);
+    }
+  };
+
+  const handleNotifsScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    if (scrollHeight - scrollTop - clientHeight < 100 && notifsHasMore && !notifsFetching && notifsCursor) {
+      fetchNotifications(notifsCursor);
+    }
   };
 
   useEffect(() => {
@@ -4174,9 +4197,9 @@ export default function Dashboard() {
 
       case 'notifications':
         return (
-          <div className="notifications-container" style={{ padding: '16px' }}>
+          <div className="notifications-container" style={{ padding: '16px' }} onScroll={handleNotifsScroll}>
             <h2 className="search-header-text">Notifications</h2>
-            {notifications.length === 0 ? (
+            {notifications.length === 0 && !notifsFetching ? (
               <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No notifications yet.</div>
             ) : (
               <div className="requests-list">
@@ -4309,6 +4332,9 @@ export default function Dashboard() {
                   );
                 })}
               </div>
+              {notifsFetching && (
+                <div style={{ textAlign: 'center', padding: '15px', color: '#888', fontSize: '0.85rem' }}>Loading more...</div>
+              )}
             )}
           </div>
         );

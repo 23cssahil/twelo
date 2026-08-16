@@ -820,6 +820,9 @@ app.get('/api/users/:id/global_stories', authenticateToken, async (req, res) => 
 // Get Notifications (auto-migrates old friendRequests)
 app.get('/api/users/notifications', authenticateToken, async (req, res) => {
   try {
+    const limit = parseInt(req.query.limit) || 20;
+    const cursor = req.query.cursor || null; // _id of last notification
+
     const formatNotifications = (notifications) => notifications.map(notification => {
       const item = notification.toObject ? notification.toObject() : notification;
       const requestUser = item.user;
@@ -846,12 +849,34 @@ app.get('/api/users/notifications', authenticateToken, async (req, res) => {
     if (migrated) {
       await user.save();
       const populatedUser = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl friendRequests');
-      const sorted = populatedUser.notifications.sort((a, b) => b.createdAt - a.createdAt);
-      return res.json(formatNotifications(sorted));
+      var sorted = populatedUser.notifications.sort((a, b) => b.createdAt - a.createdAt);
+    } else {
+      var sorted = user.notifications.sort((a, b) => b.createdAt - a.createdAt);
     }
     
-    const sorted = user.notifications.sort((a, b) => b.createdAt - a.createdAt);
-    res.json(formatNotifications(sorted));
+    const total = sorted.length;
+    const totalUnread = sorted.filter(n => !n.read).length;
+
+    // Find cursor position
+    let startIndex = 0;
+    if (cursor) {
+      const cursorIndex = sorted.findIndex(n => n._id.toString() === cursor);
+      if (cursorIndex !== -1) {
+        startIndex = cursorIndex + 1;
+      }
+    }
+
+    const pageNotifs = sorted.slice(startIndex, startIndex + limit);
+    const hasMore = startIndex + limit < total;
+    const nextCursor = pageNotifs.length > 0 ? pageNotifs[pageNotifs.length - 1]._id : null;
+
+    res.json({
+      notifications: formatNotifications(pageNotifs),
+      total,
+      totalUnread,
+      hasMore,
+      nextCursor
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching notifications' });
