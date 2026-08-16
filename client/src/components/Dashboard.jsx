@@ -5236,9 +5236,14 @@ const handleStoryUpload = async () => {
                     )}
                     <div className="chat-input-wrapper">
                       {isRecording && (
-                        <div className="recording-indicator" style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ff4b4b', padding: '0 10px', flex: 1 }}>
-                          <div className="recording-dot" style={{ width: '10px', height: '10px', background: '#ff4b4b', borderRadius: '50%', animation: 'pulse 1s infinite' }} />
-                          {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                        <div style={{ display: 'flex', alignItems: 'center', background: 'linear-gradient(90deg, rgba(255,75,75,0.15), rgba(255,75,75,0))', borderRadius: '25px', padding: '8px 15px', flex: 1, marginRight: '10px', border: '1px solid rgba(255,75,75,0.2)' }}>
+                          <div style={{ width: '12px', height: '12px', background: '#ff4b4b', borderRadius: '50%', animation: 'pulse 1.5s infinite', marginRight: '12px', boxShadow: '0 0 10px rgba(255,75,75,0.5)' }} />
+                          <span style={{ color: '#ff4b4b', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: '1px' }}>
+                            {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                          </span>
+                          <span style={{ color: '#a8a8a8', fontSize: '0.85rem', marginLeft: 'auto', fontStyle: 'italic', animation: 'pulse 2s infinite' }}>
+                            Recording...
+                          </span>
                         </div>
                       )}
                       
@@ -5337,12 +5342,12 @@ const handleStoryUpload = async () => {
                       )}
 
                       {isRecording && (
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                          <button type="button" className="chat-send-btn" onClick={cancelRecording} style={{ background: 'transparent', color: '#ff4b4b' }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button type="button" onClick={cancelRecording} style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(255, 75, 75, 0.1)', color: '#ff4b4b', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.3s' }}>
                             <Trash2 size={20} />
                           </button>
-                          <button type="button" className="chat-send-btn" onClick={stopRecording} style={{ background: '#2bd856', color: 'white' }}>
-                            <Send size={18} />
+                          <button type="button" onClick={stopRecording} style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--brand-blue)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0, 149, 246, 0.4)', transition: 'all 0.3s' }}>
+                            <Send size={18} style={{ transform: 'translateX(2px)' }} />
                           </button>
                         </div>
                       )}

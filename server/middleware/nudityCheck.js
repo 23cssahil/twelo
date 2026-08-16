@@ -6,6 +6,11 @@ const nudityCheck = async (req, res, next) => {
     return res.status(400).json({ message: 'No file uploaded' });
   }
 
+  // Bypass nudity check for audio messages
+  if (req.file.mimetype && req.file.mimetype.startsWith('audio/')) {
+    return next();
+  }
+
   try {
     const data = new FormData();
     data.append('media', req.file.buffer, {
