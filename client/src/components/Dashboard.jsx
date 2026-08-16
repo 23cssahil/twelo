@@ -3402,6 +3402,22 @@ const handleStoryUpload = async () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
   };
 
+  const formatMessageDateSeparator = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+  };
+
   const formatSeenTime = (dateStr) => {
     if (!dateStr) return 'Seen';
     const date = new Date(dateStr);
@@ -5083,12 +5099,24 @@ const handleStoryUpload = async () => {
                         {isFetchingMessages && messages.length > 0 && (
                           <div style={{ textAlign: 'center', padding: '10px', color: '#888', fontSize: '0.85rem' }}>Loading older messages...</div>
                         )}
-                        {messages.map((msg, index) => (
-                      <div key={msg._id} className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`} 
-                        onTouchStart={(e) => handleTouchStart(e, msg)}
-                        onTouchMove={(e) => handleTouchMove(e, msg, msg.sender === user.id)}
-                        onTouchEnd={(e) => handleTouchEnd(e, msg, msg.sender === user.id)}
-                      >
+                        {messages.map((msg, index) => {
+                          const showDateSeparator = index === 0 || 
+                            new Date(messages[index - 1].createdAt).toDateString() !== new Date(msg.createdAt).toDateString();
+                            
+                          return (
+                            <React.Fragment key={msg._id}>
+                              {showDateSeparator && (
+                                <div className="date-separator" style={{ textAlign: 'center', margin: '20px 0 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <span style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 500 }}>
+                                    {formatMessageDateSeparator(msg.createdAt)}
+                                  </span>
+                                </div>
+                              )}
+                              <div className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`} 
+                                onTouchStart={(e) => handleTouchStart(e, msg)}
+                                onTouchMove={(e) => handleTouchMove(e, msg, msg.sender === user.id)}
+                                onTouchEnd={(e) => handleTouchEnd(e, msg, msg.sender === user.id)}
+                              >
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: msg.sender === user.id ? 'flex-end' : 'flex-start', width: '100%' }}>
                           <div 
                             id={`msg-bubble-${msg._id}`} 
@@ -5233,7 +5261,9 @@ const handleStoryUpload = async () => {
                           </div>
                         )}
                       </div>
-                    ))}
+                      </React.Fragment>
+                    );
+                    })}
                     {partnerTyping && (
                       <div className="msg-wrapper received">
                         <div className="msg-bubble" style={{ opacity: 0.7, padding: '8px 12px', fontSize: '0.85rem', color: '#a8a8a8', fontStyle: 'italic', background: 'rgba(255,255,255,0.05)' }}>
