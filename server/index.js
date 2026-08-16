@@ -587,26 +587,39 @@ app.post('/api/users/search-history/:id', authenticateToken, async (req, res) =>
 
 app.get('/api/users/search-history', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).populate('searchHistory', 'username uniqueId avatarUrl gender friendRequests followers');
-    res.json(user.searchHistory.filter(u => u != null));
+    const user = await User.findById(req.user.userId)
+      .select('searchHistory')
+      .populate('searchHistory', 'username uniqueId avatarUrl gender friendRequests followers')
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json((user.searchHistory || []).filter(u => u != null));
   } catch (error) {
+    console.error('Error fetching search history:', error);
     res.status(500).json({ message: 'Error fetching search history' });
   }
 });
 
 app.delete('/api/users/search-history/:id', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
-    const targetId = req.params.id;
-    user.searchHistory = user.searchHistory.filter(id => id && id.toString() !== targetId);
-    await user.save();
+    const result = await User.updateOne(
+      { _id: req.user.userId },
+      { $pull: { searchHistory: req.params.id } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     res.json({ message: 'Removed from search history' });
   } catch (error) {
-    console.error(error);
+    console.error('Error removing from search history:', error);
     res.status(500).json({ message: 'Error removing from search history' });
   }
 });
-
 app.delete('/api/users/notifications/:id', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
