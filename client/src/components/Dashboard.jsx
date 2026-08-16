@@ -6998,7 +6998,7 @@ const handleStoryUpload = async () => {
       </p>
     </div>
 
-    {/* Bottom: Instagram Trimmer Slider */}
+   {/* Bottom: Instagram Trimmer Slider */}
     <div style={{
       background: 'rgba(255,255,255,0.1)',
       backdropFilter: 'blur(12px)',
@@ -7024,20 +7024,6 @@ const handleStoryUpload = async () => {
         style={{ width: '100%', accentColor: '#0072ff', cursor: 'pointer' }}
       />
 
-      <input
-        type="range"
-        min={0}
-        max={Math.max(0, (selectedStorySongData.duration || 120) - (songTrimSettings.durationLimit || 15))}
-        step={0.5}
-        value={songTrimSettings.startTime || 0}
-        onChange={(e) => {
-          const newStart = parseFloat(e.target.value);
-          setSongTrimSettings(prev => ({ ...prev, startTime: newStart }));
-        }}
-        style={{ width: '100%', accentColor: '#0072ff', cursor: 'pointer' }}
-      />
-
-      {/* 👇 Yahan paste karna hai */}
       <audio
         src={selectedStorySongData.audioUrl}
         autoPlay
@@ -7057,13 +7043,8 @@ const handleStoryUpload = async () => {
       />
 
     </div>
-
-    </div>
-
   </div>
 )}
-
-
           {/* Media Preview Area */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}>
             {storyFile?.type?.startsWith('video/') ? (
