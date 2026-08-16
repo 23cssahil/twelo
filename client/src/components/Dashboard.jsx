@@ -1,3 +1,4 @@
+import StoryMusicModal from "./StoryMusicModal";
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import CommentsModal from './CommentsModal';
 import { useNavigate } from 'react-router-dom';
@@ -469,6 +470,8 @@ const StorySlide = ({
 };
 export default function Dashboard() {
 
+  const [isStoryMusicModalOpen, setIsStoryMusicModalOpen] = useState(false);
+  const [selectedStorySong, setSelectedStorySong] = useState(null);
   const [avatarCropperOpen, setAvatarCropperOpen] = useState(false);
   const [avatarImageSrc, setAvatarImageSrc] = useState(null);
   const [avatarCrop, setAvatarCrop] = useState({ unit: '%', width: 50, height: 50, x: 25, y: 25, aspect: 1 });
@@ -6760,30 +6763,14 @@ export default function Dashboard() {
           </div>
 
           {/* Music Picker Drawer */}
-          {showMusicPicker && (
-            <div style={{ position: 'absolute', top: '70px', right: '15px', width: '200px', background: '#1a1a1a', borderRadius: '12px', padding: '10px', zIndex: 20, boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
-              <div style={{ color: '#888', fontSize: '0.8rem', marginBottom: '10px', paddingLeft: '5px' }}>Select a track</div>
-              {SAMPLE_SONGS.map(song => (
-                <div 
-                  key={song.id}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 5px', cursor: 'pointer', borderRadius: '8px', background: selectedSongUrl === song.url ? 'rgba(59, 130, 246, 0.2)' : 'transparent' }}
-                  onClick={() => {
-                    setSelectedSongUrl(song.url);
-                    setShowMusicPicker(false);
-                  }}
-                >
-                  <span style={{ color: '#fff', fontSize: '0.9rem' }}>{song.name}</span>
-                  {selectedSongUrl === song.url && <Check size={16} color="var(--brand-blue)" />}
-                </div>
-              ))}
-              <div 
-                style={{ padding: '10px 5px', cursor: 'pointer', color: '#ef4444', fontSize: '0.9rem', marginTop: '5px', borderTop: '1px solid #333' }}
-                onClick={() => { setSelectedSongUrl(''); setShowMusicPicker(false); }}
-              >
-                None (Remove Music)
-              </div>
-            </div>
-          )}
+          {/* New JioSaavn Music Picker Modal */}
+<StoryMusicModal
+  isOpen={showMusicPicker}
+  onClose={() => setShowMusicPicker(false)}
+  onSelectSong={(song) => {
+    setSelectedSongUrl(song.audioUrl);
+  }}
+/>
 
           {/* Media Preview Area */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}>
