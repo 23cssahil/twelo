@@ -3510,6 +3510,11 @@ const handleStoryUpload = async () => {
     setActiveTab('messages');
     setUnreadMessages(prev => ({...prev, [targetUser._id]: 0})); // Reset unread
     setPartnerTyping(false);
+    setShowSettingsModal(false);
+    setShowInnerSettingsModal(false);
+    setShowNotificationsModal(false);
+    setShowMyProfileModal(false);
+    setShowCloseFriendsModal(false);
     fetchMessages(targetUser._id);
     if (socket) {
       socket.emit('mark_all_read', { senderId: targetUser._id, receiverId: user.id });
