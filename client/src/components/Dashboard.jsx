@@ -144,6 +144,7 @@ const StorySlide = ({
   const [touchEndX, setTouchEndX] = React.useState(null);
   const [touchStartY, setTouchStartY] = React.useState(null);
   const [touchEndY, setTouchEndY] = React.useState(null);
+  const [showHeartAnimation, setShowHeartAnimation] = React.useState(false);
 
   const localAudioRef = React.useRef(null);
 
@@ -177,22 +178,11 @@ const StorySlide = ({
     }
   }, [storyPaused, isActiveSlide, storyAudioRef, story]);
 
-  const handlePointerDown = (clientX, clientY) => {
+  const handlePointerDown = () => {
     storyPausedRef.current = true;
     setStoryPaused(true);
     if (storyVideoRef.current) storyVideoRef.current.pause();
     if (localAudioRef.current) localAudioRef.current.pause();
-    setTouchStartX(clientX);
-    setTouchStartY(clientY);
-    setTouchEndX(null);
-    setTouchEndY(null);
-  };
-
-  const handlePointerMove = (clientX, clientY) => {
-    if (touchStartX !== null) {
-      setTouchEndX(clientX);
-      setTouchEndY(clientY);
-    }
   };
 
   const handlePointerUp = () => {
@@ -204,42 +194,54 @@ const StorySlide = ({
         if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
       }).catch(() => {});
     }
+  };
 
-    if (touchStartX !== null && touchEndX !== null && touchStartY !== null && touchEndY !== null) {
-      const distanceX = touchStartX - touchEndX;
-      const distanceY = touchStartY - touchEndY;
-      const isLeftSwipe = distanceX > 50;
-      const isRightSwipe = distanceX < -50;
-      
-      if (Math.abs(distanceX) > Math.abs(distanceY)) {
-        if (isLeftSwipe) {
-          if (handleNextUser) handleNextUser();
-        } else if (isRightSwipe) {
-          if (handlePrevUser) handlePrevUser();
-        }
-      }
+  const handleDoubleClick = (e) => {
+    e.stopPropagation();
+    
+    // Check if not already liked
+    const isLiked = story.likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id));
+    if (!isLiked) {
+      handleStoryLike(story._id, groupIdx, (isActiveSlide ? currentStoryIndex : 0));
     }
-    setTouchStartX(null);
-    setTouchEndX(null);
-    setTouchStartY(null);
-    setTouchEndY(null);
+    
+    // Show animation
+    setShowHeartAnimation(true);
+    setTimeout(() => {
+      setShowHeartAnimation(false);
+    }, 1000);
   };
 
   return (
     <div 
       style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px 10px', boxSizing: 'border-box', touchAction: 'pan-y' }}
-      onPointerDown={(e) => handlePointerDown(e.touches ? e.touches[0].clientX : e.clientX, e.touches ? e.touches[0].clientY : e.clientY)}
-      onPointerMove={(e) => handlePointerMove(e.touches ? e.touches[0].clientX : e.clientX, e.touches ? e.touches[0].clientY : e.clientY)}
+      onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
-      onTouchStart={(e) => handlePointerDown(e.targetTouches[0].clientX, e.targetTouches[0].clientY)}
-      onTouchMove={(e) => handlePointerMove(e.targetTouches[0].clientX, e.targetTouches[0].clientY)}
-      onTouchEnd={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onDoubleClick={handleDoubleClick}
     >
       <div style={{
          width: '100%', maxWidth: '380px', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column',
          borderRadius: '20px', overflow: 'hidden', background: '#000', boxShadow: '0 10px 40px rgba(0,0,0,0.8)'
       }}>
+      <style>{`
+        @keyframes storyHeartPop {
+          0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+          15% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+          30% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          70% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+      `}</style>
+      {showHeartAnimation && (
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+          zIndex: 100, pointerEvents: 'none', animation: 'storyHeartPop 1s ease-out forwards'
+        }}>
+          <Heart size={120} fill="#ff2a2a" color="#fff" strokeWidth={1.5} />
+        </div>
+      )}
       {/* Progress Bars */}
       <div style={{ display: 'flex', gap: '5px', padding: '15px 10px 5px', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
         {group.stories.map((s, i) => (
