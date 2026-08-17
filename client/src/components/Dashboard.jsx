@@ -597,6 +597,11 @@ export default function Dashboard() {
   const [activeTab, _setActiveTab] = useState('home');
 
 
+  // Stories Pagination State
+  const [everyoneStoriesCursor, setEveryoneStoriesCursor] = useState(null);
+  const [hasMoreEveryoneStories, setHasMoreEveryoneStories] = useState(true);
+  const [isLoadingEveryoneStories, setIsLoadingEveryoneStories] = useState(false);
+
   const observerRef = useRef(null);
   const timeoutRef = useRef(null);
   const loadMoreRef = useCallback((node) => {
@@ -901,9 +906,6 @@ export default function Dashboard() {
   // Stories State
   const [groupedStories, setGroupedStories] = useState([]);
   const [everyoneStories, seteveryoneStories] = useState([]);
-  const [everyoneStoriesCursor, setEveryoneStoriesCursor] = useState(null);
-  const [hasMoreEveryoneStories, setHasMoreEveryoneStories] = useState(true);
-  const [isLoadingEveryoneStories, setIsLoadingEveryoneStories] = useState(false);
   const [storyViewerActive, setStoryViewerActive] = useState(false);
   const [currentStoryUserIndex, setCurrentStoryUserIndex] = useState(0);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
