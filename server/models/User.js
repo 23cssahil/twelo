@@ -73,7 +73,6 @@ const UserSchema = new mongoose.Schema({
   }],
   pushSubscriptions: { type: Array, default: [] },
   coins: { type: Number, default: 10 },
-  lastDailyReward: { type: Date },
   lastCoinReplenishDate: { type: Date, default: Date.now },
   ownedByAdmin: { type: Boolean, default: false },
   lastActive: { type: Date, default: Date.now },

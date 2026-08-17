@@ -1163,54 +1163,6 @@ app.post('/api/users/earn/app', authenticateToken, async (req, res) => {
   }
 });
 
-// Daily Reward Endpoint
-app.post('/api/users/claim-daily', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    const now = new Date();
-    if (user.lastDailyReward) {
-      const hoursSinceLastClaim = Math.abs(now - user.lastDailyReward) / 36e5;
-      if (hoursSinceLastClaim < 24) {
-        return res.status(400).json({ message: "You can only claim daily rewards once every 24 hours.", nextClaimInHours: 24 - hoursSinceLastClaim });
-      }
-    }
-
-    user.coins += 5;
-    user.lastDailyReward = now;
-    await user.save();
-
-    res.json({ message: "Claimed 5 daily coins!", balance: user.coins });
-  } catch(e) {
-    console.error(e);
-    res.status(500).json({ message: 'Error claiming daily reward' });
-  }
-});
-
-// Deduct Coins Endpoint
-app.post('/api/users/deduct-coins', authenticateToken, async (req, res) => {
-  try {
-    const { amount, reason } = req.body;
-    if (!amount || amount <= 0) return res.status(400).json({ message: "Invalid amount" });
-
-    const user = await User.findById(req.user.userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    if (user.coins < amount) {
-      return res.status(400).json({ message: "Insufficient coins", balance: user.coins });
-    }
-
-    user.coins -= amount;
-    await user.save();
-
-    res.json({ message: `Successfully deducted ${amount} coins for ${reason || 'service'}`, balance: user.coins });
-  } catch(e) {
-    console.error(e);
-    res.status(500).json({ message: 'Error deducting coins' });
-  }
-});
-
 // Unfollow User
 app.post('/api/users/unfollow/:id', authenticateToken, async (req, res) => {
   try {
