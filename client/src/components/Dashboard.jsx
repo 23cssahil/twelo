@@ -3666,6 +3666,8 @@ const handleStoryUpload = async () => {
     setReceivingCall(false);
     setCallAccepted(false);
     isCallAcceptedRef.current = false;
+    setIsAudioMuted(false);
+    setIsVideoOff(false);
     setRemoteStreamState(null);
     setCallerSignal(null);
     callerCandidatesRef.current = [];
