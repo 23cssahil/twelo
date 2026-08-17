@@ -1125,37 +1125,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleStoryWheel = (e) => {
-    if (!storyViewerActive) return;
-    const now = Date.now();
-    if (now - lastScrollTime.current < 600) return;
-
-    if (e.deltaY > 30) {
-      handleNextUser();
-    } else if (e.deltaY < -30) {
-      handlePrevUser();
-    }
-  };
-
-  const handleStoryTouchStart = (e) => {
-    touchStartYRef.current = e.touches[0].clientY;
-    touchStartXRef.current = e.touches[0].clientX;
-  };
-
-  const handleStoryTouchEnd = (e) => {
-    if (!storyViewerActive) return;
-    const now = Date.now();
-    if (now - lastScrollTime.current < 600) return;
-
-    const diffY = touchStartYRef.current - e.changedTouches[0].clientY;
-    const diffX = touchStartXRef.current - e.changedTouches[0].clientX;
-    
-    if (Math.abs(diffY) > 40 && Math.abs(diffY) > Math.abs(diffX)) {
-      if (diffY > 0) {
-        handleNextUser();
-      } else {
-        handlePrevUser();
-      }
     }
   };
   const userVideoRef = useRef(null);
@@ -1809,6 +1778,17 @@ export default function Dashboard() {
       }
     }
   }, [showStoryViewsModal, currentStoryIndex, currentStoryUserIndex]);
+
+  useEffect(() => {
+    if (storyViewerActive) {
+      setTimeout(() => {
+        const container = document.getElementById('story-swiper-container');
+        if (container) {
+          container.scrollTo({ top: currentStoryUserIndex * container.clientHeight, behavior: 'instant' });
+        }
+      }, 0);
+    }
+  }, [storyViewerActive]);
 
 
 
@@ -7445,13 +7425,29 @@ const handleStoryUpload = async () => {
           style={{
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             background: '#000', zIndex: 11000, 
-            overflowY: 'hidden',
+            overflowY: 'auto',
+            scrollSnapType: 'y mandatory',
             scrollBehavior: 'smooth',
-            touchAction: 'none'
+            overscrollBehavior: 'none'
           }}
-          onWheel={handleStoryWheel}
-          onTouchStart={handleStoryTouchStart}
-          onTouchEnd={handleStoryTouchEnd}
+          onScroll={(e) => {
+            if (!storyViewerActive) return;
+            const container = e.target;
+            const newIndex = Math.round(container.scrollTop / window.innerHeight);
+            const viewerStories = profileStoryGroups ? profileStoryGroups : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
+            
+            if (newIndex !== currentStoryUserIndex && newIndex >= 0 && newIndex < viewerStories.length) {
+              setCurrentStoryUserIndex(newIndex);
+              setCurrentStoryIndex(0);
+              setStoryProgress(0);
+            }
+            
+            if (activeTab === 'everyone-stories' && hasMoreEveryoneStories && !isLoadingEveryoneStories) {
+              if (newIndex >= viewerStories.length - 3) {
+                fetcheveryoneStories();
+              }
+            }
+          }}
         >
           {activeTab === 'everyone-stories' ? (
              viewerStories.map((group, groupIdx) => (
