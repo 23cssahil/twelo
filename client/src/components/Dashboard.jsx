@@ -7050,9 +7050,11 @@ const handleStoryUpload = async () => {
               </button>
             ) : <div />}
             <div style={{ display: 'flex', gap: '15px' }}>
-              <button onClick={() => setShowShayariStudio(true)} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                <PenTool size={24} />
-              </button>
+              {cameraMode !== 'avatar' && (
+                <button onClick={() => setShowShayariStudio(true)} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                  <PenTool size={24} />
+                </button>
+              )}
               {storyCapturedImage && (
                 <a href={storyCapturedImage} download="twelo_capture.jpg" style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'flex' }}>
                   <Download size={24} />
