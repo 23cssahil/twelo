@@ -1271,10 +1271,32 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ message: "Not authorized to view connections" });
     }
 
+    const search = req.query.search ? req.query.search.trim() : '';
+
     // Get the full array of IDs for the requested type
     const allIds = (user[type] || []).filter(id => id != null);
     const total = allIds.length;
 
+    if (search) {
+      // If searching, just find matching users in the followers/following list
+      // We skip array-based cursor pagination and just return up to 50 matches
+      const populatedUsers = await User.find({ 
+        _id: { $in: allIds },
+        username: { $regex: search, $options: 'i' }
+      })
+      .select('username uniqueId avatarUrl gender')
+      .limit(50)
+      .lean();
+
+      return res.json({
+        users: populatedUsers,
+        hasMore: false,
+        nextCursor: null,
+        total: populatedUsers.length
+      });
+    }
+
+    // Normal array-based pagination
     // Find the cursor position in the array
     let startIndex = 0;
     if (cursor && cursor !== 'null') {
