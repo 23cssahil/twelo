@@ -2031,7 +2031,7 @@ export default function Dashboard() {
     });
 
     socket.on('call_failed', ({ reason }) => {
-      alert(`Call could not connect: ${reason}`);
+      showToastMsg(`Call could not connect: ${reason}`, 'error');
       handleEndCallQuietly();
     });
 
