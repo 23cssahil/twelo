@@ -596,7 +596,7 @@ export default function Dashboard() {
   const avatarFileInputRef = useRef(null);
 
   const [activeTab, _setActiveTab] = useState('home');
-  const [visibleeveryoneStories, setVisibleeveryoneStories] = useState(12);
+
 
   const observerRef = useRef(null);
   const timeoutRef = useRef(null);
@@ -607,16 +607,16 @@ export default function Dashboard() {
     if (node) {
       observerRef.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
-          timeoutRef.current = setTimeout(() => {
-            setVisibleeveryoneStories(prev => prev + 12);
-          }, 2000);
-        } else {
-          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          if (activeTab === 'everyone-stories') {
+            if (hasMoreEveryoneStories && !isLoadingEveryoneStories) {
+               fetcheveryoneStories();
+            }
+          }
         }
       });
       observerRef.current.observe(node);
     }
-  }, []);
+  }, [hasMoreEveryoneStories, isLoadingEveryoneStories, activeTab]);
   
 
 
@@ -902,6 +902,9 @@ export default function Dashboard() {
   // Stories State
   const [groupedStories, setGroupedStories] = useState([]);
   const [everyoneStories, seteveryoneStories] = useState([]);
+  const [everyoneStoriesCursor, setEveryoneStoriesCursor] = useState(null);
+  const [hasMoreEveryoneStories, setHasMoreEveryoneStories] = useState(true);
+  const [isLoadingEveryoneStories, setIsLoadingEveryoneStories] = useState(false);
   const [storyViewerActive, setStoryViewerActive] = useState(false);
   const [currentStoryUserIndex, setCurrentStoryUserIndex] = useState(0);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
@@ -1625,14 +1628,46 @@ export default function Dashboard() {
     }
   };
 
-  const fetcheveryoneStories = async () => {
+  const fetcheveryoneStories = async (reset = false) => {
+    if (isLoadingEveryoneStories) return;
+    setIsLoadingEveryoneStories(true);
     try {
-      const res = await fetch(`${API_URL}/api/stories/everyone`, {
+      const currentCursor = reset ? null : everyoneStoriesCursor;
+      const url = new URL(`${API_URL}/api/stories/everyone`);
+      if (currentCursor) url.searchParams.append('cursor', currentCursor);
+
+      const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        const data = await res.json();
-        seteveryoneStories(data);
+        const { data, nextCursor, hasMore } = await res.json();
+        
+        if (reset) {
+          seteveryoneStories(data);
+        } else {
+          seteveryoneStories(prev => {
+            if (!prev.length) return data;
+            if (!data.length) return prev;
+            
+            const newStories = [...prev];
+            const lastGroup = newStories[newStories.length - 1];
+            const firstNewGroup = data[0];
+
+            if (lastGroup.userId === firstNewGroup.userId) {
+              const timeDiff = Math.abs(lastGroup.latestStoryTime - firstNewGroup.latestStoryTime);
+              if (timeDiff <= 24 * 60 * 60 * 1000) {
+                lastGroup.stories = [...lastGroup.stories, ...firstNewGroup.stories];
+                lastGroup.latestStoryTime = Math.max(lastGroup.latestStoryTime, firstNewGroup.latestStoryTime);
+                newStories[newStories.length - 1] = { ...lastGroup };
+                return [...newStories, ...data.slice(1)];
+              }
+            }
+            return [...newStories, ...data];
+          });
+        }
+        
+        setEveryoneStoriesCursor(nextCursor);
+        setHasMoreEveryoneStories(hasMore);
       } else {
         const errData = await res.json();
         showToastMsg(`Failed to load everyone stories: ${errData.message}`, 'error');
@@ -1640,6 +1675,8 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Failed to fetch everyone stories', err);
       showToastMsg('Network error loading everyone stories', 'error');
+    } finally {
+      setIsLoadingEveryoneStories(false);
     }
   };
 
@@ -4043,7 +4080,7 @@ const handleStoryUpload = async () => {
                     gridTemplateColumns: 'repeat(2, 1fr)', 
                     gap: '15px' 
                   }}>
-                    {everyoneStories.slice(0, visibleeveryoneStories).map((group, groupIdx) => {
+                    {everyoneStories.map((group, groupIdx) => {
                       const story = group.stories[0];
                       if (!story) return null;
                       if (!story.user || typeof story.user === 'string') {
@@ -4094,13 +4131,14 @@ const handleStoryUpload = async () => {
                       </div>
                     )})}
                   </div>
-                  {visibleeveryoneStories < everyoneStories.length && (
-                    <div ref={loadMoreRef} style={{ display: 'flex', justifyContent: 'center', padding: '30px 0' }}>
+                  {hasMoreEveryoneStories && (
+                    <div style={{ textAlign: 'center', marginTop: '20px' }}>
                       <button 
+                        className="btn btn-outline" 
                         onClick={() => {
-                          if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                          setVisibleeveryoneStories(prev => prev + 12);
+                          fetcheveryoneStories();
                         }}
+                        disabled={isLoadingEveryoneStories}
                         style={{
                           background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', 
                           width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', 

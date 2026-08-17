@@ -1743,19 +1743,32 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
 // Get everyone stories
 app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
   try {
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const stories = await Story.find({
+    const { cursor } = req.query;
+    const query = {
       $or: [
         { visibility: { $in: ['everyone', 'global'] } }, // Global/Everyone on the app
         { isAdminStory: true } // Admin global stories
       ]
-    })
+    };
+
+    if (cursor) {
+      query.createdAt = { $lt: new Date(cursor) };
+    }
+
+    let stories = await Story.find(query)
       .populate('user', 'username avatarUrl uniqueId country countryCode')
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: -1 })
+      .limit(50)
       .lean();
-      
+
+    const hasMore = stories.length === 50;
+    const nextCursor = stories.length > 0 ? stories[stories.length - 1].createdAt : null;
+
+    // Reverse to chronological order for grouping
+    stories.reverse();
+
     // Group stories by user and 24-hour windows
     const groupedStoriesMap = new Map();
     const userGroupTracker = {};
@@ -1811,7 +1824,7 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
     });
     groupedStoriesArray.sort((a, b) => b.latestStoryTime - a.latestStoryTime);
 
-    res.json(groupedStoriesArray);
+    res.json({ data: groupedStoriesArray, nextCursor, hasMore });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching everyone stories' });
@@ -2762,8 +2775,8 @@ io.on('connection', (socket) => {
 
   // Register user online
   socket.on('register', async (userId) => {
-    onlineUsers.set(userId, socket.id);
-    activeSessions.set(socket.id, { userId: userId, startTime: Date.now(), messagesSent: 0, matchesMade: 0 });
+    onlineUsers.set(userId?.toString(), socket.id);
+    activeSessions.set(socket.id, { userId: userId?.toString(), startTime: Date.now(), messagesSent: 0, matchesMade: 0 });
     console.log(`User ${userId} registered with socket ${socket.id}`);
     io.emit('online_users', Array.from(onlineUsers.keys()));
     
@@ -2930,32 +2943,40 @@ io.on('connection', (socket) => {
   // --- WebRTC Audio/Video Call Events ---
   
   // Call User (Initiate call)
-  socket.on('call_user', ({ userToCall, signalData, from, fromUsername, isVideo }) => {
+  socket.on('call_user', ({ userToCall, signalData, from, fromUsername, fromAvatar, isVideo }) => {
     const receiverSocketId = onlineUsers.get(userToCall.toString());
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('incoming_call', {
         signal: signalData,
         from,
+        fromSocketId: socket.id,
         fromUsername,
+        fromAvatar,
         isVideo
       });
     } else {
-      // Receiver is not online — notify caller immediately
-      socket.emit('call_failed', { reason: 'User is offline or unavailable' });
+      // Receiver is not online — notify caller immediately ONLY on the initial offer
+      if (signalData && signalData.type === 'offer') {
+        socket.emit('call_failed', { reason: 'User is offline or unavailable' });
+      }
     }
   });
 
   // Answer Call
-  socket.on('answer_call', ({ to, signal }) => {
-    const callerSocketId = onlineUsers.get(to);
+  socket.on('answer_call', ({ to, toSocketId, signal }) => {
+    // Prefer direct socket ID routing to handle multiple tabs/self-calling gracefully
+    const callerSocketId = toSocketId || onlineUsers.get(to?.toString());
+    console.log(`[answer_call] to: ${to}, callerSocketId: ${callerSocketId}`);
     if (callerSocketId) {
       io.to(callerSocketId).emit('call_accepted', signal);
+    } else {
+      console.log(`[answer_call] FAIL! User ${to} not found in onlineUsers`);
     }
   });
 
   // Decline/End Call
-  socket.on('end_call', ({ to }) => {
-    const otherSocketId = onlineUsers.get(to);
+  socket.on('end_call', ({ to, toSocketId }) => {
+    const otherSocketId = toSocketId || onlineUsers.get(to?.toString());
     if (otherSocketId) {
       io.to(otherSocketId).emit('call_ended');
     }
