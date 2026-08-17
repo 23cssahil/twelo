@@ -49,6 +49,7 @@ export default function ShayariStudio({ onClose, onComplete }) {
   
   // UI states
   const [activeTab, setActiveTab] = useState("text"); // text, background, style, templates
+  const [isFocused, setIsFocused] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   
   const canvasRef = useRef(null);
@@ -210,9 +211,9 @@ export default function ShayariStudio({ onClose, onComplete }) {
               className="shayari-canvas-text"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              onFocus={(e) => e.target.placeholder = ''}
-              onBlur={(e) => e.target.placeholder = 'Dil ki baat yahan likhein...'}
-              placeholder="Dil ki baat yahan likhein..."
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              placeholder={isFocused ? "" : "Dil ki baat yahan likhein..."}
               style={{
                 '--shayari-text-color': textColor,
                 fontFamily: fontFamily,
