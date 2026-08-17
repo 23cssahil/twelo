@@ -1125,8 +1125,6 @@ export default function Dashboard() {
     }
   };
 
-    }
-  };
   const userVideoRef = useRef(null);
   const connectionRef = useRef(null);
   const localStreamRef = useRef(null);
