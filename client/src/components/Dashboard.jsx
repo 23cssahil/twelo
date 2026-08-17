@@ -2,7 +2,6 @@ import StoryAudioTrimmer from './StoryAudioTrimmer';
 import StoryMusicModal from "./StoryMusicModal";
 import ShayariStudio from "./ShayariStudio";
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
-import StoryWebAudio from './StoryWebAudio';
 import CommentsModal from './CommentsModal';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -353,9 +352,48 @@ const StorySlide = ({
 
         {/* 👇 Background Music Player with Trim & Loop */}
         {(story.song?.audioUrl || story.songUrl) && (
-          <StoryWebAudio
+          <audio
             ref={localAudioRef}
             key={`${story._id}-${story.song?.startTime || 0}`}
+            src={story.song?.audioUrl || story.songUrl}
+            preload="auto"
+            onLoadedMetadata={(e) => {
+              const startTime = story.song?.startTime || 0;
+              e.currentTarget.currentTime = startTime;
+              if (isActiveSlide && !storyPaused) {
+                e.currentTarget.play().then(() => {
+                  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+                }).catch(() => {});
+              }
+              if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = null;
+                navigator.mediaSession.setActionHandler('play', null);
+                navigator.mediaSession.setActionHandler('pause', null);
+                navigator.mediaSession.setActionHandler('seekbackward', null);
+                navigator.mediaSession.setActionHandler('seekforward', null);
+                navigator.mediaSession.setActionHandler('previoustrack', null);
+                navigator.mediaSession.setActionHandler('nexttrack', null);
+                navigator.mediaSession.playbackState = 'none';
+              }
+            }}
+            onTimeUpdate={(e) => {
+              const audio = e.currentTarget;
+              const startTime = story.song?.startTime || 0;
+              const duration = story.song?.duration || 15;
+              
+              if (audio.currentTime >= startTime + duration || audio.currentTime < startTime) {
+                audio.currentTime = startTime;
+                if (!storyPaused) {
+                  audio.play().then(() => {
+                    if ('mediaSession' in navigator) {
+                      navigator.mediaSession.playbackState = 'none';
+                    }
+                  }).catch(() => {});
+                }
+              }
+            }}
+          />
+        )}
 
         {/* Click Navigation Areas */}
         <div 
