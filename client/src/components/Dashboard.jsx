@@ -356,11 +356,7 @@ const StorySlide = ({
           <StoryWebAudio
             ref={localAudioRef}
             key={`${story._id}-${story.song?.startTime || 0}`}
-            story={story}
-            isActiveSlide={isActiveSlide}
-            storyPaused={storyPaused}
-          />
-        )}
+
         {/* Click Navigation Areas */}
         <div 
           style={{ position: 'absolute', top: 0, left: 0, width: '30%', height: '100%', zIndex: 5, cursor: 'w-resize' }} 
