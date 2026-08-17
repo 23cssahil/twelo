@@ -4988,8 +4988,9 @@ const handleStoryUpload = async () => {
                 )})}
               </div>
 
+              <AdBanner />
+
               <div className="chat-users-scroll" onScroll={handleChatsScroll}>
-                <AdBanner />
                 {recentChats.map((chatUser) => {
                   const isOnline = onlineUsers.includes(chatUser._id);
                   const unreadCount = unreadMessages[chatUser._id] || 0;
