@@ -1130,7 +1130,7 @@ export default function Dashboard() {
   const [swipeMsgId, setSwipeMsgId] = useState(null);
   const [selectedMsgId, setSelectedMsgId] = useState(null);
   
-  
+  const isCallerRef = useRef(false);
   const callStartTimeRef = useRef(null);
   const activeCallTargetRef = useRef(null);
   // Refs for Socket optimization
@@ -5691,6 +5691,7 @@ const handleStoryUpload = async () => {
             </div>
           );
         }
+        return (
         return (
           <div style={{ minHeight: '100vh', background: 'var(--bg-color)', color: '#fff', padding: '20px', paddingBottom: '100px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
             
