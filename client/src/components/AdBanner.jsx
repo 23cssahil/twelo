@@ -14,8 +14,18 @@ const AdBanner = () => {
   }, []);
 
   return (
-    <div style={{ margin: '20px 0', width: '100%', display: 'flex', justifyContent: 'center', background: 'rgba(255,255,255,0.03)', borderRadius: '15px', overflow: 'hidden' }}>
-      <div ref={containerRef} id="container-68a0807fea81fdc49bc8a49017e7e443"></div>
+    <div style={{ 
+      margin: '10px 0 20px 0', 
+      width: '100%', 
+      display: 'flex', 
+      justifyContent: 'center', 
+      background: 'rgba(255,255,255,0.03)', 
+      borderRadius: '15px', 
+      overflow: 'hidden',
+      maxHeight: '100px', // Limit the height so it doesn't push chats down too far
+      minHeight: '50px'
+    }}>
+      <div ref={containerRef} id="container-68a0807fea81fdc49bc8a49017e7e443" style={{ width: '100%', maxHeight: '100px', overflow: 'hidden' }}></div>
     </div>
   );
 };
