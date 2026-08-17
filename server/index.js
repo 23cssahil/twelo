@@ -672,6 +672,35 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Update Profile Details
+app.put('/api/users/profile', authenticateToken, async (req, res) => {
+  try {
+    const { name, bio, gender, country, countryCode } = req.body;
+    
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (bio !== undefined) updateData.bio = bio;
+    if (gender !== undefined) updateData.gender = gender;
+    if (country !== undefined) updateData.country = country;
+    if (countryCode !== undefined) updateData.countryCode = countryCode;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ message: 'Server error updating profile' });
+  }
+});
+
 // Get User Connections (Followers & Following populated)
 app.get('/api/users/connections', authenticateToken, async (req, res) => {
   try {

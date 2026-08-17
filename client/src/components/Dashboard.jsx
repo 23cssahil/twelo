@@ -803,6 +803,13 @@ export default function Dashboard() {
 
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showMyProfileModal, setShowMyProfileModal] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profileBio, setProfileBio] = useState('');
+  const [profileGender, setProfileGender] = useState('male');
+  const [profileCountry, setProfileCountry] = useState('Earth');
+  const [profileCountryCode, setProfileCountryCode] = useState('UN');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [showInnerSettingsModal, setShowInnerSettingsModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showChangeUsernameModal, setShowChangeUsernameModal] = useState(false);
@@ -1329,6 +1336,47 @@ export default function Dashboard() {
         }
     } catch (err) {
       setUsernameError('An error occurred');
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profileName.trim()) {
+      alert("Name cannot be empty");
+      return;
+    }
+    setIsSavingProfile(true);
+    try {
+      const response = await fetch(`${API_URL}/api/users/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          name: profileName,
+          bio: profileBio,
+          gender: profileGender,
+          country: profileCountry,
+          countryCode: profileCountryCode
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        const savedUser = JSON.parse(localStorage.getItem('user'));
+        if (savedUser) {
+          savedUser.name = data.name;
+          savedUser.bio = data.bio;
+          savedUser.gender = data.gender;
+          savedUser.country = data.country;
+          savedUser.countryCode = data.countryCode;
+          localStorage.setItem('user', JSON.stringify(savedUser));
+          login(savedUser, token);
+        }
+        setShowMyProfileModal(false);
+      } else {
+        alert(data.message || 'Error updating profile');
+      }
+    } catch (err) {
+      alert('An error occurred while saving profile');
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -2163,6 +2211,8 @@ export default function Dashboard() {
         } else {
           setActiveChatUser(null);
         }
+      } else if (showMyProfileModal) {
+        setShowMyProfileModal(false);
       } else if (showSettingsModal) {
         setShowSettingsModal(false);
       } else if (e.state && e.state.tab) {
@@ -2174,7 +2224,7 @@ export default function Dashboard() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen]);
+  }, [showMyProfileModal, showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen]);
 
   // Lock document scroll when chat is active to prevent keyboard from pushing header out of view
   useEffect(() => {
@@ -5952,7 +6002,14 @@ const handleStoryUpload = async () => {
               <button className="settings-item-btn" onClick={() => { setShowInnerSettingsModal(false); setShowSettingsModal(false); openCamera('avatar'); }}>
                 Change Profile Avatar
               </button>
-              <button className="settings-item-btn">My Profile</button>
+              <button className="settings-item-btn" onClick={() => {
+                setProfileName(user?.name || '');
+                setProfileBio(user?.bio || '');
+                setProfileGender(user?.gender || 'male');
+                setProfileCountry(user?.country || 'Earth');
+                setProfileCountryCode(user?.countryCode || 'UN');
+                setShowMyProfileModal(true);
+              }}>My Profile</button>
               <button className="settings-item-btn">Account</button>
               <button className="settings-item-btn">Privacy</button>
               <button className="settings-item-btn" onClick={() => setShowNotificationsModal(true)}>Notifications</button>
@@ -6014,6 +6071,130 @@ const handleStoryUpload = async () => {
             <p style={{ color: '#555', fontSize: '0.88rem', marginTop: '8px', lineHeight: '1.6' }}>
               Enable push notifications to stay updated. You can fine-tune whether to show a pop-up, play a sound, or both.
             </p>
+          </div>
+        </div>
+      )}
+
+      {showMyProfileModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10002, background: '#111', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #333', background: '#000' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button onClick={() => setShowMyProfileModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowLeft size={24} /></button>
+              <h2 style={{ marginLeft: '20px', fontSize: '1.2rem', margin: '0 0 0 20px' }}>My Profile</h2>
+            </div>
+            <button onClick={handleSaveProfile} disabled={isSavingProfile} style={{ background: 'transparent', color: '#2bd856', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>
+              {isSavingProfile ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+          <div style={{ padding: '20px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* Avatar Section */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+              <div 
+                style={{ position: 'relative', cursor: 'pointer' }}
+                onClick={() => { setShowMyProfileModal(false); openCamera('avatar'); }}
+              >
+                <img 
+                  src={user?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`} 
+                  alt="Avatar" 
+                  style={{ width: '100px', height: '100px', borderRadius: '50%', border: '2px solid #333', objectFit: 'cover' }} 
+                />
+                <div style={{ position: 'absolute', bottom: 0, right: 0, background: '#2bd856', borderRadius: '50%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                </div>
+              </div>
+              <span style={{ color: '#888', fontSize: '0.9rem' }}>Tap to change avatar</span>
+            </div>
+
+            {/* Form Section */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div>
+                <label style={{ fontSize: '0.85rem', color: '#888', marginBottom: '6px', display: 'block' }}>Name</label>
+                <input 
+                  type="text" 
+                  value={profileName} 
+                  onChange={e => setProfileName(e.target.value)} 
+                  style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid #333', borderRadius: '8px', color: '#fff', fontSize: '1rem' }} 
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.85rem', color: '#888', marginBottom: '6px', display: 'block' }}>Username</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <input 
+                    type="text" 
+                    value={user?.username || ''} 
+                    disabled
+                    style={{ flex: 1, padding: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid #222', borderRadius: '8px', color: '#888', fontSize: '1rem' }} 
+                  />
+                  <button 
+                    onClick={() => {
+                      setNewUsernameInput(user.username);
+                      setShowChangeUsernameModal(true);
+                      setUsernameAvailable(null);
+                      setUsernameError('');
+                    }}
+                    style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '12px 16px', borderRadius: '8px', cursor: 'pointer' }}
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.85rem', color: '#888', marginBottom: '6px', display: 'block' }}>Bio / About</label>
+                <textarea 
+                  value={profileBio} 
+                  onChange={e => setProfileBio(e.target.value)} 
+                  placeholder="Tell people about yourself..."
+                  style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid #333', borderRadius: '8px', color: '#fff', fontSize: '1rem', minHeight: '80px', resize: 'vertical' }} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '0.85rem', color: '#888', marginBottom: '6px', display: 'block' }}>Gender</label>
+                  <select 
+                    value={profileGender} 
+                    onChange={e => setProfileGender(e.target.value)}
+                    style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid #333', borderRadius: '8px', color: '#fff', fontSize: '1rem' }}
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '0.85rem', color: '#888', marginBottom: '6px', display: 'block' }}>Country</label>
+                  <input 
+                    type="text" 
+                    value={profileCountry} 
+                    onChange={e => setProfileCountry(e.target.value)} 
+                    style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid #333', borderRadius: '8px', color: '#fff', fontSize: '1rem' }} 
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Read Only Account Details */}
+            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '15px', padding: '15px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid #222' }}>
+              <h3 style={{ fontSize: '1rem', color: '#ccc', margin: 0, borderBottom: '1px solid #333', paddingBottom: '10px' }}>Account Info</h3>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#888', fontSize: '0.9rem' }}>Email</span>
+                <span style={{ color: '#fff', fontSize: '0.9rem' }}>{user?.email || 'N/A'}</span>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#888', fontSize: '0.9rem' }}>Twelo Coins</span>
+                <span style={{ color: '#ffd700', fontSize: '0.9rem', fontWeight: 'bold' }}>🟡 {user?.coins || 0}</span>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#888', fontSize: '0.9rem' }}>Twelo ID</span>
+                <span style={{ color: '#fff', fontSize: '0.9rem', fontFamily: 'monospace' }}>{user?.uniqueId || 'N/A'}</span>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
