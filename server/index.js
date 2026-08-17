@@ -782,7 +782,7 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
 // Get Public Profile
 app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => {
   try {
-    let user = await User.findById(req.params.id).select('username name bio uniqueId followers following friendRequests avatarUrl country countryCode age gender lastActive').lean();
+    let user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests avatarUrl country countryCode age gender lastActive').lean();
     if (!user) {
       return res.json({
         _id: req.params.id,

@@ -4717,180 +4717,110 @@ const handleStoryUpload = async () => {
         const hasRequested = publicProfileData.friendRequests?.includes(user.id);
         
         return (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: '#0a0a0c', zIndex: 10000, overflowY: 'auto' }}>
-            <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', paddingBottom: '100px' }}>
-              
-              {/* Header with Back button */}
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '25px' }}>
-                <button 
-                  onClick={() => {
-                    if (activeChatUser) {
-                      setActiveTab('messages');
-                    } else {
-                      setActiveTab('search');
-                    }
-                  }} 
-                  className="back-btn" 
-                  style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#fff', marginRight: '15px', display: 'flex', alignItems: 'center' }}
-                >
-                  <ArrowLeft size={24} />
-                </button>
-                <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '600' }}>Profile</h2>
-              </div>
-
-              {/* Top Section: Avatar left, Username right */}
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-                <div style={{ position: 'relative', marginRight: '20px' }}>
-                  <div style={{ width: '85px', height: '85px', borderRadius: '50%', overflow: 'hidden', background: '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', border: '2px solid rgba(255,255,255,0.1)' }}>
-                    {publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : publicProfileData.username.charAt(0).toUpperCase()}
+          <div className="profile-container">
+            <div className="profile-card">
+              <button 
+                onClick={() => {
+                  if (activeChatUser) {
+                    setActiveTab('messages');
+                  } else {
+                    setActiveTab('search');
+                  }
+                }} 
+                className="back-btn" 
+                style={{ position: 'absolute', top: 0, left: 0, border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', zIndex: 10 }}
+              >
+                ←
+              </button>
+              <div className="profile-avatar-large">
+                <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
+                {publicProfileData.country && (
+                  <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
+                    {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
                   </div>
-                  {publicProfileData.country && (
-                    <div style={{ position: 'absolute', bottom: '0', right: '-5px', fontSize: '1.2rem', background: '#111', borderRadius: '50%', padding: '3px', border: '2px solid #222' }}>
-                      {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
-                    </div>
-                  )}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ margin: '0 0 6px 0', fontSize: '1.3rem', fontWeight: 'bold' }}>@{publicProfileData.username}</h3>
-                  <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : '#888', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {onlineUsers.includes(publicProfileData._id) ? (
-                      <><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2bd856' }}></span> Online</>
-                    ) : (
-                      `Last active: ${timeSince(publicProfileData.lastActive)}`
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Stats: Followers / Following */}
-              <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ flex: 1, textAlign: 'center', cursor: 'pointer' }} onClick={() => handleConnectionsClick('followers', publicProfileData._id)}>
-                  <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#fff' }}>{publicProfileData.followers?.length || 0}</div>
-                  <div style={{ fontSize: '0.85rem', color: '#888', marginTop: '2px' }}>Followers</div>
-                </div>
-                <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-                <div style={{ flex: 1, textAlign: 'center', cursor: 'pointer' }} onClick={() => handleConnectionsClick('following', publicProfileData._id)}>
-                  <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#fff' }}>{publicProfileData.following?.length || 0}</div>
-                  <div style={{ fontSize: '0.85rem', color: '#888', marginTop: '2px' }}>Following</div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '25px' }}>
-                {isFollowing ? (
-                  <>
-                    <button className="chat-now-btn" style={{ flex: 1, padding: '12px', fontSize: '1rem', borderRadius: '12px' }} onClick={() => startChatWithUser(publicProfileData)}>Message</button>
-                    <button className="chat-now-btn" style={{ flex: 1, background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '12px', fontSize: '1rem', borderRadius: '12px' }} onClick={() => unfollowUser(publicProfileData._id)}>Unfollow</button>
-                  </>
-                ) : hasRequested ? (
-                  <button className="chat-now-btn" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', width: '100%', padding: '12px', fontSize: '1rem', borderRadius: '12px' }} onClick={() => unfollowUser(publicProfileData._id)}>Cancel Request</button>
-                ) : (
-                  <button className="chat-now-btn" style={{ width: '100%', padding: '12px', fontSize: '1rem', borderRadius: '12px' }} onClick={() => sendFollowRequest(publicProfileData._id)}>Follow</button>
                 )}
               </div>
-
-              {/* Age and Gender Section */}
-              {publicProfileData.age && publicProfileData.gender && (
-                <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>🎂</div>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Age</span>
-                      <span style={{ fontWeight: 'bold', fontSize: '1rem' }}>{publicProfileData.age} Yrs</span>
-                    </div>
-                  </div>
-                  <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>{publicProfileData.gender === 'male' ? '👨' : '👩'}</div>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Gender</span>
-                      <span style={{ fontWeight: 'bold', fontSize: '1rem', textTransform: 'capitalize' }}>{publicProfileData.gender}</span>
-                    </div>
-                  </div>
+              <div className="profile-info">
+                <span className="profile-username">@{publicProfileData.username}</span>
+                <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : '#a8a8a8', marginTop: '4px' }}>
+                  {onlineUsers.includes(publicProfileData._id) ? '🟢 Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
                 </div>
-              )}
-
-              {/* Name and Bio Section */}
-              {(publicProfileData.name || publicProfileData.bio) && (
-                <div style={{ marginBottom: '25px', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  {publicProfileData.name && (
-                    <div style={{ fontSize: '1.15rem', fontWeight: 'bold', marginBottom: publicProfileData.bio ? '8px' : '0', color: '#fff' }}>
-                      {publicProfileData.name}
-                    </div>
-                  )}
-                  {publicProfileData.bio && (
-                    <div style={{ fontSize: '0.95rem', color: '#ccc', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
-                      {publicProfileData.bio}
-                    </div>
+                <div className="profile-stats">
+                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('followers', publicProfileData._id)}><strong>{publicProfileData.followers?.length || 0}</strong> followers</span>
+                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('following', publicProfileData._id)}><strong>{publicProfileData.following?.length || 0}</strong> following</span>
+                </div>
+                <div className="profile-actions">
+                  {isFollowing ? (
+                    <>
+                      <button className="chat-now-btn" style={{ flex: 1 }} onClick={() => startChatWithUser(publicProfileData)}>Message</button>
+                      <button className="chat-now-btn" style={{ flex: 1, background: '#333' }} onClick={() => unfollowUser(publicProfileData._id)}>Unfollow</button>
+                    </>
+                  ) : hasRequested ? (
+                    <button className="chat-now-btn" style={{ background: '#333', width: '100%' }} onClick={() => unfollowUser(publicProfileData._id)}>Cancel Request</button>
+                  ) : (
+                    <button className="chat-now-btn" style={{ width: '100%' }} onClick={() => sendFollowRequest(publicProfileData._id)}>Follow</button>
                   )}
                 </div>
-              )}
-
-              {/* Share ID Section */}
-              {publicProfileData.uniqueId && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', padding: '16px', background: 'linear-gradient(to right, rgba(255,255,255,0.05), rgba(255,255,255,0.02))', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Twelo ID</div>
-                    <div style={{ fontFamily: 'monospace', fontSize: '1.1rem', color: '#fff', letterSpacing: '1px' }}>{publicProfileData.uniqueId}</div>
+                {publicProfileData.age && publicProfileData.gender && (
+                  <div className="profile-demographics">
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
+                      <span>{publicProfileData.age} Yrs</span>
+                    </div>
+                    <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textTransform: 'capitalize' }}>
+                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{publicProfileData.gender === 'male' ? '👨' : '👩'}</span>
+                      <span>{publicProfileData.gender}</span>
+                    </div>
                   </div>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/profile/${publicProfileData.uniqueId}`);
-                      alert('Profile Link Copied!');
-                    }} 
-                    style={{ background: 'var(--brand-blue)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '20px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    Share
-                  </button>
-                </div>
-              )}
+                )}
 
-              {/* Global Stories */}
-              {publicProfileData.globalStories && publicProfileData.globalStories.length > 0 && (
-                <div style={{ marginTop: '10px', width: '100%' }}>
-                  <h3 style={{ fontSize: '1.1rem', marginBottom: '15px', color: '#fff' }}>Global Stories</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                    {groupStoriesByDay(showAllGlobalStoriesPublic ? publicProfileData.globalStories : publicProfileData.globalStories).slice(0, showAllGlobalStoriesPublic ? 999 : 3).map((group, index, allGroups) => {
-                      const firstStory = group.stories[0];
-                      return (
-                      <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '12px', overflow: 'hidden', background: '#222', cursor: 'pointer', position: 'relative', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }} onClick={() => { 
-                        const viewerGroups = allGroups.map(g => ({
-                          user: { _id: publicProfileData._id, username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl },
-                          stories: g.stories
-                        }));
-                        setProfileStoryGroups(viewerGroups); 
-                        setCurrentStoryUserIndex(index); 
-                        setCurrentStoryIndex(0); 
-                        setStoryViewerActive(true); 
-                      }}>
-                        {firstStory.mediaType === 'video' ? (
-                          <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
-                        ) : (
-                          <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
-                        )}
-                        <div style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: '6px 8px', borderRadius: '8px' }}>
-                          <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{group.date}</span>
-                          <span style={{ color: '#fff', fontSize: '0.75rem', flexShrink: 0, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '10px' }}>{group.stories.length}</span>
+                {publicProfileData.globalStories && publicProfileData.globalStories.length > 0 && (
+                  <div style={{ marginTop: '20px', width: '100%' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      {groupStoriesByDay(showAllGlobalStoriesPublic ? publicProfileData.globalStories : publicProfileData.globalStories).slice(0, showAllGlobalStoriesPublic ? 999 : 3).map((group, index, allGroups) => {
+                        const firstStory = group.stories[0];
+                        return (
+                        <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333', cursor: 'pointer', position: 'relative' }} onClick={() => { 
+                          const viewerGroups = allGroups.map(g => ({
+                            user: { _id: publicProfileData._id, username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl },
+                            stories: g.stories
+                          }));
+                          setProfileStoryGroups(viewerGroups); 
+                          setCurrentStoryUserIndex(index); 
+                          setCurrentStoryIndex(0); 
+                          setStoryViewerActive(true); 
+                        }}>
+                          {firstStory.mediaType === 'video' ? (
+                            <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                          ) : (
+                            <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
+                          )}
+                          <div style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '6px' }}>
+                            <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{group.date}</span>
+                            <span style={{ color: '#fff', fontSize: '0.75rem', flexShrink: 0 }}>{group.stories.length}</span>
+                          </div>
                         </div>
-                      </div>
-                    )})}
+                      )})}
+                    </div>
+                    {groupStoriesByDay(publicProfileData.globalStories).length > 3 && (
+                      <button 
+                        onClick={() => {
+                          setUserGlobalStoriesUserId(publicProfileData._id);
+                          setUserGlobalStoriesUserInfo({ username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl });
+                          setUserGlobalStories([]);
+                          fetchUserGlobalStories(publicProfileData._id, 1, false);
+                          setActiveTab('user-global-stories');
+                        }}
+                        style={{ marginTop: '10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '10px', fontSize: '0.9rem' }}
+                      >
+                        See More
+                      </button>
+                    )}
                   </div>
-                  {groupStoriesByDay(publicProfileData.globalStories).length > 3 && (
-                    <button 
-                      onClick={() => {
-                        setUserGlobalStoriesUserId(publicProfileData._id);
-                        setUserGlobalStoriesUserInfo({ username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl });
-                        setUserGlobalStories([]);
-                        fetchUserGlobalStories(publicProfileData._id, 1, false);
-                        setActiveTab('user-global-stories');
-                      }}
-                      style={{ marginTop: '15px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '12px', fontSize: '0.95rem', fontWeight: 'bold' }}
-                    >
-                      See More
-                    </button>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         );
