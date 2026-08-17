@@ -1893,7 +1893,9 @@ export default function Dashboard() {
     });
 
     socket.on('incoming_call', ({ from, fromUsername, fromAvatar, signal, isVideo }) => {
+      console.log('[incoming_call] Received event from:', from, 'signal type:', signal.type);
       if (signal.type === 'offer') {
+        console.log('[incoming_call] Handling offer');
         setReceivingCall(true);
         setCallerId(from);
         setCallerName(fromUsername);
@@ -1906,6 +1908,7 @@ export default function Dashboard() {
           ringtoneInRef.current.play()?.catch(e => console.log('Audio autoplay prevented'));
         }
       } else if (signal.candidate) {
+        console.log('[incoming_call] Handling candidate');
         // It's a trickle ICE candidate
         if (connectionRef.current) {
           connectionRef.current.signal(signal);
@@ -1916,7 +1919,9 @@ export default function Dashboard() {
     });
 
     socket.on('call_accepted', (signal) => {
+      console.log('[call_accepted] Received signal:', signal.type || 'ICE candidate');
       if (!isCallAcceptedRef.current) {
+        console.log('[call_accepted] First time setting callAccepted to true');
         isCallAcceptedRef.current = true;
         setCallAccepted(true);
         setCalling(false);
@@ -3608,6 +3613,7 @@ const handleStoryUpload = async () => {
       });
 
       peer.on('signal', (data) => {
+        console.log(`[acceptCall] Emitting answer_call to ${callerId}, signal type:`, data.type || 'ICE candidate');
         socket.emit('answer_call', { to: callerId, signal: data });
       });
 
@@ -3645,8 +3651,7 @@ const handleStoryUpload = async () => {
   };
 
   const endCall = () => {
-    const targetId = activeChatUser ? activeChatUser._id : callerId;
-    socket.emit('end_call', { to: targetId });
+    socket.emit('end_call', { to: callerId });
     finalizeCallLog();
     handleEndCallQuietly();
   };
