@@ -1066,6 +1066,7 @@ export default function Dashboard() {
   const [callerName, setCallerName] = useState('');
   const [callerAvatar, setCallerAvatar] = useState(null);
   const [callerSignal, setCallerSignal] = useState(null);
+  const isCallAcceptedRef = useRef(false);
 
   // Refs for media
   const myVideoRef = useRef(null);
@@ -1915,7 +1916,8 @@ export default function Dashboard() {
     });
 
     socket.on('call_accepted', (signal) => {
-      if (signal.type === 'answer') {
+      if (!isCallAcceptedRef.current) {
+        isCallAcceptedRef.current = true;
         setCallAccepted(true);
         setCalling(false);
         callStartTimeRef.current = Date.now();
@@ -3494,6 +3496,7 @@ const handleStoryUpload = async () => {
     setCallerAvatar(targetAvatar);
     setCallerId(targetUserId);
     isCallerRef.current = true;
+    isCallAcceptedRef.current = false;
     activeCallTargetRef.current = targetUserId;
 
     if (ringtoneOutRef.current) {
@@ -3657,6 +3660,7 @@ const handleStoryUpload = async () => {
     setCalling(false);
     setReceivingCall(false);
     setCallAccepted(false);
+    isCallAcceptedRef.current = false;
     setRemoteStreamState(null);
     setCallerSignal(null);
     callerCandidatesRef.current = [];
