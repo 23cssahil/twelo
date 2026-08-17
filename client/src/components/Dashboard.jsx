@@ -357,11 +357,13 @@ const StorySlide = ({
                 }).catch(() => {});
               }
               if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new window.MediaMetadata({
-                  title: story.song?.title || 'Story Audio',
-                  artist: story.song?.artist || story.user?.username || 'Twelo',
-                  artwork: [{ src: story.song?.image || '/logo.png', sizes: '512x512', type: 'image/png' }]
-                });
+                navigator.mediaSession.metadata = null;
+                navigator.mediaSession.setActionHandler('play', null);
+                navigator.mediaSession.setActionHandler('pause', null);
+                navigator.mediaSession.setActionHandler('seekbackward', null);
+                navigator.mediaSession.setActionHandler('seekforward', null);
+                navigator.mediaSession.setActionHandler('previoustrack', null);
+                navigator.mediaSession.setActionHandler('nexttrack', null);
                 navigator.mediaSession.playbackState = 'none';
               }
             }}
@@ -7189,11 +7191,13 @@ const handleStoryUpload = async () => {
         autoPlay
         onLoadedMetadata={() => {
           if ('mediaSession' in navigator) {
-            navigator.mediaSession.metadata = new window.MediaMetadata({
-              title: selectedStorySongData?.title || 'Story Audio',
-              artist: selectedStorySongData?.artist || 'Twelo',
-              artwork: [{ src: selectedStorySongData?.image || '/logo.png', sizes: '512x512', type: 'image/png' }]
-            });
+            navigator.mediaSession.metadata = null;
+            navigator.mediaSession.setActionHandler('play', null);
+            navigator.mediaSession.setActionHandler('pause', null);
+            navigator.mediaSession.setActionHandler('seekbackward', null);
+            navigator.mediaSession.setActionHandler('seekforward', null);
+            navigator.mediaSession.setActionHandler('previoustrack', null);
+            navigator.mediaSession.setActionHandler('nexttrack', null);
           }
         }}
         ref={(el) => {
@@ -7226,11 +7230,13 @@ const handleStoryUpload = async () => {
     autoPlay
     onLoadedMetadata={() => {
       if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new window.MediaMetadata({
-          title: selectedStorySongData?.title || 'Story Audio',
-          artist: selectedStorySongData?.artist || 'Twelo',
-          artwork: [{ src: selectedStorySongData?.image || '/logo.png', sizes: '512x512', type: 'image/png' }]
-        });
+        navigator.mediaSession.metadata = null;
+        navigator.mediaSession.setActionHandler('play', null);
+        navigator.mediaSession.setActionHandler('pause', null);
+        navigator.mediaSession.setActionHandler('seekbackward', null);
+        navigator.mediaSession.setActionHandler('seekforward', null);
+        navigator.mediaSession.setActionHandler('previoustrack', null);
+        navigator.mediaSession.setActionHandler('nexttrack', null);
       }
     }}
     ref={(el) => {
