@@ -227,7 +227,7 @@ const StorySlide = ({
 
   return (
     <div 
-      style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px 10px', boxSizing: 'border-box', touchAction: 'none' }}
+      style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px 10px', boxSizing: 'border-box', touchAction: 'pan-y' }}
       onPointerDown={(e) => handlePointerDown(e.touches ? e.touches[0].clientX : e.clientX, e.touches ? e.touches[0].clientY : e.clientY)}
       onPointerMove={(e) => handlePointerMove(e.touches ? e.touches[0].clientX : e.clientX, e.touches ? e.touches[0].clientY : e.clientY)}
       onPointerUp={handlePointerUp}
