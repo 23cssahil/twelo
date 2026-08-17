@@ -399,51 +399,23 @@ const StorySlide = ({
         {/* Click Navigation Areas */}
         <div 
           style={{ position: 'absolute', top: 0, left: 0, width: '30%', height: '100%', zIndex: 5, cursor: 'w-resize' }} 
+          onDoubleClick={handleDoubleClick}
           onClick={(e) => {
             e.stopPropagation();
             if ((isActiveSlide ? currentStoryIndex : 0) > 0) {
               setCurrentStoryIndex(prev => prev - 1);
               setStoryProgress(0);
-            } else if (handlePrevUser) {
-              handlePrevUser();
             }
           }}
         />
         <div 
           style={{ position: 'absolute', top: 0, right: 0, width: activeTab === 'everyone-stories' ? '50%' : '70%', height: '100%', zIndex: 5, cursor: 'e-resize' }} 
+          onDoubleClick={handleDoubleClick}
           onClick={(e) => {
             e.stopPropagation();
             if ((isActiveSlide ? currentStoryIndex : 0) < group.stories.length - 1) {
               setCurrentStoryIndex(prev => prev + 1);
               setStoryProgress(0);
-            } else if (handleNextUser) {
-              handleNextUser();
-            }
-          }}
-        />
-
-        {/* Click Navigation Areas */}
-        <div 
-          style={{ position: 'absolute', top: 0, left: 0, width: '30%', height: '100%', zIndex: 5, cursor: 'w-resize' }} 
-          onClick={(e) => {
-            e.stopPropagation();
-            if ((isActiveSlide ? currentStoryIndex : 0) > 0) {
-              setCurrentStoryIndex(prev => prev - 1);
-              setStoryProgress(0);
-            } else if (handlePrevUser) {
-              handlePrevUser();
-            }
-          }}
-        />
-        <div 
-          style={{ position: 'absolute', top: 0, right: 0, width: activeTab === 'everyone-stories' ? '50%' : '70%', height: '100%', zIndex: 5, cursor: 'e-resize' }} 
-          onClick={(e) => {
-            e.stopPropagation();
-            if ((isActiveSlide ? currentStoryIndex : 0) < group.stories.length - 1) {
-              setCurrentStoryIndex(prev => prev + 1);
-              setStoryProgress(0);
-            } else if (handleNextUser) {
-              handleNextUser();
             }
           }}
         />
