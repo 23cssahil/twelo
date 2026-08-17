@@ -6171,32 +6171,39 @@ const handleStoryUpload = async () => {
           <div className="call-screen-active">
             {isVideoCall ? (
               <div className="video-grid">
-                {callAccepted ? (
-                  <>
-                    <div className={swapVideo ? "local-video-container clickable-video" : "remote-video-container"} onClick={() => swapVideo && setSwapVideo(false)}>
-                      <video playsInline webkit-playsinline="true" ref={userVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover' }} />
-                      {!swapVideo && <div className="video-label">@{callerName}</div>}
-                    </div>
-                    <div className={!swapVideo ? "local-video-container clickable-video" : "remote-video-container"} onClick={() => !swapVideo && setSwapVideo(true)}>
-                      <video playsInline webkit-playsinline="true" muted ref={myVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover', transform: currentFacingMode === 'user' ? 'scaleX(-1)' : 'none' }} />
-                      {swapVideo && <div className="video-label">You</div>}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="remote-video-container">
-                      <video playsInline webkit-playsinline="true" muted ref={myVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover', transform: currentFacingMode === 'user' ? 'scaleX(-1)' : 'none' }} />
-                      <div className="video-label">You</div>
-                    </div>
-                    <div className="local-video-container" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <div style={{ textAlign: 'center' }}>
-                        <div className="pulse-avatar" style={{ width: '40px', height: '40px', fontSize: '1.2rem', margin: '0 auto' }}>
-                          {callerAvatar ? <img src={callerAvatar} alt="caller" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : callerName.charAt(0).toUpperCase()}
-                        </div>
-                        <p style={{ marginTop: '8px', color: '#fff', fontSize: '10px' }}>{onlineUsers.includes(callerId) ? 'Ringing...' : 'Calling...'}</p>
+                {/* Always render user video, hide it if not accepted */}
+                <div 
+                  className={swapVideo ? "local-video-container clickable-video" : "remote-video-container"} 
+                  onClick={() => swapVideo && setSwapVideo(false)}
+                  style={{ display: callAccepted ? 'block' : 'none' }}
+                >
+                  <video playsInline webkit-playsinline="true" ref={userVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover' }} />
+                  {!swapVideo && callAccepted && <div className="video-label">@{callerName}</div>}
+                </div>
+
+                {/* Always render my video, change container classes based on callAccepted */}
+                <div 
+                  className={
+                    !callAccepted 
+                      ? "remote-video-container" 
+                      : (!swapVideo ? "local-video-container clickable-video" : "remote-video-container")
+                  } 
+                  onClick={() => callAccepted && !swapVideo && setSwapVideo(true)}
+                >
+                  <video playsInline webkit-playsinline="true" muted ref={myVideoRef} autoPlay className="video-element" style={{ objectFit: 'cover', transform: currentFacingMode === 'user' ? 'scaleX(-1)' : 'none' }} />
+                  {(!callAccepted || swapVideo) && <div className="video-label">You</div>}
+                </div>
+
+                {/* Show ringing UI when not accepted */}
+                {!callAccepted && (
+                  <div className="local-video-container" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div className="pulse-avatar" style={{ width: '40px', height: '40px', fontSize: '1.2rem', margin: '0 auto' }}>
+                        {callerAvatar ? <img src={callerAvatar} alt="caller" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : callerName.charAt(0).toUpperCase()}
                       </div>
+                      <p style={{ marginTop: '8px', color: '#fff', fontSize: '10px' }}>{onlineUsers.includes(callerId) ? 'Ringing...' : 'Calling...'}</p>
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             ) : (
