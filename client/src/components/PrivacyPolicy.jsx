@@ -51,8 +51,9 @@ export default function PrivacyPolicy() {
         <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>6. Security & Data Protection</h2>
         <p>We implement industry-standard security measures to protect your data. Specifically, we prioritize your privacy by not storing your raw email addresses in our database. When you log in, your email is immediately hashed, ensuring it remains completely private and unreadable.</p>
 
-        <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>7. Advertising</h2>
-        <p>We use third-party advertising companies (such as Google AdMob) to serve ads when you visit our app. These companies may use aggregated information about your visits to provide advertisements about goods and services of interest to you.</p>
+      <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>7. Advertising and Cookies</h2>
+      <p>We use third-party advertising companies (such as Adsterra) to serve ads when you visit our app. These companies may use cookies and similar tracking technologies to collect information about your visits to this and other websites in order to provide targeted advertisements about goods and services of interest to you.</p>
+      <p>By using our app, you consent to the use of such cookies and tracking technologies. You can manage your cookie preferences through your browser settings.</p>
 
         <h2 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '1.2rem', color: 'var(--brand-blue)' }}>8. Contact Us</h2>
         <p>If you have any questions about this Privacy Policy, please contact our support team.</p>

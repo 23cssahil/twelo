@@ -11,6 +11,7 @@ import AboutUs from './components/AboutUs';
 import DeveloperAdmin from './components/DeveloperAdmin';
 import BotTrainingAdmin from './components/BotTrainingAdmin';
 import Landing from './components/Landing';
+import CookieConsent from './components/CookieConsent';
 import { Capacitor } from '@capacitor/core';
 import { AdMob } from '@capacitor-community/admob';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -151,6 +152,7 @@ export default function App() {
               <Route path="/" element={!token ? <Landing /> : <Dashboard />} />
               <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" state={{ from: window.location.pathname }} />} />
             </Routes>
+            <CookieConsent />
           </Router>
         </SocketContext.Provider>
       </AuthContext.Provider>
