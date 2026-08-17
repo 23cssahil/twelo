@@ -156,7 +156,13 @@ const StorySlide = ({
           localAudioRef.current.pause();
         } else {
           localAudioRef.current.play()?.then(() => {
-            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; // Hack attempt to hide notification
+            if ('mediaSession' in navigator) {
+              navigator.mediaSession.playbackState = 'none';
+              if (window._mediaSessionHackInterval) clearInterval(window._mediaSessionHackInterval);
+              window._mediaSessionHackInterval = setInterval(() => {
+                if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+              }, 100);
+            }
           }).catch(() => {});
         }
       }
@@ -164,6 +170,9 @@ const StorySlide = ({
       if (localAudioRef.current) {
         localAudioRef.current.pause();
         localAudioRef.current.currentTime = story?.song?.startTime || 0;
+      }
+      if (window._mediaSessionHackInterval) {
+        clearInterval(window._mediaSessionHackInterval);
       }
     }
   }, [storyPaused, isActiveSlide, storyAudioRef, story]);
@@ -376,7 +385,9 @@ const StorySlide = ({
                 audio.currentTime = startTime;
                 if (!storyPaused) {
                   audio.play().then(() => {
-                    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+                    if ('mediaSession' in navigator) {
+                      navigator.mediaSession.playbackState = 'none';
+                    }
                   }).catch(() => {});
                 }
               }
