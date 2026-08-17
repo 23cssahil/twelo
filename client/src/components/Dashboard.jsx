@@ -328,7 +328,6 @@ const StorySlide = ({
             src={story.mediaUrl} 
             autoPlay={isActiveSlide} 
             playsInline
-            loop={activeTab === 'everyone-stories'}
             onEnded={() => {
               if (currentStoryIndex < group.stories.length - 1) {
                 setCurrentStoryIndex(prev => prev + 1);
@@ -1779,15 +1778,11 @@ export default function Dashboard() {
               if (currentStoryIndex < viewerStories[currentStoryUserIndex].stories.length - 1) {
                 setCurrentStoryIndex(c => c + 1);
                 return 0;
-              } else if (currentStoryUserIndex < viewerStories.length - 1) {
-                setCurrentStoryUserIndex(c => c + 1);
-                setCurrentStoryIndex(0);
-                return 0;
               } else {
-                setStoryViewerActive(false);
-                setProfileStoryGroups(null);
-                window.history.back();
-                return 100;
+                setTimeout(() => {
+                  handleNextUser();
+                }, 0);
+                return 0;
               }
             }
             const totalDurationSec = currentStory.song?.duration || 5;
