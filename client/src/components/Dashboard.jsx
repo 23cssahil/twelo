@@ -1064,6 +1064,7 @@ export default function Dashboard() {
   // Call Details
   const [callerId, setCallerId] = useState('');
   const [callerName, setCallerName] = useState('');
+  const [callerAvatar, setCallerAvatar] = useState(null);
   const [callerSignal, setCallerSignal] = useState(null);
 
   // Refs for media
@@ -1890,11 +1891,12 @@ export default function Dashboard() {
       }
     });
 
-    socket.on('incoming_call', ({ from, fromUsername, signal, isVideo }) => {
+    socket.on('incoming_call', ({ from, fromUsername, fromAvatar, signal, isVideo }) => {
       if (signal.type === 'offer') {
         setReceivingCall(true);
         setCallerId(from);
         setCallerName(fromUsername);
+        setCallerAvatar(fromAvatar);
         setCallerSignal(signal);
         setIsVideoCall(isVideo);
         callerCandidatesRef.current = []; // reset for new call
@@ -3484,11 +3486,12 @@ const handleStoryUpload = async () => {
     }
   };
 
-  const callUser = async (targetUserId, targetUsername, isVideo) => {
+  const callUser = async (targetUserId, targetUsername, targetAvatar, isVideo) => {
     setIsVideoCall(isVideo);
     setCalling(true);
     setCallActive(true);
     setCallerName(targetUsername);
+    setCallerAvatar(targetAvatar);
     setCallerId(targetUserId);
     isCallerRef.current = true;
     activeCallTargetRef.current = targetUserId;
@@ -3533,6 +3536,7 @@ const handleStoryUpload = async () => {
           signalData: data,
           from: user.id,
           fromUsername: user.username,
+          fromAvatar: user.avatarUrl,
           isVideo: isVideo
         });
       });
@@ -5023,8 +5027,8 @@ const handleStoryUpload = async () => {
                       </div>
                     </div>
                     <div className="chat-actions" style={{ position: 'relative' }}>
-                      <button className="action-icon-btn call-audio" onClick={() => callUser(String(activeChatUser._id), activeChatUser.username, false)}><Phone size={22} /></button>
-                      <button className="action-icon-btn call-video" onClick={() => callUser(String(activeChatUser._id), activeChatUser.username, true)}><Video size={22} /></button>
+                      <button className="action-icon-btn call-audio" onClick={() => callUser(String(activeChatUser._id), activeChatUser.username, activeChatUser.avatarUrl, false)}><Phone size={22} /></button>
+                      <button className="action-icon-btn call-video" onClick={() => callUser(String(activeChatUser._id), activeChatUser.username, activeChatUser.avatarUrl, true)}><Video size={22} /></button>
                       <button className="action-icon-btn" onClick={() => setShowChatSettingsMenu(!showChatSettingsMenu)}><MoreVertical size={22} /></button>
                       
                       {showChatSettingsMenu && (
@@ -6118,9 +6122,11 @@ const handleStoryUpload = async () => {
       )}
 \n      {/* CALLING OVERLAYS */}
       {receivingCall && (
-        <div className="call-overlay">
+        <div className="call-overlay call-overlay-violet">
           <div className="incoming-call-box">
-            <div className="pulse-avatar">{callerName.charAt(0).toUpperCase()}</div>
+            <div className="pulse-avatar">
+              {callerAvatar ? <img src={callerAvatar} alt="caller" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : callerName.charAt(0).toUpperCase()}
+            </div>
             <div>
               <h3>@{callerName}</h3>
               <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Incoming {isVideoCall ? 'Video' : 'Audio'} Call...</p>
@@ -6134,7 +6140,7 @@ const handleStoryUpload = async () => {
       )}
 
       {callActive && (
-        <div className="call-overlay">
+        <div className="call-overlay call-overlay-violet">
           <div className="call-screen-active">
             {isVideoCall ? (
               <div className="video-grid">
@@ -6157,7 +6163,9 @@ const handleStoryUpload = async () => {
                     </div>
                     <div className="local-video-container" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <div style={{ textAlign: 'center' }}>
-                        <div className="pulse-avatar" style={{ width: '40px', height: '40px', fontSize: '1.2rem', margin: '0 auto' }}>{callerName.charAt(0).toUpperCase()}</div>
+                        <div className="pulse-avatar" style={{ width: '40px', height: '40px', fontSize: '1.2rem', margin: '0 auto' }}>
+                          {callerAvatar ? <img src={callerAvatar} alt="caller" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : callerName.charAt(0).toUpperCase()}
+                        </div>
                         <p style={{ marginTop: '8px', color: '#fff', fontSize: '10px' }}>{onlineUsers.includes(callerId) ? 'Ringing...' : 'Calling...'}</p>
                       </div>
                     </div>
@@ -6166,7 +6174,9 @@ const handleStoryUpload = async () => {
               </div>
             ) : (
               <div className="audio-only-status" style={{ margin: 'auto' }}>
-                <div className="pulse-avatar">{callerName.charAt(0).toUpperCase()}</div>
+                <div className="pulse-avatar">
+                  {callerAvatar ? <img src={callerAvatar} alt="caller" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : callerName.charAt(0).toUpperCase()}
+                </div>
                 <h2>@{callerName}</h2>
                 <p style={{ color: 'var(--text-secondary)' }}>{callAccepted ? 'Voice Call Connected' : (onlineUsers.includes(callerId) ? 'Ringing...' : 'Calling...')}</p>
                 <audio ref={userVideoRef} autoPlay style={{ display: 'none' }} />
