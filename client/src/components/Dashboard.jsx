@@ -1,6 +1,7 @@
 import StoryAudioTrimmer from './StoryAudioTrimmer';
 import StoryMusicModal from "./StoryMusicModal";
 import ShayariStudio from "./ShayariStudio";
+import AdBanner from "./AdBanner";
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import CommentsModal from './CommentsModal';
 import { useNavigate } from 'react-router-dom';
@@ -4986,6 +4987,8 @@ const handleStoryUpload = async () => {
                   </div>
                 )})}
               </div>
+
+              <AdBanner />
 
               <div className="chat-users-scroll" onScroll={handleChatsScroll}>
                 {recentChats.map((chatUser) => {
