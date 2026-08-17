@@ -812,6 +812,8 @@ export default function Dashboard() {
   const [profileCountryCode, setProfileCountryCode] = useState('UN');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [showInnerSettingsModal, setShowInnerSettingsModal] = useState(false);
+  const [showEarnCoinsModal, setShowEarnCoinsModal] = useState(false);
+  const [callSetup, setCallSetup] = useState({ show: false, targetUserId: null, targetUsername: '', targetAvatar: '', isVideo: false, minutes: 3 });
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showChangeUsernameModal, setShowChangeUsernameModal] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState(null); // null, true, false
@@ -1066,7 +1068,10 @@ export default function Dashboard() {
   const [callerAvatar, setCallerAvatar] = useState(null);
   const [callerSocketId, setCallerSocketId] = useState(null);
   const [callerSignal, setCallerSignal] = useState(null);
+  const isCallerRef = useRef(false);
   const isCallAcceptedRef = useRef(false);
+  const callDurationRef = useRef(3);
+  const callDurationLimitTimeoutRef = useRef(null);
 
   // Refs for media
   const myVideoRef = useRef(null);
@@ -1149,6 +1154,7 @@ export default function Dashboard() {
   const isRecordingCancelledRef = useRef(false);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
+  const recordingTimeRef = useRef(0);
 
   const [selectedImage, setSelectedImage] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -1985,6 +1991,35 @@ export default function Dashboard() {
           ringtoneOutRef.current.currentTime = 0;
           ringtoneOutRef.current.src = '';
           setTimeout(() => { if (ringtoneOutRef.current) ringtoneOutRef.current.src = '/ringtone.wav'; }, 500);
+        }
+        
+        // Deduct coins since call is accepted
+        if (isCallerRef.current) {
+          const cost = isVideoCall ? callDurationRef.current : callDurationRef.current * 2;
+          fetch(`${API_URL}/api/users/deduct-coins`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ amount: cost })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.balance !== undefined) {
+              setCoins(data.balance);
+            }
+          })
+          .catch(err => console.error('Error deducting coins:', err));
+          
+          // Set automatic disconnect timer
+          if (callDurationLimitTimeoutRef.current) {
+            clearTimeout(callDurationLimitTimeoutRef.current);
+          }
+          callDurationLimitTimeoutRef.current = setTimeout(() => {
+            showToastMsg('Call duration limit reached. Disconnecting...', 'info');
+            endCall();
+          }, callDurationRef.current * 60 * 1000);
         }
       }
       // Pass both the answer and any subsequent ICE candidates directly to the peer
@@ -3224,35 +3259,71 @@ const handleStoryUpload = async () => {
 
       mediaRecorder.onstop = async () => {
         if (isRecordingCancelledRef.current) return;
-        const mimeType = mediaRecorderRef.current.mimeType || 'audio/webm';
-        const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        const file = new File([audioBlob], `audio.${extension}`, { type: mimeType });
-        setIsUploading(true);
-        const url = await uploadFile(file);
-        setIsUploading(false);
-        if (url) {
-          const tempId = `temp-${Date.now()}`;
-          socket.emit('send_message', { tempId, senderId: user.id, receiverId: activeChatUser._id, messageText: '', messageType: 'audio', fileUrl: url, replyTo: null });
-          setMessages(prev => [...prev, { 
-            _id: tempId,
-            sender: user.id, 
-            receiver: activeChatUser._id, 
-            message: '', 
-            messageType: 'audio',
-            fileUrl: url,
-            replyTo: null,
-            createdAt: new Date().toISOString() 
-          }]);
-          fetchRecentChats();
+        
+        // Calculate cost based on duration
+        const duration = recordingTimeRef.current;
+        const cost = Math.max(1, Math.ceil(duration / 30));
+        
+        try {
+          // Attempt deduction first
+          const dedRes = await fetch(`${API_URL}/api/users/deduct-coins`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ amount: cost })
+          });
+          const dedData = await dedRes.json();
+          
+          if (!dedRes.ok || dedData.error) {
+            showToastMsg(dedData.error || 'Insufficient coins to send voice note.', 'error');
+            return;
+          }
+          
+          // Deduction successful, update state
+          if (dedData.balance !== undefined) {
+            setCoins(dedData.balance);
+          }
+
+          const mimeType = mediaRecorderRef.current.mimeType || 'audio/webm';
+          const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+          const file = new File([audioBlob], `audio.${extension}`, { type: mimeType });
+          setIsUploading(true);
+          const url = await uploadFile(file);
+          setIsUploading(false);
+          if (url) {
+            const tempId = `temp-${Date.now()}`;
+            socket.emit('send_message', { tempId, senderId: user.id, receiverId: activeChatUser._id, messageText: '', messageType: 'audio', fileUrl: url, replyTo: null });
+            setMessages(prev => [...prev, { 
+              _id: tempId,
+              sender: user.id, 
+              receiver: activeChatUser._id, 
+              message: '', 
+              messageType: 'audio',
+              fileUrl: url,
+              replyTo: null,
+              createdAt: new Date().toISOString() 
+            }]);
+            fetchRecentChats();
+          }
+        } catch (err) {
+          console.error('Error sending voice note:', err);
+          showToastMsg('Failed to process voice note', 'error');
         }
       };
 
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
+      recordingTimeRef.current = 0;
       timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+        setRecordingTime(prev => {
+          const newTime = prev + 1;
+          recordingTimeRef.current = newTime;
+          return newTime;
+        });
       }, 1000);
     } catch (error) {
       console.error('Error starting recording', error);
@@ -3577,7 +3648,11 @@ const handleStoryUpload = async () => {
     }
   };
 
-  const callUser = async (targetUserId, targetUsername, targetAvatar, isVideo) => {
+  const callUser = (targetUserId, targetUsername, targetAvatar, isVideo) => {
+    setCallSetup({ show: true, targetUserId, targetUsername, targetAvatar, isVideo, minutes: 3 });
+  };
+
+  const executeCall = async (targetUserId, targetUsername, targetAvatar, isVideo) => {
     setIsVideoCall(isVideo);
     setCalling(true);
     setCallActive(true);
@@ -3586,6 +3661,7 @@ const handleStoryUpload = async () => {
     setCallerId(targetUserId);
     isCallerRef.current = true;
     isCallAcceptedRef.current = false;
+    callDurationRef.current = callSetup.minutes || 3;
     activeCallTargetRef.current = targetUserId;
 
     if (ringtoneOutRef.current) {
@@ -3744,6 +3820,10 @@ const handleStoryUpload = async () => {
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
       callTimeoutRef.current = null;
+    }
+    if (callDurationLimitTimeoutRef.current) {
+      clearTimeout(callDurationLimitTimeoutRef.current);
+      callDurationLimitTimeoutRef.current = null;
     }
     setCallActive(false);
     setCalling(false);
@@ -5580,149 +5660,173 @@ const handleStoryUpload = async () => {
       case 'profile':
         if (!profileStats) {
           return (
-            <div className="profile-container">
-              <div className="profile-card" style={{ padding: '30px 20px' }}>
-                <div className="profile-avatar-large shimmer" style={{ background: '#333', border: 'none' }}></div>
-                <div className="profile-info" style={{ marginTop: '20px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div className="shimmer" style={{ width: '150px', height: '24px', borderRadius: '4px', marginBottom: '10px' }}></div>
-                  <div className="shimmer" style={{ width: '80px', height: '16px', borderRadius: '4px', marginBottom: '25px' }}></div>
-                  
-                  <div className="profile-stats" style={{ width: '100%', gap: '15px' }}>
-                    <div className="stat-box shimmer" style={{ height: '70px', borderRadius: '12px', border: 'none' }}></div>
-                    <div className="stat-box shimmer" style={{ height: '70px', borderRadius: '12px', border: 'none' }}></div>
-                  </div>
-                  
-                  <div className="shimmer" style={{ width: '100%', height: '45px', borderRadius: '25px', marginTop: '25px' }}></div>
+            <div style={{ padding: '20px', minHeight: '100vh', background: 'var(--bg-color)', color: '#fff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <div className="shimmer" style={{ width: '80px', height: '80px', borderRadius: '50%' }}></div>
+                  <div className="shimmer" style={{ width: '120px', height: '24px', borderRadius: '4px' }}></div>
+                </div>
+                <div className="shimmer" style={{ width: '32px', height: '32px', borderRadius: '4px' }}></div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
+                <div className="shimmer" style={{ flex: 1, height: '60px', borderRadius: '12px' }}></div>
+                <div className="shimmer" style={{ flex: 1, height: '60px', borderRadius: '12px' }}></div>
+              </div>
 
-                  <div style={{ marginTop: '20px', width: '100%' }}>
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
-                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
-                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
-                    </div>
-                  </div>
+              <div className="shimmer" style={{ width: '100%', height: '40px', borderRadius: '8px', marginBottom: '30px' }}></div>
+              <div className="shimmer" style={{ width: '70%', height: '20px', borderRadius: '4px', marginBottom: '10px' }}></div>
+              <div className="shimmer" style={{ width: '100%', height: '60px', borderRadius: '4px', marginBottom: '30px' }}></div>
+
+              <div className="shimmer" style={{ width: '100%', height: '45px', borderRadius: '12px', marginBottom: '40px' }}></div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '15px' }}>Global Stories</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '12px' }}></div>
+                  <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '12px' }}></div>
+                  <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '12px' }}></div>
                 </div>
               </div>
             </div>
           );
         }
         return (
-          <div className="profile-container" style={{ position: 'relative' }}>
-            <div className="profile-card">
-              <div className="profile-header-actions" style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}>
-                <button className="icon-btn settings-btn" onClick={() => { setEditUsernameMode(false); setShowSettingsModal(true); }}>
-                  <Menu size={24} />
-                </button>
-              </div>
-              <div className="profile-avatar-large">
-                <div className="profile-avatar-inner">
-                  {(profileStats?.avatarUrl || user.avatarUrl) ? <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
-                </div>
-                {(profileStats?.country || user.country) && (
-                  <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
-                    {getFlagEmoji(profileStats?.country || user.country, profileStats?.countryCode || user.countryCode)}
-                  </div>
-                )}
-              </div>
-              
-              <div className="profile-info">
-                <span className="profile-username">@{user.username}</span>
-                
-                <div className="profile-stats">
-                  <span onClick={() => handleConnectionsClick('followers', user.id)} style={{ cursor: 'pointer' }}>
-                    <strong>{profileStats?.followers?.length || 0}</strong> followers
-                  </span>
-                  <span onClick={() => handleConnectionsClick('following', user.id)} style={{ cursor: 'pointer' }}>
-                    <strong>{profileStats?.following?.length || 0}</strong> following
-                  </span>
-                </div>
-
-                {(profileStats?.age || user.age) && (profileStats?.gender || user.gender) && (
-                  <div className="profile-demographics">
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
-                      <span>{profileStats?.age || user.age} Yrs</span>
-                    </div>
-                    <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textTransform: 'capitalize' }}>
-                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{(profileStats?.gender || user.gender) === 'male' ? '👨' : '👩'}</span>
-                      <span>{profileStats?.gender || user.gender}</span>
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ width: '100%', marginTop: '20px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '12px', textAlign: 'center' }}>{user.name}</h3>
-                  <div className="profile-id-strip" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.04)', padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '0.85rem', color: '#a8a8a8' }}>ID:</span>
-                      <span style={{ fontFamily: 'monospace', fontSize: '1rem', color: 'var(--brand-blue)', letterSpacing: '0.5px' }}>{user.uniqueId}</span>
-                    </div>
-                    <button 
-                      style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={() => {
-                        const url = `${window.location.origin}/u/${user.uniqueId}`;
-                        if (navigator.share) {
-                          navigator.share({ title: 'Twelo Profile', url });
-                        } else {
-                          navigator.clipboard.writeText(url);
-                          alert('Profile Link Copied!');
-                        }
-                      }}
-                    >
-                      <Share2 size={18} />
-                    </button>
-                  </div>
-                </div>
-
-                {profileStats?.globalStories && profileStats.globalStories.length > 0 && (
-                  <div style={{ marginTop: '20px', width: '100%' }}>
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                      {groupStoriesByDay(showAllGlobalStoriesMy ? profileStats.globalStories : profileStats.globalStories).slice(0, showAllGlobalStoriesMy ? 999 : 3).map((group, index, allGroups) => {
-                        const firstStory = group.stories[0];
-                        return (
-                        <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333', cursor: 'pointer', position: 'relative' }} onClick={() => { 
-                          const viewerGroups = allGroups.map(g => ({
-                            user: { _id: user.id || user._id, username: user.username, avatarUrl: profileStats?.avatarUrl || user.avatarUrl },
-                            stories: g.stories
-                          }));
-                          setProfileStoryGroups(viewerGroups); 
-                          setCurrentStoryUserIndex(index); 
-                          setCurrentStoryIndex(0); 
-                          setStoryViewerActive(true); 
-                        }}>
-                          {firstStory.mediaType === 'video' ? (
-                            <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
-                          ) : (
-                            <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
-                          )}
-                          <div style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '6px' }}>
-                            <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{group.date}</span>
-                            <span style={{ color: '#fff', fontSize: '0.75rem', flexShrink: 0 }}>{group.stories.length}</span>
-                          </div>
-                        </div>
-                      )})}
-                    </div>
-                    {groupStoriesByDay(profileStats.globalStories).length > 3 && (
-                      <button 
-                        onClick={() => {
-                          setUserGlobalStoriesUserId(user.id || user._id);
-                          setUserGlobalStoriesUserInfo({ username: user.username, avatarUrl: profileStats?.avatarUrl || user.avatarUrl });
-                          setUserGlobalStories([]);
-                          fetchUserGlobalStories(user.id || user._id, 1, false);
-                          setActiveTab('user-global-stories');
-                        }}
-                        style={{ marginTop: '10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '10px', fontSize: '0.9rem' }}
-                      >
-                        See More
-                      </button>
+        return (
+          <div style={{ minHeight: '100vh', background: 'var(--bg-color)', color: '#fff', padding: '20px', paddingBottom: '100px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
+            
+            {/* Top Header: Avatar + Username + Menu */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '50%', padding: '3px', background: 'linear-gradient(45deg, var(--brand-purple), var(--brand-blue))' }}>
+                  <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', background: '#222' }}>
+                    {(profileStats?.avatarUrl || user.avatarUrl) ? (
+                      <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 'bold' }}>
+                        {user.username.charAt(0).toUpperCase()}
+                      </div>
                     )}
                   </div>
-                )}
+                  {(profileStats?.country || user.country) && (
+                    <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', fontSize: '1.3rem', background: 'var(--bg-color)', borderRadius: '50%', padding: '2px', border: '2px solid var(--bg-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {getFlagEmoji(profileStats?.country || user.country, profileStats?.countryCode || user.countryCode)}
+                    </div>
+                  )}
+                </div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', letterSpacing: '-0.5px' }}>@{user.username}</div>
+              </div>
+              <button 
+                onClick={() => { setEditUsernameMode(false); setShowSettingsModal(true); }}
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', backdropFilter: 'blur(10px)' }}
+              >
+                <Menu size={22} />
+              </button>
+            </div>
+
+            {/* Stats Section */}
+            <div style={{ display: 'flex', gap: '15px' }}>
+              <div onClick={() => handleConnectionsClick('followers', user.id)} style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s' }}>
+                <span style={{ fontSize: '1.4rem', fontWeight: '700', color: '#fff' }}>{profileStats?.followers?.length || 0}</span>
+                <span style={{ fontSize: '0.85rem', color: '#aaa', marginTop: '4px' }}>Followers</span>
+              </div>
+              <div onClick={() => handleConnectionsClick('following', user.id)} style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s' }}>
+                <span style={{ fontSize: '1.4rem', fontWeight: '700', color: '#fff' }}>{profileStats?.following?.length || 0}</span>
+                <span style={{ fontSize: '0.85rem', color: '#aaa', marginTop: '4px' }}>Following</span>
               </div>
             </div>
+
+            {/* Age/Gender Pill */}
+            {(profileStats?.age || user.age) && (profileStats?.gender || user.gender) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '8px 16px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <span style={{ fontSize: '1.1rem' }}>🎂</span>
+                  <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>{profileStats?.age || user.age} Yrs</span>
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.3)', margin: '0 4px' }}></div>
+                  <span style={{ fontSize: '1.1rem' }}>{(profileStats?.gender || user.gender) === 'male' ? '👨' : '👩'}</span>
+                  <span style={{ fontSize: '0.9rem', fontWeight: '600', textTransform: 'capitalize' }}>{profileStats?.gender || user.gender}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Name & Bio */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <h2 style={{ fontSize: '1.3rem', fontWeight: '700', margin: 0 }}>{user.name}</h2>
+              <p style={{ fontSize: '0.95rem', color: '#ddd', lineHeight: '1.5', margin: 0, wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                {user.bio || "No bio yet."}
+              </p>
+            </div>
+
+            {/* Twelo ID & Share */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.04)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '0.9rem', color: '#a8a8a8' }}>ID:</span>
+                <span style={{ fontFamily: 'monospace', fontSize: '1.1rem', color: 'var(--brand-blue)', letterSpacing: '0.5px' }}>{user.uniqueId}</span>
+              </div>
+              <button 
+                style={{ background: 'var(--brand-blue)', border: 'none', color: '#fff', cursor: 'pointer', padding: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => {
+                  const url = `${window.location.origin}/u/${user.uniqueId}`;
+                  if (navigator.share) {
+                    navigator.share({ title: 'Twelo Profile', url });
+                  } else {
+                    navigator.clipboard.writeText(url);
+                    showToastMsg('Profile Link Copied!', 'success');
+                  }
+                }}
+              >
+                <Share2 size={18} />
+              </button>
+            </div>
+
+            {/* Global Stories */}
+            {profileStats?.globalStories && profileStats.globalStories.length > 0 && (
+              <div style={{ marginTop: '10px' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '15px' }}>Global Stories</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  {groupStoriesByDay(showAllGlobalStoriesMy ? profileStats.globalStories : profileStats.globalStories).slice(0, showAllGlobalStoriesMy ? 999 : 3).map((group, index, allGroups) => {
+                    const firstStory = group.stories[0];
+                    return (
+                    <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '12px', overflow: 'hidden', background: '#333', cursor: 'pointer', position: 'relative' }} onClick={() => { 
+                      const viewerGroups = allGroups.map(g => ({
+                        user: { _id: user.id || user._id, username: user.username, avatarUrl: profileStats?.avatarUrl || user.avatarUrl },
+                        stories: g.stories
+                      }));
+                      setProfileStoryGroups(viewerGroups); 
+                      setCurrentStoryUserIndex(index); 
+                      setCurrentStoryIndex(0); 
+                      setStoryViewerActive(true); 
+                    }}>
+                      {firstStory.mediaType === 'video' ? (
+                        <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                      ) : (
+                        <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
+                      )}
+                      <div style={{ position: 'absolute', bottom: '8px', left: '8px', right: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'rgba(0,0,0,0.6)', padding: '6px 8px', borderRadius: '8px', backdropFilter: 'blur(4px)' }}>
+                        <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: '600', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{group.date}</span>
+                        <span style={{ background: 'var(--brand-purple)', color: '#fff', fontSize: '0.7rem', fontWeight: '700', padding: '2px 6px', borderRadius: '10px' }}>{group.stories.length}</span>
+                      </div>
+                    </div>
+                  )})}
+                </div>
+                {groupStoriesByDay(profileStats.globalStories).length > 3 && (
+                  <button 
+                    onClick={() => {
+                      setUserGlobalStoriesUserId(user.id || user._id);
+                      setUserGlobalStoriesUserInfo({ username: user.username, avatarUrl: profileStats?.avatarUrl || user.avatarUrl });
+                      setUserGlobalStories([]);
+                      fetchUserGlobalStories(user.id || user._id, 1, false);
+                      setActiveTab('user-global-stories');
+                    }}
+                    style={{ marginTop: '15px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '12px', fontSize: '1rem', fontWeight: '600', transition: 'background 0.2s' }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                  >
+                    View All Stories
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         );
       case 'user-global-stories':
@@ -6267,9 +6371,12 @@ const handleStoryUpload = async () => {
                 <span style={{ color: '#fff', fontSize: '0.9rem' }}>{user?.email || 'N/A'}</span>
               </div>
               
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#888', fontSize: '0.9rem' }}>Twelo Coins</span>
-                <span style={{ color: '#ffd700', fontSize: '0.9rem', fontWeight: 'bold' }}>🟡 {user?.coins || 0}</span>
+              <div 
+                style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', padding: '5px 0', borderRadius: '8px', alignItems: 'center' }}
+                onClick={() => setShowEarnCoinsModal(true)}
+              >
+                <span style={{ color: '#888', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px' }}>Twelo Coins <span style={{fontSize: '0.7rem', background: '#333', padding: '2px 6px', borderRadius: '10px', color: '#fff'}}>Get More</span></span>
+                <span style={{ color: '#ffd700', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}><CoinSVG size={14}/> {user?.coins || 0}</span>
               </div>
               
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -6283,6 +6390,160 @@ const handleStoryUpload = async () => {
       )}
 
       
+      {showEarnCoinsModal && (
+        <div className="settings-drawer-overlay" onClick={() => setShowEarnCoinsModal(false)}>
+          <div className="settings-drawer" onClick={e => e.stopPropagation()} style={{ height: '70vh', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', padding: '20px' }}>
+            <div className="modal-header" style={{ marginBottom: '20px' }}>
+              <h2>Earn Coins</h2>
+              <button onClick={() => setShowEarnCoinsModal(false)} className="close-btn"><X size={24} /></button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #222, #111)', padding: '30px', borderRadius: '20px', width: '100%', textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', border: '1px solid #333' }}>
+                <CoinSVG size={60} style={{ marginBottom: '15px', filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.4))' }} />
+                <h1 style={{ margin: '0', fontSize: '2.5rem', color: '#ffd700', textShadow: '0 2px 10px rgba(255, 215, 0, 0.3)' }}>{coins}</h1>
+                <p style={{ margin: '5px 0 0 0', color: '#888', fontSize: '0.9rem' }}>Current Balance</p>
+              </div>
+
+              <button 
+                className="action-btn"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`${API_URL}/api/users/claim-daily`, {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      setCoins(data.balance);
+                      showToastMsg("Claimed 5 daily coins! 🎉", "coin");
+                    } else {
+                      showToastMsg(data.message, "error");
+                    }
+                  } catch(e) {
+                    showToastMsg("Error claiming reward", "error");
+                  }
+                }}
+                style={{ width: '100%', padding: '15px', background: 'var(--brand-blue)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+              >
+                <span style={{ fontSize: '1.2rem' }}>🎁</span> Daily Check-in (+5 Coins)
+              </button>
+
+              <button 
+                className="action-btn"
+                onClick={() => {
+                  window.open('https://pl30895199.effectivecpmnetwork.com/68a0807fea81fdc49bc8a49017e7e443/invoke.js', '_blank');
+                  showToastMsg("Watching ad... Wait 15s to receive coins.", "coin");
+                  setTimeout(async () => {
+                    try {
+                      const res = await fetch(`${API_URL}/api/users/earn/ad`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                        setCoins(data.balance);
+                        showToastMsg("Received 5 coins for watching ad! 💰", "coin");
+                      }
+                    } catch(e) {
+                      console.error("Ad reward error", e);
+                    }
+                  }, 15000);
+                }}
+                style={{ width: '100%', padding: '15px', background: 'linear-gradient(45deg, #ff416c, #ff4b2b)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+              >
+                <span style={{ fontSize: '1.2rem' }}>▶️</span> Watch Ad to Earn (+5 Coins)
+              </button>
+              
+              <p style={{ color: '#666', fontSize: '0.8rem', textAlign: 'center', marginTop: '10px' }}>
+                Coins are used for Video Calls, Audio Calls, and sending Voice Notes.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Call Setup Modal */}
+      {callSetup.show && (
+        <div className="settings-drawer-overlay" onClick={() => setCallSetup(prev => ({...prev, show: false}))}>
+          <div className="settings-drawer" onClick={e => e.stopPropagation()} style={{ height: 'auto', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', padding: '20px' }}>
+            <div className="modal-header" style={{ marginBottom: '20px' }}>
+              <h2>{callSetup.isVideo ? 'Video Call' : 'Audio Call'} Setup</h2>
+              <button onClick={() => setCallSetup(prev => ({...prev, show: false}))} className="close-btn"><X size={24} /></button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <p style={{ color: '#ccc', fontSize: '0.9rem', margin: 0 }}>
+                Calling <strong>{callSetup.targetUsername}</strong>
+              </p>
+              
+              <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '12px' }}>
+                <label style={{ display: 'block', color: '#888', marginBottom: '10px', fontSize: '0.9rem' }}>
+                  How many minutes do you want to talk?
+                </label>
+                <input 
+                  type="number" 
+                  min="3" 
+                  max="120"
+                  value={callSetup.minutes} 
+                  onChange={e => setCallSetup(prev => ({...prev, minutes: parseInt(e.target.value) || 0}))}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#111', color: '#fff', fontSize: '1.2rem' }}
+                />
+              </div>
+
+              <div style={{ background: '#1a1a1a', padding: '15px', borderRadius: '12px', borderLeft: '4px solid var(--brand-blue)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <span style={{ color: '#aaa' }}>Rate:</span>
+                  <span style={{ color: '#fff' }}>{callSetup.isVideo ? '1 Coin / Min' : '2 Coins / Min (1 per 30s)'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <span style={{ color: '#aaa' }}>Total Duration:</span>
+                  <span style={{ color: '#fff' }}>{callSetup.minutes} Mins</span>
+                </div>
+                <hr style={{ borderColor: '#333', margin: '10px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#fff', fontWeight: 'bold' }}>Total Cost:</span>
+                  <span style={{ color: '#ffd700', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                    🟡 {callSetup.isVideo ? callSetup.minutes : callSetup.minutes * 2} Coins
+                  </span>
+                </div>
+              </div>
+
+              {coins < (callSetup.isVideo ? callSetup.minutes : callSetup.minutes * 2) ? (
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ color: '#ef4444', marginBottom: '15px' }}>Insufficient coins in your wallet.</p>
+                  <button 
+                    className="action-btn"
+                    onClick={() => {
+                      setCallSetup(prev => ({...prev, show: false}));
+                      setShowEarnCoinsModal(true);
+                    }}
+                    style={{ width: '100%', padding: '15px', background: 'linear-gradient(45deg, #ff416c, #ff4b2b)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+                  >
+                    <span style={{ fontSize: '1.2rem' }}>▶️</span> Watch Ad to Earn Coins
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  className="action-btn"
+                  onClick={() => {
+                    const cost = callSetup.isVideo ? callSetup.minutes : callSetup.minutes * 2;
+                    if (cost < 3) {
+                      showToastMsg("Minimum duration must cost at least 3 coins.", "error");
+                      return;
+                    }
+                    executeCall(callSetup.targetUserId, callSetup.targetUsername, callSetup.targetAvatar, callSetup.isVideo);
+                    setCallSetup(prev => ({...prev, show: false}));
+                  }}
+                  style={{ width: '100%', padding: '15px', background: 'var(--brand-blue)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '1rem', fontWeight: 'bold' }}
+                >
+                  Confirm & Call
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {showSettingsModal && (
         <div className="settings-drawer-overlay" onClick={() => setShowSettingsModal(false)}>
           <div className="settings-drawer" onClick={e => e.stopPropagation()}>
