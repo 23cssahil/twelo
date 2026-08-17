@@ -1,6 +1,7 @@
 import StoryAudioTrimmer from './StoryAudioTrimmer';
 import StoryMusicModal from "./StoryMusicModal";
 import ShayariStudio from "./ShayariStudio";
+import AdBanner from "./AdBanner";
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import CommentsModal from './CommentsModal';
 import { useNavigate } from 'react-router-dom';
@@ -655,22 +656,6 @@ export default function Dashboard() {
   const socket = useContext(SocketContext);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (token) {
-      fetch(`${API_URL}/api/users/claim-daily`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.balance) {
-          setCoins(data.balance);
-          showToastMsg(data.message || "Claimed 3 daily coins!", 'coin');
-        }
-      })
-      .catch(err => console.error('Error claiming daily coins:', err));
-    }
-  }, [token, API_URL]);
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -2652,6 +2637,7 @@ export default function Dashboard() {
         setConnectionsPage({
           title: type.charAt(0).toUpperCase() + type.slice(1),
           users: data.users || [],
+          searchResults: null,
           returnTab: activeTab === 'publicProfile' ? 'publicProfile' : 'profile',
           userId,
           total: data.total || 0
@@ -2664,6 +2650,32 @@ export default function Dashboard() {
       setConnectionsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab !== 'connections') return;
+    
+    if (!connectionsSearch.trim()) {
+      setConnectionsPage(prev => ({ ...prev, searchResults: null }));
+      return;
+    }
+
+    const handler = setTimeout(async () => {
+      try {
+        const type = connectionsPage.title.toLowerCase();
+        const res = await fetch(`${API_URL}/api/users/connections/${connectionsPage.userId}?type=${type}&search=${encodeURIComponent(connectionsSearch.trim())}`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setConnectionsPage(prev => ({ ...prev, searchResults: data.users || [] }));
+        }
+      } catch (err) {
+        console.error('Failed to search connections', err);
+      }
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [connectionsSearch, activeTab, connectionsPage.title, connectionsPage.userId, token]);
 
   const loadMoreConnections = async () => {
     if (!connectionsHasMore || connectionsLoading || !connectionsCursor) return;
@@ -4075,67 +4087,43 @@ const handleStoryUpload = async () => {
     interval = seconds / 3600;
     if (interval > 1) return Math.floor(interval) + " hours ago";
     interval = seconds / 60;
-    if (interval > 1) return Math.floor(interval) + " minutes ago";
-    return Math.floor(seconds) + " seconds ago";
+    if (interval >= 1) return Math.floor(interval) + " mins ago";
+    return "just now";
   };
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'wallet':
+      case 'earn':
         return (
-          <div className="search-container" style={{ paddingBottom: '80px', maxWidth: '600px', margin: '0 auto' }}>
-            <div className="search-header" style={{ padding: '20px', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <button 
-                onClick={() => setActiveTab('home')}
-                style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-              >
-                <ChevronLeft size={24} />
-              </button>
-              <h2 style={{ margin: 0, fontSize: '1.2rem' }}>My Wallet</h2>
-            </div>
+          <div className="earn-container" style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', color: '#fff', paddingBottom: '100px' }}>
+            <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '2rem', background: 'linear-gradient(45deg, #FFD700, #FFA500)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              Earn Free Coins
+            </h2>
             
-            <div style={{ padding: '30px 20px', textAlign: 'center' }}>
-              <div style={{ background: 'linear-gradient(135deg, #222, #111)', padding: '40px 20px', borderRadius: '20px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', marginBottom: '30px' }}>
-                <CoinSVG size={64} style={{ marginBottom: '15px' }} />
-                <h1 style={{ margin: 0, fontSize: '3rem', color: '#ffd700', textShadow: '0 2px 10px rgba(255,215,0,0.3)' }}>{parseFloat(user?.coins || 0).toFixed(1)}</h1>
-                <p style={{ color: '#aaa', marginTop: '10px' }}>Total Twelo Coins</p>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <button 
-                  onClick={() => {
-                    const url = `${window.location.origin}/?ref=${user?.uniqueId}`;
-                    if (navigator.share) {
-                      navigator.share({ title: 'Join me on Twelo!', text: 'Join Twelo and earn rewards!', url });
-                    } else {
-                      navigator.clipboard.writeText(url);
-                      alert('Referral Link Copied! Share it with friends to earn 20 coins when they sign up.');
-                    }
-                  }}
-                  style={{ background: 'var(--brand-blue)', color: '#fff', border: 'none', padding: '15px', borderRadius: '12px', fontSize: '1.05rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
-                >
-                  <Share2 size={20} /> Share & Earn 20 Coins
+            <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginBottom: '20px' }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Invite Friends</h3>
+              <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Share your unique link. You earn 20 coins for every friend who signs up!</p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input type="text" readOnly value={`${window.location.origin}/login?ref=${user?.id}`} style={{ flex: 1, padding: '10px', background: 'rgba(0,0,0,0.5)', border: '1px solid #333', borderRadius: '8px', color: '#fff' }} />
+                <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/login?ref=${user?.id}`); alert('Link Copied!'); }} style={{ padding: '10px 20px', background: '#333', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>
+                  Copy
                 </button>
-                
-                <button 
-                  onClick={handleWatchAd}
-                  style={{ background: '#333', color: '#fff', border: '1px solid #444', padding: '15px', borderRadius: '12px', fontSize: '1.05rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
-                >
-                  <Play size={20} /> Watch Ad & Earn 5 Coins
-                </button>
-              </div>
-
-              <div style={{ marginTop: '30px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.3)', padding: '15px', borderRadius: '12px', textAlign: 'left' }}>
-                <h4 style={{ color: 'gold', margin: '0 0 5px 0', display: 'flex', alignItems: 'center', gap: '8px' }}><Gift size={18} /> Daily Check-in Bonus</h4>
-                <p style={{ color: '#ccc', margin: 0, fontSize: '0.9rem', lineHeight: '1.4' }}>
-                  You earn 3 coins every 24 hours just by signing in! They are automatically added to your wallet.
-                </p>
               </div>
             </div>
+
+            {Capacitor.isNativePlatform() && (
+              <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginBottom: '20px' }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Watch Video</h3>
+                <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Watch a short ad to earn free coins immediately!</p>
+                <button onClick={handleWatchAd} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', border: 'none', borderRadius: '8px', color: '#000', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+                  Watch Ad & Earn
+                </button>
+              </div>
+            )}
+
           </div>
         );
-
-      case 'everyone-stories': {
+        case 'everyone-stories': {
           return (
             <div className="everyone-stories-container" style={{ padding: '15px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
               <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '1.8rem', color: '#fff' }}>Global Stories</h2>
@@ -4674,11 +4662,9 @@ const handleStoryUpload = async () => {
 
       case 'connections': {
         const normalizedSearch = connectionsSearch.trim().toLowerCase();
-        const visibleConnections = connectionsPage.users.filter(connection => {
-          const username = (connection.username || '').toLowerCase();
-          const name = (connection.name || '').toLowerCase();
-          return !normalizedSearch || username.includes(normalizedSearch) || name.includes(normalizedSearch);
-        });
+        const visibleConnections = normalizedSearch && connectionsPage.searchResults !== null
+          ? connectionsPage.searchResults
+          : connectionsPage.users;
         return (
           <div style={{ height: '100%', width: '100%', boxSizing: 'border-box', background: '#0b0b0d', color: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
             {/* Sticky Header + Search */}
@@ -4701,7 +4687,6 @@ const handleStoryUpload = async () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '18px' }}>
                   <SearchIcon size={20} color="#a8a8a8" />
                   <input
-                    autoFocus
                     type="search"
                     value={connectionsSearch}
                     onChange={(event) => setConnectionsSearch(event.target.value)}
@@ -5004,6 +4989,7 @@ const handleStoryUpload = async () => {
               </div>
 
               <div className="chat-users-scroll" onScroll={handleChatsScroll}>
+                <AdBanner />
                 {recentChats.map((chatUser) => {
                   const isOnline = onlineUsers.includes(chatUser._id);
                   const unreadCount = unreadMessages[chatUser._id] || 0;
@@ -5951,12 +5937,9 @@ const handleStoryUpload = async () => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: '20px' }}>
             <h1 className="sidebar-logo" onClick={() => setActiveTab('home')}>Twelo</h1>
-            <div 
-              onClick={() => setActiveTab('wallet')}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.5)', color: 'gold', padding: '4px 10px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}
-            >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.5)', color: 'gold', padding: '4px 10px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem' }}>
               <CoinSVG size={16} />
-              <span>{parseFloat(coins || 0).toFixed(1)}</span>
+              <span>{coins}</span>
             </div>
           </div>
           <nav className="nav-links">
@@ -5995,12 +5978,9 @@ const handleStoryUpload = async () => {
       <header className="mobile-header">
         <h1 className="mobile-logo">Twelo</h1>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div 
-            onClick={() => setActiveTab('wallet')}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.5)', color: 'gold', padding: '4px 8px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.5)', color: 'gold', padding: '4px 8px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem' }}>
             <CoinSVG size={16} />
-            <span>{parseFloat(coins || 0).toFixed(1)}</span>
+            <span>{coins}</span>
           </div>
           <button onClick={() => setActiveTab('notifications')} style={{ position: 'relative' }}>
             <Bell size={20} />

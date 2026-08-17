@@ -405,6 +405,14 @@ app.post('/api/auth/google', async (req, res) => {
       return res.status(403).json({ message: 'Your account has been blocked by the admin.' });
     }
 
+    const now = Date.now();
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    if (!user.lastDailyReward || now - new Date(user.lastDailyReward).getTime() > ONE_DAY) {
+      user.coins = (user.coins || 0) + 3;
+      user.lastDailyReward = new Date();
+      await user.save();
+    }
+
     const jwtToken = jwt.sign(
       { userId: user._id, username: user.username, uniqueId: user.uniqueId },
       process.env.JWT_SECRET || 'insta_jwt_secret_key_12345',
@@ -484,13 +492,15 @@ app.post('/api/auth/google', async (req, res) => {
       country: finalCountry, 
       countryCode,
       gender: gender.toLowerCase(), 
-      avatarUrl 
+      avatarUrl,
+      coins: 3,
+      lastDailyReward: new Date()
     });
     await newUser.save();
 
     if (referredBy) {
       try {
-        const referrer = await User.findById(referredBy);
+        const referrer = await User.findOne({ uniqueId: referredBy });
         if (referrer) {
           referrer.coins = (referrer.coins || 0) + 20; // Reward 20 coins for referral
           referrer.notifications.push({
@@ -1162,6 +1172,56 @@ app.post('/api/users/earn/app', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error rewarding coins' });
   }
 });
+
+
+// Daily Reward Endpoint
+app.post('/api/users/claim-daily', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const now = new Date();
+    if (user.lastDailyReward) {
+      const hoursSinceLastClaim = Math.abs(now - user.lastDailyReward) / 36e5;
+      if (hoursSinceLastClaim < 24) {
+        return res.status(400).json({ message: "You can only claim daily rewards once every 24 hours.", nextClaimInHours: 24 - hoursSinceLastClaim });
+      }
+    }
+
+    user.coins += 3;
+    user.lastDailyReward = now;
+    await user.save();
+
+    res.json({ message: "Claimed 3 daily coins!", balance: user.coins });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error claiming daily reward' });
+  }
+});
+
+// Deduct Coins Endpoint
+app.post('/api/users/deduct-coins', authenticateToken, async (req, res) => {
+  try {
+    const { amount, reason } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ message: "Invalid amount" });
+
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.coins < amount) {
+      return res.status(400).json({ message: "Insufficient coins", balance: user.coins });
+    }
+
+    user.coins -= amount;
+    await user.save();
+
+    res.json({ message: `Successfully deducted ${amount} coins for ${reason || 'service'}`, balance: user.coins });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error deducting coins' });
+  }
+});
+
 
 // Unfollow User
 app.post('/api/users/unfollow/:id', authenticateToken, async (req, res) => {

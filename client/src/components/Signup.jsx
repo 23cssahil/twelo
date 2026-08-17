@@ -23,10 +23,13 @@ export default function Signup() {
     setSuccess('');
 
     try {
+      const queryParams = new URLSearchParams(window.location.search);
+      const ref = queryParams.get('ref');
+
       const res = await fetch(`${API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, ref }),
       });
 
       const data = await res.json();
