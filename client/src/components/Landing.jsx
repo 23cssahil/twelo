@@ -18,7 +18,14 @@ export default function Landing() {
     }
     metaDesc.content = 'Twelo is a secure anonymous chatting platform where you can meet new people from around the world. Chat freely, make friends, earn rewards, and enjoy safe online conversations.';
 
-
+    // Load AdSense script dynamically
+    if (!document.querySelector('script[src*="adsbygoogle"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7775487062260313';
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+      document.head.appendChild(script);
+    }
   }, []);
 
   return (
