@@ -1892,12 +1892,13 @@ export default function Dashboard() {
       }
     });
 
-    socket.on('incoming_call', ({ from, fromUsername, fromAvatar, signal, isVideo }) => {
+    socket.on('incoming_call', ({ from, fromSocketId, fromUsername, fromAvatar, signal, isVideo }) => {
       console.log('[incoming_call] Received event from:', from, 'signal type:', signal.type);
       if (signal.type === 'offer') {
         console.log('[incoming_call] Handling offer');
         setReceivingCall(true);
         setCallerId(from);
+        setCallerSocketId(fromSocketId);
         setCallerName(fromUsername);
         setCallerAvatar(fromAvatar);
         setCallerSignal(signal);
@@ -3614,7 +3615,7 @@ const handleStoryUpload = async () => {
 
       peer.on('signal', (data) => {
         console.log(`[acceptCall] Emitting answer_call to ${callerId}, signal type:`, data.type || 'ICE candidate');
-        socket.emit('answer_call', { to: callerId, signal: data });
+        socket.emit('answer_call', { to: callerId, toSocketId: callerSocketId, signal: data });
       });
 
       peer.on('stream', (remoteStream) => {
@@ -3645,13 +3646,13 @@ const handleStoryUpload = async () => {
   };
 
   const declineCall = () => {
-    socket.emit('end_call', { to: callerId });
+    socket.emit('end_call', { to: callerId, toSocketId: callerSocketId });
     setReceivingCall(false);
     handleEndCallQuietly();
   };
 
   const endCall = () => {
-    socket.emit('end_call', { to: callerId });
+    socket.emit('end_call', { to: callerId, toSocketId: callerSocketId });
     finalizeCallLog();
     handleEndCallQuietly();
   };
@@ -3670,6 +3671,7 @@ const handleStoryUpload = async () => {
     setIsVideoOff(false);
     setRemoteStreamState(null);
     setCallerSignal(null);
+    setCallerSocketId(null);
     callerCandidatesRef.current = [];
     if (ringtoneInRef.current) { 
       ringtoneInRef.current.pause(); 
