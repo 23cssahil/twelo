@@ -3874,6 +3874,48 @@ const handleStoryUpload = async () => {
     }
   }, [activeTab]);
 
+  // Screenshot Detection
+  useEffect(() => {
+    const handleKeyUp = (e) => {
+      const isPrintScreen = e.key === 'PrintScreen';
+      const isMacScreenshot = e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5' || e.key === 'S' || e.key === 's');
+      
+      if (isPrintScreen || isMacScreenshot) {
+        if (activeTab === 'messages' && activeChatUser && socket) {
+          const tempId = `temp-${Date.now()}`;
+          const msgData = { 
+            tempId, 
+            senderId: user.id, 
+            receiverId: activeChatUser._id, 
+            messageText: '📸 Took a screenshot', 
+            messageType: 'screenshot', 
+            fileUrl: null, 
+            replyTo: null 
+          };
+          socket.emit('send_message', msgData);
+          
+          setMessages(prev => [...prev, { 
+            _id: tempId,
+            sender: user.id, 
+            receiver: activeChatUser._id, 
+            message: '📸 Took a screenshot', 
+            replyTo: null,
+            messageType: 'screenshot',
+            createdAt: new Date().toISOString()
+          }]);
+        }
+      }
+    };
+
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('keydown', handleKeyUp);
+    
+    return () => {
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('keydown', handleKeyUp);
+    };
+  }, [activeTab, activeChatUser, socket, user]);
+
   useEffect(() => {
     if (storyCameraOpen && storyCameraStream && storyLiveCameraRef.current) {
       storyLiveCameraRef.current.srcObject = storyCameraStream;
@@ -5188,6 +5230,15 @@ const handleStoryUpload = async () => {
                                   </span>
                                 </div>
                               )}
+                              
+                              {msg.messageType === 'screenshot' ? (
+                                <div 
+                                  onClick={() => alert(`Screenshot Details\nUser: ${msg.sender === user.id ? user.username : activeChatUser.username}\nDate: ${new Date(msg.createdAt).toLocaleDateString()}\nTime: ${new Date(msg.createdAt).toLocaleTimeString()}`)}
+                                  style={{ width: '100%', textAlign: 'center', margin: '15px 0', fontSize: '0.85rem', color: '#888', fontStyle: 'italic', cursor: 'pointer' }}
+                                >
+                                  {msg.sender === user.id ? `${user.username} took a screenshot!` : `${activeChatUser.username} took a screenshot!`}
+                                </div>
+                              ) : (
                               <div className={`msg-wrapper ${msg.sender === user.id ? 'sent' : 'received'}`} 
                                 onTouchStart={(e) => handleTouchStart(e, msg)}
                                 onTouchMove={(e) => handleTouchMove(e, msg, msg.sender === user.id)}
@@ -5337,6 +5388,7 @@ const handleStoryUpload = async () => {
                           </div>
                         )}
                       </div>
+                      )}
                       </React.Fragment>
                     );
                     })}
