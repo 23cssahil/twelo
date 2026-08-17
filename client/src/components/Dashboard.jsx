@@ -2636,7 +2636,6 @@ export default function Dashboard() {
         setConnectionsPage({
           title: type.charAt(0).toUpperCase() + type.slice(1),
           users: data.users || [],
-          searchResults: null,
           returnTab: activeTab === 'publicProfile' ? 'publicProfile' : 'profile',
           userId,
           total: data.total || 0
@@ -2649,32 +2648,6 @@ export default function Dashboard() {
       setConnectionsLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (activeTab !== 'connections') return;
-    
-    if (!connectionsSearch.trim()) {
-      setConnectionsPage(prev => ({ ...prev, searchResults: null }));
-      return;
-    }
-
-    const handler = setTimeout(async () => {
-      try {
-        const type = connectionsPage.title.toLowerCase();
-        const res = await fetch(`${API_URL}/api/users/connections/${connectionsPage.userId}?type=${type}&search=${encodeURIComponent(connectionsSearch.trim())}`, { 
-          headers: { Authorization: `Bearer ${token}` } 
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setConnectionsPage(prev => ({ ...prev, searchResults: data.users || [] }));
-        }
-      } catch (err) {
-        console.error('Failed to search connections', err);
-      }
-    }, 400);
-
-    return () => clearTimeout(handler);
-  }, [connectionsSearch, activeTab, connectionsPage.title, connectionsPage.userId, token]);
 
   const loadMoreConnections = async () => {
     if (!connectionsHasMore || connectionsLoading || !connectionsCursor) return;
@@ -4661,9 +4634,11 @@ const handleStoryUpload = async () => {
 
       case 'connections': {
         const normalizedSearch = connectionsSearch.trim().toLowerCase();
-        const visibleConnections = normalizedSearch && connectionsPage.searchResults !== null
-          ? connectionsPage.searchResults
-          : connectionsPage.users;
+        const visibleConnections = connectionsPage.users.filter(connection => {
+          const username = (connection.username || '').toLowerCase();
+          const name = (connection.name || '').toLowerCase();
+          return !normalizedSearch || username.includes(normalizedSearch) || name.includes(normalizedSearch);
+        });
         return (
           <div style={{ height: '100%', width: '100%', boxSizing: 'border-box', background: '#0b0b0d', color: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
             {/* Sticky Header + Search */}
@@ -4686,6 +4661,7 @@ const handleStoryUpload = async () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '18px' }}>
                   <SearchIcon size={20} color="#a8a8a8" />
                   <input
+                    autoFocus
                     type="search"
                     value={connectionsSearch}
                     onChange={(event) => setConnectionsSearch(event.target.value)}
