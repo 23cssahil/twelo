@@ -1065,6 +1065,7 @@ export default function Dashboard() {
   const [callerId, setCallerId] = useState('');
   const [callerName, setCallerName] = useState('');
   const [callerAvatar, setCallerAvatar] = useState(null);
+  const [callerSocketId, setCallerSocketId] = useState(null);
   const [callerSignal, setCallerSignal] = useState(null);
   const isCallAcceptedRef = useRef(false);
 
