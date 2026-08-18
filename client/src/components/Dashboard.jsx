@@ -2240,6 +2240,7 @@ export default function Dashboard() {
     showCloseFriendsModal, 
     showStoryViewsModal, 
     showShareModal,
+    showPrivacyModal,
     showAccountModal,
     storyCameraOpen, 
     showLogoutConfirm
@@ -2265,6 +2266,8 @@ export default function Dashboard() {
         setShowStoryViewsModal(false);
       } else if (showShareModal) {
         setShowShareModal(false);
+      } else if (showPrivacyModal) {
+        setShowPrivacyModal(false);
       } else if (showAccountModal) {
         setShowAccountModal(false);
       } else if (showCloseFriendsModal) {
@@ -2309,7 +2312,7 @@ export default function Dashboard() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showMyProfileModal, showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen, showShareModal, showAccountModal]);
+  }, [showMyProfileModal, showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen, showShareModal, showPrivacyModal, showAccountModal]);
 
   // Lock document scroll when chat is active to prevent keyboard from pushing header out of view
   useEffect(() => {
@@ -6252,6 +6255,7 @@ const handleStoryUpload = async () => {
                 setShowMyProfileModal(true);
               }}>My Profile</button>
               <button className="settings-item-btn" onClick={() => setShowAccountModal(true)}>Account</button>
+              <button className="settings-item-btn" onClick={() => setShowPrivacyModal(true)}>Privacy</button>
               <button className="settings-item-btn" onClick={() => setShowNotificationsModal(true)}>Notifications</button>
               <button className="settings-item-btn">More Info</button>
               <button className="settings-item-btn">Invite Friend</button>
@@ -6315,6 +6319,62 @@ const handleStoryUpload = async () => {
         </div>
       )}
 
+      {showPrivacyModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10002, background: '#111', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #333', background: '#000' }}>
+            <button onClick={() => setShowPrivacyModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowLeft size={24} /></button>
+            <h2 style={{ marginLeft: '20px', fontSize: '1.2rem', margin: '0 0 0 20px' }}>Privacy Settings</h2>
+          </div>
+          <div style={{ padding: '20px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(255,255,255,0.06)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1.05rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <Lock size={20} /> Private Account
+                </span>
+                <p style={{ color: '#888', fontSize: '0.85rem', margin: 0, lineHeight: '1.4' }}>
+                  When your account is private, only your followers can see your global stories and connections.
+                </p>
+              </div>
+              <div 
+                onClick={async () => {
+                  if (isUpdatingPrivacy) return;
+                  setIsUpdatingPrivacy(true);
+                  try {
+                    const newPrivacyState = !user?.isPrivate;
+                    const res = await fetch(`${API_URL}/api/users/privacy`, {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                      },
+                      body: JSON.stringify({ isPrivate: newPrivacyState })
+                    });
+                    const updatedUser = await res.json();
+                    if (res.ok) {
+                      login(updatedUser, token); // Update local context
+                    }
+                  } catch (err) {
+                    console.error("Error updating privacy:", err);
+                  } finally {
+                    setIsUpdatingPrivacy(false);
+                  }
+                }}
+                style={{ 
+                  width: '50px', height: '28px', borderRadius: '14px', 
+                  background: user?.isPrivate ? '#2bd856' : 'rgba(255,255,255,0.15)', 
+                  position: 'relative', transition: 'background 0.2s ease', flexShrink: 0, cursor: 'pointer',
+                  opacity: isUpdatingPrivacy ? 0.5 : 1
+                }}
+              >
+                <div style={{ 
+                  width: '24px', height: '24px', borderRadius: '50%', background: '#fff', 
+                  position: 'absolute', top: '2px', left: user?.isPrivate ? '24px' : '2px', 
+                  transition: 'left 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' 
+                }} />
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {showMyProfileModal && (
@@ -6453,55 +6513,6 @@ const handleStoryUpload = async () => {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#888', fontSize: '0.9rem' }}>Twelo ID</span>
                 <span style={{ color: '#fff', fontSize: '0.9rem', fontFamily: 'monospace' }}>{user?.uniqueId || 'N/A'}</span>
-              </div>
-            </div>
-
-            {/* Privacy Toggle */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(255,255,255,0.06)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1.05rem', fontWeight: '600', marginBottom: '4px' }}>
-                  <Lock size={20} /> Private Account
-                </span>
-                <p style={{ color: '#888', fontSize: '0.85rem', margin: 0, lineHeight: '1.4' }}>
-                  When your account is private, only your followers can see your global stories and connections.
-                </p>
-              </div>
-              <div 
-                onClick={async () => {
-                  if (isUpdatingPrivacy) return;
-                  setIsUpdatingPrivacy(true);
-                  try {
-                    const newPrivacyState = !user?.isPrivate;
-                    const res = await fetch(`${API_URL}/api/users/privacy`, {
-                      method: 'PUT',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`
-                      },
-                      body: JSON.stringify({ isPrivate: newPrivacyState })
-                    });
-                    const updatedUser = await res.json();
-                    if (res.ok) {
-                      login(updatedUser, token); // Update local context
-                    }
-                  } catch (err) {
-                    console.error("Error updating privacy:", err);
-                  } finally {
-                    setIsUpdatingPrivacy(false);
-                  }
-                }}
-                style={{ 
-                  width: '50px', height: '28px', borderRadius: '14px', 
-                  background: user?.isPrivate ? '#2bd856' : 'rgba(255,255,255,0.15)', 
-                  position: 'relative', transition: 'background 0.2s ease', flexShrink: 0, cursor: 'pointer',
-                  opacity: isUpdatingPrivacy ? 0.5 : 1
-                }}
-              >
-                <div style={{ 
-                  width: '24px', height: '24px', borderRadius: '50%', background: '#fff', 
-                  position: 'absolute', top: '2px', left: user?.isPrivate ? '24px' : '2px', 
-                  transition: 'left 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' 
-                }} />
               </div>
             </div>
 
