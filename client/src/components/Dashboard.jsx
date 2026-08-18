@@ -972,6 +972,7 @@ export default function Dashboard() {
   const [shareHasMore, setShareHasMore] = useState(true);
   const [isFetchingShare, setIsFetchingShare] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [shareSearchQuery, setShareSearchQuery] = useState('');
   
   const fetchFollowers = async (cursor) => {
     if (isFetchingShare) return;
@@ -994,6 +995,7 @@ export default function Dashboard() {
       setShareFollowers([]);
       setShareCursor(null);
       setShareHasMore(true);
+      setShareSearchQuery('');
       fetchFollowers(null);
     }
   }, [showShareModal]);
@@ -6484,13 +6486,28 @@ const handleStoryUpload = async () => {
         <div className="settings-drawer-overlay" onClick={() => setShowShareModal(false)} style={{ zIndex: 12000 }}>
           <div className="settings-drawer" onClick={e => e.stopPropagation()} style={{ height: '100%', maxHeight: '100%', width: '100%', maxWidth: '100%', top: '0', bottom: '0', left: '0', right: '0', borderRadius: '0', position: 'fixed', transform: 'none', transition: 'none', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header" style={{ borderBottom: '1px solid #1a1a1a', padding: '16px 20px', background: 'rgba(20,20,20,0.95)', backdropFilter: 'blur(10px)', zIndex: 10 }}>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>Share Story</h2>
-              <button onClick={() => setShowShareModal(false)} className="close-btn"><X size={24} /></button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', margin: 0 }}>Share Story</h2>
+                <button onClick={() => setShowShareModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
+              </div>
+              <div className="search-box-wrapper" style={{ margin: 0, position: 'relative' }}>
+                <SearchIcon className="search-icon-inside" size={20} color="#a8a8a8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  placeholder="Search followers..."
+                  className="search-input"
+                  style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '20px', border: 'none', background: 'rgba(255,255,255,0.1)', color: '#fff', boxSizing: 'border-box' }}
+                  value={shareSearchQuery}
+                  onChange={(e) => setShareSearchQuery(e.target.value)}
+                />
+              </div>
             </div>
             
             <div style={{ flex: 1, overflowY: 'auto', padding: '15px' }} onScroll={handleShareScroll}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                {shareFollowers.map(u => (
+                {shareFollowers
+                  .filter(u => !shareSearchQuery || u.username?.toLowerCase().includes(shareSearchQuery.toLowerCase()) || u.uniqueId?.toLowerCase().includes(shareSearchQuery.toLowerCase()))
+                  .map(u => (
                   <div 
                     className="user-card" 
                     key={u._id} 
