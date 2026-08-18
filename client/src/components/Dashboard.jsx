@@ -4637,8 +4637,8 @@ const handleStoryUpload = async () => {
 
       case 'search':
         return (
-          <div className="search-container" style={{ padding: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-color)', padding: '16px 16px 5px 16px', borderBottom: '1px solid #1a1a1a' }}>
+          <div className="search-container" style={{ padding: 0, display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-color, #000)' }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-color, #000)', padding: '16px 16px 5px 16px', borderBottom: '1px solid #1a1a1a' }}>
               <h2 className="search-header-text" style={{ marginTop: 0 }}>Search</h2>
               <div className="search-box-wrapper" style={{ marginBottom: '10px' }}>
                 <SearchIcon className="search-icon-inside" size={20} />
