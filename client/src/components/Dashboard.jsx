@@ -128,7 +128,7 @@ const StorySlide = ({
   storyPaused, setStoryPaused, storyPausedRef,
   storyVideoRef, storyAudioRef,
   user, activeTab, fetchStories, API_URL, token,
-  handleStoryLike, setShowShareModal, setShowStoryViewsModal, viewerStoriesLength,
+  handleStoryLike, setShowShareModal, showShareModal, setShowStoryViewsModal, viewerStoriesLength,
   viewPublicProfile, setActiveTab, setShowCommentsModal,
   handleNextUser, handlePrevUser
 }) => {
@@ -333,6 +333,14 @@ const StorySlide = ({
             autoPlay={isActiveSlide} 
             playsInline
             onEnded={() => {
+              if (showShareModal) {
+                if (isActiveSlide && storyVideoRef?.current) {
+                  storyVideoRef.current.currentTime = 0;
+                  storyVideoRef.current.play().catch(()=>{});
+                }
+                setStoryProgress(0);
+                return;
+              }
               if (currentStoryIndex < group.stories.length - 1) {
                 setCurrentStoryIndex(prev => prev + 1);
                 setStoryProgress(0);
@@ -1811,6 +1819,9 @@ export default function Dashboard() {
           if (storyPausedRef.current || storyPaused) return; // Don't advance while held
           setStoryProgress(prev => {
             if (prev >= 100) {
+              if (showShareModal) {
+                return 0; // Loop the current story in background
+              }
               clearInterval(interval);
               // Auto advance
               if (currentStoryIndex < viewerStories[currentStoryUserIndex].stories.length - 1) {
@@ -1831,7 +1842,7 @@ export default function Dashboard() {
       }
     }
     return () => clearInterval(interval);
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, showStoryViewsModal, storyPaused]);
+  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, showStoryViewsModal, storyPaused, showShareModal]);
 
   useEffect(() => {
     if (storyVideoRef.current) {
@@ -7870,6 +7881,7 @@ const handleStoryUpload = async () => {
                           token={token}
                           handleStoryLike={handleStoryLike}
                           setShowShareModal={setShowShareModal}
+                          showShareModal={showShareModal}
                           setShowStoryViewsModal={setShowStoryViewsModal}
                           viewerStoriesLength={viewerStories.length}
                           viewPublicProfile={viewPublicProfile}
@@ -7903,6 +7915,7 @@ const handleStoryUpload = async () => {
                    token={token}
                    handleStoryLike={handleStoryLike}
                    setShowShareModal={setShowShareModal}
+                   showShareModal={showShareModal}
                    setShowStoryViewsModal={setShowStoryViewsModal}
                    viewerStoriesLength={viewerStories.length}
                    viewPublicProfile={viewPublicProfile}
