@@ -837,6 +837,7 @@ export default function Dashboard() {
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [profileBio, setProfileBio] = useState('');
   const [profileGender, setProfileGender] = useState('male');
@@ -2240,6 +2241,7 @@ export default function Dashboard() {
     showStoryViewsModal, 
     showShareModal,
     showPrivacyModal,
+    showAccountModal,
     storyCameraOpen, 
     showLogoutConfirm
   ].filter(Boolean).length;
@@ -2266,6 +2268,8 @@ export default function Dashboard() {
         setShowShareModal(false);
       } else if (showPrivacyModal) {
         setShowPrivacyModal(false);
+      } else if (showAccountModal) {
+        setShowAccountModal(false);
       } else if (showCloseFriendsModal) {
         setShowCloseFriendsModal(false);
       } else if (storyCameraOpen) {
@@ -6250,7 +6254,7 @@ const handleStoryUpload = async () => {
                 setProfileCountryCode(user?.countryCode || 'UN');
                 setShowMyProfileModal(true);
               }}>My Profile</button>
-              <button className="settings-item-btn">Account</button>
+              <button className="settings-item-btn" onClick={() => setShowAccountModal(true)}>Account</button>
               <button className="settings-item-btn" onClick={() => setShowPrivacyModal(true)}>Privacy</button>
               <button className="settings-item-btn" onClick={() => setShowNotificationsModal(true)}>Notifications</button>
               <button className="settings-item-btn">More Info</button>
@@ -6473,8 +6477,27 @@ const handleStoryUpload = async () => {
               </div>
             </div>
 
+            <button 
+              onClick={() => { setShowMyProfileModal(false); setShowAccountModal(true); }}
+              style={{ marginTop: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid #333', borderRadius: '8px', color: '#fff', padding: '12px', width: '100%', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between' }}
+            >
+              Account Info <span>&gt;</span>
+            </button>
+
+          </div>
+        </div>
+      )}
+
+      {showAccountModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10002, background: '#111', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #333', background: '#000' }}>
+            <button onClick={() => setShowAccountModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowLeft size={24} /></button>
+            <h2 style={{ marginLeft: '20px', fontSize: '1.2rem', margin: '0 0 0 20px' }}>Account Settings</h2>
+          </div>
+          <div style={{ padding: '20px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
             {/* Read Only Account Details */}
-            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '15px', padding: '15px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid #222' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '15px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid #222' }}>
               <h3 style={{ fontSize: '1rem', color: '#ccc', margin: 0, borderBottom: '1px solid #333', paddingBottom: '10px' }}>Account Info</h3>
               
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -6493,10 +6516,33 @@ const handleStoryUpload = async () => {
               </div>
             </div>
 
+            {/* Account Deletion */}
+            {showDeleteConfirm ? (
+              <div className="settings-edit-username" style={{ marginTop: '24px', borderTop: '1px solid rgba(255,0,0,0.3)', paddingTop: '16px' }}>
+                <p style={{ color: 'var(--brand-red)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>Warning: This action is permanent.</p>
+                <p style={{ color: '#a8a8a8', marginBottom: '12px', fontSize: '0.8rem' }}>Please type your username to confirm.</p>
+                <input 
+                  type="text" 
+                  value={deleteUsernameInput} 
+                  onChange={(e) => setDeleteUsernameInput(e.target.value)} 
+                  placeholder={`Type '${user.username}'`}
+                  className="premium-input"
+                />
+                {deleteError && <p className="error-text" style={{fontSize: '0.85rem', marginTop: '6px', color: 'var(--brand-red)'}}>{deleteError}</p>}
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                  <button className="premium-btn primary" style={{ background: 'var(--brand-red)' }} onClick={handleDeleteAccount}>Confirm Delete</button>
+                  <button className="premium-btn secondary" onClick={() => { setShowDeleteConfirm(false); setDeleteError(''); setDeleteUsernameInput(''); }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <button className="settings-item-btn logout-danger" onClick={() => setShowDeleteConfirm(true)} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '24px' }}>
+                <Trash2 size={20} /> Delete My Account
+              </button>
+            )}
+
           </div>
         </div>
       )}
-
       
       {showSettingsModal && (
         <div className="settings-drawer-overlay" onClick={() => setShowSettingsModal(false)}>
@@ -6537,29 +6583,6 @@ const handleStoryUpload = async () => {
               <button className="settings-item-btn logout-danger" onClick={() => { setShowSettingsModal(false); setShowLogoutConfirm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <LogOut size={20} /> Log Out
               </button>
-
-              {showDeleteConfirm ? (
-                <div className="settings-edit-username" style={{ marginTop: '24px', borderTop: '1px solid rgba(255,0,0,0.3)', paddingTop: '16px' }}>
-                  <p style={{ color: 'var(--brand-red)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>Warning: This action is permanent.</p>
-                  <p style={{ color: '#a8a8a8', marginBottom: '12px', fontSize: '0.8rem' }}>Please type your username to confirm.</p>
-                  <input 
-                    type="text" 
-                    value={deleteUsernameInput} 
-                    onChange={(e) => setDeleteUsernameInput(e.target.value)} 
-                    placeholder={`Type '${user.username}'`}
-                    className="premium-input"
-                  />
-                  {deleteError && <p className="error-text" style={{fontSize: '0.85rem', marginTop: '6px', color: 'var(--brand-red)'}}>{deleteError}</p>}
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                    <button className="premium-btn primary" style={{ background: 'var(--brand-red)' }} onClick={handleDeleteAccount}>Confirm Delete</button>
-                    <button className="premium-btn secondary" onClick={() => { setShowDeleteConfirm(false); setDeleteError(''); setDeleteUsernameInput(''); }}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <button className="settings-item-btn logout-danger" onClick={() => setShowDeleteConfirm(true)} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '24px' }}>
-                  <Trash2 size={20} /> Delete My Account
-                </button>
-              )}
             </div>
           </div>
         </div>
