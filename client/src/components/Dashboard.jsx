@@ -614,6 +614,18 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    let timer;
+    if (activeTab === 'home') {
+      timer = setTimeout(() => {
+        setShowHomeAdPopup(true);
+      }, 3000);
+    } else {
+      setShowHomeAdPopup(false);
+    }
+    return () => clearTimeout(timer);
+  }, [activeTab]);
+
+  useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       const initializeAdMob = async () => {
         try {
@@ -748,6 +760,7 @@ export default function Dashboard() {
   
   // Ad System State
   const [showAdModal, setShowAdModal] = useState(false);
+  const [showHomeAdPopup, setShowHomeAdPopup] = useState(false);
   const [adTimeLeft, setAdTimeLeft] = useState(15);
   const [adCompleted, setAdCompleted] = useState(false);
   const videoRef = React.useRef(null);
@@ -4098,7 +4111,7 @@ const handleStoryUpload = async () => {
             <div style={{ padding: '30px 20px', textAlign: 'center' }}>
               <div style={{ background: 'linear-gradient(135deg, #222, #111)', padding: '40px 20px', borderRadius: '20px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', marginBottom: '30px' }}>
                 <CoinSVG size={64} style={{ marginBottom: '15px' }} />
-                <h1 style={{ margin: 0, fontSize: '3rem', color: '#ffd700', textShadow: '0 2px 10px rgba(255,215,0,0.3)' }}>{parseFloat(user?.coins || 0).toFixed(1)}</h1>
+                <h1 style={{ margin: 0, fontSize: '3rem', color: '#ffd700', textShadow: '0 2px 10px rgba(255,215,0,0.3)' }}>{parseFloat(coins || 0).toFixed(1)}</h1>
                 <p style={{ color: '#aaa', marginTop: '10px' }}>Total Twelo Coins</p>
               </div>
 
@@ -4247,6 +4260,21 @@ const handleStoryUpload = async () => {
       case 'home':
         return (
           <div className="space-container" style={{ overflow: 'hidden' }}>
+            {showHomeAdPopup && (
+              <div style={{
+                position: 'absolute', top: '20%', left: '50%', transform: 'translate(-50%, -20%)',
+                width: '90%', maxWidth: '400px', zIndex: 1000,
+                background: 'rgba(20,20,20,0.95)', borderRadius: '15px', padding: '15px',
+                border: '1px solid #444', display: 'flex', flexDirection: 'column',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.8)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span style={{ color: '#aaa', fontSize: '0.8rem', fontWeight: 'bold' }}>Sponsored Ad</span>
+                  <button onClick={() => setShowHomeAdPopup(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}>✕</button>
+                </div>
+                <AdBanner />
+              </div>
+            )}
 
             <div 
               className="space-ui-layer"
@@ -5005,7 +5033,6 @@ const handleStoryUpload = async () => {
               </div>
 
               <div className="chat-users-scroll" onScroll={handleChatsScroll}>
-                <AdBanner />
                 {recentChats.map((chatUser) => {
                   const isOnline = onlineUsers.includes(chatUser._id);
                   const unreadCount = unreadMessages[chatUser._id] || 0;
