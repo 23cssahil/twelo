@@ -6501,10 +6501,11 @@ const handleStoryUpload = async () => {
       />
       {/* Share Modal */}
       {showShareModal && (
-        <div className="settings-drawer-overlay" onClick={() => setShowShareModal(false)} style={{ zIndex: 12000 }}>
-          <div className="settings-drawer" onClick={e => e.stopPropagation()} style={{ height: '100%', maxHeight: '100%', width: '100%', maxWidth: '100%', top: '0', bottom: '0', left: '0', right: '0', borderRadius: '0', position: 'fixed', transform: 'none', transition: 'none', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header" style={{ borderBottom: '1px solid #1a1a1a', padding: '16px 20px', background: 'rgba(20,20,20,0.95)', backdropFilter: 'blur(10px)', zIndex: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+        <div className="settings-drawer-overlay" onClick={() => setShowShareModal(false)} style={{ zIndex: 12000, background: 'rgba(0,0,0,0.6)' }}>
+          <div className="settings-drawer share-bottom-sheet" onClick={e => e.stopPropagation()} style={{ height: '75vh', maxHeight: '75vh', width: '100%', maxWidth: '500px', margin: '0 auto', bottom: '0', left: '0', right: '0', top: 'auto', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'absolute', display: 'flex', flexDirection: 'column', background: '#121212', boxShadow: '0 -4px 20px rgba(0,0,0,0.5)' }}>
+            <div className="modal-header" style={{ borderBottom: '1px solid #1a1a1a', padding: '16px 20px', background: 'rgba(20,20,20,0.95)', backdropFilter: 'blur(10px)', zIndex: 10, borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'relative' }}>
+              <div style={{ width: '40px', height: '4px', background: 'rgba(255,255,255,0.2)', borderRadius: '2px', position: 'absolute', top: '8px', left: '50%', transform: 'translateX(-50%)' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', marginTop: '10px' }}>
                 <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', margin: 0 }}>Share Story</h2>
                 <button onClick={() => setShowShareModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
               </div>
