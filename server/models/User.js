@@ -77,6 +77,7 @@ const UserSchema = new mongoose.Schema({
   ownedByAdmin: { type: Boolean, default: false },
   lastActive: { type: Date, default: Date.now },
   lastDailyReward: { type: Date },
+  isPrivate: { type: Boolean, default: false },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);

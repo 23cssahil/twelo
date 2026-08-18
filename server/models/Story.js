@@ -58,7 +58,11 @@ const storySchema = new mongoose.Schema({
   },
   expiresAt: {
     type: Date,
-    expires: 0 // TTL index: documents expire at this specific date
+    expires: 0
+  },
+  isPrivate: {
+    type: Boolean,
+    default: false
   }
 });
 

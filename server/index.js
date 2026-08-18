@@ -711,6 +711,35 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Toggle Account Privacy
+app.put('/api/users/privacy', authenticateToken, async (req, res) => {
+  try {
+    const { isPrivate } = req.body;
+    
+    // Update user
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      { $set: { isPrivate: Boolean(isPrivate) } },
+      { new: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update all active stories belonging to this user
+    await Story.updateMany(
+      { user: req.user.userId },
+      { $set: { isPrivate: Boolean(isPrivate) } }
+    );
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error('Error updating privacy:', error);
+    res.status(500).json({ message: 'Server error updating privacy' });
+  }
+});
+
 // Get User Connections (Followers & Following populated)
 app.get('/api/users/connections', authenticateToken, async (req, res) => {
   try {
@@ -1320,15 +1349,15 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
     const cursor = req.query.cursor || null;
     const limit = parseInt(req.query.limit) || 20;
 
-    const user = await User.findById(req.params.id).select('followers following');
+    const user = await User.findById(req.params.id).select('followers following isPrivate');
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Privacy check: only allow viewing if mutually connected or viewing own profile
+    // Privacy check: only allow viewing if public, mutually connected, or viewing own profile
     const isOwnProfile = req.params.id === req.user.userId;
     const isFollowing = (user.followers || []).some(f => f && f.toString() === req.user.userId);
 
-    if (!isOwnProfile && !isFollowing) {
-      return res.status(403).json({ message: "Not authorized to view connections" });
+    if (user.isPrivate && !isOwnProfile && !isFollowing) {
+      return res.status(403).json({ message: "This account is private" });
     }
 
     const search = req.query.search || '';
@@ -1762,6 +1791,8 @@ app.post('/api/stories', authenticateToken, async (req, res) => {
     // Parse song if it's sent as stringified JSON
     const parsedSong = typeof song === 'string' ? JSON.parse(song) : (song || null);
 
+    const creator = await User.findById(req.user.userId).select('isPrivate').lean();
+
     const newStory = new Story({
       user: req.user.userId,
       mediaUrl,
@@ -1769,7 +1800,8 @@ app.post('/api/stories', authenticateToken, async (req, res) => {
       visibility: visibility || 'everyone',
       allowedUsers: allowedUsers || [],
       songUrl: songUrl || parsedSong?.audioUrl || null,
-      song: parsedSong
+      song: parsedSong,
+      isPrivate: creator?.isPrivate || false
     });
     
     // Make all stories permanent in the DB (filter by 24h dynamically instead)
@@ -1875,10 +1907,26 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
 app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
   try {
     const { cursor } = req.query;
+    const currentUser = await User.findById(req.user.userId).select('following').lean();
+    const followingIds = currentUser?.following || [];
+
     const query = {
-      $or: [
-        { visibility: { $in: ['everyone', 'global'] } }, // Global/Everyone on the app
-        { isAdminStory: true } // Admin global stories
+      $and: [
+        {
+          $or: [
+            { visibility: { $in: ['everyone', 'global'] } },
+            { isAdminStory: true }
+          ]
+        },
+        {
+          $or: [
+            { isPrivate: false },
+            { isPrivate: { $exists: false } },
+            { user: req.user.userId },
+            { user: { $in: followingIds } },
+            { isAdminStory: true }
+          ]
+        }
       ]
     };
 
