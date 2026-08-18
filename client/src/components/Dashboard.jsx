@@ -4267,7 +4267,7 @@ const handleStoryUpload = async () => {
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}>
                 <div style={{
-                  width: '90%', maxWidth: '400px',
+                  width: '90%', maxWidth: '500px',
                   background: 'rgba(20,20,20,0.95)', borderRadius: '15px', padding: '15px',
                   border: '1px solid #444', display: 'flex', flexDirection: 'column',
                   boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
