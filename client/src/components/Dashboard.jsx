@@ -4269,7 +4269,7 @@ const handleStoryUpload = async () => {
                 <div 
                   onClick={(e) => e.stopPropagation()}
                   style={{
-                    width: '90%', maxWidth: '500px',
+                    width: '90%', maxWidth: '600px',
                     background: 'rgba(20,20,20,0.95)', borderRadius: '15px', padding: '20px 15px 15px',
                     border: '1px solid #444', display: 'flex', flexDirection: 'column',
                     boxShadow: '0 10px 30px rgba(0,0,0,0.8)',

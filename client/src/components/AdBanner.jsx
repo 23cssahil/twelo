@@ -22,10 +22,10 @@ const AdBanner = () => {
       background: 'rgba(255,255,255,0.03)', 
       borderRadius: '15px', 
       overflow: 'hidden',
-      maxHeight: '500px',
-      minHeight: '250px'
+      maxHeight: '600px',
+      minHeight: '350px'
     }}>
-      <div ref={containerRef} id="container-68a0807fea81fdc49bc8a49017e7e443" style={{ width: '100%', minHeight: '250px', maxHeight: '500px', overflow: 'hidden' }}></div>
+      <div ref={containerRef} id="container-68a0807fea81fdc49bc8a49017e7e443" style={{ width: '100%', minHeight: '350px', maxHeight: '600px', overflow: 'hidden' }}></div>
     </div>
   );
 };
