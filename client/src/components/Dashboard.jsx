@@ -4261,28 +4261,35 @@ const handleStoryUpload = async () => {
         return (
           <div className="space-container" style={{ overflow: 'hidden' }}>
             {showHomeAdPopup && (
-              <div style={{
-                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000,
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              <div 
+                onClick={(e) => { e.stopPropagation(); setShowHomeAdPopup(false); }}
+                style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  pointerEvents: 'auto'
               }}>
-                <div style={{
-                  width: '90%', maxWidth: '500px',
-                  background: 'rgba(20,20,20,0.95)', borderRadius: '15px', padding: '15px',
-                  border: '1px solid #444', display: 'flex', flexDirection: 'column',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
-                  position: 'relative'
+                <div 
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    width: '90%', maxWidth: '500px',
+                    background: 'rgba(20,20,20,0.95)', borderRadius: '15px', padding: '20px 15px 15px',
+                    border: '1px solid #444', display: 'flex', flexDirection: 'column',
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
+                    position: 'relative'
                 }}>
+                  <button 
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowHomeAdPopup(false); }} 
+                    style={{ 
+                      position: 'absolute', top: '-15px', right: '-15px', zIndex: 999999,
+                      background: '#ff4b4b', border: '2px solid #fff', color: '#fff', 
+                      cursor: 'pointer', fontSize: '1.2rem', width: '36px', height: '36px', 
+                      borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
+                    }}
+                  >✕</button>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <span style={{ color: '#aaa', fontSize: '0.8rem', fontWeight: 'bold' }}>Sponsored Ad</span>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setShowHomeAdPopup(false); }} 
-                      style={{ 
-                        background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', 
-                        cursor: 'pointer', fontSize: '1.2rem', padding: '5px 12px', 
-                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' 
-                      }}
-                    >✕</button>
                   </div>
                   <AdBanner />
                 </div>
