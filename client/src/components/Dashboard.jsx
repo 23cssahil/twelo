@@ -6391,6 +6391,10 @@ const handleStoryUpload = async () => {
                 <SettingsIcon size={20} /> Settings
               </button>
               
+              <button className="settings-item-btn" onClick={() => { setShowSettingsModal(false); alert("Blocked users feature coming soon!"); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Ban size={20} /> Blocked Users
+              </button>
+              
               
               <button className="settings-item-btn" onClick={() => navigate('/about-us')} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Info size={20} /> About Us
