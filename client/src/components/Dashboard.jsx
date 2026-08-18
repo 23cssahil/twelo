@@ -4202,8 +4202,10 @@ const handleStoryUpload = async () => {
 
       case 'everyone-stories': {
           return (
-            <div className="everyone-stories-container" style={{ padding: '15px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
-              <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '1.8rem', color: '#fff' }}>Global Stories</h2>
+            <div className="everyone-stories-container" style={{ padding: '0 15px 15px 15px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
+              <div style={{ position: 'sticky', top: 0, zIndex: 20, background: '#000', padding: '15px 0 10px 0', margin: '0 -15px 20px -15px' }}>
+                <h2 style={{ textAlign: 'center', margin: 0, fontSize: '1.8rem', color: '#fff' }}>Global Stories</h2>
+              </div>
               {everyoneStories.length === 0 ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' }}>
                     {[...Array(6)].map((_, i) => (
