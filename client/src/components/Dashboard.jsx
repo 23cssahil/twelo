@@ -1029,7 +1029,7 @@ export default function Dashboard() {
     const storyLink = `${window.location.origin}/stories/${storyId}`;
     const storyUser = viewerStories[currentStoryUserIndex].user;
     const storyOwnerUsername = storyUser?.username || 'Unknown';
-    const storyOwnerAvatar = storyUser?.avatar || '';
+    const storyOwnerAvatar = storyUser?.avatarUrl || '';
     const storyOwnerGender = storyUser?.gender || 'male';
     const tempId = Date.now().toString();
     const msgData = {
