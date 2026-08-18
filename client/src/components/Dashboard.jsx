@@ -614,15 +614,9 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    let timer;
-    if (activeTab === 'home') {
-      timer = setTimeout(() => {
-        setShowHomeAdPopup(true);
-      }, 3000);
-    } else {
+    if (activeTab !== 'home') {
       setShowHomeAdPopup(false);
     }
-    return () => clearTimeout(timer);
   }, [activeTab]);
 
   useEffect(() => {
@@ -3993,10 +3987,7 @@ const handleStoryUpload = async () => {
         alert("Not enough coins! You need 2 coins to use the gender filter.");
         return;
       }
-      setIsSearchingRandom(true);
-      setRandomSearchTimer(3);
-      setMatchFailed(false);
-      if (socket) socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
+      setShowHomeAdPopup(true);
     } else {
       setIsSearchingRandom(false);
       if (socket) socket.emit('cancel_search', user.id);
@@ -4262,7 +4253,13 @@ const handleStoryUpload = async () => {
           <div className="space-container" style={{ overflow: 'hidden' }}>
             {showHomeAdPopup && (
               <div 
-                onClick={(e) => { e.stopPropagation(); setShowHomeAdPopup(false); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); setShowHomeAdPopup(false);
+                  setIsSearchingRandom(true);
+                  setRandomSearchTimer(3);
+                  setMatchFailed(false);
+                  if (socket) socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
+                }}
                 style={{
                   position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                   backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000,
@@ -4279,7 +4276,13 @@ const handleStoryUpload = async () => {
                     position: 'relative'
                 }}>
                   <button 
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowHomeAdPopup(false); }} 
+                    onClick={(e) => { 
+                      e.preventDefault(); e.stopPropagation(); setShowHomeAdPopup(false); 
+                      setIsSearchingRandom(true);
+                      setRandomSearchTimer(3);
+                      setMatchFailed(false);
+                      if (socket) socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
+                    }} 
                     style={{ 
                       position: 'absolute', top: '-15px', right: '-15px', zIndex: 999999,
                       background: '#ff4b4b', border: '2px solid #fff', color: '#fff', 
