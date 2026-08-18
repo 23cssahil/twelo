@@ -968,22 +968,42 @@ export default function Dashboard() {
   const [showStoryViewsModal, setShowStoryViewsModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareFollowers, setShareFollowers] = useState([]);
+  const [shareCursor, setShareCursor] = useState(null);
+  const [shareHasMore, setShareHasMore] = useState(true);
+  const [isFetchingShare, setIsFetchingShare] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   
+  const fetchFollowers = async (cursor) => {
+    if (isFetchingShare) return;
+    setIsFetchingShare(true);
+    try {
+      const url = `${API_URL}/api/users/connections/${user.id || user._id}?type=followers&limit=20${cursor ? `&cursor=${cursor}` : ''}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        setShareFollowers(prev => cursor ? [...prev, ...(data.users || [])] : (data.users || []));
+        setShareHasMore(data.hasMore);
+        setShareCursor(data.nextCursor);
+      }
+    } catch (err) { console.error(err); }
+    setIsFetchingShare(false);
+  };
+
   useEffect(() => {
     if (showShareModal) {
-      const fetchFollowers = async () => {
-        try {
-          const res = await fetch(`${API_URL}/api/users/connections/${user.id || user._id}`, { headers: { Authorization: `Bearer ${token}` } });
-          const data = await res.json();
-          if (res.ok) {
-            setShareFollowers(data.followers || []);
-          }
-        } catch (err) { console.error(err); }
-      };
-      fetchFollowers();
+      setShareFollowers([]);
+      setShareCursor(null);
+      setShareHasMore(true);
+      fetchFollowers(null);
     }
-  }, [showShareModal, user, token, API_URL]);
+  }, [showShareModal]);
+
+  const handleShareScroll = (e) => {
+    const bottom = e.target.scrollHeight - e.target.scrollTop <= e.target.clientHeight + 50;
+    if (bottom && shareHasMore && !isFetchingShare) {
+      fetchFollowers(shareCursor);
+    }
+  };
   
   const handleShareStory = (targetUserId) => {
     if (!socket) return;
@@ -6461,39 +6481,61 @@ const handleStoryUpload = async () => {
       />
       {/* Share Modal */}
       {showShareModal && (
-        <div className="call-overlay" style={{ zIndex: 12000 }}>
-          <div className="auth-card" style={{ maxWidth: '400px', width: '90%', background: '#121212', padding: '24px', borderRadius: '12px', position: 'relative' }}>
-            <button 
-              className="back-btn" 
-              style={{ position: 'absolute', top: '16px', right: '16px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#f5f5f5' }} 
-              onClick={() => setShowShareModal(false)}
-            >
-              <X size={24} />
-            </button>
-            <h2 style={{ marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '12px', color: '#f5f5f5' }}>Share Story</h2>
-            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              {shareFollowers.map(u => (
-                <div 
-                  className="user-card-info" 
-                  key={u._id} 
-                  style={{ padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', cursor: 'default' }} 
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div className="user-avatar-small">{u.avatarUrl ? <img src={u.avatarUrl} alt='avatar' /> : u.username.charAt(0).toUpperCase()}</div>
-                    <div className="user-names">
-                      <span className="user-username">@{u.username?.length > 10 ? u.username.substring(0, 10) + '...' : u.username}</span>
-                    </div>
-                  </div>
-                  <button 
-                    disabled={isSharing}
-                    style={{ background: 'var(--brand-blue)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}
-                    onClick={() => handleShareStory(u._id)}
+        <div className="settings-drawer-overlay" onClick={() => setShowShareModal(false)} style={{ zIndex: 12000 }}>
+          <div className="settings-drawer" onClick={e => e.stopPropagation()} style={{ height: '100%', maxHeight: '100%', width: '100%', maxWidth: '100%', top: '0', bottom: '0', left: '0', right: '0', borderRadius: '0', position: 'fixed', transform: 'none', transition: 'none', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header" style={{ borderBottom: '1px solid #1a1a1a', padding: '16px 20px', background: 'rgba(20,20,20,0.95)', backdropFilter: 'blur(10px)', zIndex: 10 }}>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>Share Story</h2>
+              <button onClick={() => setShowShareModal(false)} className="close-btn"><X size={24} /></button>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto', padding: '15px' }} onScroll={handleShareScroll}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {shareFollowers.map(u => (
+                  <div 
+                    className="user-card" 
+                    key={u._id} 
+                    style={{ padding: '12px 15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', cursor: 'default', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }} 
                   >
-                    Send
-                  </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                      <div className="user-avatar-small" style={{ width: '46px', height: '46px', fontSize: '1.2rem' }}>
+                        {u.avatarUrl ? <img src={u.avatarUrl} alt='avatar' style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : u.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="user-names">
+                        <span className="user-username" style={{ fontSize: '1.05rem', fontWeight: 'bold' }}>@{u.username?.length > 15 ? u.username.substring(0, 15) + '...' : u.username}</span>
+                        {u.uniqueId && <span className="user-id" style={{ fontSize: '0.8rem', color: '#a8a8a8', display: 'block' }}>ID: {u.uniqueId}</span>}
+                      </div>
+                    </div>
+                    <button 
+                      disabled={isSharing}
+                      style={{ 
+                        background: 'linear-gradient(135deg, #00C6FF, #0072FF)', 
+                        color: '#fff', border: 'none', padding: '8px 20px', borderRadius: '25px', 
+                        cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(0, 114, 255, 0.3)',
+                        opacity: isSharing ? 0.6 : 1
+                      }}
+                      onClick={() => handleShareStory(u._id)}
+                    >
+                      Send
+                    </button>
+                  </div>
+                ))}
+              </div>
+              
+              {isFetchingShare && (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                  <Loader2 className="rotating" size={24} style={{ margin: '0 auto' }} />
                 </div>
-              ))}
-              {shareFollowers.length === 0 && <p style={{ color: '#a8a8a8', textAlign: 'center' }}>No followers to share with.</p>}
+              )}
+              
+              {!isFetchingShare && shareFollowers.length === 0 && (
+                <div style={{ textAlign: 'center', marginTop: '40px', color: '#a8a8a8', padding: '20px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.05)', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px' }}>
+                    <Share2 size={32} color="#666" />
+                  </div>
+                  <h3 style={{ marginBottom: '8px', color: '#ddd' }}>No Connections Yet</h3>
+                  <p style={{ fontSize: '0.9rem' }}>Follow people or get followers to share stories with them.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
