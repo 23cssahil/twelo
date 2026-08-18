@@ -1331,9 +1331,32 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ message: "Not authorized to view connections" });
     }
 
+    const search = req.query.search || '';
+
     // Get the full array of IDs for the requested type
     const allIds = (user[type] || []).filter(id => id != null);
     const total = allIds.length;
+
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      const matchedUsers = await User.find({
+        _id: { $in: allIds },
+        $or: [
+          { username: searchRegex },
+          { uniqueId: searchRegex }
+        ]
+      })
+      .select('username uniqueId avatarUrl gender')
+      .limit(50)
+      .lean();
+
+      return res.json({
+        users: matchedUsers,
+        total: matchedUsers.length,
+        hasMore: false,
+        nextCursor: null
+      });
+    }
 
     // Find the cursor position in the array
     let startIndex = 0;

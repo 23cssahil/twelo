@@ -982,11 +982,14 @@ export default function Dashboard() {
   const [isSharing, setIsSharing] = useState(false);
   const [shareSearchQuery, setShareSearchQuery] = useState('');
   
-  const fetchFollowers = async (cursor) => {
+  const fetchFollowers = async (cursor, searchQuery = '') => {
     if (isFetchingShare) return;
     setIsFetchingShare(true);
     try {
-      const url = `${API_URL}/api/users/connections/${user.id || user._id}?type=followers&limit=20${cursor ? `&cursor=${cursor}` : ''}`;
+      let url = `${API_URL}/api/users/connections/${user.id || user._id}?type=followers&limit=20`;
+      if (cursor) url += `&cursor=${cursor}`;
+      if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+      
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
@@ -1000,18 +1003,22 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (showShareModal) {
-      setShareFollowers([]);
-      setShareCursor(null);
-      setShareHasMore(true);
       setShareSearchQuery('');
-      fetchFollowers(null);
     }
   }, [showShareModal]);
 
+  useEffect(() => {
+    if (!showShareModal) return;
+    const timeout = setTimeout(() => {
+      fetchFollowers(null, shareSearchQuery);
+    }, shareSearchQuery ? 400 : 0);
+    return () => clearTimeout(timeout);
+  }, [shareSearchQuery, showShareModal]);
+
   const handleShareScroll = (e) => {
     const bottom = e.target.scrollHeight - e.target.scrollTop <= e.target.clientHeight + 50;
-    if (bottom && shareHasMore && !isFetchingShare) {
-      fetchFollowers(shareCursor);
+    if (bottom && shareHasMore && !isFetchingShare && !shareSearchQuery) { // Don't paginate search results since backend returns all matches
+      fetchFollowers(shareCursor, '');
     }
   };
   
