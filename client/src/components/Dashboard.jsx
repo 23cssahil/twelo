@@ -2225,6 +2225,7 @@ export default function Dashboard() {
     storyEditorOpen, 
     showCloseFriendsModal, 
     showStoryViewsModal, 
+    showShareModal,
     storyCameraOpen, 
     showLogoutConfirm
   ].filter(Boolean).length;
@@ -2247,6 +2248,8 @@ export default function Dashboard() {
         setShowCommentsModal(false);
       } else if (showStoryViewsModal) {
         setShowStoryViewsModal(false);
+      } else if (showShareModal) {
+        setShowShareModal(false);
       } else if (showCloseFriendsModal) {
         setShowCloseFriendsModal(false);
       } else if (storyCameraOpen) {
