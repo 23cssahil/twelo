@@ -1017,8 +1017,8 @@ export default function Dashboard() {
 
   const handleShareScroll = (e) => {
     const bottom = e.target.scrollHeight - e.target.scrollTop <= e.target.clientHeight + 50;
-    if (bottom && shareHasMore && !isFetchingShare && !shareSearchQuery) { // Don't paginate search results since backend returns all matches
-      fetchFollowers(shareCursor, '');
+    if (bottom && shareHasMore && !isFetchingShare) {
+      fetchFollowers(shareCursor, shareSearchQuery);
     }
   };
   

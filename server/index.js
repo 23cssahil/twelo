@@ -1339,22 +1339,41 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
 
     if (search) {
       const searchRegex = new RegExp(search, 'i');
-      const matchedUsers = await User.find({
+      let query = {
         _id: { $in: allIds },
         $or: [
           { username: searchRegex },
           { uniqueId: searchRegex }
         ]
-      })
-      .select('username uniqueId avatarUrl gender')
-      .limit(50)
-      .lean();
+      };
+
+      if (cursor && cursor !== 'null') {
+        query._id = { $in: allIds, $gt: cursor };
+      }
+
+      const matchedUsers = await User.find(query)
+        .sort({ _id: 1 })
+        .select('username uniqueId avatarUrl gender')
+        .limit(limit)
+        .lean();
+
+      // Check if there are more results
+      const totalMatches = await User.countDocuments({
+        _id: { $in: allIds },
+        $or: [
+          { username: searchRegex },
+          { uniqueId: searchRegex }
+        ]
+      });
+
+      const hasMore = matchedUsers.length === limit;
+      const nextCursor = matchedUsers.length > 0 ? matchedUsers[matchedUsers.length - 1]._id : null;
 
       return res.json({
         users: matchedUsers,
-        total: matchedUsers.length,
-        hasMore: false,
-        nextCursor: null
+        total: totalMatches,
+        hasMore,
+        nextCursor
       });
     }
 
