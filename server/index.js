@@ -1184,7 +1184,7 @@ app.post('/api/users/claim-daily', authenticateToken, async (req, res) => {
     if (user.lastDailyReward) {
       const hoursSinceLastClaim = Math.abs(now - user.lastDailyReward) / 36e5;
       if (hoursSinceLastClaim < 24) {
-        return res.status(400).json({ message: "You can only claim daily rewards once every 24 hours.", nextClaimInHours: 24 - hoursSinceLastClaim });
+        return res.status(200).json({ success: false, message: "You can only claim daily rewards once every 24 hours.", nextClaimInHours: 24 - hoursSinceLastClaim });
       }
     }
 
