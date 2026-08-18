@@ -55,7 +55,8 @@ import {
   Shield,
   FileText,
   Mail,
-  PenTool
+  PenTool,
+  Ban
 } from 'lucide-react';
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -5232,15 +5233,18 @@ const handleStoryUpload = async () => {
                     <div className="chat-actions" style={{ position: 'relative' }}>
                       <button className="action-icon-btn call-audio" onClick={() => callUser(String(activeChatUser._id), activeChatUser.username, activeChatUser.avatarUrl, false)}><Phone size={22} /></button>
                       <button className="action-icon-btn call-video" onClick={() => callUser(String(activeChatUser._id), activeChatUser.username, activeChatUser.avatarUrl, true)}><Video size={22} /></button>
-                      <button className="action-icon-btn" onClick={() => setShowChatSettingsMenu(!showChatSettingsMenu)}><MoreVertical size={22} /></button>
+                      <button className="action-icon-btn" onClick={(e) => { e.stopPropagation(); setShowChatSettingsMenu(!showChatSettingsMenu); }}><MoreVertical size={22} /></button>
                       
                       {showChatSettingsMenu && (
                         <>
                           <div 
-                            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} 
-                            onClick={() => setShowChatSettingsMenu(false)}
+                            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998, cursor: 'default' }} 
+                            onClick={(e) => { e.stopPropagation(); setShowChatSettingsMenu(false); }}
+                            onTouchStart={(e) => { e.stopPropagation(); setShowChatSettingsMenu(false); }}
                           />
-                          <div style={{
+                          <div 
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
                             position: 'absolute',
                             top: '45px',
                             right: '0',
@@ -5251,12 +5255,13 @@ const handleStoryUpload = async () => {
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '5px',
-                            zIndex: 100,
+                            zIndex: 9999,
                             minWidth: '200px',
                             boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
                           }}>
                             <button 
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setShowChatSettingsMenu(false);
                                 handleDeleteChat();
                               }}
@@ -5273,7 +5278,8 @@ const handleStoryUpload = async () => {
                               <Trash2 size={18} /> Delete all chats
                             </button>
                             <button 
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setShowChatSettingsMenu(false);
                                 setReportTarget({ id: activeChatUser._id, username: activeChatUser.username, isAnonymous: false });
                                 setShowReportModal(true);
@@ -5289,6 +5295,24 @@ const handleStoryUpload = async () => {
                               onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                             >
                               <Flag size={18} /> Report user
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowChatSettingsMenu(false);
+                                alert("Block user feature coming soon!");
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                                background: 'transparent', border: 'none', color: '#ff4b4b',
+                                padding: '10px', cursor: 'pointer', borderRadius: '8px',
+                                fontSize: '0.9rem', fontWeight: 'bold', textAlign: 'left',
+                                width: '100%'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 75, 75, 0.1)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              <Ban size={18} /> Block user
                             </button>
                           </div>
                         </>
