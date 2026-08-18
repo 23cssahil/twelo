@@ -22,10 +22,10 @@ const AdBanner = () => {
       background: 'rgba(255,255,255,0.03)', 
       borderRadius: '15px', 
       overflow: 'hidden',
-      maxHeight: '100px', // Limit the height so it doesn't push chats down too far
-      minHeight: '50px'
+      maxHeight: '400px',
+      minHeight: '250px'
     }}>
-      <div ref={containerRef} id="container-68a0807fea81fdc49bc8a49017e7e443" style={{ width: '100%', maxHeight: '100px', overflow: 'hidden' }}></div>
+      <div ref={containerRef} id="container-68a0807fea81fdc49bc8a49017e7e443" style={{ width: '100%', minHeight: '250px', maxHeight: '400px', overflow: 'hidden' }}></div>
     </div>
   );
 };

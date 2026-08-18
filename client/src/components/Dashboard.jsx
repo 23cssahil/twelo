@@ -4262,17 +4262,30 @@ const handleStoryUpload = async () => {
           <div className="space-container" style={{ overflow: 'hidden' }}>
             {showHomeAdPopup && (
               <div style={{
-                position: 'absolute', top: '20%', left: '50%', transform: 'translate(-50%, -20%)',
-                width: '90%', maxWidth: '400px', zIndex: 1000,
-                background: 'rgba(20,20,20,0.95)', borderRadius: '15px', padding: '15px',
-                border: '1px solid #444', display: 'flex', flexDirection: 'column',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.8)'
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000,
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <span style={{ color: '#aaa', fontSize: '0.8rem', fontWeight: 'bold' }}>Sponsored Ad</span>
-                  <button onClick={() => setShowHomeAdPopup(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}>✕</button>
+                <div style={{
+                  width: '90%', maxWidth: '400px',
+                  background: 'rgba(20,20,20,0.95)', borderRadius: '15px', padding: '15px',
+                  border: '1px solid #444', display: 'flex', flexDirection: 'column',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
+                  position: 'relative'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ color: '#aaa', fontSize: '0.8rem', fontWeight: 'bold' }}>Sponsored Ad</span>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowHomeAdPopup(false); }} 
+                      style={{ 
+                        background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', 
+                        cursor: 'pointer', fontSize: '1.2rem', padding: '5px 12px', 
+                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                      }}
+                    >✕</button>
+                  </div>
+                  <AdBanner />
                 </div>
-                <AdBanner />
               </div>
             )}
 
