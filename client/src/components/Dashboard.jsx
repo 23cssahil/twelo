@@ -1703,9 +1703,20 @@ export default function Dashboard() {
             if (!prev.length) return data;
             if (!data.length) return prev;
             
+            // Filter out any stories we already have to prevent duplication bugs
+            const existingStoryIds = new Set();
+            prev.forEach(group => group.stories.forEach(s => existingStoryIds.add(s._id)));
+            
+            const filteredData = data.map(group => ({
+              ...group,
+              stories: group.stories.filter(s => !existingStoryIds.has(s._id))
+            })).filter(group => group.stories.length > 0);
+
+            if (!filteredData.length) return prev;
+
             const newStories = [...prev];
             const lastGroup = newStories[newStories.length - 1];
-            const firstNewGroup = data[0];
+            const firstNewGroup = filteredData[0];
 
             if (lastGroup.userId === firstNewGroup.userId) {
               const timeDiff = Math.abs(lastGroup.latestStoryTime - firstNewGroup.latestStoryTime);
@@ -1713,10 +1724,10 @@ export default function Dashboard() {
                 lastGroup.stories = [...lastGroup.stories, ...firstNewGroup.stories];
                 lastGroup.latestStoryTime = Math.max(lastGroup.latestStoryTime, firstNewGroup.latestStoryTime);
                 newStories[newStories.length - 1] = { ...lastGroup };
-                return [...newStories, ...data.slice(1)];
+                return [...newStories, ...filteredData.slice(1)];
               }
             }
-            return [...newStories, ...data];
+            return [...newStories, ...filteredData];
           });
         }
         
