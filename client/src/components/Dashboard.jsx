@@ -4999,13 +4999,15 @@ const handleStoryUpload = async () => {
               >
                 ←
               </button>
-              <div className="profile-avatar-large">
-                <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
-                {publicProfileData.country && (
-                  <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
-                    {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
-                  </div>
-                )}
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', paddingLeft: '20px', paddingTop: '20px' }}>
+                <div className="profile-avatar-large">
+                  <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
+                  {publicProfileData.country && (
+                    <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
+                      {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="profile-info">
                 <span className="profile-username">@{publicProfileData.username}</span>
@@ -5931,15 +5933,17 @@ const handleStoryUpload = async () => {
                   <Menu size={24} />
                 </button>
               </div>
-              <div className="profile-avatar-large">
-                <div className="profile-avatar-inner">
-                  {(profileStats?.avatarUrl || user.avatarUrl) ? <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
-                </div>
-                {(profileStats?.country || user.country) && (
-                  <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
-                    {getFlagEmoji(profileStats?.country || user.country, profileStats?.countryCode || user.countryCode)}
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', paddingLeft: '20px', paddingTop: '20px' }}>
+                <div className="profile-avatar-large">
+                  <div className="profile-avatar-inner">
+                    {(profileStats?.avatarUrl || user.avatarUrl) ? <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
                   </div>
-                )}
+                  {(profileStats?.country || user.country) && (
+                    <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
+                      {getFlagEmoji(profileStats?.country || user.country, profileStats?.countryCode || user.countryCode)}
+                    </div>
+                  )}
+                </div>
               </div>
               
               <div className="profile-info">
