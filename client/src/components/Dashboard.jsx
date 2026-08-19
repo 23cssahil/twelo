@@ -1565,6 +1565,9 @@ export default function Dashboard() {
       if (res.ok) {
         setProfileStats(data);
         setCoins(data.coins || 0);
+        if (data.chatThemes) {
+          login({ ...user, chatThemes: data.chatThemes }, token);
+        }
       }
     } catch (e) { console.error(e); }
   };
