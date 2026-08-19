@@ -1253,7 +1253,7 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    const targetSocketId = onlineUsers.get(targetUserId.toString(?.toString()));
+    const targetSocketId = onlineUsers.get(targetUserId?.toString());
     if (targetSocketId) {
       io.to(targetSocketId).emit('new_notification');
     }
@@ -1306,7 +1306,7 @@ app.post('/api/users/anonymous_follow/:id', authenticateToken, async (req, res) 
       });
     }
 
-    const targetSocketId = onlineUsers.get(targetUserId.toString(?.toString()));
+    const targetSocketId = onlineUsers.get(targetUserId?.toString());
     if (targetSocketId) {
       io.to(targetSocketId).emit('new_notification');
     }
@@ -1357,7 +1357,7 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
       await requester.save();
     }
 
-    const reqSocketId = onlineUsers.get(requesterId.toString(?.toString()));
+    const reqSocketId = onlineUsers.get(requesterId?.toString());
     if (reqSocketId) {
       io.to(reqSocketId).emit('new_notification');
     }
@@ -1392,7 +1392,7 @@ app.post('/api/users/reject/:id', authenticateToken, async (req, res) => {
       requester.notifications.push({ type: 'request_rejected', user: req.user.userId });
       await requester.save();
       
-      const reqSocketId = onlineUsers.get(requesterId.toString(?.toString()));
+      const reqSocketId = onlineUsers.get(requesterId?.toString());
       if (reqSocketId) {
         io.to(reqSocketId).emit('request_rejected_alert');
         io.to(reqSocketId).emit('new_notification');
@@ -1506,7 +1506,7 @@ app.post('/api/users/unfollow/:id', authenticateToken, async (req, res) => {
       await currentUser.save();
       await targetUser.save();
       
-      const targetSocketId = onlineUsers.get(targetUserId.toString(?.toString()));
+      const targetSocketId = onlineUsers.get(targetUserId?.toString());
       if (targetSocketId) {
         io.to(targetSocketId).emit('new_notification');
       }
@@ -3115,7 +3115,7 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
     await user.save();
 
     // Alert user that request was accepted
-    const receiverSocketId = onlineUsers.get(user._id.toString(?.toString()));
+    const receiverSocketId = onlineUsers.get(user._id?.toString());
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('request_accepted_alert');
       io.to(receiverSocketId).emit('new_notification');
@@ -3344,8 +3344,8 @@ io.on('connection', (socket) => {
           await Message.findByIdAndUpdate(messageId, { 
             $set: { isDeletedForEveryone: true, message: '🚫 This message was deleted', messageType: 'text', fileUrl: null } 
           });
-          const receiverSocketId = onlineUsers.get(message.receiver.toString(?.toString()));
-          const senderSocketId = onlineUsers.get(message.sender.toString(?.toString()));
+          const receiverSocketId = onlineUsers.get(message.receiver?.toString());
+          const senderSocketId = onlineUsers.get(message.sender?.toString());
           const payload = { messageId, type: 'everyone' };
           
           if (receiverSocketId) io.to(receiverSocketId).emit('message_deleted', payload);
@@ -3388,7 +3388,7 @@ io.on('connection', (socket) => {
   
   // Call User (Initiate call)
   socket.on('call_user', ({ userToCall, signalData, from, fromUsername, fromAvatar, isVideo }) => {
-    const receiverSocketId = onlineUsers.get(userToCall.toString(?.toString()));
+    const receiverSocketId = onlineUsers.get(userToCall?.toString());
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('incoming_call', {
         signal: signalData,
