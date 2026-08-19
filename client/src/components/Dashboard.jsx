@@ -4982,7 +4982,7 @@ const handleStoryUpload = async () => {
         return (
           <div className="profile-container">
             <div className="profile-card">
-              <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 0 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '20px 20px 0 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <div className="profile-avatar-large">
@@ -5930,7 +5930,7 @@ const handleStoryUpload = async () => {
         return (
           <div className="profile-container" style={{ position: 'relative' }}>
             <div className="profile-card">
-              <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 0 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '20px 20px 0 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <div className="profile-avatar-large">
