@@ -4984,144 +4984,179 @@ const handleStoryUpload = async () => {
         const hasRequested = publicProfileData.friendRequests?.includes(user.id);
         
         return (
-          <div className="profile-container">
-            <div className="profile-card">
-              <button 
-                onClick={() => {
-                  if (activeChatUser) {
-                    setActiveTab('messages');
-                  } else {
-                    setActiveTab('search');
-                  }
-                }} 
-                className="back-btn" 
-                style={{ position: 'absolute', top: 0, left: 0, border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', zIndex: 10 }}
-              >
-                ←
-              </button>
-              <div className="profile-avatar-large">
-                <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
-                {publicProfileData.country && (
-                  <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
-                    {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
-                  </div>
-                )}
+          
+          <div className="profile-container" style={{ position: 'relative', background: '#fff', color: '#000', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+            {/* Top Bar with Back Button */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderBottom: '1px solid #eaeaea' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <button 
+                  onClick={() => {
+                    if (activeChatUser) {
+                      setActiveTab('messages');
+                    } else {
+                      setActiveTab('search');
+                    }
+                  }} 
+                  style={{ background: 'transparent', border: 'none', color: '#000', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                >
+                  <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>←</span>
+                </button>
+                <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0 }}>Twelo</h1>
               </div>
-              <div className="profile-info">
-                <span className="profile-username">@{publicProfileData.username}</span>
-                <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : '#a8a8a8', marginTop: '4px' }}>
-                  {onlineUsers.includes(publicProfileData._id) ? '🟢 Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
-                </div>
-                <div className="profile-stats">
-                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('followers', publicProfileData._id)}><strong>{publicProfileData.followers?.length || 0}</strong> followers</span>
-                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('following', publicProfileData._id)}><strong>{publicProfileData.following?.length || 0}</strong> following</span>
-                </div>
-                <div className="profile-actions">
-                  {isFollowing ? (
-                    <>
-                      <button className="chat-now-btn" style={{ flex: 1 }} onClick={() => startChatWithUser(publicProfileData)}>Message</button>
-                      <button className="chat-now-btn" style={{ flex: 1, background: '#333' }} onClick={() => unfollowUser(publicProfileData._id)}>Unfollow</button>
-                    </>
-                  ) : hasRequested ? (
-                    <button className="chat-now-btn" style={{ background: '#333', width: '100%' }} onClick={() => unfollowUser(publicProfileData._id)}>Cancel Request</button>
-                  ) : (
-                    <button className="chat-now-btn" style={{ width: '100%' }} onClick={() => sendFollowRequest(publicProfileData._id)}>Follow</button>
+            </div>
+
+            {/* Profile Header (Avatar & Stats) */}
+            <div style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <div style={{ position: 'relative', width: '90px', height: '90px', flexShrink: 0 }}>
+                  <div style={{ 
+                    width: '100%', height: '100%', borderRadius: '50%', border: '2px solid #ccc', 
+                    padding: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                  }}>
+                    <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 'bold', color: '#666' }}>
+                      {publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : publicProfileData.username.charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+                  {publicProfileData.country && (
+                    <div style={{ position: 'absolute', bottom: '0', right: '0', fontSize: '1.2rem', background: '#fff', borderRadius: '50%', padding: '2px', border: '1px solid #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
+                    </div>
                   )}
                 </div>
-                {publicProfileData.mutualConnections && publicProfileData.mutualConnections.totalCount > 0 && (
-                  <div 
-                    onClick={() => handleConnectionsClick('mutual', publicProfileData._id)}
-                    style={{ 
-                      display: 'flex', alignItems: 'center', width: '100%', padding: '10px 15px', 
-                      background: 'rgba(255,255,255,0.05)', borderRadius: '12px', marginTop: '10px', 
-                      cursor: 'pointer', boxSizing: 'border-box'
-                    }}
-                  >
-                    <div style={{ display: 'flex', marginRight: '10px' }}>
-                      {publicProfileData.mutualConnections.previewUsers.map((mu, i) => (
-                        <div key={mu._id} style={{
-                          width: '24px', height: '24px', borderRadius: '50%', background: '#333', 
-                          border: '2px solid #000', marginLeft: i > 0 ? '-10px' : '0', overflow: 'hidden', zIndex: 3 - i
-                        }}>
-                          {mu.avatarUrl ? <img src={mu.avatarUrl} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px'}}>{mu.username.charAt(0).toUpperCase()}</div>}
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: '#ccc', flex: 1, textAlign: 'left' }}>
-                      Followed by <strong>{publicProfileData.mutualConnections.previewUsers[0].username}</strong>
-                      {publicProfileData.mutualConnections.totalCount > 1 && 
-                        ` and ${publicProfileData.mutualConnections.totalCount - 1} other${publicProfileData.mutualConnections.totalCount - 1 > 1 ? 's' : ''}`
-                      }
-                    </div>
-                    <div style={{ fontSize: '1.2rem', color: '#888' }}>›</div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-around', flex: 1 }}>
+                  <div onClick={() => handleConnectionsClick('followers', publicProfileData._id)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}>
+                    <span style={{ fontWeight: '800', fontSize: '1.2rem' }}>{publicProfileData.followers?.length || 0}</span>
+                    <span style={{ fontSize: '0.85rem', color: '#555' }}>followers</span>
                   </div>
-                )}
-                {publicProfileData.age && publicProfileData.gender && (
-                  <div className="profile-demographics">
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
-                      <span>{publicProfileData.age} Yrs</span>
-                    </div>
-                    <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textTransform: 'capitalize' }}>
-                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{publicProfileData.gender === 'male' ? '👨' : '👩'}</span>
-                      <span>{publicProfileData.gender}</span>
-                    </div>
+                  <div onClick={() => handleConnectionsClick('following', publicProfileData._id)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}>
+                    <span style={{ fontWeight: '800', fontSize: '1.2rem' }}>{publicProfileData.following?.length || 0}</span>
+                    <span style={{ fontSize: '0.85rem', color: '#555' }}>following</span>
                   </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontWeight: '800', fontSize: '1.2rem' }}>{publicProfileData.globalStories?.length || 0}</span>
+                    <span style={{ fontSize: '0.85rem', color: '#555' }}>Posts</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ marginTop: '15px' }}>
+                <div style={{ fontSize: '1.3rem', fontWeight: 'bold' }}>@{publicProfileData.username}</div>
+                <div style={{ fontSize: '0.9rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : '#555', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', border: '1px solid #999', display: 'inline-block', background: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : 'transparent' }}></span>
+                  {onlineUsers.includes(publicProfileData._id) ? 'Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
+                {isFollowing ? (
+                  <>
+                    <button onClick={() => startChatWithUser(publicProfileData)} style={{ flex: 1, padding: '8px', border: '1px solid #ccc', borderRadius: '25px', background: 'transparent', color: '#000', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer' }}>Message</button>
+                    <button onClick={() => unfollowUser(publicProfileData._id)} style={{ flex: 1, padding: '8px', border: '1px solid #ccc', borderRadius: '25px', background: '#f5f5f5', color: '#000', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer' }}>Unfollow</button>
+                  </>
+                ) : hasRequested ? (
+                  <button onClick={() => unfollowUser(publicProfileData._id)} style={{ flex: 1, padding: '8px', border: '1px solid #ccc', borderRadius: '25px', background: '#f5f5f5', color: '#000', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer' }}>Cancel Request</button>
+                ) : (
+                  <button onClick={() => sendFollowRequest(publicProfileData._id)} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '25px', background: '#1da1f2', color: '#fff', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer' }}>Follow</button>
                 )}
+              </div>
 
-                {/* Highlights Section */}
-                {publicProfileData.highlights && publicProfileData.highlights.length > 0 && (
-                  <div style={{ marginTop: '20px', width: '100%' }}>
-                    <div style={{ display: 'flex', overflowX: 'auto', gap: '15px', paddingBottom: '10px' }} className="hide-scrollbar">
-                      {publicProfileData.highlights.map((highlight, index) => (
-                        <div 
-                          key={highlight._id}
-                          onClick={() => {
-                            setProfileStoryGroups([{
-                              user: {
-                                _id: publicProfileData._id,
-                                username: publicProfileData.username,
-                                avatarUrl: publicProfileData.avatarUrl
-                              },
-                              stories: publicProfileData.highlights
-                            }]);
-                            setActiveTab('profile-stories');
-                            setCurrentStoryUserIndex(0);
-                            setCurrentStoryIndex(index);
-                            setStoryViewerActive(true);
-                          }}
-                          style={{
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flexShrink: 0
-                          }}
-                        >
-                          <div style={{
-                            width: '64px', height: '64px', borderRadius: '50%',
-                            padding: '2px', background: '#333', border: '2px solid #ccc',
-                            display: 'flex', justifyContent: 'center', alignItems: 'center',
-                            overflow: 'hidden'
-                          }}>
-                            {highlight.mediaType === 'video' ? (
-                              <video src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                            ) : (
-                              <img src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                            )}
-                          </div>
-                          <span style={{ fontSize: '0.75rem', marginTop: '5px', color: '#ccc' }}>Highlight</span>
-                        </div>
-                      ))}
-                    </div>
+              {publicProfileData.mutualConnections && publicProfileData.mutualConnections.totalCount > 0 && (
+                <div 
+                  onClick={() => handleConnectionsClick('mutual', publicProfileData._id)}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', width: '100%', padding: '10px 15px', 
+                    background: '#f9f9f9', borderRadius: '12px', marginTop: '15px', 
+                    cursor: 'pointer', boxSizing: 'border-box', border: '1px solid #eaeaea'
+                  }}
+                >
+                  <div style={{ display: 'flex', marginRight: '10px' }}>
+                    {publicProfileData.mutualConnections.previewUsers.map((mu, i) => (
+                      <div key={mu._id} style={{
+                        width: '24px', height: '24px', borderRadius: '50%', background: '#fff', 
+                        border: '2px solid #fff', marginLeft: i > 0 ? '-10px' : '0', overflow: 'hidden', zIndex: 3 - i
+                      }}>
+                        {mu.avatarUrl ? <img src={mu.avatarUrl} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#666', fontWeight: 'bold', background: '#eaeaea'}}>{mu.username.charAt(0).toUpperCase()}</div>}
+                      </div>
+                    ))}
                   </div>
-                )}
+                  <div style={{ fontSize: '0.85rem', color: '#555', flex: 1, textAlign: 'left' }}>
+                    Followed by <strong>{publicProfileData.mutualConnections.previewUsers[0].username}</strong>
+                    {publicProfileData.mutualConnections.totalCount > 1 && 
+                      ` and ${publicProfileData.mutualConnections.totalCount - 1} other${publicProfileData.mutualConnections.totalCount - 1 > 1 ? 's' : ''}`
+                    }
+                  </div>
+                  <div style={{ fontSize: '1.2rem', color: '#888' }}>›</div>
+                </div>
+              )}
+              
+              {publicProfileData.age && publicProfileData.gender && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', padding: '15px 0', borderBottom: '1px solid #eaeaea', borderTop: '1px solid #eaeaea', marginTop: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem' }}>🎂</span>
+                    <span style={{ fontSize: '0.95rem', color: '#333' }}>{publicProfileData.age} Yrs</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', textTransform: 'capitalize' }}>
+                    <span style={{ fontSize: '1.2rem' }}>{publicProfileData.gender === 'male' ? '👨' : '👩'}</span>
+                    <span style={{ fontSize: '0.95rem', color: '#333' }}>{publicProfileData.gender}</span>
+                  </div>
+                </div>
+              )}
+            </div>
 
-                {publicProfileData.globalStories && publicProfileData.globalStories.length > 0 && (
-                  <div style={{ marginTop: '20px', width: '100%' }}>
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                      {groupStoriesByDay(showAllGlobalStoriesPublic ? publicProfileData.globalStories : publicProfileData.globalStories).slice(0, showAllGlobalStoriesPublic ? 999 : 3).map((group, index, allGroups) => {
-                        const firstStory = group.stories[0];
-                        return (
-                        <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333', cursor: 'pointer', position: 'relative' }} onClick={() => { 
+            {/* Highlights & Global Stories Section */}
+            <div style={{ padding: '0 20px 20px 20px' }}>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 'bold', margin: '0 0 5px 0' }}>Global Stories</h3>
+              <div style={{ fontSize: '1rem', color: '#333', marginBottom: '20px' }}>Stories Highlights</div>
+              
+              {/* Highlights List */}
+              {publicProfileData.highlights && publicProfileData.highlights.length > 0 && (
+                <div style={{ display: 'flex', overflowX: 'auto', gap: '20px', paddingBottom: '20px' }} className="hide-scrollbar">
+                  {publicProfileData.highlights.map((highlight, index) => (
+                    <div 
+                      key={highlight._id}
+                      onClick={() => {
+                        setProfileStoryGroups([{
+                          user: {
+                            _id: publicProfileData._id,
+                            username: publicProfileData.username,
+                            avatarUrl: publicProfileData.avatarUrl
+                          },
+                          stories: publicProfileData.highlights
+                        }]);
+                        setActiveTab('profile-stories');
+                        setCurrentStoryUserIndex(0);
+                        setCurrentStoryIndex(index);
+                        setStoryViewerActive(true);
+                      }}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}
+                    >
+                      <div style={{
+                        width: '75px', height: '75px', borderRadius: '50%',
+                        padding: '3px', background: '#fff', border: '2px solid #ccc',
+                        display: 'flex', justifyContent: 'center', alignItems: 'center',
+                        overflow: 'hidden'
+                      }}>
+                        {highlight.mediaType === 'video' ? (
+                          <video src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <img src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.85rem', marginTop: '8px', color: '#333' }}>story {index + 1}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Global Stories Grid */}
+              {publicProfileData.globalStories && publicProfileData.globalStories.length > 0 && (
+                <div style={{ marginTop: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                    {groupStoriesByDay(showAllGlobalStoriesPublic ? publicProfileData.globalStories : publicProfileData.globalStories).slice(0, showAllGlobalStoriesPublic ? 999 : 3).map((group, index, allGroups) => {
+                      const firstStory = group.stories[0];
+                      return (
+                        <div key={group.date} style={{ aspectRatio: '3/4', borderRadius: '12px', overflow: 'hidden', background: '#f5f5f5', cursor: 'pointer', position: 'relative', border: '1px solid #ccc' }} onClick={() => { 
                           const viewerGroups = allGroups.map(g => ({
                             user: { _id: publicProfileData._id, username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl },
                             stories: g.stories
@@ -5136,35 +5171,33 @@ const handleStoryUpload = async () => {
                           ) : (
                             <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
                           )}
-                          <div style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '6px' }}>
-                            <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{group.date}</span>
-                            <span style={{ color: '#fff', fontSize: '0.75rem', flexShrink: 0 }}>{group.stories.length}</span>
+                          <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', zIndex: 5, background: '#fff', padding: '4px 10px', borderRadius: '6px', border: '1px solid #ccc' }}>
+                            <span style={{ color: '#000', fontSize: '0.75rem', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{group.date}</span>
                           </div>
                         </div>
-                      )})}
-                    </div>
-                    {groupStoriesByDay(publicProfileData.globalStories).length > 3 && (
-                      <button 
-                        onClick={() => {
-                          setUserGlobalStoriesUserId(publicProfileData._id);
-                          setUserGlobalStoriesUserInfo({ username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl });
-                          setUserGlobalStories([]);
-                          fetchUserGlobalStories(publicProfileData._id, 1, false);
-                          setActiveTab('user-global-stories');
-                        }}
-                        style={{ marginTop: '10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '10px', fontSize: '0.9rem' }}
-                      >
-                        See More
-                      </button>
-                    )}
+                      )
+                    })}
                   </div>
-                )}
-              </div>
+                  {groupStoriesByDay(publicProfileData.globalStories).length > 3 && (
+                    <button 
+                      onClick={() => {
+                        setUserGlobalStoriesUserId(publicProfileData._id);
+                        setUserGlobalStoriesUserInfo({ username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl });
+                        setUserGlobalStories([]);
+                        fetchUserGlobalStories(publicProfileData._id, 1, false);
+                        setActiveTab('user-global-stories');
+                      }}
+                      style={{ marginTop: '15px', background: 'transparent', border: '1px solid #ccc', borderRadius: '25px', color: '#000', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '12px', fontSize: '0.95rem', fontWeight: 'bold' }}
+                    >
+                      See More
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );
-
-      case 'messages':
+case 'messages':
         return (
           <div className="chat-container">
             <div className={`chat-list ${activeChatUser ? 'hide-on-mobile' : ''}`}>
