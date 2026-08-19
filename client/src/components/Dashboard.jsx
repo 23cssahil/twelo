@@ -62,7 +62,8 @@ import {
 
 const CHAT_THEMES = [
   { id: 'default', name: 'Default', bg: 'transparent', preview: '#222' },
-  { id: 'midnight_purple', name: 'Midnight Purple', bg: 'linear-gradient(135deg, #1a0b2e 0%, #4a1c5d 100%)', preview: 'linear-gradient(135deg, #1a0b2e 0%, #4a1c5d 100%)' }
+  { id: 'midnight_purple', name: 'Midnight Purple', bg: 'linear-gradient(135deg, #1a0b2e 0%, #4a1c5d 100%)', preview: 'linear-gradient(135deg, #1a0b2e 0%, #4a1c5d 100%)' },
+  { id: 'romantic_love', name: 'Romantic Love', bg: 'linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%)', preview: 'linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%)' }
 ];
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';

@@ -3187,7 +3187,7 @@ io.on('connection', (socket) => {
         }
 
         // Generate system message
-        const themeNames = { 'default': 'Default', 'midnight_purple': 'Midnight Purple' };
+        const themeNames = { 'default': 'Default', 'midnight_purple': 'Midnight Purple', 'romantic_love': 'Romantic Love' };
         const tName = themeNames[themeId] || 'a new theme';
         const sysMessage = new Message({
           sender: userId,
