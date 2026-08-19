@@ -626,26 +626,27 @@ input, button, textarea {
 
 /* Profile View */
 .profile-container {
-  padding: 20px 16px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   min-height: 100vh;
-  background: var(--bg-color);
+  width: 100%;
 }
 
 .profile-card {
   position: relative;
   width: 100%;
-  max-width: 400px;
+  max-width: 100%;
   background: var(--app-sender-unique-color);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 24px;
+  border: none;
+  border-radius: 0;
   padding: 32px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
+  min-height: 100vh;
 }
 
 .profile-avatar-large {
