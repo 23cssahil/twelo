@@ -4987,7 +4987,7 @@ const handleStoryUpload = async () => {
                     <div className="profile-avatar-large">
                       <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
                       {publicProfileData.country && (
-                        <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
+                        <div style={{ position: 'absolute', bottom: '0', right: '-4px', fontSize: '1.2rem', background: '#222', borderRadius: '50%', padding: '0', border: '2px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px' }}>
                           {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
                         </div>
                       )}
@@ -5937,7 +5937,7 @@ const handleStoryUpload = async () => {
                         {(profileStats?.avatarUrl || user.avatarUrl) ? <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
                       </div>
                       {(profileStats?.country || user.country) && (
-                        <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
+                        <div style={{ position: 'absolute', bottom: '0', right: '-4px', fontSize: '1.2rem', background: '#222', borderRadius: '50%', padding: '0', border: '2px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px' }}>
                           {getFlagEmoji(profileStats?.country || user.country, profileStats?.countryCode || user.countryCode)}
                         </div>
                       )}
