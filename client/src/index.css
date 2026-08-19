@@ -1270,8 +1270,8 @@ input, button, textarea {
 .settings-item-btn {
   background: transparent;
   border: none;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  color: #fff;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  color: #000;
   padding: 16px 20px;
   text-align: left;
   font-size: 1rem;
@@ -1280,7 +1280,7 @@ input, button, textarea {
 }
 
 .settings-item-btn:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(0,0,0,0.05);
 }
 
 .logout-danger {
@@ -1500,8 +1500,9 @@ input, button, textarea {
   width: 65%;
   max-width: 320px;
   height: 100%;
-  background: #121212;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  color: #000000;
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
   animation: slideInRight 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
   display: flex;
   flex-direction: column;
@@ -1514,7 +1515,7 @@ input, button, textarea {
 
 .settings-drawer .modal-header {
   padding: 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(0,0,0,0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
