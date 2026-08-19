@@ -2182,12 +2182,10 @@ export default function Dashboard() {
 
     socket.on('chat_theme_changed', ({ themeId, targetUserId, setterId }) => {
       const partnerId = setterId === (user.id || user._id) ? targetUserId : setterId;
-      setUser(prev => {
-        if (!prev) return prev;
-        const newThemes = { ...(prev.chatThemes || {}) };
-        newThemes[partnerId] = themeId;
-        return { ...prev, chatThemes: newThemes };
-      });
+      const newThemes = { ...(user.chatThemes || {}) };
+      newThemes[partnerId] = themeId;
+      login({ ...user, chatThemes: newThemes }, token);
+      
       if (setterId === (user.id || user._id)) {
         showToastMsg(`Theme changed to ${CHAT_THEMES.find(t => t.id === themeId)?.name || 'New Theme'}`, 'success');
       }
