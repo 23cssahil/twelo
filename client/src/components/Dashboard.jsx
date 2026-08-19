@@ -150,6 +150,21 @@ const COUNTRY_DATA = {
   return flags[countryName] || '🌍';
 };
 
+const AdsterraBanner = () => {
+  useEffect(() => {
+    if (!document.getElementById('adsterra-script')) {
+      const script = document.createElement('script');
+      script.id = 'adsterra-script';
+      script.async = true;
+      script.dataset.cfasync = "false";
+      script.src = "//pl30895199.effectivecpmnetwork.com/68a0807fea81fdc49bc8a49017e7e443/invoke.js";
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  return <div id="container-68a0807fea81fdc49bc8a49017e7e443" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}></div>;
+};
+
 const StorySlide = ({
   group, groupIdx, isActiveSlide, 
   currentStoryIndex, setCurrentStoryIndex,
@@ -387,6 +402,10 @@ const StorySlide = ({
             }}
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
+        ) : story.mediaType === 'adsterra' ? (
+          <div style={{ width: '100%', height: '100%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AdsterraBanner />
+          </div>
         ) : (
           <img 
             src={story.mediaUrl} 
@@ -1765,8 +1784,8 @@ export default function Dashboard() {
           user: { _id: 'ad-mock-id', username: 'Ads', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png' },
           stories: [{
             _id: 'ad-story-id',
-            mediaUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
-            mediaType: 'video',
+            mediaUrl: 'https://via.placeholder.com/400x700.png?text=Sponsored+Ad',
+            mediaType: 'adsterra',
             createdAt: new Date().toISOString(),
             isAd: true,
             user: { _id: 'ad-mock-id', username: 'Ads', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png' }
