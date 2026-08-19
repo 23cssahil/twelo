@@ -5035,6 +5035,24 @@ const handleStoryUpload = async () => {
                 </button>
               </div>
               <div className="profile-info">
+                {publicProfileData.bio && (
+                  <div style={{ width: '100%', padding: '0', marginBottom: '15px', color: '#fff', fontSize: '0.95rem', lineHeight: '1.4', textAlign: 'left', wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                    {publicProfileData.bio}
+                  </div>
+                )}
+                {publicProfileData.age && publicProfileData.gender && (
+                  <div className="profile-demographics" style={{ marginTop: 0, marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
+                      <span>{publicProfileData.age} Yrs</span>
+                    </div>
+                    <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textTransform: 'capitalize' }}>
+                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{publicProfileData.gender === 'male' ? '👨' : '👩'}</span>
+                      <span>{publicProfileData.gender}</span>
+                    </div>
+                  </div>
+                )}
                 <div className="profile-actions">
                   {isFollowing ? (
                     <>
@@ -5073,19 +5091,6 @@ const handleStoryUpload = async () => {
                       }
                     </div>
                     <div style={{ fontSize: '1.2rem', color: '#888' }}>›</div>
-                  </div>
-                )}
-                {publicProfileData.age && publicProfileData.gender && (
-                  <div className="profile-demographics">
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
-                      <span>{publicProfileData.age} Yrs</span>
-                    </div>
-                    <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textTransform: 'capitalize' }}>
-                      <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{publicProfileData.gender === 'male' ? '👨' : '👩'}</span>
-                      <span>{publicProfileData.gender}</span>
-                    </div>
                   </div>
                 )}
 
@@ -5981,8 +5986,14 @@ const handleStoryUpload = async () => {
               
               <div className="profile-info">
 
+                {(profileStats?.bio || user?.bio) && (
+                  <div style={{ width: '100%', padding: '0', marginBottom: '15px', color: '#fff', fontSize: '0.95rem', lineHeight: '1.4', textAlign: 'left', wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                    {profileStats?.bio || user?.bio}
+                  </div>
+                )}
+
                 {(profileStats?.age || user.age) && (profileStats?.gender || user.gender) && (
-                  <div className="profile-demographics">
+                  <div className="profile-demographics" style={{ marginTop: 0, marginBottom: '20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
                       <span>{profileStats?.age || user.age} Yrs</span>
@@ -6647,6 +6658,7 @@ const handleStoryUpload = async () => {
                 <textarea 
                   value={profileBio} 
                   onChange={e => setProfileBio(e.target.value)} 
+                  maxLength={150}
                   placeholder="Tell people about yourself..."
                   style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid #333', borderRadius: '8px', color: '#fff', fontSize: '1rem', minHeight: '80px', resize: 'vertical' }} 
                 />
