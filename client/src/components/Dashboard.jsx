@@ -1957,6 +1957,17 @@ export default function Dashboard() {
     socket.on('online_users', (users) => setOnlineUsers(users));
     
     socket.on('receive_message', (msg) => {
+      // System messages can come from us (e.g. changing theme)
+      if (msg.messageType === 'system' && String(msg.sender) === String(user._id || user.id)) {
+        if (activeChatUserRef.current && String(msg.receiver) === String(activeChatUserRef.current._id)) {
+          setMessages((prev) => {
+            if (prev.some(m => String(m._id) === String(msg._id))) return prev;
+            return [...prev, msg];
+          });
+        }
+        return;
+      }
+
       // Only add messages from OTHER users here.
       // Own sent messages are already added optimistically in handleSendMessage
       // and are properly confirmed via the 'message_sent' event.
