@@ -2289,7 +2289,9 @@ export default function Dashboard() {
     showPrivacyModal,
     showAccountModal,
     storyCameraOpen, 
-    showLogoutConfirm
+    showLogoutConfirm,
+    themePreview,
+    showThemesModal
   ].filter(Boolean).length;
   const prevOverlaysCount = useRef(0);
 
@@ -2302,7 +2304,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     const handlePopState = (e) => {
-      if (showChangeUsernameModal) {
+      if (themePreview) {
+        setThemePreview(null);
+      } else if (showThemesModal) {
+        setShowThemesModal(false);
+      } else if (showChangeUsernameModal) {
         setShowChangeUsernameModal(false);
       } else if (showInnerSettingsModal) {
         setShowInnerSettingsModal(false);
@@ -2358,7 +2364,7 @@ export default function Dashboard() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showMyProfileModal, showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen, showShareModal, showPrivacyModal, showAccountModal]);
+  }, [showMyProfileModal, showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen, showShareModal, showPrivacyModal, showAccountModal, themePreview, showThemesModal]);
 
   // Lock document scroll when chat is active to prevent keyboard from pushing header out of view
   useEffect(() => {
@@ -8259,6 +8265,7 @@ const handleStoryUpload = async () => {
     </div>
   );
 }
+
 
 
 
