@@ -8168,14 +8168,17 @@ const handleStoryUpload = async () => {
       {showThemesModal && !themePreview && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10003, background: '#111', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #333', background: '#000' }}>
-            <button onClick={() => setShowThemesModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowLeft size={24} /></button>
+            <button onClick={() => window.history.back()} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowLeft size={24} /></button>
             <h2 style={{ marginLeft: '20px', fontSize: '1.2rem', margin: '0' }}>Chat Themes</h2>
           </div>
           <div style={{ padding: '20px', flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', alignContent: 'start' }}>
             {CHAT_THEMES.map(theme => (
               <div 
                 key={theme.id}
-                onClick={() => setThemePreview(theme)}
+                onClick={() => {
+                  setThemePreview(theme);
+                  window.history.pushState({ modal: 'themePreview' }, '');
+                }}
                 style={{
                   aspectRatio: '1/1.5',
                   borderRadius: '12px',
