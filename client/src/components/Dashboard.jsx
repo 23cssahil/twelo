@@ -311,6 +311,11 @@ const StorySlide = ({
               <span style={{ color: '#fff', fontSize: '1rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                 {group.user.username}
               </span>
+              {story.isAd && (
+                <span style={{ background: '#FFD700', color: '#000', fontSize: '0.7rem', padding: '2px 5px', borderRadius: '4px', marginLeft: '5px', fontWeight: 'bold' }}>
+                  Sponsored
+                </span>
+              )}
               {group.user.countryCode && (
                 <span style={{ fontSize: '1rem', flexShrink: 0 }}>
                   {getFlagEmoji(group.user.country, group.user.countryCode)}
@@ -460,7 +465,7 @@ const StorySlide = ({
         />
 
         {/* Action Bar for Everyone Stories */}
-        {(activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone') && (
+        {(!story.isAd && (activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone')) && (
           <div style={{ position: 'absolute', right: '12px', bottom: '80px', zIndex: 15, display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
             {/* Like Button */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -519,7 +524,7 @@ const StorySlide = ({
       </div>
 
       {/* Bottom Controls (Only for normal stories or your own stories) */}
-      {(!(activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone') || group.user._id === (user?._id || user?.id)) && (
+      {(!story.isAd && (!(activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone') || group.user._id === (user?._id || user?.id))) && (
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
           {group.user._id === (user?._id || user?.id) ? (
             <>
@@ -1754,7 +1759,28 @@ export default function Dashboard() {
         const { data, nextCursor, hasMore } = await res.json();
         
         if (reset) {
-          seteveryoneStories(data);
+          const adGroup = {
+            user: { _id: 'ad-mock-id', username: 'Ads', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png' },
+            stories: [{
+              _id: 'ad-story-id',
+              mediaUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+              mediaType: 'video',
+              createdAt: new Date().toISOString(),
+              isAd: true
+            }]
+          };
+          let newData = [...data];
+          if (newData.length >= 2) {
+             const insertPositions = [2, 3, 9];
+             const possiblePositions = insertPositions.filter(pos => pos <= newData.length);
+             const targetPos = possiblePositions.length > 0 
+                ? possiblePositions[Math.floor(Math.random() * possiblePositions.length)] 
+                : newData.length;
+             newData.splice(targetPos, 0, adGroup);
+          } else {
+             newData.push(adGroup);
+          }
+          seteveryoneStories(newData);
         } else {
           seteveryoneStories(prev => {
             if (!prev.length) return data;
@@ -4979,16 +5005,7 @@ const handleStoryUpload = async () => {
                   </button>
                 </div>
               </div>
-              {Capacitor.isNativePlatform() && (
-                <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginTop: '20px', width: '100%' }}>
-                  <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Watch Video</h3>
-                  <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Watch a short ad to earn free coins immediately!</p>
-                  <button onClick={() => alert("Ad Mob integration goes here.")} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', border: 'none', borderRadius: '8px', color: '#000', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
-                    Watch Ad & Earn
-                  </button>
-                </div>
-              )}
-              
+
             </div>
           );
         }
