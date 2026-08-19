@@ -5029,7 +5029,7 @@ const handleStoryUpload = async () => {
                     }
                   }} 
                   className="back-btn" 
-                  style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', alignSelf: 'flex-start' }}
+                  style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', alignSelf: 'flex-start', marginTop: '-10px' }}
                 >
                   ✕
                 </button>
@@ -5974,7 +5974,7 @@ const handleStoryUpload = async () => {
                     </div>
                   </div>
                 </div>
-                <button className="icon-btn settings-btn" onClick={() => { setEditUsernameMode(false); setShowSettingsModal(true); }} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>
+                <button className="icon-btn settings-btn" onClick={() => { setEditUsernameMode(false); setShowSettingsModal(true); }} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', marginTop: '-10px' }}>
                   <Menu size={24} />
                 </button>
               </div>
