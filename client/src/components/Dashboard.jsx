@@ -4931,7 +4931,59 @@ const handleStoryUpload = async () => {
         if (!publicProfileData) return null;
         if (publicProfileData.isLoading) {
           return (
-            
+            <div className="profile-container">
+              <div className="profile-card" style={{ padding: '30px 20px' }}>
+                <div className="profile-avatar-large shimmer" style={{ background: '#333', border: 'none' }}></div>
+                <div className="profile-info" style={{ marginTop: '20px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div className="shimmer" style={{ width: '150px', height: '24px', borderRadius: '4px', marginBottom: '10px' }}></div>
+                  <div className="shimmer" style={{ width: '80px', height: '16px', borderRadius: '4px', marginBottom: '25px' }}></div>
+                  
+                  <div className="profile-stats" style={{ width: '100%', gap: '15px' }}>
+                    <div className="stat-box shimmer" style={{ height: '70px', borderRadius: '12px', border: 'none' }}></div>
+                    <div className="stat-box shimmer" style={{ height: '70px', borderRadius: '12px', border: 'none' }}></div>
+                  </div>
+                  
+                  <div className="shimmer" style={{ width: '100%', height: '45px', borderRadius: '25px', marginTop: '25px' }}></div>
+                  
+                  <div style={{ marginTop: '20px', width: '100%' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
+                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
+                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Earn Coins Section migrated to Profile */}
+              <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginTop: '20px', width: '100%' }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Invite Friends & Earn</h3>
+                <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Share your unique link. You earn 20 coins for every friend who signs up!</p>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input type="text" readOnly value={`${window.location.origin}/login?ref=${user?.id}`} style={{ flex: 1, padding: '10px', background: 'rgba(0,0,0,0.5)', border: '1px solid #333', borderRadius: '8px', color: '#fff' }} />
+                  <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/login?ref=${user?.id}`); alert('Link Copied!'); }} style={{ padding: '10px 20px', background: '#333', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>
+                    Copy
+                  </button>
+                </div>
+              </div>
+              {Capacitor.isNativePlatform() && (
+                <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginTop: '20px', width: '100%' }}>
+                  <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Watch Video</h3>
+                  <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Watch a short ad to earn free coins immediately!</p>
+                  <button onClick={() => alert("Ad Mob integration goes here.")} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', border: 'none', borderRadius: '8px', color: '#000', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+                    Watch Ad & Earn
+                  </button>
+                </div>
+              )}
+              
+            </div>
+          );
+        }
+        const isFollowing = profileStats?.following?.includes(publicProfileData._id);
+        const hasRequested = publicProfileData.friendRequests?.includes(user.id);
+        
+        return (
           
           <div className="profile-container" style={{ position: 'relative', background: '#fff', color: '#000', minHeight: '100vh', fontFamily: 'sans-serif' }}>
             {/* Top Bar with Back Button */}
