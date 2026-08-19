@@ -1021,7 +1021,7 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    const targetSocketId = onlineUsers.get(targetUserId.toString());
+    const targetSocketId = onlineUsers.get(targetUserId.toString(?.toString()));
     if (targetSocketId) {
       io.to(targetSocketId).emit('new_notification');
     }
@@ -1074,7 +1074,7 @@ app.post('/api/users/anonymous_follow/:id', authenticateToken, async (req, res) 
       });
     }
 
-    const targetSocketId = onlineUsers.get(targetUserId.toString());
+    const targetSocketId = onlineUsers.get(targetUserId.toString(?.toString()));
     if (targetSocketId) {
       io.to(targetSocketId).emit('new_notification');
     }
@@ -1125,7 +1125,7 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
       await requester.save();
     }
 
-    const reqSocketId = onlineUsers.get(requesterId.toString());
+    const reqSocketId = onlineUsers.get(requesterId.toString(?.toString()));
     if (reqSocketId) {
       io.to(reqSocketId).emit('new_notification');
     }
@@ -1160,7 +1160,7 @@ app.post('/api/users/reject/:id', authenticateToken, async (req, res) => {
       requester.notifications.push({ type: 'request_rejected', user: req.user.userId });
       await requester.save();
       
-      const reqSocketId = onlineUsers.get(requesterId.toString());
+      const reqSocketId = onlineUsers.get(requesterId.toString(?.toString()));
       if (reqSocketId) {
         io.to(reqSocketId).emit('request_rejected_alert');
         io.to(reqSocketId).emit('new_notification');
@@ -1274,7 +1274,7 @@ app.post('/api/users/unfollow/:id', authenticateToken, async (req, res) => {
       await currentUser.save();
       await targetUser.save();
       
-      const targetSocketId = onlineUsers.get(targetUserId.toString());
+      const targetSocketId = onlineUsers.get(targetUserId.toString(?.toString()));
       if (targetSocketId) {
         io.to(targetSocketId).emit('new_notification');
       }
@@ -1700,7 +1700,7 @@ app.post('/api/stories/:id/view', authenticateToken, async (req, res) => {
           io.emit('admin_story_interaction');
         } else if (story.user) {
           const ownerId = story.user.toString();
-          const ownerSocketId = onlineUsers.get(ownerId);
+          const ownerSocketId = onlineUsers.get(ownerId?.toString());
           if (ownerSocketId) {
             io.to(ownerSocketId).emit('story_interaction');
           }
@@ -2036,7 +2036,7 @@ app.post('/api/stories/:id/like', authenticateToken, async (req, res) => {
         io.emit('admin_story_interaction');
       } else if (story.user) {
         const ownerId = story.user.toString();
-        const ownerSocketId = onlineUsers.get(ownerId);
+        const ownerSocketId = onlineUsers.get(ownerId?.toString());
         if (ownerSocketId) {
           io.to(ownerSocketId).emit('story_interaction');
         }
@@ -2650,7 +2650,7 @@ app.post('/api/admin/block', adminAuth, async (req, res) => {
     const { userId, isBlocked } = req.body;
     const user = await User.findByIdAndUpdate(userId, { isBlocked }, { new: true });
     if (isBlocked) {
-      const socketId = onlineUsers.get(userId);
+      const socketId = onlineUsers.get(userId?.toString());
       if (socketId) {
         io.to(socketId).emit('force_logout', { message: 'You have been blocked by the admin.' });
       }
@@ -2741,7 +2741,7 @@ app.post('/api/admin/notify-user', adminAuth, async (req, res) => {
     const newNotif = { type: 'system_alert', message, read: false };
     await User.findByIdAndUpdate(userId, { $push: { notifications: newNotif } });
 
-    const socketId = onlineUsers.get(userId);
+    const socketId = onlineUsers.get(userId?.toString());
     if (socketId) {
       io.to(socketId).emit('new_notification');
       io.to(socketId).emit('system_alert_toast', { message, type: 'personal' });
@@ -2773,7 +2773,7 @@ app.post('/api/admin/delete-user', adminAuth, async (req, res) => {
 
     await User.findByIdAndDelete(userId);
 
-    const socketId = onlineUsers.get(userId);
+    const socketId = onlineUsers.get(userId?.toString());
     if (socketId) {
       io.to(socketId).emit('force_logout', { message: 'Your account has been permanently deleted by the admin.' });
     }
@@ -2850,7 +2850,7 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
     await user.save();
 
     // Alert user that request was accepted
-    const receiverSocketId = onlineUsers.get(user._id.toString());
+    const receiverSocketId = onlineUsers.get(user._id.toString(?.toString()));
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('request_accepted_alert');
       io.to(receiverSocketId).emit('new_notification');
@@ -2994,8 +2994,8 @@ io.on('connection', (socket) => {
       });
       await message.save();
 
-      const receiverSocketId = onlineUsers.get(receiverId);
-      const senderSocketId = onlineUsers.get(senderId);
+      const receiverSocketId = onlineUsers.get(receiverId?.toString());
+      const senderSocketId = onlineUsers.get(senderId?.toString());
 
       const payload = {
         _id: message._id.toString(),
@@ -3079,8 +3079,8 @@ io.on('connection', (socket) => {
           await Message.findByIdAndUpdate(messageId, { 
             $set: { isDeletedForEveryone: true, message: '🚫 This message was deleted', messageType: 'text', fileUrl: null } 
           });
-          const receiverSocketId = onlineUsers.get(message.receiver.toString());
-          const senderSocketId = onlineUsers.get(message.sender.toString());
+          const receiverSocketId = onlineUsers.get(message.receiver.toString(?.toString()));
+          const senderSocketId = onlineUsers.get(message.sender.toString(?.toString()));
           const payload = { messageId, type: 'everyone' };
           
           if (receiverSocketId) io.to(receiverSocketId).emit('message_deleted', payload);
@@ -3089,7 +3089,7 @@ io.on('connection', (socket) => {
       } else if (type === 'me') {
         // Add to deletedBy array
         await Message.findByIdAndUpdate(messageId, { $addToSet: { deletedBy: userId } });
-        const socketId = onlineUsers.get(userId);
+        const socketId = onlineUsers.get(userId?.toString());
         if (socketId) io.to(socketId).emit('message_deleted', { messageId, type: 'me' });
       }
     } catch (error) {
@@ -3099,21 +3099,21 @@ io.on('connection', (socket) => {
 
   // --- Real-time Notifications ---
   socket.on('send_friend_request', ({ targetUserId }) => {
-    const receiverSocketId = onlineUsers.get(targetUserId);
+    const receiverSocketId = onlineUsers.get(targetUserId?.toString());
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('new_notification');
     }
   });
 
   socket.on('accept_friend_request', ({ requesterId }) => {
-    const receiverSocketId = onlineUsers.get(requesterId);
+    const receiverSocketId = onlineUsers.get(requesterId?.toString());
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('request_accepted_alert');
     }
   });
 
   socket.on('reject_friend_request', ({ requesterId }) => {
-    const receiverSocketId = onlineUsers.get(requesterId);
+    const receiverSocketId = onlineUsers.get(requesterId?.toString());
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('request_rejected_alert');
     }
@@ -3123,7 +3123,7 @@ io.on('connection', (socket) => {
   
   // Call User (Initiate call)
   socket.on('call_user', ({ userToCall, signalData, from, fromUsername, fromAvatar, isVideo }) => {
-    const receiverSocketId = onlineUsers.get(userToCall.toString());
+    const receiverSocketId = onlineUsers.get(userToCall.toString(?.toString()));
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('incoming_call', {
         signal: signalData,
@@ -3176,12 +3176,12 @@ io.on('connection', (socket) => {
         // Broadcast theme change
         const payload = { themeId, setterId: userId, targetUserId };
         io.to(socket.id).emit('chat_theme_changed', payload);
-        const receiverSocketId = onlineUsers.get(targetUserId);
+        const receiverSocketId = onlineUsers.get(targetUserId?.toString());
         if (receiverSocketId) {
           io.to(receiverSocketId).emit('chat_theme_changed', payload);
         }
         // Send to sender's other sockets
-        const senderOtherSockets = onlineUsers.get(userId);
+        const senderOtherSockets = onlineUsers.get(userId?.toString());
         if (senderOtherSockets && senderOtherSockets !== socket.id) {
            io.to(senderOtherSockets).emit('chat_theme_changed', payload);
         }
@@ -3623,21 +3623,21 @@ io.on('connection', (socket) => {
           { $set: { isViewed: true, viewedAt: now } }
         );
         // Emit messages_marked_read to update the entire chat state
-        const senderSocketId = onlineUsers.get(senderId);
+        const senderSocketId = onlineUsers.get(senderId?.toString());
         if (senderSocketId) {
           io.to(senderSocketId).emit('messages_marked_read', { readerId: receiverId, viewedAt: now });
         }
-        const receiverSocketId = onlineUsers.get(receiverId);
+        const receiverSocketId = onlineUsers.get(receiverId?.toString());
         if (receiverSocketId) {
           io.to(receiverSocketId).emit('messages_marked_read', { readerId: receiverId, viewedAt: now });
         }
       } else {
         // For view-once, just update this specific message
-        const senderSocketId = onlineUsers.get(senderId);
+        const senderSocketId = onlineUsers.get(senderId?.toString());
         if (senderSocketId) {
           io.to(senderSocketId).emit('message_viewed', { messageId, receiverId, viewedAt: now });
         }
-        const receiverSocketId = onlineUsers.get(receiverId);
+        const receiverSocketId = onlineUsers.get(receiverId?.toString());
         if (receiverSocketId) {
           io.to(receiverSocketId).emit('message_viewed', { messageId, receiverId, viewedAt: now });
         }
@@ -3655,12 +3655,12 @@ io.on('connection', (socket) => {
         { $set: { isViewed: true, viewedAt: now } }
       );
       // Notify the ORIGINAL SENDER that their messages were read (seen status)
-      const senderSocketId = onlineUsers.get(senderId);
+      const senderSocketId = onlineUsers.get(senderId?.toString());
       if (senderSocketId) {
         io.to(senderSocketId).emit('messages_marked_read', { readerId: receiverId, viewedAt: now });
       }
       // Also notify the RECEIVER's own socket so their chat list updates instantly
-      const receiverSocketId = onlineUsers.get(receiverId);
+      const receiverSocketId = onlineUsers.get(receiverId?.toString());
       if (receiverSocketId) {
         io.to(receiverSocketId).emit('messages_marked_read', { readerId: receiverId, viewedAt: now });
       }
@@ -3670,7 +3670,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('typing_status', ({ senderId, receiverId, isTyping }) => {
-    const receiverSocketId = onlineUsers.get(receiverId);
+    const receiverSocketId = onlineUsers.get(receiverId?.toString());
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('typing_status_received', { senderId, isTyping });
     }
@@ -3737,3 +3737,4 @@ setTimeout(async () => {
     }
   } catch(e) {}
 }, 5000);
+
