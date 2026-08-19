@@ -5401,6 +5401,7 @@ const handleStoryUpload = async () => {
                                 e.stopPropagation();
                                 setShowChatSettingsMenu(false);
                                 setShowThemesModal(true);
+                                window.history.pushState({ modal: 'themes' }, '');
                               }}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: '10px',
@@ -8176,8 +8177,7 @@ const handleStoryUpload = async () => {
               <div 
                 key={theme.id}
                 onClick={() => {
-                  setThemePreview(theme);
-                  window.history.pushState({ modal: 'themePreview' }, '');
+                  setThemePreview(theme); window.history.pushState({ modal: 'themePreview' }, '');
                 }}
                 style={{
                   aspectRatio: '1/1.5',
@@ -8225,7 +8225,7 @@ const handleStoryUpload = async () => {
             </div>
             <div style={{ padding: '20px', display: 'flex', gap: '10px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)' }}>
               <button 
-                onClick={() => setThemePreview(null)}
+                onClick={() => window.history.back()}
                 style={{ flex: 1, padding: '14px', borderRadius: '12px', background: '#333', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}
               >
                 Cancel
@@ -8235,8 +8235,7 @@ const handleStoryUpload = async () => {
                   if (socket && activeChatUser) {
                     socket.emit('change_chat_theme', { targetUserId: activeChatUser._id, themeId: themePreview.id, senderId: user.id || user._id });
                   }
-                  setThemePreview(null);
-                  setShowThemesModal(false);
+                  window.history.back(); setTimeout(() => window.history.back(), 50);
                 }}
                 style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--brand-blue)', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}
               >
@@ -8249,5 +8248,8 @@ const handleStoryUpload = async () => {
     </div>
   );
 }
+
+
+
 
 
