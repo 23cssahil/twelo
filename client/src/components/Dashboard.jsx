@@ -4904,7 +4904,6 @@ const handleStoryUpload = async () => {
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '650' }}>@{connection.username}</div>
-                        {connection.name && <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '3px', color: '#a8a8a8', fontSize: '0.88rem' }}>{connection.name}</div>}
                       </div>
                     </button>
                   ))}
@@ -5979,7 +5978,7 @@ const handleStoryUpload = async () => {
                 )}
 
                 <div style={{ width: '100%', marginTop: '20px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '12px', textAlign: 'center' }}>{user.name}</h3>
+
                   <div className="profile-id-strip" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.04)', padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '0.85rem', color: '#a8a8a8' }}>ID:</span>
