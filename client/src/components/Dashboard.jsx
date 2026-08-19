@@ -5008,13 +5008,13 @@ const handleStoryUpload = async () => {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                     <span className="profile-username" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>@{publicProfileData.username}</span>
-                    <div className="profile-stats" style={{ display: 'flex', gap: '30px', marginTop: '12px' }}>
+                    <div className="profile-stats" style={{ display: 'flex', gap: '30px', marginTop: '4px' }}>
                       <div style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }} onClick={() => handleConnectionsClick('followers', publicProfileData._id)}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{formatCount(publicProfileData.followers?.length || 0)}</span>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{formatCount(publicProfileData.followers?.length || 0)}</span>
                         <span style={{ fontSize: '0.9rem', color: '#a8a8a8' }}>followers</span>
                       </div>
                       <div style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }} onClick={() => handleConnectionsClick('following', publicProfileData._id)}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{formatCount(publicProfileData.following?.length || 0)}</span>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{formatCount(publicProfileData.following?.length || 0)}</span>
                         <span style={{ fontSize: '0.9rem', color: '#a8a8a8' }}>following</span>
                       </div>
                     </div>
@@ -5962,13 +5962,13 @@ const handleStoryUpload = async () => {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                     <span className="profile-username" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>@{user.username}</span>
-                    <div className="profile-stats" style={{ display: 'flex', gap: '30px', marginTop: '12px' }}>
+                    <div className="profile-stats" style={{ display: 'flex', gap: '30px', marginTop: '4px' }}>
                       <div onClick={() => handleConnectionsClick('followers', user.id)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{formatCount(profileStats?.followers?.length || 0)}</span>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{formatCount(profileStats?.followers?.length || 0)}</span>
                         <span style={{ fontSize: '0.9rem', color: '#a8a8a8' }}>followers</span>
                       </div>
                       <div onClick={() => handleConnectionsClick('following', user.id)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{formatCount(profileStats?.following?.length || 0)}</span>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{formatCount(profileStats?.following?.length || 0)}</span>
                         <span style={{ fontSize: '0.9rem', color: '#a8a8a8' }}>following</span>
                       </div>
                     </div>
