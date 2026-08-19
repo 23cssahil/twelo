@@ -1758,22 +1758,23 @@ export default function Dashboard() {
       if (res.ok) {
         const { data, nextCursor, hasMore } = await res.json();
         
-        if (reset) {
-          const adGroup = {
-            userId: 'ad-mock-id',
-            username: 'Ads',
-            avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png',
-            user: { _id: 'ad-mock-id', username: 'Ads', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png' },
-            stories: [{
-              _id: 'ad-story-id',
-              mediaUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-              mediaType: 'video',
-              createdAt: new Date().toISOString(),
-              isAd: true,
-              user: { _id: 'ad-mock-id', username: 'Ads', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png' }
-            }]
-          };
-          let newData = [...data];
+        const adGroup = {
+          userId: 'ad-mock-id',
+          username: 'Ads',
+          avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png',
+          user: { _id: 'ad-mock-id', username: 'Ads', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png' },
+          stories: [{
+            _id: 'ad-story-id',
+            mediaUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+            mediaType: 'video',
+            createdAt: new Date().toISOString(),
+            isAd: true,
+            user: { _id: 'ad-mock-id', username: 'Ads', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png' }
+          }]
+        };
+
+        const injectAd = (arr) => {
+          let newData = [...arr];
           if (newData.length >= 2) {
              const insertPositions = [2, 3, 9];
              const possiblePositions = insertPositions.filter(pos => pos <= newData.length);
@@ -1784,10 +1785,14 @@ export default function Dashboard() {
           } else {
              newData.push(adGroup);
           }
-          seteveryoneStories(newData);
+          return newData;
+        };
+
+        if (reset) {
+          seteveryoneStories(injectAd(data));
         } else {
           seteveryoneStories(prev => {
-            if (!prev.length) return data;
+            if (!prev.length) return injectAd(data);
             if (!data.length) return prev;
             
             // Filter out any stories we already have to prevent duplication bugs
