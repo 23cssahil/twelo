@@ -42,6 +42,7 @@ import {
   Flag,
   Loader2,
   Share2,
+  Star,
   Lock,
   PlusCircle,
   ChevronLeft,
@@ -526,6 +527,25 @@ const StorySlide = ({
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                <button 
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', zIndex: 15, display: 'flex', alignItems: 'center', marginRight: '15px' }}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      const res = await fetch(`${API_URL}/api/stories/${story._id}/highlight`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        alert(data.message);
+                      }
+                    } catch(e) { console.error(e); }
+                  }}
+                >
+                  <Star size={32} color="#ffd700" fill="#ffd700" />
+                  <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', marginLeft: '5px' }}>Highlight</span>
+                </button>
                 {!(activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone') && (
                   <button 
                     style={{ background: 'none', border: 'none', cursor: 'pointer', zIndex: 15, display: 'flex', alignItems: 'center' }}
