@@ -3162,9 +3162,9 @@ io.on('connection', (socket) => {
   });
 
     // Handle chat theme change
-    socket.on('change_chat_theme', async ({ targetUserId, themeId }) => {
+    socket.on('change_chat_theme', async ({ targetUserId, themeId, senderId }) => {
       try {
-        const userId = Array.from(activeSessions.entries()).find(([sid, sess]) => sid === socket.id)?.[1]?.userId;
+        const userId = senderId;
         if (!userId) return;
         
         // Update both users symmetrically

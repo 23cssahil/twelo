@@ -8217,7 +8217,7 @@ const handleStoryUpload = async () => {
               <button 
                 onClick={() => {
                   if (socket && activeChatUser) {
-                    socket.emit('change_chat_theme', { targetUserId: activeChatUser._id, themeId: themePreview.id });
+                    socket.emit('change_chat_theme', { targetUserId: activeChatUser._id, themeId: themePreview.id, senderId: user.id || user._id });
                   }
                   setThemePreview(null);
                   setShowThemesModal(false);
