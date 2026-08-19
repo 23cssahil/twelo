@@ -5001,27 +5001,29 @@ const handleStoryUpload = async () => {
                   ←
                 </button>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                  <div className="profile-avatar-large">
-                    <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
-                    {publicProfileData.country && (
-                      <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
-                        {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
-                      </div>
-                    )}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div className="profile-avatar-large">
+                      <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
+                      {publicProfileData.country && (
+                        <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
+                          {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : '#a8a8a8', marginTop: '8px' }}>
+                      {onlineUsers.includes(publicProfileData._id) ? '🟢 Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                     <span className="profile-username" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>@{publicProfileData.username}</span>
-                    <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : '#a8a8a8', marginTop: '4px' }}>
-                      {onlineUsers.includes(publicProfileData._id) ? '🟢 Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
+                    <div className="profile-stats" style={{ display: 'flex', gap: '15px', marginTop: '8px' }}>
+                      <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('followers', publicProfileData._id)}><strong>{publicProfileData.followers?.length || 0}</strong> followers</span>
+                      <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('following', publicProfileData._id)}><strong>{publicProfileData.following?.length || 0}</strong> following</span>
                     </div>
                   </div>
                 </div>
               </div>
               <div className="profile-info">
-                <div className="profile-stats">
-                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('followers', publicProfileData._id)}><strong>{publicProfileData.followers?.length || 0}</strong> followers</span>
-                  <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('following', publicProfileData._id)}><strong>{publicProfileData.following?.length || 0}</strong> following</span>
-                </div>
                 <div className="profile-actions">
                   {isFollowing ? (
                     <>
@@ -5934,17 +5936,30 @@ const handleStoryUpload = async () => {
             <div className="profile-card">
               <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 0 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                  <div className="profile-avatar-large">
-                    <div className="profile-avatar-inner">
-                      {(profileStats?.avatarUrl || user.avatarUrl) ? <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
-                    </div>
-                    {(profileStats?.country || user.country) && (
-                      <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
-                        {getFlagEmoji(profileStats?.country || user.country, profileStats?.countryCode || user.countryCode)}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div className="profile-avatar-large">
+                      <div className="profile-avatar-inner">
+                        {(profileStats?.avatarUrl || user.avatarUrl) ? <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
                       </div>
-                    )}
+                      {(profileStats?.country || user.country) && (
+                        <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
+                          {getFlagEmoji(profileStats?.country || user.country, profileStats?.countryCode || user.countryCode)}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#2bd856', marginTop: '8px' }}>🟢 Online</div>
                   </div>
-                  <span className="profile-username" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>@{user.username}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span className="profile-username" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>@{user.username}</span>
+                    <div className="profile-stats" style={{ display: 'flex', gap: '15px', marginTop: '8px' }}>
+                      <span onClick={() => handleConnectionsClick('followers', user.id)} style={{ cursor: 'pointer' }}>
+                        <strong>{profileStats?.followers?.length || 0}</strong> followers
+                      </span>
+                      <span onClick={() => handleConnectionsClick('following', user.id)} style={{ cursor: 'pointer' }}>
+                        <strong>{profileStats?.following?.length || 0}</strong> following
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <button className="icon-btn settings-btn" onClick={() => { setEditUsernameMode(false); setShowSettingsModal(true); }} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>
                   <Menu size={24} />
@@ -5952,15 +5967,6 @@ const handleStoryUpload = async () => {
               </div>
               
               <div className="profile-info">
-                
-                <div className="profile-stats">
-                  <span onClick={() => handleConnectionsClick('followers', user.id)} style={{ cursor: 'pointer' }}>
-                    <strong>{profileStats?.followers?.length || 0}</strong> followers
-                  </span>
-                  <span onClick={() => handleConnectionsClick('following', user.id)} style={{ cursor: 'pointer' }}>
-                    <strong>{profileStats?.following?.length || 0}</strong> following
-                  </span>
-                </div>
 
                 {(profileStats?.age || user.age) && (profileStats?.gender || user.gender) && (
                   <div className="profile-demographics">
