@@ -1479,6 +1479,13 @@ export default function Dashboard() {
           savedUser.countryCode = data.countryCode;
           localStorage.setItem('user', JSON.stringify(savedUser));
           login(savedUser, token);
+          setProfileStats(prev => ({
+            ...prev,
+            bio: data.bio,
+            gender: data.gender,
+            country: data.country,
+            countryCode: data.countryCode
+          }));
         }
         setShowMyProfileModal(false);
       } else {
