@@ -687,9 +687,14 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
         
-        // DEMO OVERRIDE: If no mutuals exist, just show random followers so user can test the UI
-        if (mutualIds.length === 0 && targetFollowersIds.length > 0) {
-          mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
+        // DEMO OVERRIDE: Simulate mutuals for testing even for old users with 0 followers
+        if (mutualIds.length === 0) {
+          if (targetFollowersIds.length > 0) {
+            mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
+          } else {
+            const randomUsers = await User.aggregate([ { $sample: { size: 3 } } ]);
+            mutualIds.push(...randomUsers.map(u => u._id.toString()));
+          }
         }
 
         // Interaction Scoring (Prioritization)
@@ -930,9 +935,14 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
         
-        // DEMO OVERRIDE: If no mutuals exist, just show random followers so user can test the UI
-        if (mutualIds.length === 0 && targetFollowersIds.length > 0) {
-          mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
+        // DEMO OVERRIDE: Simulate mutuals for testing even for old users with 0 followers
+        if (mutualIds.length === 0) {
+          if (targetFollowersIds.length > 0) {
+            mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
+          } else {
+            const randomUsers = await User.aggregate([ { $sample: { size: 3 } } ]);
+            mutualIds.push(...randomUsers.map(u => u._id.toString()));
+          }
         }
 
         // Interaction Scoring (Prioritization)
@@ -1026,9 +1036,14 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
         
-        // DEMO OVERRIDE: If no mutuals exist, just show random followers so user can test the UI
-        if (mutualIds.length === 0 && targetFollowersIds.length > 0) {
-          mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
+        // DEMO OVERRIDE: Simulate mutuals for testing even for old users with 0 followers
+        if (mutualIds.length === 0) {
+          if (targetFollowersIds.length > 0) {
+            mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
+          } else {
+            const randomUsers = await User.aggregate([ { $sample: { size: 3 } } ]);
+            mutualIds.push(...randomUsers.map(u => u._id.toString()));
+          }
         }
 
         // Interaction Scoring (Prioritization)
@@ -3987,6 +4002,7 @@ setTimeout(async () => {
     }
   } catch(e) {}
 }, 5000);
+
 
 
 
