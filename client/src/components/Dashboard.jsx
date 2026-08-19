@@ -4152,7 +4152,10 @@ const handleStoryUpload = async () => {
         alert("Not enough coins! You need 2 coins to use the gender filter.");
         return;
       }
-      setShowHomeAdPopup(true);
+      setIsSearchingRandom(true);
+      setRandomSearchTimer(3);
+      setMatchFailed(false);
+      if (socket) socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
     } else {
       setIsSearchingRandom(false);
       if (socket) socket.emit('cancel_search', user.id);
