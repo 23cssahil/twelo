@@ -676,6 +676,27 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
       .lean();
     user.globalStories = globalStories;
 
+    // Mutual Followers Logic
+    if (req.user && req.user.userId && req.user.userId !== user._id.toString()) {
+      try {
+        const currentUser = await User.findById(req.user.userId).select('following').lean();
+        const myFollowingIds = (currentUser.following || []).map(id => id.toString());
+        const targetFollowersIds = (user.followers || []).map(id => id.toString());
+        const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
+        
+        const previewUsers = await User.find({ _id: { $in: mutualIds.slice(0, 3) } })
+          .select('username avatarUrl')
+          .lean();
+          
+        user.mutualConnections = {
+          totalCount: mutualIds.length,
+          previewUsers: previewUsers
+        };
+      } catch (err) {
+        console.error("Error fetching mutuals:", err);
+      }
+    }
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching profile' });
@@ -847,6 +868,27 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
       .lean();
     user.globalStories = globalStories;
 
+    // Mutual Followers Logic
+    if (req.user && req.user.userId && req.user.userId !== user._id.toString()) {
+      try {
+        const currentUser = await User.findById(req.user.userId).select('following').lean();
+        const myFollowingIds = (currentUser.following || []).map(id => id.toString());
+        const targetFollowersIds = (user.followers || []).map(id => id.toString());
+        const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
+        
+        const previewUsers = await User.find({ _id: { $in: mutualIds.slice(0, 3) } })
+          .select('username avatarUrl')
+          .lean();
+          
+        user.mutualConnections = {
+          totalCount: mutualIds.length,
+          previewUsers: previewUsers
+        };
+      } catch (err) {
+        console.error("Error fetching mutuals:", err);
+      }
+    }
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching public profile' });
@@ -870,6 +912,27 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
       .limit(20)
       .lean();
     user.globalStories = globalStories;
+
+    // Mutual Followers Logic
+    if (req.user && req.user.userId && req.user.userId !== user._id.toString()) {
+      try {
+        const currentUser = await User.findById(req.user.userId).select('following').lean();
+        const myFollowingIds = (currentUser.following || []).map(id => id.toString());
+        const targetFollowersIds = (user.followers || []).map(id => id.toString());
+        const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
+        
+        const previewUsers = await User.find({ _id: { $in: mutualIds.slice(0, 3) } })
+          .select('username avatarUrl')
+          .lean();
+          
+        user.mutualConnections = {
+          totalCount: mutualIds.length,
+          previewUsers: previewUsers
+        };
+      } catch (err) {
+        console.error("Error fetching mutuals:", err);
+      }
+    }
 
     res.json(user);
   } catch (error) {
@@ -1345,7 +1408,7 @@ app.post('/api/users/subscribe', authenticateToken, async (req, res) => {
 
 app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
   try {
-    const type = req.query.type || 'followers'; // 'followers' or 'following'
+    const type = req.query.type || 'followers'; // 'followers', 'following', or 'mutual'
     const cursor = req.query.cursor || null;
     const limit = parseInt(req.query.limit) || 20;
 

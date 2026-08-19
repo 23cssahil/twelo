@@ -5008,6 +5008,34 @@ const handleStoryUpload = async () => {
                     <button className="chat-now-btn" style={{ width: '100%' }} onClick={() => sendFollowRequest(publicProfileData._id)}>Follow</button>
                   )}
                 </div>
+                {publicProfileData.mutualConnections && publicProfileData.mutualConnections.totalCount > 0 && (
+                  <div 
+                    onClick={() => handleConnectionsClick('mutual', publicProfileData._id)}
+                    style={{ 
+                      display: 'flex', alignItems: 'center', width: '100%', padding: '10px 15px', 
+                      background: 'rgba(255,255,255,0.05)', borderRadius: '12px', marginTop: '10px', 
+                      cursor: 'pointer', boxSizing: 'border-box'
+                    }}
+                  >
+                    <div style={{ display: 'flex', marginRight: '10px' }}>
+                      {publicProfileData.mutualConnections.previewUsers.map((mu, i) => (
+                        <div key={mu._id} style={{
+                          width: '24px', height: '24px', borderRadius: '50%', background: '#333', 
+                          border: '2px solid #000', marginLeft: i > 0 ? '-10px' : '0', overflow: 'hidden', zIndex: 3 - i
+                        }}>
+                          {mu.avatarUrl ? <img src={mu.avatarUrl} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px'}}>{mu.username.charAt(0).toUpperCase()}</div>}
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#ccc', flex: 1, textAlign: 'left' }}>
+                      Followed by <strong>{publicProfileData.mutualConnections.previewUsers[0].username}</strong>
+                      {publicProfileData.mutualConnections.totalCount > 1 && 
+                        ` and ${publicProfileData.mutualConnections.totalCount - 1} other${publicProfileData.mutualConnections.totalCount - 1 > 1 ? 's' : ''}`
+                      }
+                    </div>
+                    <div style={{ fontSize: '1.2rem', color: '#888' }}>›</div>
+                  </div>
+                )}
                 {publicProfileData.age && publicProfileData.gender && (
                   <div className="profile-demographics">
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
