@@ -5050,6 +5050,50 @@ const handleStoryUpload = async () => {
                   </div>
                 )}
 
+                {/* Highlights Section */}
+                {publicProfileData.highlights && publicProfileData.highlights.length > 0 && (
+                  <div style={{ marginTop: '20px', width: '100%' }}>
+                    <div style={{ display: 'flex', overflowX: 'auto', gap: '15px', paddingBottom: '10px' }} className="hide-scrollbar">
+                      {publicProfileData.highlights.map((highlight, index) => (
+                        <div 
+                          key={highlight._id}
+                          onClick={() => {
+                            setProfileStoryGroups([{
+                              user: {
+                                _id: publicProfileData._id,
+                                username: publicProfileData.username,
+                                avatarUrl: publicProfileData.avatarUrl
+                              },
+                              stories: publicProfileData.highlights
+                            }]);
+                            setActiveTab('profile-stories');
+                            setCurrentStoryUserIndex(0);
+                            setCurrentStoryIndex(index);
+                            setStoryViewerActive(true);
+                          }}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flexShrink: 0
+                          }}
+                        >
+                          <div style={{
+                            width: '64px', height: '64px', borderRadius: '50%',
+                            padding: '2px', background: '#333', border: '2px solid #ccc',
+                            display: 'flex', justifyContent: 'center', alignItems: 'center',
+                            overflow: 'hidden'
+                          }}>
+                            {highlight.mediaType === 'video' ? (
+                              <video src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                              <img src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            )}
+                          </div>
+                          <span style={{ fontSize: '0.75rem', marginTop: '5px', color: '#ccc' }}>Highlight</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {publicProfileData.globalStories && publicProfileData.globalStories.length > 0 && (
                   <div style={{ marginTop: '20px', width: '100%' }}>
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
@@ -5927,6 +5971,50 @@ const handleStoryUpload = async () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Highlights Section */}
+                {profileStats?.highlights && profileStats.highlights.length > 0 && (
+                  <div style={{ marginTop: '20px', width: '100%' }}>
+                    <div style={{ display: 'flex', overflowX: 'auto', gap: '15px', paddingBottom: '10px' }} className="hide-scrollbar">
+                      {profileStats.highlights.map((highlight, index) => (
+                        <div 
+                          key={highlight._id}
+                          onClick={() => {
+                            setProfileStoryGroups([{
+                              user: {
+                                _id: user.id || user._id,
+                                username: user.username,
+                                avatarUrl: profileStats?.avatarUrl || user.avatarUrl
+                              },
+                              stories: profileStats.highlights
+                            }]);
+                            setActiveTab('profile-stories');
+                            setCurrentStoryUserIndex(0);
+                            setCurrentStoryIndex(index);
+                            setStoryViewerActive(true);
+                          }}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', flexShrink: 0
+                          }}
+                        >
+                          <div style={{
+                            width: '64px', height: '64px', borderRadius: '50%',
+                            padding: '2px', background: '#333', border: '2px solid #ccc',
+                            display: 'flex', justifyContent: 'center', alignItems: 'center',
+                            overflow: 'hidden'
+                          }}>
+                            {highlight.mediaType === 'video' ? (
+                              <video src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                              <img src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            )}
+                          </div>
+                          <span style={{ fontSize: '0.75rem', marginTop: '5px', color: '#ccc' }}>Highlight</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {profileStats?.globalStories && profileStats.globalStories.length > 0 && (
                   <div style={{ marginTop: '20px', width: '100%' }}>
@@ -8294,6 +8382,7 @@ const handleStoryUpload = async () => {
     </div>
   );
 }
+
 
 
 

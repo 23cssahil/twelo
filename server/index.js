@@ -154,6 +154,7 @@ const DeletedUser = require('./models/DeletedUser');
 const Message = require('./models/Message');
 const Report = require('./models/Report');
 const Story = require('./models/Story');
+const Highlight = require('./models/Highlight');
 const Comment = require('./models/Comment');
 const redisService = require('./services/redisService');
 const AdminData = require('./models/AdminData');
@@ -675,6 +676,8 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
       .limit(20)
       .lean();
     user.globalStories = globalStories;
+    const highlights = await Highlight.find({ user: user._id }).sort({ createdAt: -1 }).lean();
+    user.highlights = highlights;
 
     // Mutual Followers Logic
     if (req.user && req.user.userId && req.user.userId !== user._id.toString()) {
@@ -916,6 +919,8 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
       .limit(20)
       .lean();
     user.globalStories = globalStories;
+    const highlights = await Highlight.find({ user: user._id }).sort({ createdAt: -1 }).lean();
+    user.highlights = highlights;
 
     // Mutual Followers Logic
     if (req.user && req.user.userId && req.user.userId !== user._id.toString()) {
@@ -1010,6 +1015,8 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
       .limit(20)
       .lean();
     user.globalStories = globalStories;
+    const highlights = await Highlight.find({ user: user._id }).sort({ createdAt: -1 }).lean();
+    user.highlights = highlights;
 
     // Mutual Followers Logic
     if (req.user && req.user.userId && req.user.userId !== user._id.toString()) {
@@ -2221,6 +2228,39 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
 });
 
 // Toggle like on a story
+// Toggle Add to Highlights
+app.post('/api/stories/:id/highlight', authenticateToken, async (req, res) => {
+  try {
+    const storyId = req.params.id;
+    const userId = req.user.userId;
+
+    const story = await Story.findOne({ _id: storyId, user: userId });
+    if (!story) {
+      return res.status(404).json({ message: 'Story not found or unauthorized' });
+    }
+
+    const existingHighlight = await Highlight.findOne({ originalStoryId: storyId, user: userId });
+    
+    if (existingHighlight) {
+      await Highlight.deleteOne({ _id: existingHighlight._id });
+      res.json({ message: 'Removed from highlights', isHighlighted: false });
+    } else {
+      const highlight = new Highlight({
+        user: userId,
+        originalStoryId: storyId,
+        mediaUrl: story.mediaUrl,
+        mediaType: story.mediaType,
+        song: story.song
+      });
+      await highlight.save();
+      res.json({ message: 'Added to highlights', isHighlighted: true });
+    }
+  } catch (error) {
+    console.error('Highlight error:', error);
+    res.status(500).json({ message: 'Error toggling highlight' });
+  }
+});
+
 app.post('/api/stories/:id/like', authenticateToken, async (req, res) => {
   try {
     const storyId = req.params.id;
@@ -3947,6 +3987,9 @@ setTimeout(async () => {
     }
   } catch(e) {}
 }, 5000);
+
+
+
 
 
 
