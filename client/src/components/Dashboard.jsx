@@ -3225,7 +3225,7 @@ const handleStoryUpload = async () => {
           const tempId = `temp-${Date.now()}`;
           socket.emit('send_message', { 
             tempId,
-            senderId: user.id, 
+            senderId: user.id || user._id, 
             receiverId: activeChatUser._id, 
             messageText: '', 
             messageType: 'image', 
@@ -3236,7 +3236,7 @@ const handleStoryUpload = async () => {
           
           setMessages(prev => [...prev, { 
             _id: tempId,
-            sender: user.id, 
+            sender: user.id || user._id, 
             receiver: activeChatUser._id, 
             message: '', 
             messageType: 'image',
@@ -3293,10 +3293,10 @@ const handleStoryUpload = async () => {
         setIsUploading(false);
         if (url) {
           const tempId = `temp-${Date.now()}`;
-          socket.emit('send_message', { tempId, senderId: user.id, receiverId: activeChatUser._id, messageText: '', messageType: 'audio', fileUrl: url, replyTo: null });
+          socket.emit('send_message', { tempId, senderId: user.id || user._id, receiverId: activeChatUser._id, messageText: '', messageType: 'audio', fileUrl: url, replyTo: null });
           setMessages(prev => [...prev, { 
             _id: tempId,
-            sender: user.id, 
+            sender: user.id || user._id, 
             receiver: activeChatUser._id, 
             message: '', 
             messageType: 'audio',
@@ -3410,13 +3410,13 @@ const handleStoryUpload = async () => {
     } : null;
 
     const tempId = `temp-${Date.now()}`;
-    const msgData = { tempId, senderId: user.id, receiverId: activeChatUser._id, messageText: textToSend, messageType: 'text', fileUrl: null, replyTo: replyToObj };
+    const msgData = { tempId, senderId: user.id || user._id, receiverId: activeChatUser._id, messageText: textToSend, messageType: 'text', fileUrl: null, replyTo: replyToObj };
     socket.emit('send_message', msgData);
     
     // Optimistic UI update
     setMessages(prev => [...prev, { 
       _id: tempId,
-      sender: user.id, 
+      sender: user.id || user._id, 
       receiver: activeChatUser._id, 
       message: textToSend, 
       replyTo: replyToObj,
@@ -3509,7 +3509,7 @@ const handleStoryUpload = async () => {
     const tempId = `temp-call-${Date.now()}`;
     const msgData = {
       tempId,
-      senderId: user.id,
+      senderId: user.id || user._id,
       receiverId: targetId,
       messageText: messageText
     };
@@ -3518,7 +3518,7 @@ const handleStoryUpload = async () => {
     if (activeChatUser && activeChatUser._id === targetId) {
       setMessages(prev => [...prev, {
         _id: tempId,
-        sender: user.id,
+        sender: user.id || user._id,
         receiver: targetId,
         message: messageText,
         createdAt: new Date().toISOString()
@@ -3686,7 +3686,7 @@ const handleStoryUpload = async () => {
         socket.emit('call_user', {
           userToCall: targetUserId,
           signalData: data,
-          from: user.id,
+          from: user.id || user._id,
           fromUsername: user.username,
           fromAvatar: user.avatarUrl,
           isVideo: isVideo
@@ -3973,7 +3973,7 @@ const handleStoryUpload = async () => {
           const tempId = `temp-${Date.now()}`;
           const msgData = { 
             tempId, 
-            senderId: user.id, 
+            senderId: user.id || user._id, 
             receiverId: activeChatUser._id, 
             messageText: '📸 Took a screenshot', 
             messageType: 'screenshot', 

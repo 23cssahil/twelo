@@ -50,7 +50,9 @@ export default function App() {
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser && token) {
-      setUser(JSON.parse(savedUser));
+      let parsedUser = JSON.parse(savedUser);
+      if (parsedUser._id && !parsedUser.id) parsedUser.id = parsedUser._id;
+      setUser(parsedUser);
     }
     
     // Initialize AdMob if running natively
