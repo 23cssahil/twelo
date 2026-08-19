@@ -1760,13 +1760,17 @@ export default function Dashboard() {
         
         if (reset) {
           const adGroup = {
+            userId: 'ad-mock-id',
+            username: 'Ads',
+            avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png',
             user: { _id: 'ad-mock-id', username: 'Ads', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png' },
             stories: [{
               _id: 'ad-story-id',
               mediaUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
               mediaType: 'video',
               createdAt: new Date().toISOString(),
-              isAd: true
+              isAd: true,
+              user: { _id: 'ad-mock-id', username: 'Ads', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png' }
             }]
           };
           let newData = [...data];
