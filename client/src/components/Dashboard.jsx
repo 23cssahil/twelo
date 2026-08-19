@@ -62,8 +62,9 @@ import {
 
 const CHAT_THEMES = [
   { id: 'default', name: 'Default', bg: 'transparent', preview: '#222' },
-  { id: 'midnight_purple', name: 'Midnight Purple', bg: 'linear-gradient(135deg, #1a0b2e 0%, #4a1c5d 100%)', preview: 'linear-gradient(135deg, #1a0b2e 0%, #4a1c5d 100%)' },
-  { id: 'romantic_love', name: 'Romantic Love', bg: 'linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%)', preview: 'linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%)' }
+  { id: 'whatsapp_light', name: 'Doodle Chat', bg: '#e5ddd5 url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ccircle cx=\'20\' cy=\'20\' r=\'3\' fill=\'%23000\' opacity=\'0.05\'/%3E%3Crect x=\'60\' y=\'40\' width=\'6\' height=\'6\' fill=\'%23000\' opacity=\'0.05\' transform=\'rotate(45 63 43)\'/%3E%3Cpath d=\'M 80 80 Q 85 70 90 80 T 100 80\' stroke=\'%23000\' stroke-width=\'2\' fill=\'none\' opacity=\'0.05\'/%3E%3C/svg%3E") repeat', preview: '#e5ddd5 url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ccircle cx=\'20\' cy=\'20\' r=\'3\' fill=\'%23000\' opacity=\'0.05\'/%3E%3Crect x=\'60\' y=\'40\' width=\'6\' height=\'6\' fill=\'%23000\' opacity=\'0.05\' transform=\'rotate(45 63 43)\'/%3E%3Cpath d=\'M 80 80 Q 85 70 90 80 T 100 80\' stroke=\'%23000\' stroke-width=\'2\' fill=\'none\' opacity=\'0.05\'/%3E%3C/svg%3E") repeat' },
+  { id: 'romantic_love', name: 'Romantic Love', bg: '#ffe5ec url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M30 45 C30 45 10 30 10 20 C10 10 25 10 30 20 C35 10 50 10 50 20 C50 30 30 45 30 45\' fill=\'%23ffb3c6\' opacity=\'0.6\'/%3E%3C/svg%3E") repeat', preview: '#ffe5ec url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M30 45 C30 45 10 30 10 20 C10 10 25 10 30 20 C35 10 50 10 50 20 C50 30 30 45 30 45\' fill=\'%23ffb3c6\' opacity=\'0.6\'/%3E%3C/svg%3E") repeat' },
+  { id: 'midnight_stars', name: 'Midnight Stars', bg: '#0f172a url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ccircle cx=\'10\' cy=\'10\' r=\'1.5\' fill=\'%23fff\' opacity=\'0.3\'/%3E%3Ccircle cx=\'50\' cy=\'40\' r=\'2\' fill=\'%23fff\' opacity=\'0.2\'/%3E%3Ccircle cx=\'80\' cy=\'80\' r=\'1\' fill=\'%23fff\' opacity=\'0.4\'/%3E%3C/svg%3E") repeat', preview: '#0f172a url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ccircle cx=\'10\' cy=\'10\' r=\'1.5\' fill=\'%23fff\' opacity=\'0.3\'/%3E%3Ccircle cx=\'50\' cy=\'40\' r=\'2\' fill=\'%23fff\' opacity=\'0.2\'/%3E%3Ccircle cx=\'80\' cy=\'80\' r=\'1\' fill=\'%23fff\' opacity=\'0.4\'/%3E%3C/svg%3E") repeat' }
 ];
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
@@ -5445,7 +5446,7 @@ const handleStoryUpload = async () => {
                             <React.Fragment key={msg._id}>
                               {showDateSeparator && (
                                 <div className="date-separator" style={{ textAlign: 'center', margin: '20px 0 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  <span style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 500 }}>
+                                  <span style={{ background: 'rgba(0,0,0,0.5)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.75rem', color: '#fff', fontWeight: 500, backdropFilter: 'blur(5px)' }}>
                                     {formatMessageDateSeparator(msg.createdAt)}
                                   </span>
                                 </div>
@@ -5453,7 +5454,7 @@ const handleStoryUpload = async () => {
                               
                               {msg.messageType === 'system' ? (
                                 <div style={{ width: '100%', textAlign: 'center', margin: '15px 0' }}>
-                                  <span style={{ background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '16px', fontSize: '0.8rem', color: '#bbb' }}>
+                                  <span style={{ background: 'rgba(0,0,0,0.5)', padding: '6px 14px', borderRadius: '16px', fontSize: '0.8rem', color: '#fff', backdropFilter: 'blur(5px)' }}>
                                     {msg.message}
                                   </span>
                                 </div>
