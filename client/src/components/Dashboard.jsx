@@ -1445,17 +1445,13 @@ export default function Dashboard() {
   };
 
   const handleSaveProfile = async () => {
-    if (!profileName.trim()) {
-      alert("Name cannot be empty");
-      return;
-    }
+
     setIsSavingProfile(true);
     try {
       const response = await fetch(`${API_URL}/api/users/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-          name: profileName,
           bio: profileBio,
           gender: profileGender,
           country: profileCountry,
@@ -6629,16 +6625,6 @@ const handleStoryUpload = async () => {
 
             {/* Form Section */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div>
-                <label style={{ fontSize: '0.85rem', color: '#888', marginBottom: '6px', display: 'block' }}>Name</label>
-                <input 
-                  type="text" 
-                  value={profileName} 
-                  onChange={e => setProfileName(e.target.value)} 
-                  style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid #333', borderRadius: '8px', color: '#fff', fontSize: '1rem' }} 
-                />
-              </div>
-
               <div>
                 <label style={{ fontSize: '0.85rem', color: '#888', marginBottom: '6px', display: 'block' }}>Username</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
