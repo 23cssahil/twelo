@@ -3187,7 +3187,7 @@ io.on('connection', (socket) => {
         }
 
         // Generate system message
-        const themeNames = { 'default': 'Default', 'whatsapp_light': 'Doodle Chat', 'midnight_stars': 'Midnight Stars', 'romantic_love': 'Romantic Love' };
+        const themeNames = { 'default': 'Default', 'whatsapp_light': 'Doodle Chat', 'romantic_love': 'Romantic Love', 'midnight_stars': 'Midnight Stars', 'cyberpunk': 'Cyberpunk Neon', 'cherry_blossom': 'Cherry Blossom', 'ocean_waves': 'Ocean Waves', 'sunset_vibes': 'Sunset Vibes', 'forest_leaves': 'Forest Leaves', 'coffee_shop': 'Coffee Shop', 'galaxy_nebula': 'Galaxy Nebula', 'minimal_dots': 'Minimalist Dots', 'retro_arcade': 'Retro Arcade', 'luxury_gold': 'Luxury Gold' };
         const tName = themeNames[themeId] || 'a new theme';
         const sysMessage = new Message({
           sender: userId,
