@@ -151,7 +151,14 @@ const COUNTRY_DATA = {
 };
 
 const AdsterraBanner = () => {
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
+    // Hide loading text after 3 seconds assuming ad loads
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 3000);
+
     if (!document.getElementById('adsterra-script')) {
       const script = document.createElement('script');
       script.id = 'adsterra-script';
@@ -160,9 +167,16 @@ const AdsterraBanner = () => {
       script.src = "//pl30895199.effectivecpmnetwork.com/68a0807fea81fdc49bc8a49017e7e443/invoke.js";
       document.body.appendChild(script);
     }
+
+    return () => clearTimeout(timer);
   }, []);
 
-  return <div id="container-68a0807fea81fdc49bc8a49017e7e443" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}></div>;
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {loading && <div style={{ position: 'absolute', color: '#888', fontSize: '1rem' }}>Loading Ad...</div>}
+      <div id="container-68a0807fea81fdc49bc8a49017e7e443" style={{ zIndex: 1, width: '100%', display: 'flex', justifyContent: 'center' }}></div>
+    </div>
+  );
 };
 
 const StorySlide = ({
@@ -1784,7 +1798,7 @@ export default function Dashboard() {
           user: { _id: 'ad-mock-id', username: 'Ads', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png' },
           stories: [{
             _id: 'ad-story-id',
-            mediaUrl: 'https://via.placeholder.com/400x700.png?text=Sponsored+Ad',
+            mediaUrl: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=400&h=700&fit=crop',
             mediaType: 'adsterra',
             createdAt: new Date().toISOString(),
             isAd: true,
