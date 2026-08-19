@@ -5504,7 +5504,9 @@ const handleStoryUpload = async () => {
                               {msg.messageType === 'system' ? (
                                 <div style={{ width: '100%', textAlign: 'center', margin: '15px 0' }}>
                                   <span style={{ background: 'rgba(0,0,0,0.5)', padding: '6px 14px', borderRadius: '16px', fontSize: '0.8rem', color: '#fff', backdropFilter: 'blur(5px)' }}>
-                                    {msg.message}
+                                    {String(msg.sender) === String(user.id || user._id) && msg.message.startsWith(user.username) 
+                                      ? msg.message.replace(user.username, 'You') 
+                                      : msg.message}
                                   </span>
                                 </div>
                               ) : msg.messageType === 'screenshot' ? (
@@ -8292,6 +8294,7 @@ const handleStoryUpload = async () => {
     </div>
   );
 }
+
 
 
 
