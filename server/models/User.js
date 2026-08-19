@@ -62,6 +62,11 @@ const UserSchema = new mongoose.Schema({
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   searchHistory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  chatThemes: {
+    type: Map,
+    of: String,
+    default: {}
+  },
   isBlocked: { type: Boolean, default: false },
   notifications: [{
     type: { type: String, enum: ['follow_request', 'request_accepted', 'system_alert', 'anonymous_follow_request', 'anonymous_request_accepted', 'follow_back_request', 'started_following_you', 'request_rejected'], required: true },

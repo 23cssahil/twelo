@@ -56,8 +56,14 @@ import {
   FileText,
   Mail,
   PenTool,
-  Ban
+  Ban,
+  Palette
 } from 'lucide-react';
+
+const CHAT_THEMES = [
+  { id: 'default', name: 'Default', bg: 'transparent', preview: '#222' },
+  { id: 'midnight_purple', name: 'Midnight Purple', bg: 'linear-gradient(135deg, #1a0b2e 0%, #4a1c5d 100%)', preview: 'linear-gradient(135deg, #1a0b2e 0%, #4a1c5d 100%)' }
+];
 import Peer from 'simple-peer';
 import Globe from 'react-globe.gl';
 import * as THREE from 'three';
@@ -919,6 +925,8 @@ export default function Dashboard() {
   const [recentChats, setRecentChats] = useState([]);
   const [chatsError, setChatsError] = useState(null);
   const [showChatSettingsMenu, setShowChatSettingsMenu] = useState(false);
+  const [showThemesModal, setShowThemesModal] = useState(false);
+  const [themePreview, setThemePreview] = useState(null);
   
   // Stories State
   const [groupedStories, setGroupedStories] = useState([]);
@@ -2171,6 +2179,19 @@ export default function Dashboard() {
       fetcheveryoneStories();
     });
 
+    socket.on('chat_theme_changed', ({ themeId, targetUserId, setterId }) => {
+      const partnerId = setterId === (user.id || user._id) ? targetUserId : setterId;
+      setUser(prev => {
+        if (!prev) return prev;
+        const newThemes = { ...(prev.chatThemes || {}) };
+        newThemes[partnerId] = themeId;
+        return { ...prev, chatThemes: newThemes };
+      });
+      if (setterId === (user.id || user._id)) {
+        showToastMsg(`Theme changed to ${CHAT_THEMES.find(t => t.id === themeId)?.name || 'New Theme'}`, 'success');
+      }
+    });
+
     return () => {
       socket.off('online_users');
       socket.off('receive_message');
@@ -2195,6 +2216,7 @@ export default function Dashboard() {
       socket.off('typing_status_received');
       socket.off('globe_status_update');
       socket.off('call_failed');
+      socket.off('chat_theme_changed');
     };
   }, [socket, user]);
 
@@ -5365,6 +5387,24 @@ const handleStoryUpload = async () => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setShowChatSettingsMenu(false);
+                                setShowThemesModal(true);
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                                background: 'transparent', border: 'none', color: '#fff',
+                                padding: '10px', cursor: 'pointer', borderRadius: '8px',
+                                fontSize: '0.9rem', fontWeight: 'bold', textAlign: 'left',
+                                width: '100%'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              <Palette size={18} /> Theme
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowChatSettingsMenu(false);
                                 alert("Block user feature coming soon!");
                               }}
                               style={{
@@ -5385,7 +5425,7 @@ const handleStoryUpload = async () => {
                     </div>
                   </div>
 
-                  <div className="chat-messages-area" onScroll={handleChatScroll}>
+                  <div className="chat-messages-area" onScroll={handleChatScroll} style={{ background: user?.chatThemes?.[activeChatUser._id] ? CHAT_THEMES.find(t => t.id === user.chatThemes[activeChatUser._id])?.bg : 'transparent', flex: 1, overflowY: 'auto' }}>
                     {isFetchingMessages && messages.length === 0 ? (
                       <div className="messages-skeleton-loader" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
                         <div className="msg-wrapper received" style={{ display: 'flex', justifyContent: 'flex-start' }}><div className="msg-bubble shimmer" style={{ width: '60%', height: '45px', borderRadius: '20px' }}></div></div>
@@ -5412,7 +5452,13 @@ const handleStoryUpload = async () => {
                                 </div>
                               )}
                               
-                              {msg.messageType === 'screenshot' ? (
+                              {msg.messageType === 'system' ? (
+                                <div style={{ width: '100%', textAlign: 'center', margin: '15px 0' }}>
+                                  <span style={{ background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '16px', fontSize: '0.8rem', color: '#bbb' }}>
+                                    {msg.message}
+                                  </span>
+                                </div>
+                              ) : msg.messageType === 'screenshot' ? (
                                 <div 
                                   onClick={() => alert(`Screenshot Details\nUser: ${msg.sender === user.id ? user.username : activeChatUser.username}\nDate: ${new Date(msg.createdAt).toLocaleDateString()}\nTime: ${new Date(msg.createdAt).toLocaleTimeString()}`)}
                                   style={{ width: '100%', textAlign: 'center', margin: '15px 0', fontSize: '0.85rem', color: '#888', fontStyle: 'italic', cursor: 'pointer' }}
@@ -8102,6 +8148,85 @@ const handleStoryUpload = async () => {
             >
               I Understand
             </button>
+          </div>
+        </div>
+      )}
+      {/* Themes Grid Modal */}
+      {showThemesModal && !themePreview && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10003, background: '#111', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #333', background: '#000' }}>
+            <button onClick={() => setShowThemesModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowLeft size={24} /></button>
+            <h2 style={{ marginLeft: '20px', fontSize: '1.2rem', margin: '0' }}>Chat Themes</h2>
+          </div>
+          <div style={{ padding: '20px', flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', alignContent: 'start' }}>
+            {CHAT_THEMES.map(theme => (
+              <div 
+                key={theme.id}
+                onClick={() => setThemePreview(theme)}
+                style={{
+                  aspectRatio: '1/1.5',
+                  borderRadius: '12px',
+                  background: theme.preview,
+                  border: user?.chatThemes?.[activeChatUser?._id] === theme.id || (!user?.chatThemes?.[activeChatUser?._id] && theme.id === 'default') ? '3px solid #2bd856' : '1px solid #333',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  padding: '10px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                  position: 'relative'
+                }}
+              >
+                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', textAlign: 'center', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                  {theme.name}
+                </span>
+                {(user?.chatThemes?.[activeChatUser?._id] === theme.id || (!user?.chatThemes?.[activeChatUser?._id] && theme.id === 'default')) && (
+                  <div style={{ position: 'absolute', top: '8px', right: '8px', background: '#2bd856', borderRadius: '50%', padding: '2px' }}>
+                    <Check size={14} color="#000" strokeWidth={3} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Theme Preview Modal */}
+      {themePreview && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10004, background: '#000', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '85%', height: '80%', background: themePreview.bg, borderRadius: '24px', position: 'relative', overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.5)', border: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '16px', background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>
+              {themePreview.name} Preview
+            </div>
+            <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', justifyContent: 'center' }}>
+              <div style={{ background: '#333', padding: '12px 16px', borderRadius: '18px 18px 18px 4px', maxWidth: '80%', color: '#fff', alignSelf: 'flex-start' }}>
+                Hey, how are you?
+              </div>
+              <div style={{ background: 'var(--brand-blue)', padding: '12px 16px', borderRadius: '18px 18px 4px 18px', maxWidth: '80%', color: '#fff', alignSelf: 'flex-end' }}>
+                I'm good! This new theme looks amazing! ✨
+              </div>
+            </div>
+            <div style={{ padding: '20px', display: 'flex', gap: '10px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)' }}>
+              <button 
+                onClick={() => setThemePreview(null)}
+                style={{ flex: 1, padding: '14px', borderRadius: '12px', background: '#333', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  if (socket && activeChatUser) {
+                    socket.emit('change_chat_theme', { targetUserId: activeChatUser._id, themeId: themePreview.id });
+                  }
+                  setThemePreview(null);
+                  setShowThemesModal(false);
+                }}
+                style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--brand-blue)', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}
+              >
+                Set Theme
+              </button>
+            </div>
           </div>
         </div>
       )}

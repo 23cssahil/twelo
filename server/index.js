@@ -3161,6 +3161,63 @@ io.on('connection', (socket) => {
     }
   });
 
+    // Handle chat theme change
+    socket.on('change_chat_theme', async ({ targetUserId, themeId }) => {
+      try {
+        const userId = Array.from(activeSessions.entries()).find(([sid, sess]) => sid === socket.id)?.[1]?.userId;
+        if (!userId) return;
+        
+        // Update both users symmetrically
+        await User.findByIdAndUpdate(userId, { $set: { [`chatThemes.${targetUserId}`]: themeId } });
+        await User.findByIdAndUpdate(targetUserId, { $set: { [`chatThemes.${userId}`]: themeId } });
+        
+        const senderObj = await User.findById(userId).select('username');
+        
+        // Broadcast theme change
+        const payload = { themeId, setterId: userId, targetUserId };
+        io.to(socket.id).emit('chat_theme_changed', payload);
+        const receiverSocketId = onlineUsers.get(targetUserId);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit('chat_theme_changed', payload);
+        }
+        // Send to sender's other sockets
+        const senderOtherSockets = onlineUsers.get(userId);
+        if (senderOtherSockets && senderOtherSockets !== socket.id) {
+           io.to(senderOtherSockets).emit('chat_theme_changed', payload);
+        }
+
+        // Generate system message
+        const themeNames = { 'default': 'Default', 'midnight_purple': 'Midnight Purple' };
+        const tName = themeNames[themeId] || 'a new theme';
+        const sysMessage = new Message({
+          sender: userId,
+          receiver: targetUserId,
+          message: `${senderObj?.username || 'User'} changed the theme to ${tName}.`,
+          messageType: 'system',
+          isViewed: false
+        });
+        await sysMessage.save();
+        
+        const msgPayload = {
+          _id: sysMessage._id.toString(),
+          sender: userId.toString(),
+          receiver: targetUserId.toString(),
+          message: sysMessage.message,
+          messageType: 'system',
+          isViewed: false,
+          createdAt: sysMessage.createdAt
+        };
+        
+        io.to(socket.id).emit('receive_message', msgPayload);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit('receive_message', msgPayload);
+        }
+        
+      } catch (err) {
+        console.error("Theme change error:", err);
+      }
+    });
+
     socket.on('admin_online', async () => {
       socket.join('admin_room');
       const bots = await User.find({ ownedByAdmin: true }).select('_id');
