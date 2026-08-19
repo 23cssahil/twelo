@@ -5048,7 +5048,7 @@ const handleStoryUpload = async () => {
                   </div>
                 )}
                 {publicProfileData.age && publicProfileData.gender && (
-                  <div className="profile-demographics" style={{ marginTop: 0, marginBottom: '20px' }}>
+                  <div className="profile-demographics" style={{ marginTop: 0, marginBottom: '8px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
                       <span>{publicProfileData.age} Yrs</span>
@@ -6000,7 +6000,7 @@ const handleStoryUpload = async () => {
                 )}
 
                 {(profileStats?.age || user.age) && (profileStats?.gender || user.gender) && (
-                  <div className="profile-demographics" style={{ marginTop: 0, marginBottom: '20px' }}>
+                  <div className="profile-demographics" style={{ marginTop: 0, marginBottom: '8px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
                       <span>{profileStats?.age || user.age} Yrs</span>
