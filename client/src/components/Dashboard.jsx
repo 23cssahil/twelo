@@ -1957,16 +1957,6 @@ export default function Dashboard() {
     socket.on('online_users', (users) => setOnlineUsers(users));
     
     socket.on('receive_message', (msg) => {
-      // System messages can come from us (e.g. changing theme)
-      if (msg.messageType === 'system' && String(msg.sender) === String(user._id || user.id)) {
-        if (activeChatUserRef.current && String(msg.receiver) === String(activeChatUserRef.current._id)) {
-          setMessages((prev) => {
-            if (prev.some(m => String(m._id) === String(msg._id))) return prev;
-            return [...prev, msg];
-          });
-        }
-        return;
-      }
 
       // Only add messages from OTHER users here.
       // Own sent messages are already added optimistically in handleSendMessage
@@ -8251,6 +8241,15 @@ const handleStoryUpload = async () => {
                 onClick={() => {
                   if (socket && activeChatUser) {
                     socket.emit('change_chat_theme', { targetUserId: activeChatUser._id, themeId: themePreview.id, senderId: user.id || user._id });
+                    const optimisticSysMsg = {
+                      _id: 'sys_' + Date.now(),
+                      sender: user.id || user._id,
+                      receiver: activeChatUser._id,
+                      message: 'You changed the theme to ' + (themePreview.name || 'a new theme') + '.',
+                      messageType: 'system',
+                      createdAt: new Date().toISOString()
+                    };
+                    setMessages(prev => [...prev, optimisticSysMsg]);
                   }
                   window.history.back(); setTimeout(() => window.history.back(), 50);
                 }}
@@ -8265,6 +8264,8 @@ const handleStoryUpload = async () => {
     </div>
   );
 }
+
+
 
 
 
