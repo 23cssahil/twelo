@@ -684,6 +684,40 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
         
+        // Interaction Scoring (Prioritization)
+        const Message = require('./models/Message');
+        const mongoose = require('mongoose');
+        const recentInteractions = await Message.aggregate([
+          {
+            $match: {
+              $or: [
+                { sender: new mongoose.Types.ObjectId(req.user.userId), receiver: { $in: mutualIds.map(id => new mongoose.Types.ObjectId(id)) } },
+                { receiver: new mongoose.Types.ObjectId(req.user.userId), sender: { $in: mutualIds.map(id => new mongoose.Types.ObjectId(id)) } }
+              ]
+            }
+          },
+          {
+            $group: {
+              _id: {
+                $cond: [
+                  { $eq: ["$sender", new mongoose.Types.ObjectId(req.user.userId)] },
+                  "$receiver",
+                  "$sender"
+                ]
+              },
+              score: { $sum: 1 }
+            }
+          }
+        ]);
+
+        const scoreMap = {};
+        recentInteractions.forEach(item => {
+          scoreMap[item._id.toString()] = item.score;
+        });
+
+        // Sort mutuals by interaction score descending
+        mutualIds.sort((a, b) => (scoreMap[b] || 0) - (scoreMap[a] || 0));
+        
         const previewUsers = await User.find({ _id: { $in: mutualIds.slice(0, 3) } })
           .select('username avatarUrl')
           .lean();
@@ -876,6 +910,40 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
         
+        // Interaction Scoring (Prioritization)
+        const Message = require('./models/Message');
+        const mongoose = require('mongoose');
+        const recentInteractions = await Message.aggregate([
+          {
+            $match: {
+              $or: [
+                { sender: new mongoose.Types.ObjectId(req.user.userId), receiver: { $in: mutualIds.map(id => new mongoose.Types.ObjectId(id)) } },
+                { receiver: new mongoose.Types.ObjectId(req.user.userId), sender: { $in: mutualIds.map(id => new mongoose.Types.ObjectId(id)) } }
+              ]
+            }
+          },
+          {
+            $group: {
+              _id: {
+                $cond: [
+                  { $eq: ["$sender", new mongoose.Types.ObjectId(req.user.userId)] },
+                  "$receiver",
+                  "$sender"
+                ]
+              },
+              score: { $sum: 1 }
+            }
+          }
+        ]);
+
+        const scoreMap = {};
+        recentInteractions.forEach(item => {
+          scoreMap[item._id.toString()] = item.score;
+        });
+
+        // Sort mutuals by interaction score descending
+        mutualIds.sort((a, b) => (scoreMap[b] || 0) - (scoreMap[a] || 0));
+        
         const previewUsers = await User.find({ _id: { $in: mutualIds.slice(0, 3) } })
           .select('username avatarUrl')
           .lean();
@@ -920,6 +988,40 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
         const myFollowingIds = (currentUser.following || []).map(id => id.toString());
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
+        
+        // Interaction Scoring (Prioritization)
+        const Message = require('./models/Message');
+        const mongoose = require('mongoose');
+        const recentInteractions = await Message.aggregate([
+          {
+            $match: {
+              $or: [
+                { sender: new mongoose.Types.ObjectId(req.user.userId), receiver: { $in: mutualIds.map(id => new mongoose.Types.ObjectId(id)) } },
+                { receiver: new mongoose.Types.ObjectId(req.user.userId), sender: { $in: mutualIds.map(id => new mongoose.Types.ObjectId(id)) } }
+              ]
+            }
+          },
+          {
+            $group: {
+              _id: {
+                $cond: [
+                  { $eq: ["$sender", new mongoose.Types.ObjectId(req.user.userId)] },
+                  "$receiver",
+                  "$sender"
+                ]
+              },
+              score: { $sum: 1 }
+            }
+          }
+        ]);
+
+        const scoreMap = {};
+        recentInteractions.forEach(item => {
+          scoreMap[item._id.toString()] = item.score;
+        });
+
+        // Sort mutuals by interaction score descending
+        mutualIds.sort((a, b) => (scoreMap[b] || 0) - (scoreMap[a] || 0));
         
         const previewUsers = await User.find({ _id: { $in: mutualIds.slice(0, 3) } })
           .select('username avatarUrl')
@@ -3800,4 +3902,5 @@ setTimeout(async () => {
     }
   } catch(e) {}
 }, 5000);
+
 
