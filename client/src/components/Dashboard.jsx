@@ -5977,29 +5977,6 @@ const handleStoryUpload = async () => {
                   </div>
                 )}
 
-                <div style={{ width: '100%', marginTop: '20px' }}>
-
-                  <div className="profile-id-strip" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.04)', padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '0.85rem', color: '#a8a8a8' }}>ID:</span>
-                      <span style={{ fontFamily: 'monospace', fontSize: '1rem', color: 'var(--brand-blue)', letterSpacing: '0.5px' }}>{user.uniqueId}</span>
-                    </div>
-                    <button 
-                      style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={() => {
-                        const url = `${window.location.origin}/u/${user.uniqueId}`;
-                        if (navigator.share) {
-                          navigator.share({ title: 'Twelo Profile', url });
-                        } else {
-                          navigator.clipboard.writeText(url);
-                          alert('Profile Link Copied!');
-                        }
-                      }}
-                    >
-                      <Share2 size={18} />
-                    </button>
-                  </div>
-                </div>
 
                 {/* Highlights Section */}
                 {profileStats?.highlights && profileStats.highlights.length > 0 && (
@@ -6679,6 +6656,27 @@ const handleStoryUpload = async () => {
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="profile-id-strip" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.04)', padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)', marginTop: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '0.85rem', color: '#a8a8a8' }}>ID:</span>
+                <span style={{ fontFamily: 'monospace', fontSize: '1rem', color: 'var(--brand-blue)', letterSpacing: '0.5px' }}>{user?.uniqueId}</span>
+              </div>
+              <button 
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => {
+                  const url = `${window.location.origin}/u/${user?.uniqueId}`;
+                  if (navigator.share) {
+                    navigator.share({ title: 'Twelo Profile', url });
+                  } else {
+                    navigator.clipboard.writeText(url);
+                    alert('Profile Link Copied!');
+                  }
+                }}
+              >
+                <Share2 size={18} />
+              </button>
             </div>
 
             <button 
