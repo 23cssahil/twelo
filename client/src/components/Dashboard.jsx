@@ -1765,7 +1765,7 @@ export default function Dashboard() {
           user: { _id: 'ad-mock-id', username: 'Ads', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/1973/1973809.png' },
           stories: [{
             _id: 'ad-story-id',
-            mediaUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+            mediaUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
             mediaType: 'video',
             createdAt: new Date().toISOString(),
             isAd: true,
@@ -7176,7 +7176,7 @@ const handleStoryUpload = async () => {
           {/* Ad Video */}
           <video 
             ref={videoRef}
-            src="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" 
+            src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" 
             autoPlay 
             muted 
             playsInline
