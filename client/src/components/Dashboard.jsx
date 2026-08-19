@@ -4374,7 +4374,7 @@ const handleStoryUpload = async () => {
                         }}
                       >
                         {story.mediaType === 'video' ? (
-                          <video src={story.mediaUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                          <video src={story.mediaUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline />
                         ) : (
                           <img src={story.mediaUrl} alt="Story" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                         )}
@@ -5192,7 +5192,7 @@ const handleStoryUpload = async () => {
                           setStoryViewerActive(true); 
                         }}>
                           {firstStory.mediaType === 'video' ? (
-                            <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                            <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline />
                           ) : (
                             <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
                           )}
@@ -6075,7 +6075,7 @@ const handleStoryUpload = async () => {
                             overflow: 'hidden'
                           }}>
                             {highlight.mediaType === 'video' ? (
-                              <video src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                              <video src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} autoPlay loop muted playsInline />
                             ) : (
                               <img src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                             )}
@@ -6105,7 +6105,7 @@ const handleStoryUpload = async () => {
                           setStoryViewerActive(true); 
                         }}>
                           {firstStory.mediaType === 'video' ? (
-                            <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                            <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline />
                           ) : (
                             <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
                           )}
@@ -6184,7 +6184,7 @@ const handleStoryUpload = async () => {
                     style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', background: '#222', position: 'relative' }}
                   >
                     {firstStory.mediaType === 'video' ? (
-                      <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                      <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline />
                     ) : (
                       <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
                     )}
