@@ -5029,7 +5029,7 @@ const handleStoryUpload = async () => {
                     }
                   }} 
                   className="back-btn" 
-                  style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', alignSelf: 'flex-start', marginTop: '-10px' }}
+                  style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', alignSelf: 'flex-start', marginTop: '-16px', marginRight: '-10px' }}
                 >
                   ✕
                 </button>
