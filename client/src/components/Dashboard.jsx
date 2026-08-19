@@ -5008,30 +5008,6 @@ const handleStoryUpload = async () => {
                     <button className="chat-now-btn" style={{ width: '100%' }} onClick={() => sendFollowRequest(publicProfileData._id)}>Follow</button>
                   )}
                 </div>
-                {(!publicProfileData.mutualConnections || publicProfileData.mutualConnections.totalCount === 0) && (
-                  <div 
-                    style={{ 
-                      display: 'flex', alignItems: 'center', width: '100%', padding: '10px 15px', 
-                      background: 'rgba(255,255,255,0.05)', borderRadius: '12px', marginTop: '10px', 
-                      cursor: 'pointer', boxSizing: 'border-box'
-                    }}
-                  >
-                    <div style={{ display: 'flex', marginRight: '10px' }}>
-                      {[1, 2, 3].map((_, i) => (
-                        <div key={i} style={{
-                          width: '24px', height: '24px', borderRadius: '50%', background: '#333', 
-                          border: '2px solid #000', marginLeft: i > 0 ? '-10px' : '0', overflow: 'hidden', zIndex: 3 - i
-                        }}>
-                          <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#fff'}}>T</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: '#ccc', flex: 1, textAlign: 'left' }}>
-                      Followed by <strong>TestUser</strong> and 2 others (Demo)
-                    </div>
-                    <div style={{ fontSize: '1.2rem', color: '#888' }}>›</div>
-                  </div>
-                )}
                 {publicProfileData.mutualConnections && publicProfileData.mutualConnections.totalCount > 0 && (
                   <div 
                     onClick={() => handleConnectionsClick('mutual', publicProfileData._id)}

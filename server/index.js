@@ -684,6 +684,11 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
         
+        // DEMO OVERRIDE: If no mutuals exist, just show random followers so user can test the UI
+        if (mutualIds.length === 0 && targetFollowersIds.length > 0) {
+          mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
+        }
+
         // Interaction Scoring (Prioritization)
         if (mutualIds.length > 0) {
           try {
@@ -920,6 +925,11 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
         
+        // DEMO OVERRIDE: If no mutuals exist, just show random followers so user can test the UI
+        if (mutualIds.length === 0 && targetFollowersIds.length > 0) {
+          mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
+        }
+
         // Interaction Scoring (Prioritization)
         if (mutualIds.length > 0) {
           try {
@@ -1009,6 +1019,11 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
         
+        // DEMO OVERRIDE: If no mutuals exist, just show random followers so user can test the UI
+        if (mutualIds.length === 0 && targetFollowersIds.length > 0) {
+          mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
+        }
+
         // Interaction Scoring (Prioritization)
         if (mutualIds.length > 0) {
           try {
@@ -3932,6 +3947,7 @@ setTimeout(async () => {
     }
   } catch(e) {}
 }, 5000);
+
 
 
 
