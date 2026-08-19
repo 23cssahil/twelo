@@ -4986,34 +4986,38 @@ const handleStoryUpload = async () => {
         return (
           <div className="profile-container">
             <div className="profile-card">
-              <button 
-                onClick={() => {
-                  if (activeChatUser) {
-                    setActiveTab('messages');
-                  } else {
-                    setActiveTab('search');
-                  }
-                }} 
-                className="back-btn" 
-                style={{ position: 'absolute', top: 0, left: 0, border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', zIndex: 10 }}
-              >
-                ←
-              </button>
-              <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', paddingLeft: '20px', paddingTop: '20px' }}>
-                <div className="profile-avatar-large">
-                  <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
-                  {publicProfileData.country && (
-                    <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
-                      {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
+              <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', padding: '20px 20px 0 20px', gap: '15px' }}>
+                <button 
+                  onClick={() => {
+                    if (activeChatUser) {
+                      setActiveTab('messages');
+                    } else {
+                      setActiveTab('search');
+                    }
+                  }} 
+                  className="back-btn" 
+                  style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer' }}
+                >
+                  ←
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <div className="profile-avatar-large">
+                    <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : publicProfileData.username.charAt(0).toUpperCase()}</div>
+                    {publicProfileData.country && (
+                      <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
+                        {getFlagEmoji(publicProfileData.country, publicProfileData.countryCode)}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span className="profile-username" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>@{publicProfileData.username}</span>
+                    <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : '#a8a8a8', marginTop: '4px' }}>
+                      {onlineUsers.includes(publicProfileData._id) ? '🟢 Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
               <div className="profile-info">
-                <span className="profile-username">@{publicProfileData.username}</span>
-                <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : '#a8a8a8', marginTop: '4px' }}>
-                  {onlineUsers.includes(publicProfileData._id) ? '🟢 Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
-                </div>
                 <div className="profile-stats">
                   <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('followers', publicProfileData._id)}><strong>{publicProfileData.followers?.length || 0}</strong> followers</span>
                   <span style={{ cursor: 'pointer' }} onClick={() => handleConnectionsClick('following', publicProfileData._id)}><strong>{publicProfileData.following?.length || 0}</strong> following</span>
@@ -5928,26 +5932,26 @@ const handleStoryUpload = async () => {
         return (
           <div className="profile-container" style={{ position: 'relative' }}>
             <div className="profile-card">
-              <div className="profile-header-actions" style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}>
-                <button className="icon-btn settings-btn" onClick={() => { setEditUsernameMode(false); setShowSettingsModal(true); }}>
+              <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 0 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <div className="profile-avatar-large">
+                    <div className="profile-avatar-inner">
+                      {(profileStats?.avatarUrl || user.avatarUrl) ? <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
+                    </div>
+                    {(profileStats?.country || user.country) && (
+                      <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
+                        {getFlagEmoji(profileStats?.country || user.country, profileStats?.countryCode || user.countryCode)}
+                      </div>
+                    )}
+                  </div>
+                  <span className="profile-username" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>@{user.username}</span>
+                </div>
+                <button className="icon-btn settings-btn" onClick={() => { setEditUsernameMode(false); setShowSettingsModal(true); }} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>
                   <Menu size={24} />
                 </button>
               </div>
-              <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', paddingLeft: '20px', paddingTop: '20px' }}>
-                <div className="profile-avatar-large">
-                  <div className="profile-avatar-inner">
-                    {(profileStats?.avatarUrl || user.avatarUrl) ? <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
-                  </div>
-                  {(profileStats?.country || user.country) && (
-                    <div style={{ position: 'absolute', bottom: '0', right: '-10px', fontSize: '1.5rem', background: '#222', borderRadius: '50%', padding: '4px', border: '2px solid #000' }}>
-                      {getFlagEmoji(profileStats?.country || user.country, profileStats?.countryCode || user.countryCode)}
-                    </div>
-                  )}
-                </div>
-              </div>
               
               <div className="profile-info">
-                <span className="profile-username">@{user.username}</span>
                 
                 <div className="profile-stats">
                   <span onClick={() => handleConnectionsClick('followers', user.id)} style={{ cursor: 'pointer' }}>
