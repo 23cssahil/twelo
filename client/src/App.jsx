@@ -118,6 +118,29 @@ export default function App() {
     setUser(null);
   };
 
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async function (...args) {
+      try {
+        const response = await originalFetch.apply(this, args);
+        // If API returns 401 or 403, it means the token is expired/invalid
+        if (response.status === 401 || response.status === 403) {
+          const url = args[0] && typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
+          if (url.includes('/api/')) {
+            logout();
+            alert("Your session has expired. Please log in again.");
+          }
+        }
+        return response;
+      } catch (error) {
+        throw error;
+      }
+    };
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#000000', color: '#ffffff' }}>
