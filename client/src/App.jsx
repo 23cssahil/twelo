@@ -119,6 +119,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    let hasAlerted = false;
     const originalFetch = window.fetch;
     window.fetch = async function (...args) {
       try {
@@ -126,9 +127,13 @@ export default function App() {
         // If API returns 401 or 403, it means the token is expired/invalid
         if (response.status === 401 || response.status === 403) {
           const url = args[0] && typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
-          if (url.includes('/api/')) {
+          if (url.includes('/api/') && !url.includes('/api/auth/login')) {
             logout();
-            alert("Your session has expired. Please log in again.");
+            if (!hasAlerted) {
+              hasAlerted = true;
+              alert("Your session has expired. Please log in again.");
+              window.location.href = '/login';
+            }
           }
         }
         return response;
