@@ -693,16 +693,6 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
         
-        // DEMO OVERRIDE: Simulate mutuals for testing even for old users with 0 followers
-        if (mutualIds.length === 0) {
-          if (targetFollowersIds.length > 0) {
-            mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
-          } else {
-            const randomUsers = await User.aggregate([ { $sample: { size: 3 } } ]);
-            mutualIds.push(...randomUsers.map(u => u._id.toString()));
-          }
-        }
-
         // Interaction Scoring (Prioritization)
         if (mutualIds.length > 0) {
           try {
@@ -941,16 +931,6 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
         
-        // DEMO OVERRIDE: Simulate mutuals for testing even for old users with 0 followers
-        if (mutualIds.length === 0) {
-          if (targetFollowersIds.length > 0) {
-            mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
-          } else {
-            const randomUsers = await User.aggregate([ { $sample: { size: 3 } } ]);
-            mutualIds.push(...randomUsers.map(u => u._id.toString()));
-          }
-        }
-
         // Interaction Scoring (Prioritization)
         if (mutualIds.length > 0) {
           try {
@@ -1042,16 +1022,6 @@ app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (
         const targetFollowersIds = (user.followers || []).map(id => id.toString());
         const mutualIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
         
-        // DEMO OVERRIDE: Simulate mutuals for testing even for old users with 0 followers
-        if (mutualIds.length === 0) {
-          if (targetFollowersIds.length > 0) {
-            mutualIds.push(...targetFollowersIds.slice(0, Math.min(3, targetFollowersIds.length)));
-          } else {
-            const randomUsers = await User.aggregate([ { $sample: { size: 3 } } ]);
-            mutualIds.push(...randomUsers.map(u => u._id.toString()));
-          }
-        }
-
         // Interaction Scoring (Prioritization)
         if (mutualIds.length > 0) {
           try {
@@ -1601,7 +1571,15 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
     const search = req.query.search || '';
 
     // Get the full array of IDs for the requested type
-    const allIds = (user[type] || []).filter(id => id != null);
+    let allIds = [];
+    if (type === 'mutual') {
+      const currentUser = await User.findById(req.user.userId).select('following').lean();
+      const myFollowingIds = (currentUser.following || []).map(id => id.toString());
+      const targetFollowersIds = (user.followers || []).map(id => id.toString());
+      allIds = targetFollowersIds.filter(id => myFollowingIds.includes(id));
+    } else {
+      allIds = (user[type] || []).filter(id => id != null);
+    }
     const total = allIds.length;
 
     if (search) {
