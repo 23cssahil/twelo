@@ -28,6 +28,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'https://twelo-backend.onrender.com';
   const GOOGLE_CLIENT_ID = '440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com';
@@ -128,11 +129,9 @@ export default function App() {
         if (response.status === 401 || response.status === 403) {
           const url = args[0] && typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
           if (url.includes('/api/') && !url.includes('/api/auth/login')) {
-            logout();
             if (!hasAlerted) {
               hasAlerted = true;
-              alert("Your session has expired. Please log in again.");
-              window.location.href = '/login';
+              setSessionExpired(true);
             }
           }
         }
@@ -167,6 +166,42 @@ export default function App() {
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      {sessionExpired && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
+          backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 999999, display: 'flex', 
+          justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(8px)',
+          fontFamily: "'Inter', sans-serif"
+        }}>
+          <div style={{
+            background: '#151515', padding: '30px', borderRadius: '24px', 
+            textAlign: 'center', color: '#fff', border: '1px solid rgba(255, 46, 99, 0.2)', 
+            maxWidth: '320px', width: '85%', boxShadow: '0 20px 40px rgba(255, 46, 99, 0.15)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center'
+          }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '30px', background: 'rgba(255, 46, 99, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '20px' }}>
+              <span style={{ fontSize: '28px' }}>🔐</span>
+            </div>
+            <h2 style={{ color: '#ff2e63', marginBottom: '10px', fontSize: '22px', fontWeight: 'bold' }}>Session Expired</h2>
+            <p style={{ marginBottom: '25px', color: '#aaaaaa', fontSize: '15px', lineHeight: '1.5' }}>
+              For your security, you have been logged out. Please log in again to continue.
+            </p>
+            <button 
+              onClick={() => {
+                setSessionExpired(false);
+                logout();
+                window.location.href = '/login';
+              }} 
+              style={{
+                background: 'linear-gradient(135deg, #ff2e63, #e5003f)', color: '#fff', border: 'none', 
+                padding: '14px 25px', borderRadius: '14px', fontWeight: 'bold', fontSize: '16px',
+                cursor: 'pointer', width: '100%', transition: 'all 0.3s ease'
+              }}>
+              Log In Again
+            </button>
+          </div>
+        </div>
+      )}
       <AuthContext.Provider value={{ user, token, login, logout, API_URL }}>
         <SocketContext.Provider value={socket}>
           <Router>
