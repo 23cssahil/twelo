@@ -668,6 +668,7 @@ export default function Dashboard() {
 
   // --- Video Chat State ---
   const [chatMode, setChatMode] = useState('text'); // 'text' or 'video'
+  const [iceServers, setIceServers] = useState(null);
   const [videoMatchingStatus, setVideoMatchingStatus] = useState('idle'); // 'idle', 'searching', 'matched'
   const [videoPartnerId, setVideoPartnerId] = useState(null);
   const [videoRoomId, setVideoRoomId] = useState(null);
@@ -677,6 +678,18 @@ export default function Dashboard() {
   const remoteVideoRef = useRef(null);
   const videoPeerRef = useRef(null);
   const videoSearchTimerRef = useRef(null);
+
+  
+  useEffect(() => {
+    if (!socket) return;
+    socket.emit('get_turn_config');
+    socket.on('turn_config', ({ iceServers: servers }) => {
+      setIceServers(servers);
+    });
+    return () => {
+      socket.off('turn_config');
+    };
+  }, [socket]);
 
   const requestVideoPermissions = async () => {
     try {
@@ -748,7 +761,8 @@ export default function Dashboard() {
       const peer = new Peer({
         initiator: initiator,
         trickle: true,
-        stream: localVideoStream || undefined
+        stream: localVideoStream || undefined,
+        config: { iceServers: iceServers || [{ urls: 'stun:stun.l.google.com:19302' }] }
       });
 
       peer.on('signal', data => {
@@ -6532,13 +6546,23 @@ const handleStoryUpload = async () => {
 
       {/* Local Video (Bottom Half) */}
       <div style={{ flex: 1, position: 'relative' }}>
+        
         {localVideoStream ? (
           <video ref={localVideoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
         ) : (
-          <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#666', background: '#1a1a1a' }}>
-            You
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff', background: '#1a1a1a', padding: '20px', textAlign: 'center' }}>
+            <Video size={48} style={{ marginBottom: '15px', color: '#666' }} />
+            <h3 style={{ margin: '0 0 10px 0' }}>Camera Required</h3>
+            <p style={{ margin: '0 0 20px 0', color: '#aaa', fontSize: '0.9rem' }}>Please allow camera and microphone access to match with strangers.</p>
+            <button 
+              onClick={requestVideoPermissions}
+              style={{ padding: '10px 25px', background: '#0072ff', color: '#fff', border: 'none', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0, 114, 255, 0.3)' }}
+            >
+              Grant Permissions
+            </button>
           </div>
         )}
+
       </div>
 
       {/* Controls */}

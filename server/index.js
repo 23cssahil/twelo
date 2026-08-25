@@ -3729,94 +3729,84 @@ io.on('connection', (socket) => {
     });
 
   
-  // --- Video Match Logic ---
-  socket.on('start_video_match', ({ userId }) => {
-    // Remove if already in queue to prevent duplicates
-    videoChatQueue = videoChatQueue.filter(u => u.socketId !== socket.id);
+  
+  // --- Video Match Logic (Redis Distributed) ---
+  socket.on('start_video_match', async ({ userId }) => {
+    if (!pubClient) return; // Fallback handled later if needed
     
-    // Add to queue
-    videoChatQueue.push({ userId, socketId: socket.id });
-
-    // Try to find a match
-    const myIndex = videoChatQueue.findIndex(u => u.socketId === socket.id);
-    if (myIndex !== -1 && videoChatQueue.length > 1) {
-      let matchedIndex = -1;
-      for (let i = 0; i < videoChatQueue.length; i++) {
-        if (i !== myIndex) {
-          matchedIndex = i;
-          break;
+    // Check if we are already in the queue, remove us to prevent dupes
+    await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
+    
+    // Try to pop someone from the queue
+    const popped = await pubClient.lpop('video_match_queue');
+    
+    if (!popped) {
+      // Queue empty, wait in line
+      await pubClient.rpush('video_match_queue', JSON.stringify({ userId, socketId: socket.id }));
+      
+      // Set UI timeout fallback
+      setTimeout(async () => {
+        // Check if we are STILL in the queue after 3 seconds
+        const removed = await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
+        if (removed > 0) {
+          io.to(socket.id).emit('video_match_failed');
         }
+      }, 3000);
+      
+    } else {
+      const user2 = JSON.parse(popped);
+      
+      if (user2.userId === userId) {
+        // It's me! Put me back
+        await pubClient.rpush('video_match_queue', JSON.stringify({ userId, socketId: socket.id }));
+        return;
       }
+      
+      // We have a match!
+      const roomId = `video_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const user1 = { userId, socketId: socket.id };
+      
+      await pubClient.hset('active_video_chats', roomId, JSON.stringify({ user1, user2 }));
+      await pubClient.set(`vid_usr:${socket.id}`, roomId, 'EX', 3600); // 1 hr expiry
+      await pubClient.set(`vid_usr:${user2.socketId}`, roomId, 'EX', 3600);
 
-      if (matchedIndex !== -1) {
-        const user2 = videoChatQueue[matchedIndex];
-        const user1 = videoChatQueue[myIndex];
-
-        // Remove both from queue
-        if (myIndex > matchedIndex) {
-           videoChatQueue.splice(myIndex, 1);
-           videoChatQueue.splice(matchedIndex, 1);
-        } else {
-           videoChatQueue.splice(matchedIndex, 1);
-           videoChatQueue.splice(myIndex, 1);
-        }
-
-        const roomId = `video_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-        activeVideoChats.set(roomId, { user1, user2 });
-
-        // Tell user1 they are the initiator (they will create the WebRTC offer)
-        io.to(user1.socketId).emit('video_match_found', {
-          roomId,
-          partnerId: user2.userId,
-          initiator: true
-        });
-
-        // Tell user2 they are NOT the initiator (they will wait for the offer)
-        io.to(user2.socketId).emit('video_match_found', {
-          roomId,
-          partnerId: user1.userId,
-          initiator: false
-        });
-        
-        return; // Successfully matched
-      }
+      io.to(user1.socketId).emit('video_match_found', { roomId, partnerId: user2.userId, initiator: true });
+      io.to(user2.socketId).emit('video_match_found', { roomId, partnerId: user1.userId, initiator: false });
     }
-
-    // If no match immediately, set a 3-second timeout
-    setTimeout(() => {
-      const stillInQueue = videoChatQueue.find(u => u.socketId === socket.id);
-      if (stillInQueue) {
-        // Remove from queue
-        videoChatQueue = videoChatQueue.filter(u => u.socketId !== socket.id);
-        io.to(socket.id).emit('video_match_failed');
-      }
-    }, 3000);
   });
 
-  socket.on('cancel_video_match', () => {
-    videoChatQueue = videoChatQueue.filter(u => u.socketId !== socket.id);
+  socket.on('cancel_video_match', async () => {
+    if (pubClient) {
+      await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId: user?.userId, socketId: socket.id }));
+    }
   });
 
-  socket.on('video_webrtc_signal', ({ roomId, signalData }) => {
-    const chat = activeVideoChats.get(roomId);
-    if (!chat) return;
-
-    // Send the signal to the OTHER person in the room
+  socket.on('video_webrtc_signal', async ({ roomId, signalData }) => {
+    if (!pubClient) return;
+    const chatStr = await pubClient.hget('active_video_chats', roomId);
+    if (!chatStr) return;
+    const chat = JSON.parse(chatStr);
+    
     const receiverSocketId = (chat.user1.socketId === socket.id) ? chat.user2.socketId : chat.user1.socketId;
     io.to(receiverSocketId).emit('video_webrtc_signal', { signalData });
   });
 
-  socket.on('video_skip', ({ roomId }) => {
-    const chat = activeVideoChats.get(roomId);
-    if (!chat) return;
-
-    activeVideoChats.delete(roomId);
-
-    // Notify the other user that their partner skipped
+  socket.on('video_skip', async ({ roomId }) => {
+    if (!pubClient) return;
+    const chatStr = await pubClient.hget('active_video_chats', roomId);
+    if (!chatStr) return;
+    
+    const chat = JSON.parse(chatStr);
     const receiverSocketId = (chat.user1.socketId === socket.id) ? chat.user2.socketId : chat.user1.socketId;
+    
     io.to(receiverSocketId).emit('video_partner_skipped');
+    
+    await pubClient.hdel('active_video_chats', roomId);
+    await pubClient.del(`vid_usr:${chat.user1.socketId}`);
+    await pubClient.del(`vid_usr:${chat.user2.socketId}`);
   });
   // --- End Video Match Logic ---
+
 
   socket.on('cancel_search', (userId) => {
     randomChatQueue = randomChatQueue.filter(u => u.userId !== userId);
