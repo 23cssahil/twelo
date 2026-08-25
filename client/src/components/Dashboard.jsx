@@ -4442,6 +4442,8 @@ const handleStoryUpload = async () => {
     }>
       <Globe
         ref={globeEl}
+        width={typeof window !== 'undefined' ? window.innerWidth : 800}
+        height={typeof window !== 'undefined' ? window.innerHeight * 1.3 : 800}
         globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
         bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
         backgroundColor="rgba(0,0,0,0)"
@@ -6544,6 +6546,7 @@ const handleStoryUpload = async () => {
       {/* Globe always mounted to prevent WebGL context loss / black screen */}
       <div style={{
         position: 'fixed', top: '-5vh', left: '0', width: '100%', height: '130vh', /* zIndex handled below */
+        overflow: 'hidden',
         opacity: (activeTab === 'home' && chatMode === 'text') ? 1 : 0,
         zIndex: (activeTab === 'home' && chatMode === 'text') ? 0 : -999, /* Prevent WebGL context loss by not using visibility: hidden */
         pointerEvents: (activeTab === 'home' && chatMode === 'text' && !activeChatUser) ? 'auto' : 'none',
