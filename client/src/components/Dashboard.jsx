@@ -1447,6 +1447,7 @@ export default function Dashboard() {
   const isCallerRef = useRef(false);
   const callStartTimeRef = useRef(null);
   const activeCallTargetRef = useRef(null);
+  const endCallQuietlyRef = useRef(null); // Ref to always get fresh endCall function in socket handlers
   // Refs for Socket optimization
   const activeChatUserRef = useRef(activeChatUser);
   const activeTabRef = useRef(activeTab);
@@ -2363,7 +2364,15 @@ export default function Dashboard() {
 
     socket.on('call_ended', () => {
       finalizeCallLog();
-      handleEndCallQuietly();
+      // Use ref to avoid stale closure — always calls the latest version
+      if (endCallQuietlyRef.current) endCallQuietlyRef.current();
+      else {
+        // Fallback: directly reset all call states
+        setReceivingCall(false);
+        setCalling(false);
+        setCallActive(false);
+        setCallAccepted(false);
+      }
     });
 
     socket.on('match_found', (data) => {
@@ -4008,12 +4017,12 @@ const handleStoryUpload = async () => {
       });
 
       peer.on('close', () => {
-        if (connectionRef.current) handleEndCallQuietly();
+        if (connectionRef.current && endCallQuietlyRef.current) endCallQuietlyRef.current();
       });
 
       peer.on('error', (err) => {
         console.log('Peer event in callUser:', err?.message || err);
-        if (connectionRef.current) handleEndCallQuietly();
+        if (connectionRef.current && endCallQuietlyRef.current) endCallQuietlyRef.current();
       });
 
       connectionRef.current = peer;
@@ -4076,12 +4085,12 @@ const handleStoryUpload = async () => {
       });
 
       peer.on('close', () => {
-        if (connectionRef.current) handleEndCallQuietly();
+        if (connectionRef.current && endCallQuietlyRef.current) endCallQuietlyRef.current();
       });
 
       peer.on('error', (err) => {
         console.log('Peer event in acceptCall:', err?.message || err);
-        if (connectionRef.current) handleEndCallQuietly();
+        if (connectionRef.current && endCallQuietlyRef.current) endCallQuietlyRef.current();
       });
 
       peer.signal(callerSignal);
@@ -4144,6 +4153,10 @@ const handleStoryUpload = async () => {
     if (peer) { try { peer.destroy(); } catch(e) {} }
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
   };
+
+  // Keep ref up to date so socket handlers always use the freshest version
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  endCallQuietlyRef.current = handleEndCallQuietly;
 
   const toggleAudio = () => {
     if (localStreamRef.current) {
