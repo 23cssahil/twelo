@@ -3734,8 +3734,32 @@ io.on('connection', (socket) => {
   
   
   // --- Video Match Logic (Redis Distributed) ---
+  let fallbackVideoQueue = [];
+  const fallbackVideoChats = new Map();
   socket.on('start_video_match', async ({ userId }) => {
-    if (!pubClient) return; // Fallback handled later if needed
+    if (!pubClient) {
+      // Fallback: In-memory matching if Redis is down
+      fallbackVideoQueue = fallbackVideoQueue.filter(u => u.socketId !== socket.id);
+      if (fallbackVideoQueue.length > 0) {
+        const user2 = fallbackVideoQueue.shift();
+        if (user2.socketId === socket.id) {
+          fallbackVideoQueue.push({ userId, socketId: socket.id });
+          return;
+        }
+        const roomId = `video_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        const user1 = { userId, socketId: socket.id };
+        fallbackVideoChats.set(roomId, { user1, user2 });
+        io.to(user1.socketId).emit('video_match_found', { roomId, partnerId: user2.userId, initiator: true });
+        io.to(user2.socketId).emit('video_match_found', { roomId, partnerId: user1.userId, initiator: false });
+      } else {
+        fallbackVideoQueue.push({ userId, socketId: socket.id });
+        setTimeout(() => {
+          const idx = fallbackVideoQueue.findIndex(u => u.socketId === socket.id);
+          if (idx !== -1) io.to(socket.id).emit('video_match_failed');
+        }, 3000);
+      }
+      return;
+    }
     
     // Check if we are already in the queue, remove us to prevent dupes
     await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
@@ -3759,7 +3783,7 @@ io.on('connection', (socket) => {
     } else {
       const user2 = JSON.parse(popped);
       
-      if (user2.userId === userId) {
+      if (user2.socketId === socket.id) {
         // It's me! Put me back
         await pubClient.rpush('video_match_queue', JSON.stringify({ userId, socketId: socket.id }));
         return;
@@ -3781,11 +3805,20 @@ io.on('connection', (socket) => {
   socket.on('cancel_video_match', async () => {
     if (pubClient) {
       await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId: user?.userId, socketId: socket.id }));
+    } else {
+      fallbackVideoQueue = fallbackVideoQueue.filter(u => u.socketId !== socket.id);
     }
   });
 
   socket.on('video_webrtc_signal', async ({ roomId, signalData }) => {
-    if (!pubClient) return;
+    if (!pubClient) {
+      const chat = fallbackVideoChats.get(roomId);
+      if (chat) {
+        const receiverSocketId = (chat.user1.socketId === socket.id) ? chat.user2.socketId : chat.user1.socketId;
+        io.to(receiverSocketId).emit('video_webrtc_signal', { signalData });
+      }
+      return;
+    }
     const chatStr = await pubClient.hget('active_video_chats', roomId);
     if (!chatStr) return;
     const chat = JSON.parse(chatStr);
@@ -3795,7 +3828,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('video_skip', async ({ roomId }) => {
-    if (!pubClient) return;
+    if (!pubClient) {
+      const chat = fallbackVideoChats.get(roomId);
+      if (chat) {
+        const receiverSocketId = (chat.user1.socketId === socket.id) ? chat.user2.socketId : chat.user1.socketId;
+        io.to(receiverSocketId).emit('video_partner_skipped');
+        fallbackVideoChats.delete(roomId);
+      }
+      return;
+    }
     const chatStr = await pubClient.hget('active_video_chats', roomId);
     if (!chatStr) return;
     
