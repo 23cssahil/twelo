@@ -357,7 +357,9 @@ input, button, textarea {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: rgba(100, 70, 130, 0.15); /* Light translucent purple */
+  background: rgba(140, 90, 200, 0.25); /* Lighter translucent purple */
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
 }
 
 .chat-list {
@@ -418,8 +420,9 @@ input, button, textarea {
   left: 0;
   width: 100%;
   height: var(--vvp-height, 100dvh);
-  background: rgba(100, 70, 130, 0.25); /* Translucent light purple */
+  background: rgba(140, 90, 200, 0.25); /* Lighter translucent purple */
   backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px); /* Add Safari support */
   z-index: 40;
   display: flex;
   flex-direction: column;
