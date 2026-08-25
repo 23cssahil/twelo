@@ -4486,8 +4486,8 @@ const handleStoryUpload = async () => {
     }>
       <Globe
         ref={globeEl}
-        width={Math.round(Math.min(window.screen.width, window.screen.height) * 1.4)}
-        height={Math.round(Math.min(window.screen.width, window.screen.height) * 1.4)}
+        width={Math.round(Math.min(window.screen.width, window.screen.height) * 1.5)}
+        height={Math.round(Math.min(window.screen.width, window.screen.height) * 1.5)}
         globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
         bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
         backgroundColor="rgba(0,0,0,0)"
