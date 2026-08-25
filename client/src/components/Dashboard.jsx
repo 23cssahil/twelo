@@ -6670,6 +6670,29 @@ const handleStoryUpload = async () => {
         </div>
       </header>
 
+      
+  {/* Omegle-style Toggle Switch on Top Left */}
+  {activeTab === 'home' && !activeChatUser && (
+    <div style={{ position: 'absolute', top: '70px', left: '20px', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(0,0,0,0.5)', padding: '10px', borderRadius: '30px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+      <button 
+        onClick={() => {
+          setChatMode('video');
+          requestVideoPermissions();
+        }}
+        style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: chatMode === 'video' ? 'linear-gradient(135deg, #f12711 0%, #f5af19 100%)' : 'transparent', color: chatMode === 'video' ? '#fff' : '#aaa', cursor: 'pointer', transition: '0.3s', display: 'grid', placeItems: 'center', marginBottom: '5px' }}
+      >
+        <Video size={20} />
+      </button>
+      <div style={{ width: '2px', height: '15px', background: 'rgba(255,255,255,0.2)' }}></div>
+      <button 
+        onClick={() => setChatMode('text')}
+        style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: chatMode === 'text' ? 'linear-gradient(135deg, #00c6ff, #0072ff)' : 'transparent', color: chatMode === 'text' ? '#fff' : '#aaa', cursor: 'pointer', transition: '0.3s', display: 'grid', placeItems: 'center', marginTop: '5px' }}
+      >
+        <MessageSquare size={20} />
+      </button>
+    </div>
+  )}
+
       <main 
         className={`main-content ${(activeTab === 'home' || activeTab === 'messages') ? 'no-scroll' : ''}`}
         style={{ pointerEvents: activeTab === 'home' ? 'none' : 'auto' }}
