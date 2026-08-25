@@ -5132,6 +5132,8 @@ const handleStoryUpload = async () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '18px' }}>
                   <SearchIcon size={20} color="#a8a8a8" />
                   <input
+                    id="sidebarSearch"
+                    name="sidebarSearch"
                     autoFocus
                     type="search"
                     value={connectionsSearch}
@@ -6745,6 +6747,8 @@ const handleStoryUpload = async () => {
                 <div className="settings-edit-username premium-username-edit">
                   <div className="input-wrapper" style={{ position: 'relative' }}>
                     <input 
+                      id="newUsernameInput"
+                      name="newUsernameInput"
                       type="text" 
                       value={newUsernameInput} 
                       onChange={handleUsernameChange} 
@@ -6973,6 +6977,8 @@ const handleStoryUpload = async () => {
                 <label style={{ fontSize: '0.85rem', color: '#888', marginBottom: '6px', display: 'block' }}>Username</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <input 
+                    id="editUsername"
+                    name="editUsername"
                     type="text" 
                     value={user?.username || ''} 
                     disabled
@@ -6995,6 +7001,8 @@ const handleStoryUpload = async () => {
               <div>
                 <label style={{ fontSize: '0.85rem', color: '#888', marginBottom: '6px', display: 'block' }}>Bio / About</label>
                 <textarea 
+                  id="profileBio"
+                  name="profileBio"
                   value={profileBio} 
                   onChange={e => setProfileBio(e.target.value)} 
                   maxLength={150}
@@ -7018,6 +7026,8 @@ const handleStoryUpload = async () => {
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: '0.85rem', color: '#888', marginBottom: '6px', display: 'block' }}>Country</label>
                   <input 
+                    id="editCountry"
+                    name="editCountry"
                     type="text" 
                     value={profileCountry} 
                     onChange={e => setProfileCountry(e.target.value)} 
@@ -7093,6 +7103,8 @@ const handleStoryUpload = async () => {
                 <p style={{ color: 'var(--brand-red)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>Warning: This action is permanent.</p>
                 <p style={{ color: '#a8a8a8', marginBottom: '12px', fontSize: '0.8rem' }}>Please type your username to confirm.</p>
                 <input 
+                  id="deleteUsernameInput"
+                  name="deleteUsernameInput"
                   type="text" 
                   value={deleteUsernameInput} 
                   onChange={(e) => setDeleteUsernameInput(e.target.value)} 
@@ -7185,6 +7197,8 @@ const handleStoryUpload = async () => {
               <div className="search-box-wrapper" style={{ margin: 0, position: 'relative' }}>
                 <SearchIcon className="search-icon-inside" size={20} color="#a8a8a8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
+                  id="searchFollowers"
+                  name="searchFollowers"
                   type="text"
                   placeholder="Search followers..."
                   className="search-input"

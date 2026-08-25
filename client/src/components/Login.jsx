@@ -226,6 +226,8 @@ export default function Login() {
             
             <div className="form-group floating-group">
               <input
+                id="guestName"
+                name="guestName"
                 type="text"
                 className="auth-input floating-input"
                 placeholder=" "
@@ -240,6 +242,8 @@ export default function Login() {
             <div style={{ display: 'flex', gap: '16px' }}>
               <div className="form-group floating-group" style={{ flex: 1 }}>
                 <input
+                  id="guestAge"
+                  name="guestAge"
                   type="number"
                   className="auth-input floating-input"
                   placeholder=" "
