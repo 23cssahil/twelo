@@ -666,7 +666,101 @@ export default function Dashboard() {
 
   const [activeTab, _setActiveTab] = useState('home');
 
-  // --- Video Chat State ---
+  
+
+
+
+  // Stories Pagination State
+  const [everyoneStoriesCursor, setEveryoneStoriesCursor] = useState(null);
+  const [hasMoreEveryoneStories, setHasMoreEveryoneStories] = useState(true);
+  const [isLoadingEveryoneStories, setIsLoadingEveryoneStories] = useState(false);
+
+  const observerRef = useRef(null);
+  const timeoutRef = useRef(null);
+  const loadMoreRef = useCallback((node) => {
+    if (observerRef.current) observerRef.current.disconnect();
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
+    if (node) {
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          if (activeTab === 'everyone-stories') {
+            if (hasMoreEveryoneStories && !isLoadingEveryoneStories) {
+               fetcheveryoneStories();
+            }
+          }
+        }
+      });
+      observerRef.current.observe(node);
+    }
+  }, [hasMoreEveryoneStories, isLoadingEveryoneStories, activeTab]);
+  
+
+
+  const setActiveTab = useCallback((tab) => {
+    _setActiveTab(prev => {
+      if (prev !== tab) {
+        window.history.pushState({ tab }, '');
+        return tab;
+      }
+      return prev;
+    });
+  }, []);
+
+  useEffect(() => {
+    window.history.replaceState({ tab: 'home' }, '');
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'home') {
+      setShowHomeAdPopup(false);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      const initializeAdMob = async () => {
+        try {
+          const adUnitId = 'ca-app-pub-7775487062260313/6350919371';
+          
+          await AdMob.initialize({
+            requestTrackingAuthorization: true,
+            testingDevices: ['2077ef9a63d2b398840261c8221a0c9b'],
+            initializeForTesting: false,
+          });
+
+          AdMob.removeAllListeners();
+
+          AdMob.addListener(RewardAdPluginEvents.Rewarded, (rewardItem) => {
+            rewardUserForAd();
+            // Removed alert here because it freezes the AdMob WebView on Android
+          });
+
+          // Preload the NEXT ad as soon as the current one is dismissed
+          AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
+            AdMob.prepareRewardVideoAd({ adUnitId, isTesting: false }).catch(e => console.error("Re-preload failed", e));
+          });
+
+          AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (err) => {
+            console.error("Ad failed to load", err);
+          });
+
+          // Preload the FIRST ad
+          await AdMob.prepareRewardVideoAd({ adUnitId, isTesting: false });
+        } catch (e) {
+          console.error("AdMob initialization failed", e);
+        }
+      };
+      initializeAdMob();
+    }
+  }, []);
+
+  const { user, token, logout, login } = useContext(AuthContext);
+  const API_URL = import.meta.env.VITE_API_URL || 'https://twelo-backend.onrender.com';
+  const socket = useContext(SocketContext);
+  const navigate = useNavigate();
+
+// --- Video Chat State ---
   const [chatMode, setChatMode] = useState('text'); // 'text' or 'video'
   const [iceServers, setIceServers] = useState(null);
   const [videoMatchingStatus, setVideoMatchingStatus] = useState('idle'); // 'idle', 'searching', 'matched'
@@ -817,98 +911,6 @@ export default function Dashboard() {
     };
   }, [localVideoStream, socket]);
   // --- End Video Chat State ---
-
-
-
-  // Stories Pagination State
-  const [everyoneStoriesCursor, setEveryoneStoriesCursor] = useState(null);
-  const [hasMoreEveryoneStories, setHasMoreEveryoneStories] = useState(true);
-  const [isLoadingEveryoneStories, setIsLoadingEveryoneStories] = useState(false);
-
-  const observerRef = useRef(null);
-  const timeoutRef = useRef(null);
-  const loadMoreRef = useCallback((node) => {
-    if (observerRef.current) observerRef.current.disconnect();
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    
-    if (node) {
-      observerRef.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting) {
-          if (activeTab === 'everyone-stories') {
-            if (hasMoreEveryoneStories && !isLoadingEveryoneStories) {
-               fetcheveryoneStories();
-            }
-          }
-        }
-      });
-      observerRef.current.observe(node);
-    }
-  }, [hasMoreEveryoneStories, isLoadingEveryoneStories, activeTab]);
-  
-
-
-  const setActiveTab = useCallback((tab) => {
-    _setActiveTab(prev => {
-      if (prev !== tab) {
-        window.history.pushState({ tab }, '');
-        return tab;
-      }
-      return prev;
-    });
-  }, []);
-
-  useEffect(() => {
-    window.history.replaceState({ tab: 'home' }, '');
-  }, []);
-
-  useEffect(() => {
-    if (activeTab !== 'home') {
-      setShowHomeAdPopup(false);
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      const initializeAdMob = async () => {
-        try {
-          const adUnitId = 'ca-app-pub-7775487062260313/6350919371';
-          
-          await AdMob.initialize({
-            requestTrackingAuthorization: true,
-            testingDevices: ['2077ef9a63d2b398840261c8221a0c9b'],
-            initializeForTesting: false,
-          });
-
-          AdMob.removeAllListeners();
-
-          AdMob.addListener(RewardAdPluginEvents.Rewarded, (rewardItem) => {
-            rewardUserForAd();
-            // Removed alert here because it freezes the AdMob WebView on Android
-          });
-
-          // Preload the NEXT ad as soon as the current one is dismissed
-          AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
-            AdMob.prepareRewardVideoAd({ adUnitId, isTesting: false }).catch(e => console.error("Re-preload failed", e));
-          });
-
-          AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (err) => {
-            console.error("Ad failed to load", err);
-          });
-
-          // Preload the FIRST ad
-          await AdMob.prepareRewardVideoAd({ adUnitId, isTesting: false });
-        } catch (e) {
-          console.error("AdMob initialization failed", e);
-        }
-      };
-      initializeAdMob();
-    }
-  }, []);
-
-  const { user, token, logout, login } = useContext(AuthContext);
-  const API_URL = import.meta.env.VITE_API_URL || 'https://twelo-backend.onrender.com';
-  const socket = useContext(SocketContext);
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (token) {
