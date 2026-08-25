@@ -840,13 +840,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (localVideoStream && localVideoRef.current) {
+      console.log('Video Match: Assigning local video stream to video element', localVideoStream.getTracks());
       localVideoRef.current.srcObject = localVideoStream;
+      localVideoRef.current.play().catch(e => console.error('Video Match: Local video play failed:', e));
     }
   }, [localVideoStream, chatMode]);
 
   useEffect(() => {
     if (remoteVideoStream && remoteVideoRef.current) {
+      console.log('Video Match: Assigning remote video stream to video element', remoteVideoStream.getTracks());
       remoteVideoRef.current.srcObject = remoteVideoStream;
+      remoteVideoRef.current.play().catch(e => console.error('Video Match: Remote video play failed:', e));
     }
   }, [remoteVideoStream, chatMode]);
 
@@ -885,7 +889,7 @@ export default function Dashboard() {
     };
 
     const handleWebrtcSignal = ({ signalData }) => {
-      // console.log('Video Match: Received WebRTC Signal from partner'); // Muted to prevent spam
+      console.log('Video Match: Received WebRTC Signal from partner', signalData.type || 'candidate');
       if (videoPeerRef.current) {
         try { videoPeerRef.current.signal(signalData); } catch (e) { console.error('Video signal error:', e); }
       }
