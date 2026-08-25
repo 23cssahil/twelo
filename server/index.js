@@ -3737,7 +3737,9 @@ io.on('connection', (socket) => {
   let fallbackVideoQueue = [];
   const fallbackVideoChats = new Map();
   socket.on('start_video_match', async ({ userId }) => {
+    console.log(`[VIDEO MATCH] Received start_video_match from ${userId} (Socket: ${socket.id})`);
     if (!pubClient) {
+      console.log('[VIDEO MATCH] Redis pubClient is missing. Using in-memory fallback.');
       // Fallback: In-memory matching if Redis is down
       fallbackVideoQueue = fallbackVideoQueue.filter(u => u.socketId !== socket.id);
       if (fallbackVideoQueue.length > 0) {
@@ -3763,11 +3765,13 @@ io.on('connection', (socket) => {
     
     // Check if we are already in the queue, remove us to prevent dupes
     await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
+    console.log(`[VIDEO MATCH] Cleaned up existing entries in Redis queue for ${socket.id}`);
     
     // Try to pop someone from the queue
     const popped = await pubClient.lpop('video_match_queue');
     
     if (!popped) {
+      console.log(`[VIDEO MATCH] Queue is empty. Adding ${socket.id} to queue...`);
       // Queue empty, wait in line
       await pubClient.rpush('video_match_queue', JSON.stringify({ userId, socketId: socket.id }));
       
@@ -3776,20 +3780,24 @@ io.on('connection', (socket) => {
         // Check if we are STILL in the queue after 3 seconds
         const removed = await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
         if (removed > 0) {
+          console.log(`[VIDEO MATCH] 3-second timeout hit for ${socket.id}. Match failed.`);
           io.to(socket.id).emit('video_match_failed');
         }
       }, 3000);
       
     } else {
       const user2 = JSON.parse(popped);
+      console.log(`[VIDEO MATCH] Found match in queue: ${user2.socketId}`);
       
       if (user2.socketId === socket.id) {
+        console.log(`[VIDEO MATCH] Same socketId detected! Putting ${socket.id} back into queue.`);
         // It's me! Put me back
         await pubClient.rpush('video_match_queue', JSON.stringify({ userId, socketId: socket.id }));
         return;
       }
       
       // We have a match!
+      console.log(`[VIDEO MATCH] SUCCESS! Matching ${socket.id} with ${user2.socketId}`);
       const roomId = `video_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       const user1 = { userId, socketId: socket.id };
       

@@ -798,10 +798,16 @@ export default function Dashboard() {
   };
 
   const startVideoMatch = async () => {
+    console.log('Video Match: Start button clicked');
     if (!localVideoStream) {
+      console.log('Video Match: No local video stream. Requesting permissions...');
       const success = await requestVideoPermissions();
-      if (!success) return;
+      if (!success) {
+        console.error('Video Match: Permission denied or failed. Cannot start match.');
+        return;
+      }
     }
+    console.log('Video Match: Emitting start_video_match to server with userId:', user?.id || user?._id);
     setVideoMatchingStatus('searching');
     setVideoPartnerId(null);
     setVideoRoomId(null);
@@ -816,12 +822,13 @@ export default function Dashboard() {
     videoSearchTimerRef.current = setTimeout(() => {
       setVideoMatchingStatus(prev => {
         if (prev === 'searching') {
+          console.warn('Video Match: Search timed out after 3 seconds. Cancelling match...');
           socket.emit('cancel_video_match');
           return 'idle';
         }
         return prev;
       });
-    }, 4000); // UI side fallback timeout
+    }, 3000); 
   };
 
   const skipVideoMatch = () => {
@@ -847,6 +854,7 @@ export default function Dashboard() {
     if (!socket) return;
     
     const handleMatchFound = ({ roomId, partnerId, initiator }) => {
+      console.log(`Video Match: Match Found! Room ID: ${roomId}, Partner ID: ${partnerId}, Initiator: ${initiator}`);
       if (videoSearchTimerRef.current) clearTimeout(videoSearchTimerRef.current);
       setVideoMatchingStatus('matched');
       setVideoPartnerId(partnerId);
@@ -867,35 +875,35 @@ export default function Dashboard() {
         setRemoteVideoStream(stream);
       });
 
-      peer.on('close', () => {
-        setRemoteVideoStream(null);
-        setVideoMatchingStatus('idle');
-      });
-      
       peer.on('error', err => {
         console.error('Video peer error:', err);
+        setVideoMatchingStatus('idle');
       });
 
+      console.log('Video Match: WebRTC Peer created successfully');
       videoPeerRef.current = peer;
     };
 
     const handleWebrtcSignal = ({ signalData }) => {
+      // console.log('Video Match: Received WebRTC Signal from partner'); // Muted to prevent spam
       if (videoPeerRef.current) {
         try { videoPeerRef.current.signal(signalData); } catch (e) { console.error('Video signal error:', e); }
       }
     };
 
     const handleMatchFailed = () => {
+      console.warn('Video Match: Match failed event received from server (Queue Timeout)');
       setVideoMatchingStatus('idle');
     };
 
     const handlePartnerSkipped = () => {
-      setVideoMatchingStatus('idle');
+      console.log('Video Match: Partner skipped the conversation');
       setRemoteVideoStream(null);
       if (videoPeerRef.current) {
         videoPeerRef.current.destroy();
         videoPeerRef.current = null;
       }
+      setVideoMatchingStatus('idle');
     };
 
     socket.on('video_match_found', handleMatchFound);
