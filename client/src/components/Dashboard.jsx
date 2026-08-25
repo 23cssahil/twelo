@@ -4287,43 +4287,74 @@ const handleStoryUpload = async () => {
 
   // Screenshot Detection
   useEffect(() => {
+    // Helper to send screenshot notification
+    const sendScreenshotNotification = () => {
+      if (activeTab === 'messages' && activeChatUser && socket) {
+        const tempId = `temp-${Date.now()}`;
+        const msgData = { 
+          tempId, 
+          senderId: user.id || user._id, 
+          receiverId: activeChatUser._id, 
+          messageText: '📸 Took a screenshot', 
+          messageType: 'screenshot', 
+          fileUrl: null, 
+          replyTo: null 
+        };
+        socket.emit('send_message', msgData);
+        setMessages(prev => [...prev, { 
+          _id: tempId,
+          sender: user.id, 
+          receiver: activeChatUser._id, 
+          message: '📸 Took a screenshot', 
+          replyTo: null,
+          messageType: 'screenshot',
+          createdAt: new Date().toISOString()
+        }]);
+      }
+    };
+
+    // Desktop: PrintScreen key or Mac screenshot shortcuts
     const handleKeyUp = (e) => {
       const isPrintScreen = e.key === 'PrintScreen';
       const isMacScreenshot = e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5' || e.key === 'S' || e.key === 's');
-      
       if (isPrintScreen || isMacScreenshot) {
-        if (activeTab === 'messages' && activeChatUser && socket) {
-          const tempId = `temp-${Date.now()}`;
-          const msgData = { 
-            tempId, 
-            senderId: user.id || user._id, 
-            receiverId: activeChatUser._id, 
-            messageText: '📸 Took a screenshot', 
-            messageType: 'screenshot', 
-            fileUrl: null, 
-            replyTo: null 
-          };
-          socket.emit('send_message', msgData);
-          
-          setMessages(prev => [...prev, { 
-            _id: tempId,
-            sender: user.id, 
-            receiver: activeChatUser._id, 
-            message: '📸 Took a screenshot', 
-            replyTo: null,
-            messageType: 'screenshot',
-            createdAt: new Date().toISOString()
-          }]);
-        }
+        sendScreenshotNotification();
+      }
+    };
+
+    // Mobile: When screenshot is taken on Android/iOS, page briefly loses focus
+    // We use a combination of visibilitychange + blur with a short debounce
+    let mobileScreenshotTimer = null;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    const handleVisibilityChange = () => {
+      if (isMobile && document.hidden) {
+        // On mobile, screen capture causes page to go hidden briefly (~500ms)
+        // We set a timer — if it comes back quickly, it was a screenshot
+        mobileScreenshotTimer = setTimeout(() => {
+          // Page came back quickly (not a full app switch) — likely a screenshot
+          if (!document.hidden) {
+            sendScreenshotNotification();
+          }
+          mobileScreenshotTimer = null;
+        }, 600);
+      } else if (isMobile && !document.hidden && mobileScreenshotTimer) {
+        // Page came back within 600ms — fire notification
+        clearTimeout(mobileScreenshotTimer);
+        mobileScreenshotTimer = null;
+        sendScreenshotNotification();
       }
     };
 
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('keydown', handleKeyUp);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('keydown', handleKeyUp);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (mobileScreenshotTimer) clearTimeout(mobileScreenshotTimer);
     };
   }, [activeTab, activeChatUser, socket, user]);
 
