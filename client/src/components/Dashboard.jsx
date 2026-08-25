@@ -299,7 +299,7 @@ const StorySlide = ({
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
           zIndex: 100, pointerEvents: 'none', animation: 'storyHeartPop 1s ease-out forwards'
         }}>
-          <Heart size={120} fill="#ff2a2a" color="#fff" strokeWidth={1.5} />
+          <Heart size={200} fill="#ff2a2a" color="#fff" strokeWidth={1.5} />
         </div>
       )}
       {/* Progress Bars */}
@@ -4486,8 +4486,8 @@ const handleStoryUpload = async () => {
     }>
       <Globe
         ref={globeEl}
-        width={typeof window !== 'undefined' ? Math.min(window.innerWidth, window.innerHeight) : 600}
-        height={typeof window !== 'undefined' ? Math.min(window.innerWidth, window.innerHeight) : 600}
+        width={typeof window !== 'undefined' ? Math.min(window.innerWidth, window.innerHeight) * 1.2 : 700}
+        height={typeof window !== 'undefined' ? Math.min(window.innerWidth, window.innerHeight) * 1.2 : 700}
         globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
         bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
         backgroundColor="rgba(0,0,0,0)"
