@@ -3769,9 +3769,27 @@ io.on('connection', (socket) => {
       console.log(`[VIDEO MATCH] Cleaned up existing entries in Redis queue for ${socket.id}`);
       
       // Try to pop someone from the queue
-      const popped = await pubClient.lpop('video_match_queue');
+      let user2 = null;
+      while (true) {
+        const popped = await pubClient.lpop('video_match_queue');
+        if (!popped) break;
+        try {
+          const parsed = JSON.parse(popped);
+          if (parsed.socketId === socket.id) continue;
+          
+          const sockets = await io.in(parsed.socketId).fetchSockets();
+          if (sockets.length === 0) {
+            console.log(`[VIDEO MATCH] Discarding dead socket from queue: ${parsed.socketId}`);
+            continue;
+          }
+          user2 = parsed;
+          break;
+        } catch (e) {
+          console.error('[VIDEO MATCH] Garbage in queue:', e.message);
+        }
+      }
       
-      if (!popped) {
+      if (!user2) {
         console.log(`[VIDEO MATCH] Queue is empty. Adding ${socket.id} to queue...`);
         // Queue empty, wait in line
         await pubClient.rpush('video_match_queue', JSON.stringify({ userId, socketId: socket.id }));
@@ -3791,15 +3809,7 @@ io.on('connection', (socket) => {
         }, 15000);
         
       } else {
-        const user2 = JSON.parse(popped);
         console.log(`[VIDEO MATCH] Found match in queue: ${user2.socketId}`);
-        
-        if (user2.socketId === socket.id) {
-          console.log(`[VIDEO MATCH] Same socketId detected! Putting ${socket.id} back into queue.`);
-          // It's me! Put me back
-          await pubClient.rpush('video_match_queue', JSON.stringify({ userId, socketId: socket.id }));
-          return;
-        }
         
         // We have a match!
         console.log(`[VIDEO MATCH] SUCCESS! Matching ${socket.id} with ${user2.socketId}`);
