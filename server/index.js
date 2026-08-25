@@ -3763,58 +3763,72 @@ io.on('connection', (socket) => {
       return;
     }
     
-    // Check if we are already in the queue, remove us to prevent dupes
-    await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
-    console.log(`[VIDEO MATCH] Cleaned up existing entries in Redis queue for ${socket.id}`);
-    
-    // Try to pop someone from the queue
-    const popped = await pubClient.lpop('video_match_queue');
-    
-    if (!popped) {
-      console.log(`[VIDEO MATCH] Queue is empty. Adding ${socket.id} to queue...`);
-      // Queue empty, wait in line
-      await pubClient.rpush('video_match_queue', JSON.stringify({ userId, socketId: socket.id }));
+    try {
+      // Check if we are already in the queue, remove us to prevent dupes
+      await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
+      console.log(`[VIDEO MATCH] Cleaned up existing entries in Redis queue for ${socket.id}`);
       
-      // Set UI timeout fallback
-      setTimeout(async () => {
-        // Check if we are STILL in the queue after 3 seconds
-        const removed = await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
-        if (removed > 0) {
-          console.log(`[VIDEO MATCH] 3-second timeout hit for ${socket.id}. Match failed.`);
-          io.to(socket.id).emit('video_match_failed');
-        }
-      }, 3000);
+      // Try to pop someone from the queue
+      const popped = await pubClient.lpop('video_match_queue');
       
-    } else {
-      const user2 = JSON.parse(popped);
-      console.log(`[VIDEO MATCH] Found match in queue: ${user2.socketId}`);
-      
-      if (user2.socketId === socket.id) {
-        console.log(`[VIDEO MATCH] Same socketId detected! Putting ${socket.id} back into queue.`);
-        // It's me! Put me back
+      if (!popped) {
+        console.log(`[VIDEO MATCH] Queue is empty. Adding ${socket.id} to queue...`);
+        // Queue empty, wait in line
         await pubClient.rpush('video_match_queue', JSON.stringify({ userId, socketId: socket.id }));
-        return;
-      }
-      
-      // We have a match!
-      console.log(`[VIDEO MATCH] SUCCESS! Matching ${socket.id} with ${user2.socketId}`);
-      const roomId = `video_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      const user1 = { userId, socketId: socket.id };
-      
-      await pubClient.hset('active_video_chats', roomId, JSON.stringify({ user1, user2 }));
-      await pubClient.set(`vid_usr:${socket.id}`, roomId, 'EX', 3600); // 1 hr expiry
-      await pubClient.set(`vid_usr:${user2.socketId}`, roomId, 'EX', 3600);
+        
+        // Set UI timeout fallback
+        setTimeout(async () => {
+          try {
+            // Check if we are STILL in the queue after 3 seconds
+            const removed = await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
+            if (removed > 0) {
+              console.log(`[VIDEO MATCH] 3-second timeout hit for ${socket.id}. Match failed.`);
+              io.to(socket.id).emit('video_match_failed');
+            }
+          } catch (e) {
+             console.error('[VIDEO MATCH] Error in timeout cleanup:', e.message);
+          }
+        }, 3000);
+        
+      } else {
+        const user2 = JSON.parse(popped);
+        console.log(`[VIDEO MATCH] Found match in queue: ${user2.socketId}`);
+        
+        if (user2.socketId === socket.id) {
+          console.log(`[VIDEO MATCH] Same socketId detected! Putting ${socket.id} back into queue.`);
+          // It's me! Put me back
+          await pubClient.rpush('video_match_queue', JSON.stringify({ userId, socketId: socket.id }));
+          return;
+        }
+        
+        // We have a match!
+        console.log(`[VIDEO MATCH] SUCCESS! Matching ${socket.id} with ${user2.socketId}`);
+        const roomId = `video_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        const user1 = { userId, socketId: socket.id };
+        
+        await pubClient.hset('active_video_chats', roomId, JSON.stringify({ user1, user2 }));
+        await pubClient.set(`vid_usr:${socket.id}`, roomId, 'EX', 3600); // 1 hr expiry
+        await pubClient.set(`vid_usr:${user2.socketId}`, roomId, 'EX', 3600);
 
-      io.to(user1.socketId).emit('video_match_found', { roomId, partnerId: user2.userId, initiator: true });
-      io.to(user2.socketId).emit('video_match_found', { roomId, partnerId: user1.userId, initiator: false });
+        io.to(user1.socketId).emit('video_match_found', { roomId, partnerId: user2.userId, initiator: true });
+        io.to(user2.socketId).emit('video_match_found', { roomId, partnerId: user1.userId, initiator: false });
+      }
+    } catch (err) {
+      console.error('[VIDEO MATCH] Redis error during match:', err.message);
+      // Fallback in case Redis fails
+      io.to(socket.id).emit('video_match_failed');
     }
   });
 
   socket.on('cancel_video_match', async () => {
-    if (pubClient) {
-      await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId: user?.userId, socketId: socket.id }));
-    } else {
-      fallbackVideoQueue = fallbackVideoQueue.filter(u => u.socketId !== socket.id);
+    try {
+      if (pubClient) {
+        await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId: user?.userId, socketId: socket.id }));
+      } else {
+        fallbackVideoQueue = fallbackVideoQueue.filter(u => u.socketId !== socket.id);
+      }
+    } catch (err) {
+      console.error('[VIDEO MATCH] Redis error during cancel:', err.message);
     }
   });
 
@@ -3827,12 +3841,16 @@ io.on('connection', (socket) => {
       }
       return;
     }
-    const chatStr = await pubClient.hget('active_video_chats', roomId);
-    if (!chatStr) return;
-    const chat = JSON.parse(chatStr);
-    
-    const receiverSocketId = (chat.user1.socketId === socket.id) ? chat.user2.socketId : chat.user1.socketId;
-    io.to(receiverSocketId).emit('video_webrtc_signal', { signalData });
+    try {
+      const chatStr = await pubClient.hget('active_video_chats', roomId);
+      if (!chatStr) return;
+      const chat = JSON.parse(chatStr);
+      
+      const receiverSocketId = (chat.user1.socketId === socket.id) ? chat.user2.socketId : chat.user1.socketId;
+      io.to(receiverSocketId).emit('video_webrtc_signal', { signalData });
+    } catch (err) {
+      console.error('[VIDEO MATCH] Redis error during signal:', err.message);
+    }
   });
 
   socket.on('video_skip', async ({ roomId }) => {
@@ -3845,17 +3863,21 @@ io.on('connection', (socket) => {
       }
       return;
     }
-    const chatStr = await pubClient.hget('active_video_chats', roomId);
-    if (!chatStr) return;
-    
-    const chat = JSON.parse(chatStr);
-    const receiverSocketId = (chat.user1.socketId === socket.id) ? chat.user2.socketId : chat.user1.socketId;
-    
-    io.to(receiverSocketId).emit('video_partner_skipped');
-    
-    await pubClient.hdel('active_video_chats', roomId);
-    await pubClient.del(`vid_usr:${chat.user1.socketId}`);
-    await pubClient.del(`vid_usr:${chat.user2.socketId}`);
+    try {
+      const chatStr = await pubClient.hget('active_video_chats', roomId);
+      if (!chatStr) return;
+      
+      const chat = JSON.parse(chatStr);
+      const receiverSocketId = (chat.user1.socketId === socket.id) ? chat.user2.socketId : chat.user1.socketId;
+      
+      io.to(receiverSocketId).emit('video_partner_skipped');
+      
+      await pubClient.hdel('active_video_chats', roomId);
+      await pubClient.del(`vid_usr:${chat.user1.socketId}`);
+      await pubClient.del(`vid_usr:${chat.user2.socketId}`);
+    } catch (err) {
+      console.error('[VIDEO MATCH] Redis error during skip:', err.message);
+    }
   });
   // --- End Video Match Logic ---
 
