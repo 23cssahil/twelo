@@ -4085,6 +4085,23 @@ io.on('connection', (socket) => {
     adminBusySockets.delete(socket.id);
     randomChatQueue = randomChatQueue.filter(u => u.socketId !== socket.id);
     
+    // Cleanup active video chats
+    if (pubClient) {
+      pubClient.get(`vid_usr:${socket.id}`).then(async (roomId) => {
+        if (roomId) {
+          const chatStr = await pubClient.hget('active_video_chats', roomId);
+          if (chatStr) {
+            const chat = JSON.parse(chatStr);
+            const receiverSocketId = (chat.user1.socketId === socket.id) ? chat.user2.socketId : chat.user1.socketId;
+            io.to(receiverSocketId).emit('video_partner_skipped');
+            await pubClient.hdel('active_video_chats', roomId);
+            await pubClient.del(`vid_usr:${chat.user1.socketId}`);
+            await pubClient.del(`vid_usr:${chat.user2.socketId}`);
+          }
+        }
+      }).catch(e => console.error('[VIDEO MATCH] Error cleaning up disconnected user:', e.message));
+    }
+
     for (const [roomId, chat] of activeRandomChats.entries()) {
       if (chat.user1.socketId === socket.id || chat.user2.socketId === socket.id) {
         const receiverSocketId = chat.user1.socketId === socket.id ? chat.user2.socketId : chat.user1.socketId;

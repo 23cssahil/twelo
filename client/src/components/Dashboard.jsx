@@ -907,7 +907,7 @@ export default function Dashboard() {
         videoPeerRef.current.destroy();
         videoPeerRef.current = null;
       }
-      setVideoMatchingStatus('idle');
+      setVideoMatchingStatus('partner_left');
     };
 
     socket.on('video_match_found', handleMatchFound);
@@ -6556,7 +6556,9 @@ const handleStoryUpload = async () => {
           <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#666', background: '#111' }}>
-            {videoMatchingStatus === 'searching' ? 'Looking for someone...' : 'Stranger'}
+            {videoMatchingStatus === 'searching' ? 'Looking for someone...' : 
+             videoMatchingStatus === 'partner_left' ? 'Stranger has disconnected.' : 
+             'Stranger'}
           </div>
         )}
       </div>
