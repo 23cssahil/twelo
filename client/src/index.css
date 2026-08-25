@@ -488,6 +488,7 @@ input, button, textarea {
 
 .chat-messages-area {
   flex: 1;
+  min-height: 0; /* Critical: allows flex child to shrink below content height */
   overflow-y: auto;
   overscroll-behavior: contain; /* Prevent scroll chaining */
   padding: 16px;
