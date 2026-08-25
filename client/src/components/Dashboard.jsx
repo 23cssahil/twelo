@@ -5437,7 +5437,7 @@ const handleStoryUpload = async () => {
                 position: 'sticky',
                 top: 0,
                 zIndex: 20,
-                background: '#121212',
+                background: 'rgba(100, 70, 130, 0.4)',
                 backdropFilter: 'blur(10px)'
               }}>
                 <h2 style={{ 
