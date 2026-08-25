@@ -6536,10 +6536,10 @@ const handleStoryUpload = async () => {
       </div>
   {/* Omegle Video Chat Interface */}
   {activeTab === 'home' && !activeChatUser && chatMode === 'video' && (
-    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 50, background: '#000', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100dvh', zIndex: 50, background: '#000', display: 'flex', flexDirection: 'column' }}>
       
       {/* Remote Video (Top Half) */}
-      <div style={{ flex: 1, position: 'relative', borderBottom: '2px solid #333' }}>
+      <div style={{ height: '50%', position: 'relative', borderBottom: '2px solid #333' }}>
         {remoteVideoStream ? (
           <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
@@ -6550,7 +6550,7 @@ const handleStoryUpload = async () => {
       </div>
 
       {/* Local Video (Bottom Half) */}
-      <div style={{ flex: 1, position: 'relative' }}>
+      <div style={{ height: '50%', position: 'relative' }}>
         
         {localVideoStream ? (
           <video ref={localVideoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
@@ -6571,7 +6571,7 @@ const handleStoryUpload = async () => {
       </div>
 
       {/* Controls */}
-      <div style={{ position: 'absolute', bottom: '30px', left: 0, width: '100%', display: 'flex', justifyContent: 'center', gap: '20px', zIndex: 60 }}>
+      <div style={{ position: 'absolute', bottom: '80px', left: 0, width: '100%', display: 'flex', justifyContent: 'center', gap: '20px', zIndex: 60 }}>
         {videoMatchingStatus === 'idle' ? (
           <button 
             onClick={startVideoMatch}
