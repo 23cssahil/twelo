@@ -822,13 +822,13 @@ export default function Dashboard() {
     videoSearchTimerRef.current = setTimeout(() => {
       setVideoMatchingStatus(prev => {
         if (prev === 'searching') {
-          console.warn('Video Match: Search timed out after 3 seconds. Cancelling match...');
-          socket.emit('cancel_video_match');
+          console.warn('Video Match: Search timed out after 15 seconds. Cancelling match...');
+          socket.emit('cancel_video_match', { userId: user?.id || user?._id });
           return 'idle';
         }
         return prev;
       });
-    }, 3000); 
+    }, 15000); 
   };
 
   const skipVideoMatch = () => {

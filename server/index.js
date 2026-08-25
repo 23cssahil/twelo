@@ -3779,16 +3779,16 @@ io.on('connection', (socket) => {
         // Set UI timeout fallback
         setTimeout(async () => {
           try {
-            // Check if we are STILL in the queue after 3 seconds
+            // Check if we are STILL in the queue after 15 seconds
             const removed = await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
             if (removed > 0) {
-              console.log(`[VIDEO MATCH] 3-second timeout hit for ${socket.id}. Match failed.`);
+              console.log(`[VIDEO MATCH] 15-second timeout hit for ${socket.id}. Match failed.`);
               io.to(socket.id).emit('video_match_failed');
             }
           } catch (e) {
              console.error('[VIDEO MATCH] Error in timeout cleanup:', e.message);
           }
-        }, 3000);
+        }, 15000);
         
       } else {
         const user2 = JSON.parse(popped);
@@ -3820,10 +3820,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('cancel_video_match', async () => {
+  socket.on('cancel_video_match', async ({ userId } = {}) => {
     try {
       if (pubClient) {
-        await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId: user?.userId, socketId: socket.id }));
+        await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
       } else {
         fallbackVideoQueue = fallbackVideoQueue.filter(u => u.socketId !== socket.id);
       }
