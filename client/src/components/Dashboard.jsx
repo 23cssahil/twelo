@@ -666,6 +666,145 @@ export default function Dashboard() {
 
   const [activeTab, _setActiveTab] = useState('home');
 
+  // --- Video Chat State ---
+  const [chatMode, setChatMode] = useState('text'); // 'text' or 'video'
+  const [videoMatchingStatus, setVideoMatchingStatus] = useState('idle'); // 'idle', 'searching', 'matched'
+  const [videoPartnerId, setVideoPartnerId] = useState(null);
+  const [videoRoomId, setVideoRoomId] = useState(null);
+  const [localVideoStream, setLocalVideoStream] = useState(null);
+  const [remoteVideoStream, setRemoteVideoStream] = useState(null);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const videoPeerRef = useRef(null);
+  const videoSearchTimerRef = useRef(null);
+
+  const requestVideoPermissions = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setLocalVideoStream(stream);
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      return true;
+    } catch (err) {
+      alert("Microphone and Camera access are required for Video Call.");
+      return false;
+    }
+  };
+
+  const startVideoMatch = async () => {
+    if (!localVideoStream) {
+      const success = await requestVideoPermissions();
+      if (!success) return;
+    }
+    setVideoMatchingStatus('searching');
+    setVideoPartnerId(null);
+    setVideoRoomId(null);
+    setRemoteVideoStream(null);
+    if (videoPeerRef.current) {
+      videoPeerRef.current.destroy();
+      videoPeerRef.current = null;
+    }
+    socket.emit('start_video_match', { userId: user.id });
+
+    if (videoSearchTimerRef.current) clearTimeout(videoSearchTimerRef.current);
+    videoSearchTimerRef.current = setTimeout(() => {
+      setVideoMatchingStatus(prev => {
+        if (prev === 'searching') {
+          socket.emit('cancel_video_match');
+          return 'idle';
+        }
+        return prev;
+      });
+    }, 4000); // UI side fallback timeout
+  };
+
+  const skipVideoMatch = () => {
+    if (videoRoomId) {
+      socket.emit('video_skip', { roomId: videoRoomId });
+    }
+    startVideoMatch();
+  };
+
+  useEffect(() => {
+    if (localVideoStream && localVideoRef.current) {
+      localVideoRef.current.srcObject = localVideoStream;
+    }
+  }, [localVideoStream, chatMode]);
+
+  useEffect(() => {
+    if (remoteVideoStream && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteVideoStream;
+    }
+  }, [remoteVideoStream, chatMode]);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleMatchFound = ({ roomId, partnerId, initiator }) => {
+      if (videoSearchTimerRef.current) clearTimeout(videoSearchTimerRef.current);
+      setVideoMatchingStatus('matched');
+      setVideoPartnerId(partnerId);
+      setVideoRoomId(roomId);
+
+      const peer = new Peer({
+        initiator: initiator,
+        trickle: true,
+        stream: localVideoStream || undefined
+      });
+
+      peer.on('signal', data => {
+        socket.emit('video_webrtc_signal', { roomId, signalData: data });
+      });
+
+      peer.on('stream', stream => {
+        setRemoteVideoStream(stream);
+      });
+
+      peer.on('close', () => {
+        setRemoteVideoStream(null);
+        setVideoMatchingStatus('idle');
+      });
+      
+      peer.on('error', err => {
+        console.error('Video peer error:', err);
+      });
+
+      videoPeerRef.current = peer;
+    };
+
+    const handleWebrtcSignal = ({ signalData }) => {
+      if (videoPeerRef.current) {
+        try { videoPeerRef.current.signal(signalData); } catch (e) { console.error('Video signal error:', e); }
+      }
+    };
+
+    const handleMatchFailed = () => {
+      setVideoMatchingStatus('idle');
+    };
+
+    const handlePartnerSkipped = () => {
+      setVideoMatchingStatus('idle');
+      setRemoteVideoStream(null);
+      if (videoPeerRef.current) {
+        videoPeerRef.current.destroy();
+        videoPeerRef.current = null;
+      }
+    };
+
+    socket.on('video_match_found', handleMatchFound);
+    socket.on('video_webrtc_signal', handleWebrtcSignal);
+    socket.on('video_match_failed', handleMatchFailed);
+    socket.on('video_partner_skipped', handlePartnerSkipped);
+
+    return () => {
+      socket.off('video_match_found', handleMatchFound);
+      socket.off('video_webrtc_signal', handleWebrtcSignal);
+      socket.off('video_match_failed', handleMatchFailed);
+      socket.off('video_partner_skipped', handlePartnerSkipped);
+    };
+  }, [localVideoStream, socket]);
+  // --- End Video Chat State ---
+
+
 
   // Stories Pagination State
   const [everyoneStoriesCursor, setEveryoneStoriesCursor] = useState(null);
@@ -6370,11 +6509,76 @@ const handleStoryUpload = async () => {
       {/* Globe always mounted to prevent WebGL context loss / black screen */}
       <div style={{
         position: 'fixed', top: '-5vh', left: '0', width: '100%', height: '130vh', /* zIndex handled below */
-        opacity: activeTab === 'home' ? 1 : 0,
-        zIndex: activeTab === 'home' ? 0 : -999, /* Prevent WebGL context loss by not using visibility: hidden */
-        pointerEvents: activeTab === 'home' && !activeChatUser ? 'auto' : 'none',
+        opacity: (activeTab === 'home' && chatMode === 'text') ? 1 : 0,
+        zIndex: (activeTab === 'home' && chatMode === 'text') ? 0 : -999, /* Prevent WebGL context loss by not using visibility: hidden */
+        pointerEvents: (activeTab === 'home' && chatMode === 'text' && !activeChatUser) ? 'auto' : 'none',
         transition: 'opacity 0.3s ease-in-out'
       }}>
+        
+  {/* Omegle Video Chat Interface */}
+  {activeTab === 'home' && !activeChatUser && chatMode === 'video' && (
+    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 50, background: '#000', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* Remote Video (Top Half) */}
+      <div style={{ flex: 1, position: 'relative', borderBottom: '2px solid #333' }}>
+        {remoteVideoStream ? (
+          <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#666', background: '#111' }}>
+            {videoMatchingStatus === 'searching' ? 'Looking for someone...' : 'Stranger'}
+          </div>
+        )}
+      </div>
+
+      {/* Local Video (Bottom Half) */}
+      <div style={{ flex: 1, position: 'relative' }}>
+        {localVideoStream ? (
+          <video ref={localVideoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+        ) : (
+          <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#666', background: '#1a1a1a' }}>
+            You
+          </div>
+        )}
+      </div>
+
+      {/* Controls */}
+      <div style={{ position: 'absolute', bottom: '30px', left: 0, width: '100%', display: 'flex', justifyContent: 'center', gap: '20px', zIndex: 60 }}>
+        {videoMatchingStatus === 'idle' ? (
+          <button 
+            onClick={startVideoMatch}
+            style={{ padding: '15px 40px', fontSize: '1.2rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #00c6ff, #0072ff)', color: '#fff', border: 'none', borderRadius: '30px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0, 114, 255, 0.4)' }}
+          >
+            Match
+          </button>
+        ) : (
+          <>
+            <button 
+              onClick={() => {
+                socket.emit('cancel_video_match');
+                if (videoRoomId) socket.emit('video_skip', { roomId: videoRoomId });
+                setVideoMatchingStatus('idle');
+                setRemoteVideoStream(null);
+                if (videoPeerRef.current) {
+                  videoPeerRef.current.destroy();
+                  videoPeerRef.current = null;
+                }
+              }}
+              style={{ padding: '15px 30px', fontSize: '1.1rem', fontWeight: 'bold', background: '#333', color: '#fff', border: 'none', borderRadius: '30px', cursor: 'pointer' }}
+            >
+              Stop
+            </button>
+            <button 
+              onClick={skipVideoMatch}
+              style={{ padding: '15px 30px', fontSize: '1.1rem', fontWeight: 'bold', background: '#e50914', color: '#fff', border: 'none', borderRadius: '30px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(229, 9, 20, 0.4)' }}
+            >
+              Skip
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )}
+
         {globeComponent}
       </div>
       <aside className="sidebar">

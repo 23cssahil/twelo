@@ -3194,6 +3194,8 @@ app.delete('/api/admin/country-facts/:id', adminAuth, async (req, res) => {
 
 // Random Chat Queue
 let randomChatQueue = []; // [{ userId, socketId, genderFilter, userGender }]
+let videoChatQueue = [];
+const activeVideoChats = new Map();
 const activeRandomChats = new Map(); // roomId -> { user1, user2 }
 const adminBusySockets = new Set(); // Track which admin sockets are currently intercepting
 let lastGlobePushTime = 0; // Cooldown tracker for push notifications (5 min throttle)
@@ -3725,6 +3727,96 @@ io.on('connection', (socket) => {
         });
       }, AI_COMPANION_FALLBACK_DELAY_MS);
     });
+
+  
+  // --- Video Match Logic ---
+  socket.on('start_video_match', ({ userId }) => {
+    // Remove if already in queue to prevent duplicates
+    videoChatQueue = videoChatQueue.filter(u => u.socketId !== socket.id);
+    
+    // Add to queue
+    videoChatQueue.push({ userId, socketId: socket.id });
+
+    // Try to find a match
+    const myIndex = videoChatQueue.findIndex(u => u.socketId === socket.id);
+    if (myIndex !== -1 && videoChatQueue.length > 1) {
+      let matchedIndex = -1;
+      for (let i = 0; i < videoChatQueue.length; i++) {
+        if (i !== myIndex) {
+          matchedIndex = i;
+          break;
+        }
+      }
+
+      if (matchedIndex !== -1) {
+        const user2 = videoChatQueue[matchedIndex];
+        const user1 = videoChatQueue[myIndex];
+
+        // Remove both from queue
+        if (myIndex > matchedIndex) {
+           videoChatQueue.splice(myIndex, 1);
+           videoChatQueue.splice(matchedIndex, 1);
+        } else {
+           videoChatQueue.splice(matchedIndex, 1);
+           videoChatQueue.splice(myIndex, 1);
+        }
+
+        const roomId = `video_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        activeVideoChats.set(roomId, { user1, user2 });
+
+        // Tell user1 they are the initiator (they will create the WebRTC offer)
+        io.to(user1.socketId).emit('video_match_found', {
+          roomId,
+          partnerId: user2.userId,
+          initiator: true
+        });
+
+        // Tell user2 they are NOT the initiator (they will wait for the offer)
+        io.to(user2.socketId).emit('video_match_found', {
+          roomId,
+          partnerId: user1.userId,
+          initiator: false
+        });
+        
+        return; // Successfully matched
+      }
+    }
+
+    // If no match immediately, set a 3-second timeout
+    setTimeout(() => {
+      const stillInQueue = videoChatQueue.find(u => u.socketId === socket.id);
+      if (stillInQueue) {
+        // Remove from queue
+        videoChatQueue = videoChatQueue.filter(u => u.socketId !== socket.id);
+        io.to(socket.id).emit('video_match_failed');
+      }
+    }, 3000);
+  });
+
+  socket.on('cancel_video_match', () => {
+    videoChatQueue = videoChatQueue.filter(u => u.socketId !== socket.id);
+  });
+
+  socket.on('video_webrtc_signal', ({ roomId, signalData }) => {
+    const chat = activeVideoChats.get(roomId);
+    if (!chat) return;
+
+    // Send the signal to the OTHER person in the room
+    const receiverSocketId = (chat.user1.socketId === socket.id) ? chat.user2.socketId : chat.user1.socketId;
+    io.to(receiverSocketId).emit('video_webrtc_signal', { signalData });
+  });
+
+  socket.on('video_skip', ({ roomId }) => {
+    const chat = activeVideoChats.get(roomId);
+    if (!chat) return;
+
+    activeVideoChats.delete(roomId);
+
+    // Notify the other user that their partner skipped
+    const receiverSocketId = (chat.user1.socketId === socket.id) ? chat.user2.socketId : chat.user1.socketId;
+    io.to(receiverSocketId).emit('video_partner_skipped');
+  });
+  // --- End Video Match Logic ---
 
   socket.on('cancel_search', (userId) => {
     randomChatQueue = randomChatQueue.filter(u => u.userId !== userId);
