@@ -5183,7 +5183,7 @@ const handleStoryUpload = async () => {
           return (
             <div className="profile-container">
               <div className="profile-card" style={{ padding: '30px 20px' }}>
-                <div className="profile-avatar-large shimmer" style={{ background: '#333', border: 'none' }}></div>
+                <div className="profile-avatar-large shimmer" style={{ border: 'none' }}></div>
                 <div className="profile-info" style={{ marginTop: '20px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div className="shimmer" style={{ width: '150px', height: '24px', borderRadius: '4px', marginBottom: '10px' }}></div>
                   <div className="shimmer" style={{ width: '80px', height: '16px', borderRadius: '4px', marginBottom: '25px' }}></div>
@@ -6158,7 +6158,7 @@ const handleStoryUpload = async () => {
           return (
             <div className="profile-container">
               <div className="profile-card" style={{ padding: '30px 20px' }}>
-                <div className="profile-avatar-large shimmer" style={{ background: '#333', border: 'none' }}></div>
+                <div className="profile-avatar-large shimmer" style={{ border: 'none' }}></div>
                 <div className="profile-info" style={{ marginTop: '20px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div className="shimmer" style={{ width: '150px', height: '24px', borderRadius: '4px', marginBottom: '10px' }}></div>
                   <div className="shimmer" style={{ width: '80px', height: '16px', borderRadius: '4px', marginBottom: '25px' }}></div>
