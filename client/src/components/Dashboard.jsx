@@ -6363,7 +6363,7 @@ const handleStoryUpload = async () => {
               </div>
             </div>
             
-            <div style={{ padding: '20px', maxWidth: '500px', margin: '0 auto' }}>
+            <div style={{ padding: '20px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                 {groupStoriesByDay(userGlobalStories).map((group, index, allGroups) => {
                   const firstStory = group.stories[0];
