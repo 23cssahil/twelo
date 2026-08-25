@@ -270,12 +270,15 @@ const Redis = require('ioredis');
 
 // Connect to Upstash Redis for Horizontal Scaling
 const redisUrl = process.env.REDIS_URL;
+let pubClient = null;
+let subClient = null;
+
 if (redisUrl) {
-  const pubClient = new Redis(redisUrl, {
+  pubClient = new Redis(redisUrl, {
     tls: redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
     maxRetriesPerRequest: null
   });
-  const subClient = pubClient.duplicate();
+  subClient = pubClient.duplicate();
 
   pubClient.on('error', (err) => console.log('Redis Pub Error:', err.message));
   subClient.on('error', (err) => console.log('Redis Sub Error:', err.message));
