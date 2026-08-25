@@ -4524,8 +4524,8 @@ const handleStoryUpload = async () => {
                 <h2 style={{ textAlign: 'center', margin: 0, fontSize: '1.8rem', color: '#fff' }}>Global Stories</h2>
               </div>
               {everyoneStories.length === 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' }}>
-                    {[...Array(6)].map((_, i) => (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '15px' }}>
+                    {[...Array(8)].map((_, i) => (
                       <div key={i} style={{ position: 'relative', paddingBottom: '150%', borderRadius: '15px', overflow: 'hidden', background: 'rgba(255,255,255,0.05)', animation: 'pulse 1.5s infinite ease-in-out' }}>
                         <div style={{ position: 'absolute', top: '8px', left: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.4)', padding: '6px 8px', borderRadius: '10px' }}>
                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
@@ -4547,7 +4547,7 @@ const handleStoryUpload = async () => {
                 <>
                   <div style={{ 
                     display: 'grid', 
-                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', 
                     gap: '15px' 
                   }}>
                     {everyoneStories.map((group, groupIdx) => {
@@ -6364,7 +6364,7 @@ const handleStoryUpload = async () => {
             </div>
             
             <div style={{ padding: '20px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
                 {groupStoriesByDay(userGlobalStories).map((group, index, allGroups) => {
                   const firstStory = group.stories[0];
                   return (
