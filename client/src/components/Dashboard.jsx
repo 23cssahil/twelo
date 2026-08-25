@@ -7268,7 +7268,7 @@ const handleStoryUpload = async () => {
           </div>
         </div>
       )}
-\n      {/* CALLING OVERLAYS */}
+      {/* CALLING OVERLAYS */}
       {receivingCall && (
         <div className="call-overlay call-overlay-violet">
           <div className="incoming-call-box">
