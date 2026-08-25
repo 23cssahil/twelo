@@ -2,7 +2,7 @@ import StoryAudioTrimmer from './StoryAudioTrimmer';
 import StoryMusicModal from "./StoryMusicModal";
 import ShayariStudio from "./ShayariStudio";
 import AdBanner from "./AdBanner";
-import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect, Suspense } from 'react';
 import CommentsModal from './CommentsModal';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -78,8 +78,8 @@ const CHAT_THEMES = [
   {"id":"luxury_gold","name":"Luxury Gold","bg":"#1c1917 url(\"data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M%2030%200%20L%2060%2030%20L%2030%2060%20L%200%2030%20Z%22%20fill%3D%22none%22%20stroke%3D%22%23d4af37%22%20stroke-width%3D%220.5%22%20opacity%3D%220.4%22%2F%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23d4af37%22%20stroke-width%3D%220.5%22%20opacity%3D%220.3%22%2F%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22%20fill%3D%22%23d4af37%22%20opacity%3D%220.5%22%2F%3E%3C%2Fsvg%3E\") repeat","preview":"#1c1917 url(\"data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M%2030%200%20L%2060%2030%20L%2030%2060%20L%200%2030%20Z%22%20fill%3D%22none%22%20stroke%3D%22%23d4af37%22%20stroke-width%3D%220.5%22%20opacity%3D%220.4%22%2F%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23d4af37%22%20stroke-width%3D%220.5%22%20opacity%3D%220.3%22%2F%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22%20fill%3D%22%23d4af37%22%20opacity%3D%220.5%22%2F%3E%3C%2Fsvg%3E\") repeat"}
 ];
 import Peer from 'simple-peer';
-import Globe from 'react-globe.gl';
 import * as THREE from 'three';
+const Globe = React.lazy(() => import('react-globe.gl'));
 
 import { AuthContext, SocketContext } from '../App';
 import ReactCrop from 'react-image-crop';
@@ -4435,14 +4435,20 @@ const handleStoryUpload = async () => {
   };
 
   const globeComponent = useMemo(() => (
-    <Globe
-      ref={globeEl}
-      globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-      bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-      backgroundColor="rgba(0,0,0,0)"
-      showAtmosphere={false}
-      onGlobeClick={() => handleGlobeClickRef.current && handleGlobeClickRef.current()}
-    />
+    <Suspense fallback={
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#fff' }}>
+        Initializing 3D Engine...
+      </div>
+    }>
+      <Globe
+        ref={globeEl}
+        globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+        bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+        backgroundColor="rgba(0,0,0,0)"
+        showAtmosphere={false}
+        onGlobeClick={() => handleGlobeClickRef.current && handleGlobeClickRef.current()}
+      />
+    </Suspense>
   ), []);
 
   const timeSince = (date) => {

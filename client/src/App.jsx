@@ -1,22 +1,23 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import io from 'socket.io-client';
-import Login from './components/Login';
-import Signup from './components/Signup';
-import Dashboard from './components/Dashboard';
-import PrivacyPolicy from './components/PrivacyPolicy';
-import Terms from './components/Terms';
-import ContactUs from './components/ContactUs';
-import AboutUs from './components/AboutUs';
-import DeveloperAdmin from './components/DeveloperAdmin';
-import BotTrainingAdmin from './components/BotTrainingAdmin';
-import Landing from './components/Landing';
-import CookieConsent from './components/CookieConsent';
 import { Capacitor } from '@capacitor/core';
 import { AdMob } from '@capacitor-community/admob';
 import { App as CapacitorApp } from '@capacitor/app';
 
 import { GoogleOAuthProvider } from '@react-oauth/google';
+
+const Login = React.lazy(() => import('./components/Login'));
+const Signup = React.lazy(() => import('./components/Signup'));
+const Dashboard = React.lazy(() => import('./components/Dashboard'));
+const PrivacyPolicy = React.lazy(() => import('./components/PrivacyPolicy'));
+const Terms = React.lazy(() => import('./components/Terms'));
+const ContactUs = React.lazy(() => import('./components/ContactUs'));
+const AboutUs = React.lazy(() => import('./components/AboutUs'));
+const DeveloperAdmin = React.lazy(() => import('./components/DeveloperAdmin'));
+const BotTrainingAdmin = React.lazy(() => import('./components/BotTrainingAdmin'));
+const Landing = React.lazy(() => import('./components/Landing'));
+const CookieConsent = React.lazy(() => import('./components/CookieConsent'));
 
 export const AuthContext = createContext(null);
 export const SocketContext = createContext(null);
@@ -205,18 +206,24 @@ export default function App() {
       <AuthContext.Provider value={{ user, token, login, logout, API_URL }}>
         <SocketContext.Provider value={socket}>
           <Router>
-            <Routes>
-              <Route path="/twelo-admin-6006390989" element={<DeveloperAdmin />} />
-              <Route path="/admin" element={<DeveloperAdmin />} />
-              <Route path="/admin/bot-training" element={<BotTrainingAdmin />} />
-              <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
-              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/contact-us" element={<ContactUs />} />
-              <Route path="/about-us" element={<AboutUs />} />
-              <Route path="/" element={!token ? <Landing /> : <Dashboard />} />
-              <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" state={{ from: window.location.pathname }} />} />
-            </Routes>
+            <Suspense fallback={
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#000000', color: '#ffffff' }}>
+                <h2>Loading...</h2>
+              </div>
+            }>
+              <Routes>
+                <Route path="/twelo-admin-6006390989" element={<DeveloperAdmin />} />
+                <Route path="/admin" element={<DeveloperAdmin />} />
+                <Route path="/admin/bot-training" element={<BotTrainingAdmin />} />
+                <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/contact-us" element={<ContactUs />} />
+                <Route path="/about-us" element={<AboutUs />} />
+                <Route path="/" element={!token ? <Landing /> : <Dashboard />} />
+                <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" state={{ from: window.location.pathname }} />} />
+              </Routes>
+            </Suspense>
             <CookieConsent />
           </Router>
         </SocketContext.Provider>

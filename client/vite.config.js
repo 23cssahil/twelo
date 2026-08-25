@@ -14,6 +14,19 @@ export default defineConfig({
     global: 'window',
     'process.env': {}
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'three-vendor': ['three', 'react-globe.gl'],
+          'chart-vendor': ['chart.js', 'react-chartjs-2'],
+          'framer-vendor': ['framer-motion']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
+  },
   server: {
     port: 3000,
     host: true
