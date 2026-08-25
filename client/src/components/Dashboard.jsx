@@ -6531,6 +6531,9 @@ const handleStoryUpload = async () => {
         transition: 'opacity 0.3s ease-in-out'
       }}>
         
+
+        {globeComponent}
+      </div>
   {/* Omegle Video Chat Interface */}
   {activeTab === 'home' && !activeChatUser && chatMode === 'video' && (
     <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 50, background: '#000', display: 'flex', flexDirection: 'column' }}>
@@ -6604,9 +6607,6 @@ const handleStoryUpload = async () => {
       </div>
     </div>
   )}
-
-        {globeComponent}
-      </div>
       <aside className="sidebar">
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: '20px' }}>
