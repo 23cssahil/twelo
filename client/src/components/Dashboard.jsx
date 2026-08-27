@@ -2675,6 +2675,28 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [isSearchingRandom, randomSearchTimer, socket, user, activeTab]);
 
+  // Robust search_random emitter that handles socket latency and reconnects automatically
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleConnect = () => {
+      if (isSearchingRandom) {
+        console.log('[MATCH] Socket connected/reconnected. Emitting search_random...');
+        socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
+      }
+    };
+
+    if (isSearchingRandom && socket.connected) {
+      console.log('[MATCH] Emitting search_random immediately...');
+      socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
+    }
+
+    socket.on('connect', handleConnect);
+    return () => {
+      socket.off('connect', handleConnect);
+    };
+  }, [isSearchingRandom, socket, genderFilter, user.id]);
+
   // Removed redundant popstate handler
 
   const prevLastMessageId = useRef(null);
@@ -4407,7 +4429,6 @@ const handleStoryUpload = async () => {
       setIsSearchingRandom(true);
       setRandomSearchTimer(3);
       setMatchFailed(false);
-      if (socket) socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
     } else {
       setIsSearchingRandom(false);
       if (socket) socket.emit('cancel_search', user.id);
@@ -4671,7 +4692,6 @@ const handleStoryUpload = async () => {
                   setIsSearchingRandom(true);
                   setRandomSearchTimer(3);
                   setMatchFailed(false);
-                  if (socket) socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
                 }}
                 style={{
                   position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -4694,7 +4714,6 @@ const handleStoryUpload = async () => {
                       setIsSearchingRandom(true);
                       setRandomSearchTimer(3);
                       setMatchFailed(false);
-                      if (socket) socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
                     }} 
                     style={{ 
                       position: 'absolute', top: '-15px', right: '-15px', zIndex: 999999,
