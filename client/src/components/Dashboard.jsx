@@ -4866,7 +4866,7 @@ const handleStoryUpload = async () => {
                     </div>
                   </div>
                 )}
-                <div ref={messagesEndRef} style={{ height: '65px', flexShrink: 0 }} />
+                <div ref={messagesEndRef} style={{ height: '78px', flexShrink: 0 }} />
               </div>
               {isAnonymousChatActive ? (
                 <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
