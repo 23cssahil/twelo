@@ -4775,7 +4775,7 @@ const handleStoryUpload = async () => {
       case 'anonymousChat':
         return (
           <div className="chat-container">
-            <div className="chat-area" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 40 }}>
+            <div className="chat-area" style={{ position: 'relative', zIndex: 40 }}>
               <div className="chat-room-header">
                 <div className="chat-header-info" style={{ display: 'flex', alignItems: 'center' }}>
                   <button 
@@ -4849,7 +4849,7 @@ const handleStoryUpload = async () => {
                 <div ref={messagesEndRef} style={{ height: '20px', flexShrink: 0 }} />
               </div>
               {isAnonymousChatActive ? (
-                <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
+                <form className="chat-input-area" style={{ paddingBottom: '100px' }} onSubmit={handleSendAnonymousMessage}>
                   <div className="chat-input-wrapper">
                     <textarea
                       id="anonymous-chat-input"
@@ -6779,13 +6779,13 @@ const handleStoryUpload = async () => {
   )}
 
       <main 
-        className={`main-content ${(activeTab === 'home' || activeTab === 'messages') ? 'no-scroll' : ''}`}
+        className={`main-content ${(activeTab === 'home' || activeTab === 'messages' || activeTab === 'anonymousChat') ? 'no-scroll' : ''}`}
         style={{ pointerEvents: activeTab === 'home' ? 'none' : 'auto' }}
       >
         {renderTabContent()}
       </main>
 
-      <nav className={`mobile-nav ${(activeChatUser && activeTab === 'messages') ? 'hide-on-mobile' : ''}`}>
+      <nav className={`mobile-nav ${((activeChatUser && activeTab === 'messages') || isAnonymousChatActive) ? 'hide-on-mobile' : ''}`}>
         <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}><HomeIcon size={24} /></div>
         <div className={`nav-item ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}><SearchIcon size={24} /></div>
         <div className={`nav-item ${activeTab === 'everyone-stories' ? 'active' : ''}`} onClick={() => setActiveTab('everyone-stories')}>
