@@ -792,6 +792,7 @@ export default function Dashboard() {
       return true;
     } catch (err) {
       alert("Microphone and Camera access are required for Video Call.");
+      setChatMode('text');
       return false;
     }
   };
@@ -6779,11 +6780,8 @@ const handleStoryUpload = async () => {
     <div style={{ position: 'absolute', top: '70px', left: '20px', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(0,0,0,0.5)', padding: '10px', borderRadius: '30px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
       <button 
         onClick={() => {
-          requestVideoPermissions().then(success => {
-            if (success) {
-              setChatMode('video');
-            }
-          });
+          setChatMode('video');
+          requestVideoPermissions();
         }}
         style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: chatMode === 'video' ? 'linear-gradient(135deg, #f12711 0%, #f5af19 100%)' : 'transparent', color: chatMode === 'video' ? '#fff' : '#aaa', cursor: 'pointer', transition: '0.3s', display: 'grid', placeItems: 'center', marginBottom: '5px' }}
       >
