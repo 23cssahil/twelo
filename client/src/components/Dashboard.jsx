@@ -6612,6 +6612,8 @@ const handleStoryUpload = async () => {
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px',
                   transition: 'transform 0.15s ease, box-shadow 0.15s ease',
                   zIndex: 10,
+                  outline: 'none',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.07)'; e.currentTarget.style.boxShadow = '0 0 70px rgba(139,92,246,0.9), 0 0 120px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)'; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 0 50px rgba(139,92,246,0.65), 0 0 90px rgba(139,92,246,0.3), inset 0 1px 0 rgba(255,255,255,0.2)'; }}
