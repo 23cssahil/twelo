@@ -4761,7 +4761,7 @@ const handleStoryUpload = async () => {
                       style={{ padding: '6px 14px', borderRadius: '25px', border: '1px solid', borderColor: genderFilter === 'female' ? 'transparent' : 'rgba(255,255,255,0.1)', background: genderFilter === 'female' ? 'linear-gradient(135deg, #fc4a1a, #f7b733)' : 'rgba(0,0,0,0.2)', color: genderFilter === 'female' ? '#fff' : '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.3s', fontWeight: 'bold', fontSize: '0.9rem', boxShadow: genderFilter === 'female' ? '0 4px 15px rgba(247, 183, 51, 0.4)' : 'none' }}
                     >
                       <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Anita" alt="Female" style={{width:'24px', height:'24px', borderRadius:'50%', background:'#fff', border: '2px solid rgba(255,255,255,0.8)'}} />
-                      Female
+                              Female
                       <div style={{display:'flex', alignItems:'center', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:'12px', fontSize:'0.75rem', fontWeight:'normal'}}><CoinSVG size={14}/> <span style={{marginLeft:'3px', marginTop:'1px'}}>2</span></div>
                     </button>
                   </div>
@@ -4775,7 +4775,7 @@ const handleStoryUpload = async () => {
       case 'anonymousChat':
         return (
           <div className="chat-container">
-            <div className="chat-area" style={{ position: 'relative' }}>
+            <div className="chat-area" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 40 }}>
               <div className="chat-room-header">
                 <div className="chat-header-info" style={{ display: 'flex', alignItems: 'center' }}>
                   <button 
@@ -4829,7 +4829,7 @@ const handleStoryUpload = async () => {
                 </div>
               </div>
               
-              <div className="chat-messages-area" style={{ flex: 1, background: 'var(--bg-color)' }}>
+              <div className="chat-messages-area" style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: 'var(--bg-color)' }}>
                 {anonymousMessages.map((msg) => (
                   <div key={msg._id} className={`msg-wrapper ${msg.isSystem ? 'system' : (msg.isMine ? 'sent' : 'received')}`}>
                     <div className={`msg-bubble ${msg.isSystem ? 'system-bubble' : ''}`} style={msg.isSystem ? { background: 'transparent', color: '#888', textAlign: 'center', width: '100%', fontStyle: 'italic' } : {}}>
