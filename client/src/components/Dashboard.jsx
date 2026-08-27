@@ -6574,7 +6574,7 @@ const handleStoryUpload = async () => {
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100%', height: '100dvh',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          zIndex: 0, pointerEvents: 'none'
+          zIndex: 5, pointerEvents: 'none'
         }}>
           <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -6584,7 +6584,7 @@ const handleStoryUpload = async () => {
               <div style={{ position: 'absolute', width: '260px', height: '260px', borderRadius: '50%', border: '1px solid rgba(139,92,246,0.12)', animation: 'matchPulse 2.2s ease-out infinite 0.9s' }} />
               {/* Main button */}
               <button
-                onClick={() => handleGlobeClickRef.current && handleGlobeClickRef.current()}
+                onClick={handleGlobeClick}
                 style={{
                   width: '140px', height: '140px', borderRadius: '50%',
                   background: 'linear-gradient(135deg, #6d28d9 0%, #a855f7 50%, #ec4899 100%)',
@@ -6592,6 +6592,7 @@ const handleStoryUpload = async () => {
                   boxShadow: '0 0 50px rgba(139,92,246,0.65), 0 0 90px rgba(139,92,246,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px',
                   transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                  zIndex: 10,
                 }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.07)'; e.currentTarget.style.boxShadow = '0 0 70px rgba(139,92,246,0.9), 0 0 120px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)'; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 0 50px rgba(139,92,246,0.65), 0 0 90px rgba(139,92,246,0.3), inset 0 1px 0 rgba(255,255,255,0.2)'; }}
