@@ -4896,7 +4896,7 @@ const handleStoryUpload = async () => {
                   </div>
                 </form>
               ) : (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                <div style={{ padding: '20px', paddingBottom: '100px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                   <div>Chat has ended.</div>
                   {anonymousPartnerId && (
                     <button 
@@ -6785,7 +6785,7 @@ const handleStoryUpload = async () => {
         {renderTabContent()}
       </main>
 
-      <nav className={`mobile-nav ${((activeChatUser && activeTab === 'messages') || isAnonymousChatActive) ? 'hide-on-mobile' : ''}`}>
+      <nav className={`mobile-nav ${((activeChatUser && activeTab === 'messages') || activeTab === 'anonymousChat') ? 'hide-on-mobile' : ''}`}>
         <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}><HomeIcon size={24} /></div>
         <div className={`nav-item ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}><SearchIcon size={24} /></div>
         <div className={`nav-item ${activeTab === 'everyone-stories' ? 'active' : ''}`} onClick={() => setActiveTab('everyone-stories')}>
