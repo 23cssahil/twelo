@@ -78,8 +78,7 @@ const CHAT_THEMES = [
   {"id":"luxury_gold","name":"Luxury Gold","bg":"#1c1917 url(\"data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M%2030%200%20L%2060%2030%20L%2030%2060%20L%200%2030%20Z%22%20fill%3D%22none%22%20stroke%3D%22%23d4af37%22%20stroke-width%3D%220.5%22%20opacity%3D%220.4%22%2F%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23d4af37%22%20stroke-width%3D%220.5%22%20opacity%3D%220.3%22%2F%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22%20fill%3D%22%23d4af37%22%20opacity%3D%220.5%22%2F%3E%3C%2Fsvg%3E\") repeat","preview":"#1c1917 url(\"data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M%2030%200%20L%2060%2030%20L%2030%2060%20L%200%2030%20Z%22%20fill%3D%22none%22%20stroke%3D%22%23d4af37%22%20stroke-width%3D%220.5%22%20opacity%3D%220.4%22%2F%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23d4af37%22%20stroke-width%3D%220.5%22%20opacity%3D%220.3%22%2F%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22%20fill%3D%22%23d4af37%22%20opacity%3D%220.5%22%2F%3E%3C%2Fsvg%3E\") repeat"}
 ];
 import Peer from 'simple-peer';
-import * as THREE from 'three';
-const Globe = React.lazy(() => import('react-globe.gl'));
+// Globe and THREE.js removed — replaced by lightweight Match button
 
 import { AuthContext, SocketContext } from '../App';
 import ReactCrop from 'react-image-crop';
@@ -4478,24 +4477,7 @@ const handleStoryUpload = async () => {
     setActiveTab('home');
   };
 
-  const globeComponent = useMemo(() => (
-    <Suspense fallback={
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#fff' }}>
-        Initializing 3D Engine...
-      </div>
-    }>
-      <Globe
-        ref={globeEl}
-        width={Math.round(Math.min(window.screen.width, window.screen.height) * 1.5)}
-        height={Math.round(Math.min(window.screen.width, window.screen.height) * 1.5)}
-        globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-        bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-        backgroundColor="rgba(0,0,0,0)"
-        showAtmosphere={false}
-        onGlobeClick={() => handleGlobeClickRef.current && handleGlobeClickRef.current()}
-      />
-    </Suspense>
-  ), []);
+  // Globe removed — replaced by Match button
 
   const timeSince = (date) => {
     if (!date) return 'a while ago';
@@ -6587,20 +6569,50 @@ const handleStoryUpload = async () => {
           </>
         )}
 
-      {/* Globe always mounted to prevent WebGL context loss / black screen */}
-      <div style={{
-        position: 'fixed', top: '0', left: '0', width: '100%', height: '100dvh',
-        overflow: 'hidden',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        opacity: (activeTab === 'home' && chatMode === 'text') ? 1 : 0,
-        zIndex: (activeTab === 'home' && chatMode === 'text') ? 0 : -999,
-        pointerEvents: (activeTab === 'home' && chatMode === 'text' && !activeChatUser) ? 'auto' : 'none',
-        transition: 'opacity 0.3s ease-in-out'
-      }}>
-        
-
-        {globeComponent}
-      </div>
+      {/* Match Button — replaces Globe */}
+      {activeTab === 'home' && chatMode === 'text' && !activeChatUser && !isAnonymousChatActive && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100dvh',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          zIndex: 0, pointerEvents: 'none'
+        }}>
+          <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {/* Animated pulse rings */}
+              <div style={{ position: 'absolute', width: '170px', height: '170px', borderRadius: '50%', border: '2px solid rgba(139,92,246,0.45)', animation: 'matchPulse 2.2s ease-out infinite' }} />
+              <div style={{ position: 'absolute', width: '215px', height: '215px', borderRadius: '50%', border: '2px solid rgba(139,92,246,0.25)', animation: 'matchPulse 2.2s ease-out infinite 0.45s' }} />
+              <div style={{ position: 'absolute', width: '260px', height: '260px', borderRadius: '50%', border: '1px solid rgba(139,92,246,0.12)', animation: 'matchPulse 2.2s ease-out infinite 0.9s' }} />
+              {/* Main button */}
+              <button
+                onClick={() => handleGlobeClickRef.current && handleGlobeClickRef.current()}
+                style={{
+                  width: '140px', height: '140px', borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #6d28d9 0%, #a855f7 50%, #ec4899 100%)',
+                  border: 'none', cursor: 'pointer',
+                  boxShadow: '0 0 50px rgba(139,92,246,0.65), 0 0 90px rgba(139,92,246,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.07)'; e.currentTarget.style.boxShadow = '0 0 70px rgba(139,92,246,0.9), 0 0 120px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 0 50px rgba(139,92,246,0.65), 0 0 90px rgba(139,92,246,0.3), inset 0 1px 0 rgba(255,255,255,0.2)'; }}
+                onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.94)'; }}
+                onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+              >
+                <span style={{ fontSize: '2.4rem', lineHeight: 1 }}>🌍</span>
+                <span style={{ color: '#fff', fontWeight: '900', fontSize: '1.05rem', letterSpacing: '3px', fontFamily: 'Inter, sans-serif' }}>MATCH</span>
+              </button>
+            </div>
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem', margin: 0, fontFamily: 'Inter, sans-serif', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Tap to find a random chat</p>
+          </div>
+          <style>{`
+            @keyframes matchPulse {
+              0%   { transform: scale(0.95); opacity: 0.9; }
+              70%  { transform: scale(1.18); opacity: 0; }
+              100% { transform: scale(1.18); opacity: 0; }
+            }
+          `}</style>
+        </div>
+      )}
   {/* Omegle Video Chat Interface */}
   {activeTab === 'home' && !activeChatUser && chatMode === 'video' && (
     <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100dvh', zIndex: 50, background: '#000', display: 'flex', flexDirection: 'column' }}>
