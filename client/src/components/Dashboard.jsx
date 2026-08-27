@@ -4866,7 +4866,7 @@ const handleStoryUpload = async () => {
                     </div>
                   </div>
                 )}
-                <div ref={messagesEndRef} style={{ height: '45px', flexShrink: 0 }} />
+                <div ref={messagesEndRef} style={{ height: '65px', flexShrink: 0 }} />
               </div>
               {isAnonymousChatActive ? (
                 <form className="chat-input-area" onSubmit={handleSendAnonymousMessage}>
@@ -4916,7 +4916,7 @@ const handleStoryUpload = async () => {
                   </div>
                 </form>
               ) : (
-                <div style={{ padding: '20px', paddingBottom: '45px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                <div style={{ padding: '20px', paddingBottom: '65px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                   <div>Chat has ended.</div>
                   {anonymousPartnerId && (
                     <button 
