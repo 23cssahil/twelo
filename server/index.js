@@ -2405,19 +2405,20 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
     const cursor = req.query.cursor || null; // ISO timestamp string of lastMessageAt
     
     // Fetch latest sent and received messages using index-friendly separate queries
+    // Also grab last message text/type so client doesn't need extra round trips
     const [sentChats, receivedChats, unreadCounts] = await Promise.all([
       Message.aggregate([
-        { $match: { sender: currentUserId, deletedBy: { $ne: currentUserId } } },
+        { $match: { sender: currentUserId, deletedBy: { $not: { $elemMatch: { $eq: currentUserId } } } } },
         { $sort: { createdAt: -1 } },
-        { $group: { _id: '$receiver', lastMessageAt: { $first: '$createdAt' } } }
+        { $group: { _id: '$receiver', lastMessageAt: { $first: '$createdAt' }, lastMessage: { $first: '$message' }, lastMessageType: { $first: '$messageType' } } }
       ]),
       Message.aggregate([
-        { $match: { receiver: currentUserId, deletedBy: { $ne: currentUserId } } },
+        { $match: { receiver: currentUserId, deletedBy: { $not: { $elemMatch: { $eq: currentUserId } } } } },
         { $sort: { createdAt: -1 } },
-        { $group: { _id: '$sender', lastMessageAt: { $first: '$createdAt' } } }
+        { $group: { _id: '$sender', lastMessageAt: { $first: '$createdAt' }, lastMessage: { $first: '$message' }, lastMessageType: { $first: '$messageType' } } }
       ]),
       Message.aggregate([
-        { $match: { receiver: currentUserId, isViewed: false, deletedBy: { $ne: currentUserId } } },
+        { $match: { receiver: currentUserId, isViewed: false, deletedBy: { $not: { $elemMatch: { $eq: currentUserId } } } } },
         { $group: { _id: '$sender', count: { $sum: 1 } } }
       ])
     ]);
@@ -2428,6 +2429,8 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
       chatMap.set(chat._id.toString(), {
         _id: chat._id,
         lastMessageAt: chat.lastMessageAt,
+        lastMessage: chat.lastMessage || '',
+        lastMessageType: chat.lastMessageType || 'text',
         unreadCount: 0
       });
     });
@@ -2438,11 +2441,15 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
       if (existing) {
         if (chat.lastMessageAt > existing.lastMessageAt) {
           existing.lastMessageAt = chat.lastMessageAt;
+          existing.lastMessage = chat.lastMessage || '';
+          existing.lastMessageType = chat.lastMessageType || 'text';
         }
       } else {
         chatMap.set(idStr, {
           _id: chat._id,
           lastMessageAt: chat.lastMessageAt,
+          lastMessage: chat.lastMessage || '',
+          lastMessageType: chat.lastMessageType || 'text',
           unreadCount: 0
         });
       }
@@ -2484,6 +2491,8 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
         gender: u ? u.gender : null,
         isDeleted: !u,
         lastMessageAt: chat.lastMessageAt,
+        lastMessage: chat.lastMessage,
+        lastMessageType: chat.lastMessageType,
         unreadCount: chat.unreadCount
       };
     });

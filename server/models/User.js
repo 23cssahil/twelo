@@ -85,4 +85,13 @@ const UserSchema = new mongoose.Schema({
   isPrivate: { type: Boolean, default: false },
 }, { timestamps: true });
 
+// ========== INDEXES FOR PERFORMANCE ==========
+// Fast username/uniqueId search (prefix match)
+UserSchema.index({ username: 1 });
+UserSchema.index({ uniqueId: 1 });
+// Notifications sorted by date
+UserSchema.index({ 'notifications.createdAt': -1 });
+// lastActive for online status queries
+UserSchema.index({ lastActive: -1 });
+
 module.exports = mongoose.model('User', UserSchema);

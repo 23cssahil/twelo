@@ -1814,6 +1814,8 @@ export default function Dashboard() {
       if (res.ok) {
         setProfileStats(data);
         setCoins(data.coins || 0);
+        // Cache profile for instant load next visit
+        localStorage.setItem('twelo_profile_cache', JSON.stringify(data));
         if (data.chatThemes) {
           login({ ...user, chatThemes: data.chatThemes }, token);
         }
@@ -1918,12 +1920,39 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (token) {
-      fetchRecentChats();
-      fetchProfile();
-      fetchConnections();
-      fetchNotifications();
-      fetchStories();
-      fetcheveryoneStories();
+      // --- PERFORMANCE OPTIMIZATION ---
+      // Step 1: Instantly show cached chats from localStorage (zero-delay)
+      const cachedChats = localStorage.getItem('twelo_chats_cache');
+      if (cachedChats) {
+        try {
+          const parsed = JSON.parse(cachedChats);
+          setRecentChats(parsed.chats || []);
+          const unreads = {};
+          (parsed.chats || []).forEach(chat => { unreads[chat._id] = chat.unreadCount || 0; });
+          setUnreadMessages(unreads);
+        } catch(e) { /* ignore stale cache */ }
+      }
+      const cachedProfile = localStorage.getItem('twelo_profile_cache');
+      if (cachedProfile) {
+        try {
+          const parsed = JSON.parse(cachedProfile);
+          setProfileStats(parsed);
+          setCoins(parsed.coins || 0);
+        } catch(e) { /* ignore */ }
+      }
+
+      // Step 2: Fetch critical data (chats + profile) immediately in parallel
+      Promise.all([fetchRecentChats(), fetchProfile()]).then(() => {
+        // Step 3: After critical data loaded, fetch secondary data
+        fetchConnections();
+        fetchNotifications();
+      });
+
+      // Step 4: Defer non-critical stories load slightly so UI renders first
+      setTimeout(() => {
+        fetchStories();
+        fetcheveryoneStories();
+      }, 300);
     }
   }, [token]);
 
@@ -2783,6 +2812,8 @@ export default function Dashboard() {
       if (res.ok) {
         if (!cursorParam) {
           setRecentChats(data.chats || []);
+          // Cache first page for instant load on next visit
+          localStorage.setItem('twelo_chats_cache', JSON.stringify({ chats: data.chats || [], ts: Date.now() }));
         } else {
           setRecentChats(prev => [...prev, ...(data.chats || [])]);
         }
@@ -2888,18 +2919,9 @@ export default function Dashboard() {
   }, [activeTab, searchQuery]);
 
   const currentSearchId = useRef(0);
+  const searchDebounceTimer = useRef(null);
 
-  const handleSearch = async (eOrValue, cursor = null) => {
-    let value = typeof eOrValue === 'string' ? eOrValue : eOrValue.target.value;
-    
-    if (!cursor) {
-      setSearchQuery(value);
-      setSearchCursor(null);
-      setHasMoreSearch(true);
-    }
-    
-    const searchId = ++currentSearchId.current;
-    
+  const _doSearch = async (value, cursor, searchId) => {
     if (!cursor) setSearchLoading(true);
     try {
       const url = new URL(`${API_URL}/api/users/search`);
@@ -2923,6 +2945,30 @@ export default function Dashboard() {
       }
     } catch (err) { console.error(err); } finally {
       if (!cursor && searchId === currentSearchId.current) setSearchLoading(false);
+    }
+  };
+
+  const handleSearch = (eOrValue, cursor = null) => {
+    const value = typeof eOrValue === 'string' ? eOrValue : eOrValue.target.value;
+    
+    if (!cursor) {
+      setSearchQuery(value);
+      setSearchCursor(null);
+      setHasMoreSearch(true);
+    }
+    
+    const searchId = ++currentSearchId.current;
+    
+    // Debounce: skip API call for 300ms while user is still typing
+    if (!cursor) {
+      if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current);
+      setSearchLoading(true);
+      searchDebounceTimer.current = setTimeout(() => {
+        _doSearch(value, null, searchId);
+      }, 300);
+    } else {
+      // Pagination scroll: execute immediately
+      _doSearch(value, cursor, searchId);
     }
   };
 

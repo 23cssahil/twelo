@@ -83,8 +83,15 @@ MessageSchema.index({ receiver: 1, createdAt: -1 });
 // Index for finding messages by sender
 MessageSchema.index({ sender: 1, createdAt: -1 });
 
-// Index for finding unviewed messages
+// Compound index for finding unviewed messages
 MessageSchema.index({ receiver: 1, isViewed: 1 });
+
+// Critical index for /api/chats/recent aggregate queries
+// Covers: { sender, deletedBy, createdAt } and { receiver, deletedBy, createdAt }
+MessageSchema.index({ sender: 1, deletedBy: 1, createdAt: -1 });
+MessageSchema.index({ receiver: 1, deletedBy: 1, createdAt: -1 });
+// Unread count query index
+MessageSchema.index({ receiver: 1, isViewed: 1, deletedBy: 1 });
 
 // Index for finding view-once messages
 MessageSchema.index({ isViewOnce: 1, createdAt: -1 });
