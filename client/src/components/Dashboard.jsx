@@ -2636,6 +2636,8 @@ export default function Dashboard() {
         fetcheveryoneStories();
       } else if (showLogoutConfirm) {
         setShowLogoutConfirm(false);
+      } else if (chatMode === 'video') {
+        setChatMode('text');
       } else if (isAnonymousChatActive) {
         if (socket) {
            socket.emit('leave_anonymous_chat', { roomId: anonymousRoomId });
@@ -2660,7 +2662,7 @@ export default function Dashboard() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showMyProfileModal, showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen, showShareModal, showPrivacyModal, showAccountModal, themePreview, showThemesModal]);
+  }, [showMyProfileModal, showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen, showShareModal, showPrivacyModal, showAccountModal, themePreview, showThemesModal, chatMode]);
 
   // Lock document scroll when chat is active to prevent keyboard from pushing header out of view
   useEffect(() => {
@@ -6827,6 +6829,7 @@ const handleStoryUpload = async () => {
       <button 
         onClick={() => {
           setChatMode('video');
+          window.history.pushState({ chatMode: 'video' }, '');
           requestVideoPermissions();
         }}
         style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: chatMode === 'video' ? 'linear-gradient(135deg, #f12711 0%, #f5af19 100%)' : 'transparent', color: chatMode === 'video' ? '#fff' : '#aaa', cursor: 'pointer', transition: '0.3s', display: 'grid', placeItems: 'center', marginBottom: '5px' }}
