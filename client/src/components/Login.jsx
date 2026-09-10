@@ -201,7 +201,7 @@ export default function Login() {
               Log in with Google to continue.
             </p>
             
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', minHeight: '44px' }}>
               {Capacitor.isNativePlatform() ? (
                 <button 
                   onClick={handleNativeGoogleLogin}
@@ -225,30 +225,16 @@ export default function Login() {
                   Continue with Google
                 </button>
               ) : (
-                <button 
-                  onClick={() => handleOAuthLogin()}
-                  disabled={loading}
-                  style={{
-                    backgroundColor: '#ffffff',
-                    color: '#3c4043',
-                    border: '1px solid #dadce0',
-                    borderRadius: '24px',
-                    padding: '12px 24px',
-                    fontSize: '0.95rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    width: '280px',
-                    justifyContent: 'center',
-                    fontWeight: '600',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" style={{ width: '18px', height: '18px' }} />
-                  Continue with Google
-                </button>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  useOneTap={false}
+                  theme="filled_black"
+                  shape="pill"
+                  size="large"
+                  text="continue_with"
+                  width="280"
+                />
               )}
             </div>
             
