@@ -2577,10 +2577,19 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
       dbStorageMB = Math.round((dbStats.dataSize || 0) / 1024 / 1024);
     }
 
+    // Count total queued users across all Redis buckets
+    let queuedRandom = _fallbackQueue.length;
+    if (pubClient) {
+      try {
+        const buckets = ['rq:male_female','rq:male_male','rq:male_any','rq:female_male','rq:female_female','rq:female_any'];
+        const counts = await Promise.all(buckets.map(b => pubClient.zcard(b)));
+        queuedRandom = counts.reduce((a, b) => a + b, 0);
+      } catch(e) {}
+    }
     res.json({
       activeUsers: realUsersCount,
       randomRooms: activeRandomChats.size,
-      queuedRandom: randomChatQueue.length,
+      queuedRandom,
       serverHealth: {
         ramUsage,
         cpuLoad,
@@ -2591,7 +2600,7 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
     res.json({
       activeUsers: 0,
       randomRooms: activeRandomChats.size,
-      queuedRandom: randomChatQueue.length,
+      queuedRandom: _fallbackQueue.length,
       serverHealth: { ramUsage: 0, cpuLoad: 0, dbStorageMB: 0 }
     });
   }
@@ -3063,8 +3072,14 @@ app.get('/api/admin/users/:id/chats', adminAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/clear-queue', adminAuth, (req, res) => {
-  randomChatQueue = [];
+app.post('/api/admin/clear-queue', adminAuth, async (req, res) => {
+  _fallbackQueue = [];
+  if (pubClient) {
+    try {
+      const buckets = ['rq:male_female','rq:male_male','rq:male_any','rq:female_male','rq:female_female','rq:female_any'];
+      await Promise.all(buckets.map(b => pubClient.del(b)));
+    } catch(e) {}
+  }
   res.json({ success: true, queuedRandom: 0 });
 });
 
@@ -3204,13 +3219,112 @@ app.delete('/api/admin/country-facts/:id', adminAuth, async (req, res) => {
   }
 });
 
-// Random Chat Queue
-let randomChatQueue = []; // [{ userId, socketId, genderFilter, userGender }]
+// ============================================================
+// OPTIMIZED REDIS-BASED RANDOM CHAT MATCHMAKING
+// Uses Redis Sorted Sets (ZSETs) per gender-bucket:
+//   rq:{senderGender}_{wantGender}  e.g. rq:male_female
+// Score = timestamp for FIFO fairness.
+// User metadata stored in Hash: rq_meta:{userId}
+// All operations are O(log N) worst-case, Ω(1) best-case.
+// Supports horizontal scaling across multiple server instances.
+// ============================================================
 let videoChatQueue = [];
 const activeVideoChats = new Map();
 const activeRandomChats = new Map(); // roomId -> { user1, user2 }
 const adminBusySockets = new Set(); // Track which admin sockets are currently intercepting
 let lastGlobePushTime = 0; // Cooldown tracker for push notifications (5 min throttle)
+
+// Helper: determine which ZSET buckets to search for a given user
+function getMatchBuckets(myGender, wantGender) {
+  // Returns ordered list of Redis ZSET keys representing compatible waiting users
+  if (wantGender === 'any') {
+    // I accept anyone → look in people who want my gender OR want any
+    return [`rq:male_${myGender}`, `rq:female_${myGender}`, `rq:male_any`, `rq:female_any`]
+      .filter(k => !k.startsWith(`rq:${myGender}_`)); // exclude self-bucket
+  }
+  // I want a specific gender → only match with that gender who wants my gender OR any
+  return [`rq:${wantGender}_${myGender}`, `rq:${wantGender}_any`];
+}
+
+// Helper: which ZSET bucket does this user sit in while waiting?
+function getMyBucket(myGender, wantGender) {
+  return `rq:${myGender}_${wantGender}`; // e.g. rq:male_female
+}
+
+// Helper: add user to their waiting bucket + store metadata
+async function redisQueueAdd(redis, userId, socketId, myGender, wantGender, country, countryCode) {
+  const bucket = getMyBucket(myGender, wantGender);
+  const score = Date.now();
+  const metaKey = `rq_meta:${userId}`;
+  await Promise.all([
+    redis.zadd(bucket, score, userId),
+    redis.hset(metaKey, 'socketId', socketId, 'gender', myGender, 'want', wantGender, 'country', country, 'countryCode', countryCode, 'bucket', bucket),
+    redis.expire(metaKey, 300) // 5 min TTL so stale entries auto-clean
+  ]);
+}
+
+// Helper: remove user from their waiting bucket + delete metadata
+async function redisQueueRemove(redis, userId) {
+  const metaKey = `rq_meta:${userId}`;
+  const meta = await redis.hgetall(metaKey);
+  if (meta && meta.bucket) {
+    await Promise.all([
+      redis.zrem(meta.bucket, userId),
+      redis.del(metaKey)
+    ]);
+  }
+}
+
+// Helper: pop first compatible waiting user from Redis (O(log N))
+// Returns meta object or null if no match found
+async function redisQueueFindMatch(redis, myUserId, myGender, wantGender, io) {
+  const buckets = getMatchBuckets(myGender, wantGender);
+  for (const bucket of buckets) {
+    // ZPOPMIN atomically pops the earliest waiting user
+    let result = await redis.zpopmin(bucket, 1);
+    if (!result || result.length < 2) continue;
+    const candidateId = result[0]; // userId string
+    if (candidateId === myUserId) {
+      // Accidentally popped ourselves — put back and continue
+      await redis.zadd(bucket, Date.now(), candidateId);
+      continue;
+    }
+    // Fetch metadata for this candidate
+    const metaKey = `rq_meta:${candidateId}`;
+    const meta = await redis.hgetall(metaKey);
+    if (!meta || !meta.socketId) {
+      // Stale entry — skip and try next
+      await redis.del(metaKey);
+      continue;
+    }
+    // Verify their socket is still connected on this node
+    const candidateSocket = io.sockets.sockets.get(meta.socketId);
+    if (!candidateSocket || !candidateSocket.connected) {
+      // Socket gone — remove stale meta, try again in same bucket
+      await redis.del(metaKey);
+      result = await redis.zpopmin(bucket, 1);
+      if (!result || result.length < 2) continue;
+      const nextId = result[0];
+      const nextMeta = await redis.hgetall(`rq_meta:${nextId}`);
+      if (!nextMeta || !nextMeta.socketId) { await redis.del(`rq_meta:${nextId}`); continue; }
+      const nextSocket = io.sockets.sockets.get(nextMeta.socketId);
+      if (!nextSocket || !nextSocket.connected) { await redis.del(`rq_meta:${nextId}`); continue; }
+      await redis.del(`rq_meta:${nextId}`);
+      return { userId: nextId, ...nextMeta };
+    }
+    await redis.del(metaKey);
+    return { userId: candidateId, ...meta };
+  }
+  return null; // No compatible user found
+}
+
+// In-memory fallback queue (used only when Redis is unavailable)
+let _fallbackQueue = []; // [{ userId, socketId, genderFilter, userGender, country, countryCode }]
+
+// Compatibility shim so old references like .length still work on fallback
+const randomChatQueue = new Proxy(_fallbackQueue, {
+  get(target, prop) { return target[prop]; }
+});
 
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
@@ -3490,11 +3604,23 @@ io.on('connection', (socket) => {
     });
 
     socket.on('admin_intercept_random', async ({ targetUserId }) => {
-      const targetUserIndex = randomChatQueue.findIndex(u => u.userId === targetUserId);
-      if (targetUserIndex !== -1) {
+      // Find target user's socket — check Redis first, then fallback queue
+      let targetUserSocket = null;
+      if (pubClient) {
+        try {
+          const meta = await pubClient.hgetall(`rq_meta:${targetUserId}`);
+          if (meta && meta.socketId) {
+            targetUserSocket = meta.socketId;
+            await redisQueueRemove(pubClient, targetUserId);
+          }
+        } catch(e) {}
+      }
+      if (!targetUserSocket) {
+        const idx = _fallbackQueue.findIndex(u => u.userId === targetUserId);
+        if (idx !== -1) { targetUserSocket = _fallbackQueue[idx].socketId; _fallbackQueue.splice(idx, 1); }
+      }
+      if (targetUserSocket) {
         adminBusySockets.add(socket.id);
-        const targetUserSocket = randomChatQueue[targetUserIndex].socketId;
-        randomChatQueue.splice(targetUserIndex, 1);
         
           const randomNames = ["Rahul", "Priya", "Aman", "Neha", "Rohan", "Sneha", "Karan", "Pooja", "Vikram", "Anjali", "Kabir", "Meera", "Aditya", "Riya", "Aryan", "Zara"];
           const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
@@ -3537,9 +3663,9 @@ io.on('connection', (socket) => {
           botAccount: fakeUser
         });
       }
-    });
+    }); // end admin_intercept_random
 
-    // --- Anonymous Random Chat Events ---
+    // --- Anonymous Random Chat Events (Redis-optimized) ---
     socket.on('search_random', async (payload) => {
       try {
         if (!cachedGlobeStatus.isEnabled) {
@@ -3586,157 +3712,116 @@ io.on('connection', (socket) => {
         return;
       }
 
-      if (!randomChatQueue.some(u => u.userId === userId)) {
-        randomChatQueue.push({ userId, socketId: socket.id, genderFilter, userGender, userCountry, userCountryCode });
+      // ── REDIS PATH (primary, O(log N)) ────────────────────────────
+      if (pubClient) {
+        try {
+          // Ensure the user is not already waiting (idempotent)
+          const existingMeta = await pubClient.hgetall(`rq_meta:${userId}`);
+          if (!existingMeta || !existingMeta.socketId) {
+            await redisQueueAdd(pubClient, userId, socket.id, userGender, genderFilter, userCountry, userCountryCode);
+          }
+
+          // Try to find a compatible match (Ω(1) best-case)
+          const matched = await redisQueueFindMatch(pubClient, userId, userGender, genderFilter, io);
+
+          if (matched) {
+            // Remove ourselves from the queue too
+            await redisQueueRemove(pubClient, userId);
+
+            const user1 = { userId, socketId: socket.id, genderFilter, userGender, userCountry, userCountryCode };
+            const user2 = { userId: matched.userId, socketId: matched.socketId, genderFilter: matched.want, userGender: matched.gender, userCountry: matched.country, userCountryCode: matched.countryCode };
+
+            // Deduct coins if filters were used (non-blocking)
+            Promise.all([
+              user1.genderFilter !== 'any' ? User.findById(user1.userId).then(async dbU => { if (dbU && dbU.coins >= 2) { dbU.coins -= 2; await dbU.save(); io.to(user1.socketId).emit('coins_deducted', { amount: 2, balance: dbU.coins }); } }) : Promise.resolve(),
+              user2.genderFilter !== 'any' ? User.findById(user2.userId).then(async dbU => { if (dbU && dbU.coins >= 2) { dbU.coins -= 2; await dbU.save(); io.to(user2.socketId).emit('coins_deducted', { amount: 2, balance: dbU.coins }); } }) : Promise.resolve()
+            ]).catch(e => console.error('Coin deduction error', e));
+
+            const roomId = `random_${Date.now()}_${Math.random().toString(36).substring(2,8)}`;
+            activeRandomChats.set(roomId, { user1, user2 });
+            if (activeSessions.has(user1.socketId)) activeSessions.get(user1.socketId).matchesMade += 1;
+            if (activeSessions.has(user2.socketId)) activeSessions.get(user2.socketId).matchesMade += 1;
+
+            try {
+              const [u1Record, u2Record] = await Promise.all([User.findById(user1.userId).select('country countryCode').lean(), User.findById(user2.userId).select('country countryCode').lean()]);
+              const [factForU1, factForU2] = await Promise.all([getRandomCountryFact(u2Record?.countryCode || 'UN'), getRandomCountryFact(u1Record?.countryCode || 'UN')]);
+              io.to(user1.socketId).emit('match_found', { roomId, partnerId: user2.userId, partnerAvatar: null, partnerCountry: (u2Record?.countryCode && u2Record.countryCode !== 'UN') ? u2Record.country : factForU1.countryName, partnerCountryCode: (u2Record?.countryCode && u2Record.countryCode !== 'UN') ? u2Record.countryCode : factForU1.countryCode, partnerFact: factForU1.fact });
+              io.to(user2.socketId).emit('match_found', { roomId, partnerId: user1.userId, partnerAvatar: null, partnerCountry: (u1Record?.countryCode && u1Record.countryCode !== 'UN') ? u1Record.country : factForU2.countryName, partnerCountryCode: (u1Record?.countryCode && u1Record.countryCode !== 'UN') ? u1Record.countryCode : factForU2.countryCode, partnerFact: factForU2.fact });
+            } catch (err) { console.error('Error emitting match_found', err); }
+            return;
+          }
+
+          // No real user found — alert admins then fall back to AI companion
+          const adminSockets = io.sockets.adapter.rooms.get('admin_room') || new Set();
+          const availableAdmins = Array.from(adminSockets).filter(sid => !adminBusySockets.has(sid));
+          if (availableAdmins.length > 0 && targetDbUser) {
+            availableAdmins.forEach(sid => io.to(sid).emit('admin_alert_new_random', targetDbUser));
+          }
+
+          setTimeout(async () => {
+            // Check if user is still in Redis queue (hasn't been matched in the meantime)
+            const stillWaiting = await pubClient.hgetall(`rq_meta:${userId}`);
+            if (!stillWaiting || stillWaiting.socketId !== socket.id) return;
+            await redisQueueRemove(pubClient, userId);
+
+            const companion = createAiCompanion(userGender, userCountry, userCountryCode, genderFilter);
+            const roomId = `ai_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+            activeRandomChats.set(roomId, { user1: { userId, socketId: socket.id, genderFilter, userGender, userCountry, userCountryCode }, user2: { userId: companion.id, socketId: null }, isAiCompanion: true, companion });
+
+            const factData = await getRandomCountryFact(userCountryCode);
+            if (genderFilter && genderFilter !== 'any') {
+              try { const dbU = await User.findById(userId); if (dbU && dbU.coins >= 2) { dbU.coins -= 2; await dbU.save(); io.to(socket.id).emit('coins_deducted', { amount: 2, balance: dbU.coins }); } } catch(e) {}
+            }
+            io.to(socket.id).emit('match_found', { roomId, partnerId: companion.id, partnerAvatar: companion.avatarUrl, partnerCountry: factData.countryCode !== 'UN' ? factData.countryName : companion.country, partnerCountryCode: factData.countryCode !== 'UN' ? factData.countryCode : companion.countryCode, partnerFact: factData.fact, partnerName: 'Stranger', isAiCompanion: true });
+          }, AI_COMPANION_FALLBACK_DELAY_MS);
+          return;
+        } catch (redisErr) {
+          console.error('[MATCH] Redis error, falling back to in-memory queue:', redisErr.message);
+        }
       }
 
-      // 1. Check if there are ANY real users in the queue that match
+      // ── IN-MEMORY FALLBACK (when Redis unavailable) ────────────────
+      if (!_fallbackQueue.some(u => u.userId === userId)) {
+        _fallbackQueue.push({ userId, socketId: socket.id, genderFilter, userGender, userCountry, userCountryCode });
+      }
+      const myIndex = _fallbackQueue.findIndex(u => u.userId === userId);
       let matchedIndex = -1;
-      const myIndex = randomChatQueue.findIndex(u => u.userId === userId);
-      
-      if (myIndex !== -1) {
-        for (let i = 0; i < randomChatQueue.length; i++) {
-           if (i === myIndex) continue;
-           const potentialPartner = randomChatQueue[i];
-           
-           const myFilterMatches = genderFilter === 'any' || genderFilter === potentialPartner.userGender;
-           const theirFilterMatches = potentialPartner.genderFilter === 'any' || potentialPartner.genderFilter === userGender;
-           
-           if (myFilterMatches && theirFilterMatches) {
-               matchedIndex = i;
-               break;
-           }
-        }
+      for (let i = 0; i < _fallbackQueue.length; i++) {
+        if (i === myIndex) continue;
+        const p = _fallbackQueue[i];
+        if ((genderFilter === 'any' || genderFilter === p.userGender) && (p.genderFilter === 'any' || p.genderFilter === userGender)) { matchedIndex = i; break; }
       }
-
-      // If a real user is found, match them immediately
       if (matchedIndex !== -1) {
-        const user2 = randomChatQueue[matchedIndex];
-        // Splice higher index first to avoid shifting issues
-        if (myIndex > matchedIndex) {
-           randomChatQueue.splice(myIndex, 1);
-           randomChatQueue.splice(matchedIndex, 1);
-        } else {
-           randomChatQueue.splice(matchedIndex, 1);
-           randomChatQueue.splice(myIndex, 1);
-        }
-        
-        const user1 = { userId, socketId: socket.id, genderFilter, userGender };
-        
-        // Deduct coins if filters were used
-        try {
-            if (user1.genderFilter !== 'any') {
-                const dbU1 = await User.findById(user1.userId);
-                if (dbU1 && dbU1.coins >= 2) {
-                    dbU1.coins -= 2;
-                    await dbU1.save();
-                    io.to(user1.socketId).emit('coins_deducted', { amount: 2, balance: dbU1.coins });
-                }
-            }
-            if (user2.genderFilter !== 'any') {
-                const dbU2 = await User.findById(user2.userId);
-                if (dbU2 && dbU2.coins >= 2) {
-                    dbU2.coins -= 2;
-                    await dbU2.save();
-                    io.to(user2.socketId).emit('coins_deducted', { amount: 2, balance: dbU2.coins });
-                }
-            }
-        } catch(e) { console.error("Coin deduction error", e); }
-        
+        const u2 = _fallbackQueue[matchedIndex];
+        if (myIndex > matchedIndex) { _fallbackQueue.splice(myIndex, 1); _fallbackQueue.splice(matchedIndex, 1); } else { _fallbackQueue.splice(matchedIndex, 1); _fallbackQueue.splice(myIndex, 1); }
+        const u1 = { userId, socketId: socket.id, genderFilter, userGender, userCountry, userCountryCode };
         const roomId = `random_${Date.now()}_${Math.random().toString(36).substring(2,8)}`;
-        activeRandomChats.set(roomId, { user1, user2 });
-        
-        if (activeSessions.has(user1.socketId)) activeSessions.get(user1.socketId).matchesMade += 1;
-        if (activeSessions.has(user2.socketId)) activeSessions.get(user2.socketId).matchesMade += 1;
-
+        activeRandomChats.set(roomId, { user1: u1, user2: u2 });
+        if (activeSessions.has(u1.socketId)) activeSessions.get(u1.socketId).matchesMade += 1;
+        if (activeSessions.has(u2.socketId)) activeSessions.get(u2.socketId).matchesMade += 1;
         try {
-          const user1Record = await User.findById(user1.userId);
-          const user2Record = await User.findById(user2.userId);
-
-          const factForUser1 = await getRandomCountryFact(user2Record?.countryCode || 'UN');
-          const factForUser2 = await getRandomCountryFact(user1Record?.countryCode || 'UN');
-
-          io.to(user1.socketId).emit('match_found', { 
-            roomId, 
-            partnerId: user2.userId,
-            partnerAvatar: null, /* Anonymous by default */
-            partnerCountry: (user2Record?.countryCode && user2Record.countryCode !== 'UN') ? user2Record.country : factForUser1.countryName,
-            partnerCountryCode: (user2Record?.countryCode && user2Record.countryCode !== 'UN') ? user2Record.countryCode : factForUser1.countryCode,
-            partnerFact: factForUser1.fact
-          });
-          io.to(user2.socketId).emit('match_found', { 
-            roomId, 
-            partnerId: user1.userId,
-            partnerAvatar: null, /* Anonymous by default */
-            partnerCountry: (user1Record?.countryCode && user1Record.countryCode !== 'UN') ? user1Record.country : factForUser2.countryName,
-            partnerCountryCode: (user1Record?.countryCode && user1Record.countryCode !== 'UN') ? user1Record.countryCode : factForUser2.countryCode,
-            partnerFact: factForUser2.fact
-          });
-        } catch (err) {
-          console.error("Error fetching random chat users", err);
-        }
-        return; // Success, don't alert admin or use bot
+          const [ur1, ur2] = await Promise.all([User.findById(u1.userId).select('country countryCode').lean(), User.findById(u2.userId).select('country countryCode').lean()]);
+          const [f1, f2] = await Promise.all([getRandomCountryFact(ur2?.countryCode || 'UN'), getRandomCountryFact(ur1?.countryCode || 'UN')]);
+          io.to(u1.socketId).emit('match_found', { roomId, partnerId: u2.userId, partnerAvatar: null, partnerCountry: (ur2?.countryCode && ur2.countryCode !== 'UN') ? ur2.country : f1.countryName, partnerCountryCode: (ur2?.countryCode && ur2.countryCode !== 'UN') ? ur2.countryCode : f1.countryCode, partnerFact: f1.fact });
+          io.to(u2.socketId).emit('match_found', { roomId, partnerId: u1.userId, partnerAvatar: null, partnerCountry: (ur1?.countryCode && ur1.countryCode !== 'UN') ? ur1.country : f2.countryName, partnerCountryCode: (ur1?.countryCode && ur1.countryCode !== 'UN') ? ur1.countryCode : f2.countryCode, partnerFact: f2.fact });
+        } catch(err) { console.error('Error emitting match_found (fallback)', err); }
+        return;
       }
-
-      // 2. No real users. Can we alert an Admin?
-      const adminSockets = io.sockets.adapter.rooms.get('admin_room') || new Set();
-      const availableAdmins = Array.from(adminSockets).filter(sid => !adminBusySockets.has(sid));
-
-      // Push notifications disabled by admin preference
-
-      if (availableAdmins.length > 0 && targetDbUser) {
-        // Alert ALL available admins.
-        availableAdmins.forEach(sid => io.to(sid).emit('admin_alert_new_random', targetDbUser));
-      }
-
-      // Keep the user in the queue briefly: a real match always takes
-      // precedence. If nobody matched (and no admin intercepted), create a
-      // clearly disclosed AI-companion room instead of leaving the user idle.
+      const adminSockets2 = io.sockets.adapter.rooms.get('admin_room') || new Set();
+      const availableAdmins2 = Array.from(adminSockets2).filter(sid => !adminBusySockets.has(sid));
+      if (availableAdmins2.length > 0 && targetDbUser) availableAdmins2.forEach(sid => io.to(sid).emit('admin_alert_new_random', targetDbUser));
       setTimeout(async () => {
-        const queuedUser = randomChatQueue.find(entry => entry.userId === userId && entry.socketId === socket.id);
-        if (!queuedUser) return;
-
-        randomChatQueue = randomChatQueue.filter(entry => !(entry.userId === userId && entry.socketId === socket.id));
-        // Spoof location using queuedUser's country!
-        // Bot gender follows user's gender filter (or opposite if no filter)
+        const qi = _fallbackQueue.findIndex(e => e.userId === userId && e.socketId === socket.id);
+        if (qi === -1) return;
+        const queuedUser = _fallbackQueue.splice(qi, 1)[0];
         const companion = createAiCompanion(userGender, queuedUser.userCountry, queuedUser.userCountryCode, queuedUser.genderFilter);
         const roomId = `ai_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-        const chatData = {
-          user1: queuedUser,
-          user2: { userId: companion.id, socketId: null },
-          isAiCompanion: true,
-          companion
-        };
-        activeRandomChats.set(roomId, chatData);
-
+        activeRandomChats.set(roomId, { user1: queuedUser, user2: { userId: companion.id, socketId: null }, isAiCompanion: true, companion });
         const factData = await getRandomCountryFact(queuedUser.userCountryCode);
-        const finalCompanionCountry = factData.countryCode !== 'UN' ? factData.countryName : companion.country;
-        const finalCompanionCode = factData.countryCode !== 'UN' ? factData.countryCode : companion.countryCode;
-
-        // Deduct 2 coins if gender filter was applied
         if (queuedUser.genderFilter && queuedUser.genderFilter !== 'any') {
-          try {
-            const dbU = await User.findById(queuedUser.userId);
-            if (dbU && dbU.coins >= 2) {
-              dbU.coins -= 2;
-              await dbU.save();
-              io.to(queuedUser.socketId).emit('coins_deducted', { amount: 2, balance: dbU.coins });
-            }
-          } catch(e) {
-            console.error('AI filter coin deduction error:', e);
-          }
+          try { const dbU = await User.findById(queuedUser.userId); if (dbU && dbU.coins >= 2) { dbU.coins -= 2; await dbU.save(); io.to(queuedUser.socketId).emit('coins_deducted', { amount: 2, balance: dbU.coins }); } } catch(e) {}
         }
-
-        io.to(socket.id).emit('match_found', {
-          roomId,
-          partnerId: companion.id,
-          partnerAvatar: companion.avatarUrl,
-          partnerCountry: finalCompanionCountry,
-          partnerCountryCode: finalCompanionCode, 
-          partnerFact: factData.fact,
-          partnerName: 'Stranger',
-          isAiCompanion: true
-        });
+        io.to(socket.id).emit('match_found', { roomId, partnerId: companion.id, partnerAvatar: companion.avatarUrl, partnerCountry: factData.countryCode !== 'UN' ? factData.countryName : companion.country, partnerCountryCode: factData.countryCode !== 'UN' ? factData.countryCode : companion.countryCode, partnerFact: factData.fact, partnerName: 'Stranger', isAiCompanion: true });
       }, AI_COMPANION_FALLBACK_DELAY_MS);
     });
 
@@ -3901,8 +3986,11 @@ io.on('connection', (socket) => {
   // --- End Video Match Logic ---
 
 
-  socket.on('cancel_search', (userId) => {
-    randomChatQueue = randomChatQueue.filter(u => u.userId !== userId);
+  socket.on('cancel_search', async (userId) => {
+    if (pubClient) {
+      try { await redisQueueRemove(pubClient, userId); } catch(e) {}
+    }
+    _fallbackQueue = _fallbackQueue.filter(u => u.userId !== userId);
   });
 
   socket.on('send_anonymous_message', ({ roomId, messageText }) => {
@@ -4102,7 +4190,19 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     adminBusySockets.delete(socket.id);
-    randomChatQueue = randomChatQueue.filter(u => u.socketId !== socket.id);
+    // Remove from in-memory fallback queue
+    _fallbackQueue = _fallbackQueue.filter(u => u.socketId !== socket.id);
+    // Redis: find user by socketId via onlineUsers map and remove from queue
+    if (pubClient) {
+      try {
+        for (const [uid, sid] of onlineUsers.entries()) {
+          if (sid === socket.id) {
+            redisQueueRemove(pubClient, uid).catch(() => {});
+            break;
+          }
+        }
+      } catch(e) {}
+    }
     
     // Cleanup active video chats
     if (pubClient) {
