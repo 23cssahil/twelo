@@ -38,36 +38,59 @@ export default function Login() {
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [gender, setGender] = useState('');
 
+  React.useEffect(() => {
+    // Detect access_token returned in URL hash from direct Google OAuth redirect
+    if (window.location.hash && window.location.hash.includes('access_token=')) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      if (accessToken) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        verifyAccessToken(accessToken);
+      }
+    }
+  }, []);
+
+  const verifyAccessToken = async (accessToken) => {
+    try {
+      setLoading(true);
+      setError('');
+      const res = await fetch(`${API_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: accessToken })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to authenticate');
+
+      if (data.isNewUser) {
+        setGoogleData({ email: data.email, googleId: data.googleId });
+        setIsNewUser(true);
+      } else {
+        login(data.user, data.token);
+        navigate(from);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDirectGoogleLogin = () => {
+    const clientId = '440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com';
+    const redirectUri = window.location.origin + window.location.pathname;
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=email%20profile&prompt=select_account`;
+    window.location.href = googleAuthUrl;
+  };
+
   const handleOAuthLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
-      try {
-        setLoading(true);
-        setError('');
-        const res = await fetch(`${API_URL}/api/auth/google`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token: tokenResponse.access_token })
-        });
-        
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Failed to authenticate');
-
-        if (data.isNewUser) {
-          setGoogleData({ email: data.email, googleId: data.googleId });
-          setIsNewUser(true);
-        } else {
-          login(data.user, data.token);
-          navigate(from);
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+      verifyAccessToken(tokenResponse.access_token);
     },
     onError: (err) => {
       console.error('Google Popup Login Error:', err);
-      setError('Google Login failed. Please try again.');
+      handleDirectGoogleLogin();
     }
   });
 
@@ -225,16 +248,30 @@ export default function Login() {
                   Continue with Google
                 </button>
               ) : (
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  useOneTap={false}
-                  theme="filled_black"
-                  shape="pill"
-                  size="large"
-                  text="continue_with"
-                  width="280"
-                />
+                <button 
+                  onClick={handleDirectGoogleLogin}
+                  disabled={loading}
+                  style={{
+                    backgroundColor: '#ffffff',
+                    color: '#3c4043',
+                    border: '1px solid #dadce0',
+                    borderRadius: '24px',
+                    padding: '12px 24px',
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    width: '280px',
+                    justifyContent: 'center',
+                    fontWeight: '600',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" style={{ width: '18px', height: '18px' }} />
+                  {loading ? 'Logging in...' : 'Continue with Google'}
+                </button>
               )}
             </div>
             
