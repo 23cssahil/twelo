@@ -398,13 +398,41 @@ const authenticateToken = (req, res, next) => {
 // Auth Routes
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { token } = req.body;
-    const ticket = await googleClient.verifyIdToken({
-      idToken: token,
-      audience: '440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com',
-    });
-    const payload = ticket.getPayload();
-    const { sub: googleId, email } = payload;
+    const { token, access_token } = req.body;
+    let googleId, email;
+
+    if (token) {
+      try {
+        const ticket = await googleClient.verifyIdToken({
+          idToken: token,
+          audience: '440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com',
+        });
+        const payload = ticket.getPayload();
+        googleId = payload.sub;
+        email = payload.email;
+      } catch (tokenErr) {
+        console.log('ID Token verification failed, checking access_token fallback...', tokenErr.message);
+      }
+    }
+
+    if (!googleId && access_token) {
+      try {
+        const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${access_token}` }
+        });
+        if (userInfoRes.ok) {
+          const payload = await userInfoRes.json();
+          googleId = payload.sub;
+          email = payload.email;
+        }
+      } catch (accessErr) {
+        console.error('Access token userinfo verification error:', accessErr.message);
+      }
+    }
+
+    if (!googleId || !email) {
+      return res.status(400).json({ message: 'Invalid or malformed Google authentication credential.' });
+    }
 
     const user = await User.findOne({ googleId });
     if (!user) {
@@ -445,6 +473,7 @@ app.post('/api/auth/google', async (req, res) => {
     res.status(500).json({ message: 'Server error during Google login', error: error.message });
   }
 });
+
 
   app.post('/api/auth/complete_profile', async (req, res) => {
   try {

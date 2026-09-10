@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { GoogleLogin } from '@react-oauth/google';
+import { GoogleLogin, useGoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { AuthContext } from '../App';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -37,6 +37,39 @@ export default function Login() {
   const [country, setCountry] = useState('');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [gender, setGender] = useState('');
+
+  const handleOAuthLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        setLoading(true);
+        setError('');
+        const res = await fetch(`${API_URL}/api/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: tokenResponse.access_token })
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to authenticate');
+
+        if (data.isNewUser) {
+          setGoogleData({ email: data.email, googleId: data.googleId });
+          setIsNewUser(true);
+        } else {
+          login(data.user, data.token);
+          navigate(from);
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: (err) => {
+      console.error('Google Popup Login Error:', err);
+      setError('Google Login failed. Please try again.');
+    }
+  });
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
@@ -168,7 +201,7 @@ export default function Login() {
               Log in with Google to continue.
             </p>
             
-            <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
               {Capacitor.isNativePlatform() ? (
                 <button 
                   onClick={handleNativeGoogleLogin}
@@ -192,15 +225,30 @@ export default function Login() {
                   Continue with Google
                 </button>
               ) : (
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  theme="filled_black"
-                  shape="pill"
-                  size="large"
-                  text="continue_with"
-                  width="280"
-                />
+                <button 
+                  onClick={() => handleOAuthLogin()}
+                  disabled={loading}
+                  style={{
+                    backgroundColor: '#ffffff',
+                    color: '#3c4043',
+                    border: '1px solid #dadce0',
+                    borderRadius: '24px',
+                    padding: '12px 24px',
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    width: '280px',
+                    justifyContent: 'center',
+                    fontWeight: '600',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" style={{ width: '18px', height: '18px' }} />
+                  Continue with Google
+                </button>
               )}
             </div>
             
