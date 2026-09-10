@@ -248,30 +248,16 @@ export default function Login() {
                   Continue with Google
                 </button>
               ) : (
-                <button 
-                  onClick={handleDirectGoogleLogin}
-                  disabled={loading}
-                  style={{
-                    backgroundColor: '#ffffff',
-                    color: '#3c4043',
-                    border: '1px solid #dadce0',
-                    borderRadius: '24px',
-                    padding: '12px 24px',
-                    fontSize: '0.95rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    width: '280px',
-                    justifyContent: 'center',
-                    fontWeight: '600',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" style={{ width: '18px', height: '18px' }} />
-                  {loading ? 'Logging in...' : 'Continue with Google'}
-                </button>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  useOneTap={false}
+                  theme="filled_black"
+                  shape="pill"
+                  size="large"
+                  text="continue_with"
+                  width="280"
+                />
               )}
             </div>
             
