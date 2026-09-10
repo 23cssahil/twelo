@@ -268,7 +268,10 @@ const activeSessions = new Map(); // socket.id -> { userId, startTime, messagesS
 const { createAdapter } = require('@socket.io/redis-adapter');
 const Redis = require('ioredis');
 
-// Connect to Upstash Redis for Horizontal Scaling & Matchmaking
+// =========================================================================
+// OPTIMIZED REDIS-BASED MATCHMAKING SYSTEM (O(log N) ZSET QUEUE)
+// Upstash Redis Connection with TLS & Socket.io Redis Adapter
+// =========================================================================
 const redisUrl = process.env.REDIS_URL || 'rediss://default:gQAAAAAAAkHeAAIgcDI5Mjg5ZTJhNDU5MTc0NWQ2YmMwNjJiNjc1YTdjMDBiNw@keen-seahorse-147934.upstash.io:6379';
 let pubClient = null;
 let subClient = null;
