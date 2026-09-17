@@ -55,6 +55,9 @@
     --chat-room-header-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     --chat-list-bg: #ffffff;
     --chat-area-bg: rgba(255, 255, 255, 0.8);
+    --mobile-nav-bg: #1a1a1a;
+    --mobile-nav-border: #333333;
+    --mobile-nav-icon: #ffffff;
   }
 }
 
@@ -233,8 +236,8 @@ input, button, textarea {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  border-top: 1px solid var(--border-color);
-  background-color: var(--bg-color);
+  border-top: 1px solid var(--mobile-nav-border, var(--border-color));
+  background-color: var(--mobile-nav-bg, var(--bg-color));
   height: 60px;
   position: fixed;
   bottom: 0;
@@ -248,7 +251,7 @@ input, button, textarea {
   align-items: center;
   justify-content: center;
   padding: 10px;
-  color: var(--text-primary);
+  color: var(--mobile-nav-icon, var(--text-primary));
   cursor: pointer;
   transition: var(--transition);
 }
