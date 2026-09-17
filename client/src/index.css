@@ -30,11 +30,11 @@
     /* Light Mode Chat Theme */
     --chat-bg: #ffffff;
     --chat-border: #e5e7eb;
-    --chat-header-bg: rgba(255, 255, 255, 0.98);
+    --chat-header-bg: #d1d5db; /* Grey chat list header */
     --chat-header-text: #111827;
-    --chat-user-bg: #ffffff;
+    --chat-user-bg: #f3f4f6; /* Very light grey for list items */
     --chat-user-border: #e5e7eb;
-    --chat-user-hover: #f3f4f6;
+    --chat-user-hover: #e5e7eb;
     --chat-user-hover-border: #d1d5db;
     --chat-user-shadow: rgba(0,0,0,0.05);
     --chat-user-text: #111827;
@@ -45,15 +45,16 @@
     --chat-received-bg: #f48fb1; /* Baby pink */
     --chat-received-text: #ffffff;
     --app-sender-unique-color: #f48fb1; /* Baby pink for outgoing too */
-    --chat-input-area-bg: #d1d5db; /* Distinct grey */
-    --chat-input-wrapper-bg: #9ca3af; /* Darker grey for the actual input field */
+    --chat-input-area-bg: #d1d5db; /* Grey input area */
+    --chat-input-wrapper-bg: #9ca3af; /* Darker grey wrapper */
     --chat-input-wrapper-border: rgba(0, 0, 0, 0.12);
-    --chat-input-focus-bg: #ffffff;
-    --chat-input-focus-border: rgba(0, 100, 200, 0.3);
+    --chat-input-focus-bg: #e5e7eb;
+    --chat-input-focus-border: rgba(0, 100, 200, 0.5);
     --chat-placeholder: rgba(0, 0, 0, 0.4);
     --chat-time-text: rgba(0, 0, 0, 0.5);
     --chat-messages-bg: #f9fafb;
-    --chat-room-header-bg: #d1d5db; /* Distinct grey */
+    --chat-messages-bg: #f9fafb;
+    --chat-room-header-bg: #d1d5db; /* Grey chat room header */
     --chat-room-header-border: rgba(0, 0, 0, 0.08);
     --chat-room-header-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     --chat-list-bg: #ffffff;
