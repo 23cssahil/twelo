@@ -40,8 +40,9 @@
     --chat-user-active-bg: rgba(0, 191, 255, 0.1);
     --chat-user-active-border: rgba(0, 191, 255, 0.3);
     --chat-username-shadow: none;
-    --chat-received-bg: #000000;
+    --chat-received-bg: #f48fb1; /* Baby pink */
     --chat-received-text: #ffffff;
+    --app-sender-unique-color: #f48fb1; /* Baby pink for outgoing too */
     --chat-input-area-bg: rgba(255, 255, 255, 0.95);
     --chat-input-wrapper-bg: #f3f4f6;
     --chat-input-wrapper-border: rgba(0, 0, 0, 0.12);
