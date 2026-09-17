@@ -21,12 +21,9 @@
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg-color: #f8f9fa;
-    --panel-bg: #ffffff;
-    --panel-hover: #f1f3f5;
-    --border-color: #e5e7eb;
     --text-primary: #111827;
     --text-secondary: #4b5563;
+    --border-color: #e5e7eb;
     
     /* Light Mode Chat Theme */
     --chat-bg: #ffffff;
