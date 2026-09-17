@@ -3843,6 +3843,11 @@ const handleStoryUpload = async () => {
   };
 
   const handleTouchStart = (e, msg) => {
+    if (e.touches && e.touches.length >= 3) {
+      sendScreenshotNotification();
+      return;
+    }
+    if (e.touches && e.touches.length > 1) return;
     swipeStartX.current = e.touches[0].clientX;
     setSwipeMsgId(msg._id);
     pressTimerRef.current = setTimeout(() => {
@@ -4394,25 +4399,20 @@ const handleStoryUpload = async () => {
 
     // Mobile: When screenshot is taken on Android/iOS, page briefly loses focus
     // We use a combination of visibilitychange + blur with a short debounce
-    let mobileScreenshotTimer = null;
+    let hiddenStartTime = 0;
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     const handleVisibilityChange = () => {
       if (isMobile && document.hidden) {
-        // On mobile, screen capture causes page to go hidden briefly (~500ms)
-        // We set a timer — if it comes back quickly, it was a screenshot
-        mobileScreenshotTimer = setTimeout(() => {
-          // Page came back quickly (not a full app switch) — likely a screenshot
-          if (!document.hidden) {
-            sendScreenshotNotification();
-          }
-          mobileScreenshotTimer = null;
-        }, 600);
-      } else if (isMobile && !document.hidden && mobileScreenshotTimer) {
-        // Page came back within 600ms — fire notification
-        clearTimeout(mobileScreenshotTimer);
-        mobileScreenshotTimer = null;
-        sendScreenshotNotification();
+        hiddenStartTime = Date.now();
+      } else if (isMobile && !document.hidden && hiddenStartTime) {
+        const duration = Date.now() - hiddenStartTime;
+        hiddenStartTime = 0;
+        // A screenshot briefly hides the page (< 500ms)
+        // Opening control center to toggle dark mode takes > 1000ms
+        if (duration > 50 && duration < 500) {
+          sendScreenshotNotification();
+        }
       }
     };
 
