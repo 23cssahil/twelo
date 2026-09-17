@@ -4397,33 +4397,12 @@ const handleStoryUpload = async () => {
       }
     };
 
-    // Mobile: When screenshot is taken on Android/iOS, page briefly loses focus
-    // We use a combination of visibilitychange + blur with a short debounce
-    let hiddenStartTime = 0;
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    const handleVisibilityChange = () => {
-      if (isMobile && document.hidden) {
-        hiddenStartTime = Date.now();
-      } else if (isMobile && !document.hidden && hiddenStartTime) {
-        const duration = Date.now() - hiddenStartTime;
-        hiddenStartTime = 0;
-        // A screenshot briefly hides the page (< 500ms)
-        // Opening control center to toggle dark mode takes > 1000ms
-        if (duration > 50 && duration < 500) {
-          sendScreenshotNotification();
-        }
-      }
-    };
-
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('keydown', handleKeyUp);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('keydown', handleKeyUp);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [activeTab, activeChatUser, socket, user]);
 
