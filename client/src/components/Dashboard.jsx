@@ -5669,7 +5669,7 @@ const handleStoryUpload = async () => {
                             typing...
                           </span>
                         ) : (
-                          <span style={{ fontSize: '0.78rem', color: isOnline ? '#00e676' : '#94a3b8', fontWeight: isOnline ? '600' : 'normal' }}>
+                          <span style={{ fontSize: '0.78rem', color: isOnline ? '#00e676' : 'var(--chat-user-subtext, #94a3b8)', fontWeight: isOnline ? '600' : 'normal' }}>
                             {isOnline ? 'Online' : 'Offline'}
                           </span>
                         )}
@@ -5789,7 +5789,7 @@ const handleStoryUpload = async () => {
                       </div>
                       <div className="user-names" onClick={() => viewPublicProfile(activeChatUser._id)} style={{ cursor: 'pointer' }}>
                         <span className="user-username">@{activeChatUser.username}</span>
-                        <span style={{ fontSize: '0.75rem', color: onlineUsers.includes(activeChatUser._id) ? '#2bd856' : '#a8a8a8' }}>
+                        <span style={{ fontSize: '0.75rem', color: onlineUsers.includes(activeChatUser._id) ? '#2bd856' : 'var(--chat-user-subtext, #a8a8a8)' }}>
                           {onlineUsers.includes(activeChatUser._id) ? 'Active now' : 'offline'}
                         </span>
                       </div>

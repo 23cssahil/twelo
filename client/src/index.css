@@ -42,6 +42,7 @@
     --chat-user-subtext: #4b5563;
     --chat-user-active-bg: rgba(0, 191, 255, 0.1);
     --chat-user-active-border: rgba(0, 191, 255, 0.3);
+    --chat-username-shadow: none;
   }
 }
 
@@ -355,18 +356,18 @@ input, button, textarea {
 .user-username {
   font-weight: 700;
   font-size: 1.02rem;
-  color: #ffffff !important;
+  color: var(--chat-header-text, #ffffff) !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
   letter-spacing: 0.1px;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  text-shadow: var(--chat-username-shadow, 0 1px 2px rgba(0,0,0,0.4));
 }
 
 .user-id {
   font-size: 0.82rem;
-  color: #94a3b8;
+  color: var(--chat-user-subtext, #94a3b8);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
