@@ -43,6 +43,14 @@
     --chat-user-active-bg: rgba(0, 191, 255, 0.1);
     --chat-user-active-border: rgba(0, 191, 255, 0.3);
     --chat-username-shadow: none;
+    --chat-received-bg: #ffffff;
+    --chat-input-area-bg: rgba(255, 255, 255, 0.8);
+    --chat-input-wrapper-bg: #f3f4f6;
+    --chat-input-wrapper-border: rgba(0, 0, 0, 0.1);
+    --chat-input-focus-bg: #ffffff;
+    --chat-input-focus-border: rgba(0, 0, 0, 0.2);
+    --chat-placeholder: rgba(0, 0, 0, 0.4);
+    --chat-time-text: rgba(0, 0, 0, 0.5);
   }
 }
 
@@ -587,7 +595,7 @@ input, button, textarea {
 
 
 .msg-wrapper.received .msg-bubble {
-  background-color: #262626;
+  background-color: var(--chat-received-bg, #262626);
   color: var(--text-primary);
   border-bottom-left-radius: 4px;
 }
@@ -601,14 +609,14 @@ input, button, textarea {
 }
 
 .msg-wrapper.received .msg-time {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--chat-time-text, rgba(255, 255, 255, 0.5));
   text-align: left;
 }
 
 .chat-input-area {
   padding: 12px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  background-color: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid var(--chat-input-wrapper-border, rgba(255, 255, 255, 0.05));
+  background-color: var(--chat-input-area-bg, rgba(0, 0, 0, 0.4));
   padding-bottom: max(68px, calc(env(safe-area-inset-bottom) + 20px));
   flex-shrink: 0;
   overscroll-behavior: contain;
@@ -617,15 +625,15 @@ input, button, textarea {
 .chat-input-wrapper {
   display: flex;
   align-items: flex-end; /* Align bottom for expanding text areas */
-  background-color: #1a1a1a;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: var(--chat-input-wrapper-bg, #1a1a1a);
+  border: 1px solid var(--chat-input-wrapper-border, rgba(255, 255, 255, 0.1));
   border-radius: 24px;
   padding: 6px 12px;
   transition: background-color 0.2s, border-color 0.2s;
 }
 .chat-input-wrapper:focus-within {
-  background-color: #222;
-  border-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--chat-input-focus-bg, #222);
+  border-color: var(--chat-input-focus-border, rgba(255, 255, 255, 0.2));
 }
 
 .chat-text-input {
@@ -639,7 +647,7 @@ input, button, textarea {
   overscroll-behavior: contain; /* Prevent scroll chaining */
 }
 .chat-text-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--chat-placeholder, rgba(255, 255, 255, 0.4));
 }
 
 .chat-send-btn {
