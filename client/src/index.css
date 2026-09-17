@@ -45,15 +45,15 @@
     --chat-received-bg: #f48fb1; /* Baby pink */
     --chat-received-text: #ffffff;
     --app-sender-unique-color: #f48fb1; /* Baby pink for outgoing too */
-    --chat-input-area-bg: #f3f4f6; /* Light grey */
-    --chat-input-wrapper-bg: #e5e7eb; /* Slightly darker grey for the actual input field */
+    --chat-input-area-bg: #d1d5db; /* Distinct grey */
+    --chat-input-wrapper-bg: #9ca3af; /* Darker grey for the actual input field */
     --chat-input-wrapper-border: rgba(0, 0, 0, 0.12);
     --chat-input-focus-bg: #ffffff;
     --chat-input-focus-border: rgba(0, 100, 200, 0.3);
     --chat-placeholder: rgba(0, 0, 0, 0.4);
     --chat-time-text: rgba(0, 0, 0, 0.5);
     --chat-messages-bg: #f9fafb;
-    --chat-room-header-bg: #f3f4f6; /* Light grey */
+    --chat-room-header-bg: #d1d5db; /* Distinct grey */
     --chat-room-header-border: rgba(0, 0, 0, 0.08);
     --chat-room-header-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     --chat-list-bg: #ffffff;
