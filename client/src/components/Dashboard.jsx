@@ -4424,7 +4424,6 @@ const handleStoryUpload = async () => {
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('keydown', handleKeyUp);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (mobileScreenshotTimer) clearTimeout(mobileScreenshotTimer);
     };
   }, [activeTab, activeChatUser, socket, user]);
 
