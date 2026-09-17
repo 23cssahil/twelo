@@ -3842,12 +3842,39 @@ const handleStoryUpload = async () => {
     setContextMenu({ visible: false, msgId: null, isSender: false });
   };
 
+  const sendScreenshotNotification = () => {
+    if (activeTab === 'messages' && activeChatUser && socket) {
+      const tempId = `temp-${Date.now()}`;
+      const msgData = { 
+        tempId, 
+        senderId: user.id || user._id, 
+        receiverId: activeChatUser._id, 
+        messageText: '📸 Took a screenshot', 
+        messageType: 'screenshot', 
+        fileUrl: null, 
+        replyTo: null 
+      };
+      socket.emit('send_message', msgData);
+      setMessages(prev => [...prev, { 
+        _id: tempId,
+        sender: user.id, 
+        receiver: activeChatUser._id, 
+        message: '📸 Took a screenshot', 
+        replyTo: null,
+        messageType: 'screenshot',
+        createdAt: new Date().toISOString()
+      }]);
+    }
+  };
+
   const handleTouchStart = (e, msg) => {
-    if (e.touches && e.touches.length >= 3) {
-      sendScreenshotNotification();
+    if (e.touches && e.touches.length > 1) {
+      if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+      if (e.touches.length >= 3) {
+        sendScreenshotNotification();
+      }
       return;
     }
-    if (e.touches && e.touches.length > 1) return;
     swipeStartX.current = e.touches[0].clientX;
     setSwipeMsgId(msg._id);
     pressTimerRef.current = setTimeout(() => {
@@ -4362,32 +4389,7 @@ const handleStoryUpload = async () => {
 
   // Screenshot Detection
   useEffect(() => {
-    // Helper to send screenshot notification
-    const sendScreenshotNotification = () => {
-      if (activeTab === 'messages' && activeChatUser && socket) {
-        const tempId = `temp-${Date.now()}`;
-        const msgData = { 
-          tempId, 
-          senderId: user.id || user._id, 
-          receiverId: activeChatUser._id, 
-          messageText: '📸 Took a screenshot', 
-          messageType: 'screenshot', 
-          fileUrl: null, 
-          replyTo: null 
-        };
-        socket.emit('send_message', msgData);
-        setMessages(prev => [...prev, { 
-          _id: tempId,
-          sender: user.id, 
-          receiver: activeChatUser._id, 
-          message: '📸 Took a screenshot', 
-          replyTo: null,
-          messageType: 'screenshot',
-          createdAt: new Date().toISOString()
-        }]);
-      }
-    };
-
+    // Screenshot Detection helper is defined in component body
     // Desktop: PrintScreen key or Mac screenshot shortcuts
     const handleKeyUp = (e) => {
       const isPrintScreen = e.key === 'PrintScreen';
