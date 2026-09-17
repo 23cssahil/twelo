@@ -4583,7 +4583,7 @@ const handleStoryUpload = async () => {
                 
                 <button 
                   onClick={handleWatchAd}
-                  style={{ background: '#333', color: '#fff', border: '1px solid #444', padding: '15px', borderRadius: '12px', fontSize: '1.05rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+                  style={{ background: 'var(--insta-gradient)', color: '#fff', border: '1px solid #444', padding: '15px', borderRadius: '12px', fontSize: '1.05rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
                 >
                   <Play size={20} /> Watch Ad & Earn 5 Coins
                 </button>
@@ -4838,7 +4838,7 @@ const handleStoryUpload = async () => {
                       <img src={anonymousPartnerAvatar} alt='avatar' style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                     </div>
                   ) : (
-                    <div className='user-avatar-small' style={{ width: '45px', height: '45px', minWidth: '45px', minHeight: '45px', flexShrink: 0, borderRadius: '50%', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#333' }}>
+                    <div className='user-avatar-small' style={{ width: '45px', height: '45px', minWidth: '45px', minHeight: '45px', flexShrink: 0, borderRadius: '50%', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)' }}>
                       ?
                     </div>
                   )}
@@ -5068,18 +5068,18 @@ const handleStoryUpload = async () => {
                       ) : ['follow_request', 'anonymous_follow_request', 'follow_back_request'].includes(notif.type) ? (
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button className="chat-now-btn accept-btn" style={{ flex: 1 }} onClick={() => acceptRequest(reqUser._id)}>Accept</button>
-                          <button className="chat-now-btn" style={{ flex: 1, background: '#333' }} onClick={() => rejectRequest(reqUser._id)}>Reject</button>
+                          <button className="chat-now-btn" style={{ flex: 1, background: 'var(--insta-gradient)' }} onClick={() => rejectRequest(reqUser._id)}>Reject</button>
                         </div>
                       ) : notif.type === 'started_following_you' ? (
                         isFollowingBack ? (
                           <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWithUser(reqUser)}>Chat</button>
                         ) : hasSentFollowBack ? (
-                          <button className="chat-now-btn" style={{ background: '#333', cursor: 'default' }} disabled>Request Sent</button>
+                          <button className="chat-now-btn" style={{ background: 'var(--insta-gradient)', cursor: 'default' }} disabled>Request Sent</button>
                         ) : (
                           <button className="chat-now-btn" style={{ background: '#10b981' }} onClick={() => sendFollowRequest(reqUser._id)}>Follow Back</button>
                         )
                       ) : notif.type === 'request_rejected' ? (
-                        <button className="chat-now-btn" style={{ background: '#333', cursor: 'default' }} disabled>Rejected</button>
+                        <button className="chat-now-btn" style={{ background: 'var(--insta-gradient)', cursor: 'default' }} disabled>Rejected</button>
                       ) : null}
                     </div>
                   );
@@ -5159,7 +5159,7 @@ const handleStoryUpload = async () => {
                     {isFollowing ? (
                       <button className="chat-now-btn" onClick={() => startChatWithUser(searchUser)}>Message</button>
                     ) : hasRequested ? (
-                      <button className="chat-now-btn" style={{ background: '#333' }} onClick={(e) => { e.stopPropagation(); unfollowUser(searchUser._id); }}>Cancel Request</button>
+                      <button className="chat-now-btn" style={{ background: 'var(--insta-gradient)' }} onClick={(e) => { e.stopPropagation(); unfollowUser(searchUser._id); }}>Cancel Request</button>
                     ) : (
                       <button className="chat-now-btn" onClick={() => sendFollowRequest(searchUser._id)}>Follow</button>
                     )}
@@ -5294,7 +5294,7 @@ const handleStoryUpload = async () => {
                 <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Share your unique link. You earn 20 coins for every friend who signs up!</p>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <input type="text" readOnly value={`${window.location.origin}/login?ref=${user?.id}`} style={{ flex: 1, padding: '10px', background: 'rgba(0,0,0,0.5)', border: '1px solid #333', borderRadius: '8px', color: '#fff' }} />
-                  <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/login?ref=${user?.id}`); alert('Link Copied!'); }} style={{ padding: '10px 20px', background: '#333', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>
+                  <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/login?ref=${user?.id}`); alert('Link Copied!'); }} style={{ padding: '10px 20px', background: 'var(--insta-gradient)', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>
                     Copy
                   </button>
                 </div>
@@ -5375,10 +5375,10 @@ const handleStoryUpload = async () => {
                   {isFollowing ? (
                     <>
                       <button className="chat-now-btn" style={{ flex: 1 }} onClick={() => startChatWithUser(publicProfileData)}>Message</button>
-                      <button className="chat-now-btn" style={{ flex: 1, background: '#333' }} onClick={() => unfollowUser(publicProfileData._id)}>Unfollow</button>
+                      <button className="chat-now-btn" style={{ flex: 1, background: 'var(--insta-gradient)' }} onClick={() => unfollowUser(publicProfileData._id)}>Unfollow</button>
                     </>
                   ) : hasRequested ? (
-                    <button className="chat-now-btn" style={{ background: '#333', width: '100%' }} onClick={() => unfollowUser(publicProfileData._id)}>Cancel Request</button>
+                    <button className="chat-now-btn" style={{ background: 'var(--insta-gradient)', width: '100%' }} onClick={() => unfollowUser(publicProfileData._id)}>Cancel Request</button>
                   ) : (
                     <button className="chat-now-btn" style={{ width: '100%' }} onClick={() => sendFollowRequest(publicProfileData._id)}>Follow</button>
                   )}
@@ -5395,7 +5395,7 @@ const handleStoryUpload = async () => {
                     <div style={{ display: 'flex', marginRight: '10px' }}>
                       {publicProfileData.mutualConnections.previewUsers.map((mu, i) => (
                         <div key={mu._id} style={{
-                          width: '24px', height: '24px', borderRadius: '50%', background: '#333', 
+                          width: '24px', height: '24px', borderRadius: '50%', background: 'var(--insta-gradient)', 
                           border: '2px solid #000', marginLeft: i > 0 ? '-10px' : '0', overflow: 'hidden', zIndex: 3 - i
                         }}>
                           {mu.avatarUrl ? <img src={mu.avatarUrl} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px'}}>{mu.username.charAt(0).toUpperCase()}</div>}
@@ -5439,7 +5439,7 @@ const handleStoryUpload = async () => {
                         >
                           <div style={{
                             width: '64px', height: '64px', borderRadius: '50%',
-                            padding: '2px', background: '#333', border: '2px solid #ccc',
+                            padding: '2px', background: 'var(--insta-gradient)', border: '2px solid #ccc',
                             display: 'flex', justifyContent: 'center', alignItems: 'center',
                             overflow: 'hidden'
                           }}>
@@ -5463,7 +5463,7 @@ const handleStoryUpload = async () => {
                       {groupStoriesByDay(showAllGlobalStoriesPublic ? publicProfileData.globalStories : publicProfileData.globalStories).slice(0, showAllGlobalStoriesPublic ? 999 : 3).map((group, index, allGroups) => {
                         const firstStory = group.stories[0];
                         return (
-                        <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333', cursor: 'pointer', position: 'relative' }} onClick={() => { 
+                        <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: 'var(--insta-gradient)', cursor: 'pointer', position: 'relative' }} onClick={() => { 
                           const viewerGroups = allGroups.map(g => ({
                             user: { _id: publicProfileData._id, username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl },
                             stories: g.stories
@@ -5581,7 +5581,7 @@ const handleStoryUpload = async () => {
                       borderRadius: '50%'
                     }}>
                       <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: '2px solid #000' }}>
-                        {group.user.avatarUrl ? <img src={group.user.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}}/> : <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#333'}}>{group.user.username.charAt(0).toUpperCase()}</div>}
+                        {group.user.avatarUrl ? <img src={group.user.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}}/> : <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)'}}>{group.user.username.charAt(0).toUpperCase()}</div>}
                       </div>
                     </div>
                     <span style={{ fontSize: '0.75rem', color: '#fff' }}>{group.user.username.length > 8 ? group.user.username.substring(0, 8) + '...' : group.user.username}</span>
@@ -5636,7 +5636,7 @@ const handleStoryUpload = async () => {
                           }
                         }}
                       >
-                        <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: hasRing ? '2px solid #000' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#333' }}>
+                        <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: hasRing ? '2px solid #000' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)' }}>
                           {chatUser.avatarUrl ? <img src={chatUser.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : chatUser.username.charAt(0).toUpperCase()}
                         </div>
                       </div>
@@ -5760,7 +5760,7 @@ const handleStoryUpload = async () => {
                             const hasRing = chatUserStoryGroupIndex !== -1;
                             return hasRing ? '2px solid #000' : 'none';
                           })(),
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#333'
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)'
                         }}>
                           {activeChatUser.avatarUrl ? <img src={activeChatUser.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : activeChatUser.username.charAt(0).toUpperCase()}
                         </div>
@@ -6019,7 +6019,7 @@ const handleStoryUpload = async () => {
                                           style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #0095f6' }}
                                         />
                                       ) : (
-                                        <div style={{ width: '45px', height: '45px', borderRadius: '50%', border: '2px solid #0095f6', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#333', fontSize: '1.2rem', fontWeight: 'bold' }}>
+                                        <div style={{ width: '45px', height: '45px', borderRadius: '50%', border: '2px solid #0095f6', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)', fontSize: '1.2rem', fontWeight: 'bold' }}>
                                           {storyOwnerUsername.charAt(0).toUpperCase()}
                                         </div>
                                       )}
@@ -6353,7 +6353,7 @@ const handleStoryUpload = async () => {
                         >
                           <div style={{
                             width: '64px', height: '64px', borderRadius: '50%',
-                            padding: '2px', background: '#333', border: '2px solid #ccc',
+                            padding: '2px', background: 'var(--insta-gradient)', border: '2px solid #ccc',
                             display: 'flex', justifyContent: 'center', alignItems: 'center',
                             overflow: 'hidden'
                           }}>
@@ -6377,7 +6377,7 @@ const handleStoryUpload = async () => {
                       {groupStoriesByDay(showAllGlobalStoriesMy ? profileStats.globalStories : profileStats.globalStories).slice(0, showAllGlobalStoriesMy ? 999 : 3).map((group, index, allGroups) => {
                         const firstStory = group.stories[0];
                         return (
-                        <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: '#333', cursor: 'pointer', position: 'relative' }} onClick={() => { 
+                        <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: 'var(--insta-gradient)', cursor: 'pointer', position: 'relative' }} onClick={() => { 
                           const viewerGroups = allGroups.map(g => ({
                             user: { _id: user.id || user._id, username: user.username, avatarUrl: profileStats?.avatarUrl || user.avatarUrl },
                             stories: g.stories
@@ -6430,7 +6430,7 @@ const handleStoryUpload = async () => {
                 <ChevronLeft size={24} />
               </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', background: '#333' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', background: 'var(--insta-gradient)' }}>
                   {userGlobalStoriesUserInfo?.avatarUrl ? (
                     <img src={userGlobalStoriesUserInfo.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
@@ -6724,7 +6724,7 @@ const handleStoryUpload = async () => {
                   videoPeerRef.current = null;
                 }
               }}
-              style={{ padding: '15px 30px', fontSize: '1.1rem', fontWeight: 'bold', background: '#333', color: '#fff', border: 'none', borderRadius: '30px', cursor: 'pointer' }}
+              style={{ padding: '15px 30px', fontSize: '1.1rem', fontWeight: 'bold', background: 'var(--insta-gradient)', color: '#fff', border: 'none', borderRadius: '30px', cursor: 'pointer' }}
             >
               Stop
             </button>
@@ -7648,7 +7648,7 @@ const handleStoryUpload = async () => {
               <button 
                 className="premium-btn primary" 
                 onClick={() => setShowLogoutConfirm(false)}
-                style={{ flex: 1, padding: '12px', background: '#333' }}
+                style={{ flex: 1, padding: '12px', background: 'var(--insta-gradient)' }}
               >
                 No
               </button>
@@ -8201,7 +8201,7 @@ const handleStoryUpload = async () => {
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button 
                 className="chat-now-btn" 
-                style={{ flex: 1, background: '#333' }}
+                style={{ flex: 1, background: 'var(--insta-gradient)' }}
                 onClick={() => { setAvatarCropperOpen(false); setAvatarImageSrc(null); }}
               >
                 Cancel
@@ -8613,7 +8613,7 @@ const handleStoryUpload = async () => {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', background: '#333' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', background: 'var(--insta-gradient)' }}>
                           {conn.avatarUrl ? <img src={conn.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>{conn.username.charAt(0).toUpperCase()}</div>}
                         </div>
                         <span style={{ color: '#fff', fontSize: '1rem' }}>{conn.username}</span>
@@ -8756,7 +8756,7 @@ const handleStoryUpload = async () => {
                   return (
                     <div key={viewer._id || viewer} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid #222' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div className="user-avatar-small" style={{ width: '40px', height: '40px', background: '#333', borderRadius: '50%', overflow: 'hidden' }}>
+                        <div className="user-avatar-small" style={{ width: '40px', height: '40px', background: 'var(--insta-gradient)', borderRadius: '50%', overflow: 'hidden' }}>
                           {viewer.avatarUrl ? <img src={viewer.avatarUrl} alt="avatar" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff'}}>{(viewer.username || '?').charAt(0).toUpperCase()}</div>}
                         </div>
                         <span style={{ color: '#fff', fontSize: '1rem' }}>{viewer.username || 'Unknown'}</span>
@@ -8855,7 +8855,7 @@ const handleStoryUpload = async () => {
               {themePreview.name} Preview
             </div>
             <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', justifyContent: 'center' }}>
-              <div style={{ background: '#333', padding: '12px 16px', borderRadius: '18px 18px 18px 4px', maxWidth: '80%', color: '#fff', alignSelf: 'flex-start' }}>
+              <div style={{ background: 'var(--insta-gradient)', padding: '12px 16px', borderRadius: '18px 18px 18px 4px', maxWidth: '80%', color: '#fff', alignSelf: 'flex-start' }}>
                 Hey, how are you?
               </div>
               <div style={{ background: 'var(--brand-blue)', padding: '12px 16px', borderRadius: '18px 18px 4px 18px', maxWidth: '80%', color: '#fff', alignSelf: 'flex-end' }}>
@@ -8865,7 +8865,7 @@ const handleStoryUpload = async () => {
             <div style={{ padding: '20px', display: 'flex', gap: '10px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)' }}>
               <button 
                 onClick={() => window.history.back()}
-                style={{ flex: 1, padding: '14px', borderRadius: '12px', background: '#333', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--insta-gradient)', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}
               >
                 Cancel
               </button>
