@@ -19,6 +19,32 @@
   --profile-color: #FF8D75;
 }
 
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-color: #f8f9fa;
+    --panel-bg: #ffffff;
+    --panel-hover: #f1f3f5;
+    --border-color: #e5e7eb;
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    
+    /* Light Mode Chat Theme */
+    --chat-bg: #f9fafb;
+    --chat-border: #e5e7eb;
+    --chat-header-bg: rgba(255, 255, 255, 0.95);
+    --chat-header-text: #111827;
+    --chat-user-bg: #ffffff;
+    --chat-user-border: #e5e7eb;
+    --chat-user-hover: #f3f4f6;
+    --chat-user-hover-border: #d1d5db;
+    --chat-user-shadow: rgba(0,0,0,0.05);
+    --chat-user-text: #111827;
+    --chat-user-subtext: #4b5563;
+    --chat-user-active-bg: rgba(0, 191, 255, 0.1);
+    --chat-user-active-border: rgba(0, 191, 255, 0.3);
+  }
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -363,10 +389,10 @@ input, button, textarea {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: linear-gradient(180deg, rgba(12, 13, 20, 0.96) 0%, rgba(18, 18, 28, 0.98) 100%);
+  background: var(--chat-bg, linear-gradient(180deg, rgba(12, 13, 20, 0.96) 0%, rgba(18, 18, 28, 0.98) 100%));
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid var(--chat-border, rgba(255, 255, 255, 0.08));
 }
 
 .chat-list {
@@ -379,8 +405,8 @@ input, button, textarea {
 
 .chat-list-header {
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(15, 16, 26, 0.85);
+  border-bottom: 1px solid var(--chat-border, rgba(255, 255, 255, 0.08));
+  background: var(--chat-header-bg, rgba(15, 16, 26, 0.85));
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
 }
@@ -388,7 +414,7 @@ input, button, textarea {
 .chat-list-header h2 {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--chat-header-text, #ffffff);
   letter-spacing: -0.3px;
 }
 
@@ -407,24 +433,25 @@ input, button, textarea {
   border-radius: 16px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--chat-user-bg, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--chat-user-border, rgba(255, 255, 255, 0.04));
+  color: var(--chat-user-text, #ffffff);
 }
 .chat-user-item:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: var(--chat-user-hover, rgba(255, 255, 255, 0.07));
+  border-color: var(--chat-user-hover-border, rgba(255, 255, 255, 0.12));
   transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 15px var(--chat-user-shadow, rgba(0,0,0,0.3));
 }
 .chat-user-item.active {
-  background: linear-gradient(90deg, rgba(0, 191, 255, 0.15) 0%, rgba(0, 114, 255, 0.06) 100%);
-  border: 1px solid rgba(0, 191, 255, 0.3);
+  background: var(--chat-user-active-bg, linear-gradient(90deg, rgba(0, 191, 255, 0.15) 0%, rgba(0, 114, 255, 0.06) 100%));
+  border: 1px solid var(--chat-user-active-border, rgba(0, 191, 255, 0.3));
   border-left: 4px solid #00c6ff;
   box-shadow: 0 4px 15px rgba(0, 191, 255, 0.15);
 }
 .chat-user-item:active {
   transform: scale(0.98);
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--chat-user-hover, rgba(255, 255, 255, 0.1));
 }
 
 .chat-user-status {

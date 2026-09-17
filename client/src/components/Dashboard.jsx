@@ -5533,31 +5533,20 @@ const handleStoryUpload = async () => {
           <div className="chat-container">
             <div className={`chat-list ${activeChatUser ? 'hide-on-mobile' : ''}`}>
               <div className="chat-list-header" style={{
-                padding: '16px 20px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                borderBottom: '1px solid rgba(255,255,255,0.08)',
                 position: 'sticky',
                 top: 0,
-                zIndex: 20,
-                background: 'rgba(15, 16, 26, 0.85)',
-                backdropFilter: 'blur(15px)',
-                WebkitBackdropFilter: 'blur(15px)'
+                zIndex: 20
               }}>
-                <h2 style={{ 
-                  margin: 0, 
-                  fontSize: '1.5rem', 
-                  fontWeight: '800', 
-                  color: '#ffffff',
-                  letterSpacing: '-0.3px'
-                }}>Chats</h2>
+                <h2 style={{ margin: 0 }}>Chats</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.08)' }} onClick={() => setActiveTab('search')}>
-                    <SearchIcon size={18} color="#ffffff" />
+                  <div style={{ background: 'var(--chat-user-bg, rgba(255,255,255,0.06))', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--chat-border, rgba(255,255,255,0.08))' }} onClick={() => setActiveTab('search')}>
+                    <SearchIcon size={18} color="var(--chat-header-text, #ffffff)" />
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.08)' }} onClick={() => setActiveTab('search')}>
-                    <Edit size={18} color="#ffffff" />
+                  <div style={{ background: 'var(--chat-user-bg, rgba(255,255,255,0.06))', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--chat-border, rgba(255,255,255,0.08))' }} onClick={() => setActiveTab('search')}>
+                    <Edit size={18} color="var(--chat-header-text, #ffffff)" />
                   </div>
                 </div>
               </div>
