@@ -26,6 +26,7 @@
     --text-primary: #111827;
     --text-secondary: #4b5563;
     --border-color: #e5e7eb;
+    --panel-bg: #ffffff; /* Make search and other panels white in light mode */
     
     /* Light Mode Chat Theme */
     --chat-bg: #ffffff;
@@ -334,7 +335,7 @@ input, button, textarea {
   align-items: center;
   justify-content: space-between;
   padding: 12px 0;
-  border-bottom: 1px solid #1a1a1a;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .user-card-info {

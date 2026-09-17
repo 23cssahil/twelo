@@ -5097,8 +5097,8 @@ const handleStoryUpload = async () => {
 
       case 'search':
         return (
-          <div className="search-container" style={{ padding: 0, display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-color, #000)' }}>
-            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-color, #000)', padding: '16px 16px 5px 16px', borderBottom: '1px solid #1a1a1a' }}>
+          <div className="search-container" style={{ padding: 0, display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--panel-bg, #000)' }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--panel-bg, #000)', padding: '16px 16px 5px 16px', borderBottom: '1px solid var(--border-color)' }}>
               <h2 className="search-header-text" style={{ marginTop: 0 }}>Search</h2>
               <div className="search-box-wrapper" style={{ marginBottom: '10px' }}>
                 <SearchIcon className="search-icon-inside" size={20} />
@@ -5118,7 +5118,7 @@ const handleStoryUpload = async () => {
             {isFetchingSearchHistory && !searchQuery && searchResults.length === 0 ? (
               <div className="chats-skeleton-loader" style={{ padding: '10px' }}>
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="user-card" style={{ cursor: 'default', borderBottom: '1px solid #1a1a1a' }}>
+                  <div key={i} className="user-card" style={{ cursor: 'default', borderBottom: '1px solid var(--border-color)' }}>
                     <div className="user-card-info" style={{ width: '100%' }}>
                       <div className="skeleton-avatar shimmer"></div>
                       <div className="skeleton-details">
@@ -5533,7 +5533,7 @@ const handleStoryUpload = async () => {
               
               <div className="story-bar-container" style={{
                 display: 'flex', gap: '15px', padding: '15px', 
-                overflowX: 'auto', borderBottom: '1px solid #1a1a1a', 
+                overflowX: 'auto', borderBottom: '1px solid var(--border-color)', 
                 scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch'
               }}>
                 <style>{`.story-bar-container::-webkit-scrollbar { display: none; }`}</style>
@@ -7304,7 +7304,7 @@ const handleStoryUpload = async () => {
       {showShareModal && (
         <div className="settings-drawer-overlay" onClick={() => setShowShareModal(false)} style={{ zIndex: 12000, background: 'rgba(0,0,0,0.6)' }}>
           <div className="settings-drawer share-bottom-sheet" onClick={e => e.stopPropagation()} style={{ height: '75vh', maxHeight: '75vh', width: '100%', maxWidth: '500px', margin: '0 auto', bottom: '0', left: '0', right: '0', top: 'auto', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'absolute', display: 'flex', flexDirection: 'column', background: '#121212', boxShadow: '0 -4px 20px rgba(0,0,0,0.5)' }}>
-            <div className="modal-header" style={{ borderBottom: '1px solid #1a1a1a', padding: '16px 20px', background: 'rgba(20,20,20,0.95)', backdropFilter: 'blur(10px)', zIndex: 10, borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'relative' }}>
+            <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', padding: '16px 20px', background: 'rgba(20,20,20,0.95)', backdropFilter: 'blur(10px)', zIndex: 10, borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'relative' }}>
               <div style={{ width: '40px', height: '4px', background: 'rgba(255,255,255,0.2)', borderRadius: '2px', position: 'absolute', top: '8px', left: '50%', transform: 'translateX(-50%)' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', marginTop: '10px' }}>
                 <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', margin: 0 }}>Share Story</h2>
