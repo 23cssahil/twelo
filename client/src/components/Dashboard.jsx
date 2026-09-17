@@ -5537,24 +5537,28 @@ const handleStoryUpload = async () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
                 position: 'sticky',
                 top: 0,
                 zIndex: 20,
-                background: 'rgba(100, 70, 130, 0.4)'
+                background: 'rgba(15, 16, 26, 0.85)',
+                backdropFilter: 'blur(15px)',
+                WebkitBackdropFilter: 'blur(15px)'
               }}>
                 <h2 style={{ 
                   margin: 0, 
                   fontSize: '1.5rem', 
                   fontWeight: '800', 
                   color: '#ffffff',
-                  letterSpacing: '0.2px',
-                  textShadow: 'none',
-                  WebkitTextStroke: '0px'
+                  letterSpacing: '-0.3px'
                 }}>Chats</h2>
-                <div style={{ display: 'flex', gap: '15px' }}>
-                  <SearchIcon size={20} color="#a8a8a8" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('search')} />
-                  <Edit size={20} color="#a8a8a8" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('search')} />
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.08)' }} onClick={() => setActiveTab('search')}>
+                    <SearchIcon size={18} color="#ffffff" />
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.08)' }} onClick={() => setActiveTab('search')}>
+                    <Edit size={18} color="#ffffff" />
+                  </div>
                 </div>
               </div>
               
@@ -5672,17 +5676,26 @@ const handleStoryUpload = async () => {
                       <div className="user-names">
                         <span className="user-username">@{chatUser.username}</span>
                         {typingUsers[chatUser._id] ? (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--brand-blue)', fontStyle: 'italic', fontWeight: 'bold' }}>
+                          <span style={{ fontSize: '0.78rem', color: '#00e5ff', fontStyle: 'italic', fontWeight: '700', letterSpacing: '0.2px' }}>
                             typing...
                           </span>
                         ) : (
-                          <span style={{ fontSize: '0.75rem', color: isOnline ? '#2bd856' : '#a8a8a8' }}>
-                            {isOnline ? 'online' : 'offline'}
+                          <span style={{ fontSize: '0.78rem', color: isOnline ? '#00e676' : '#94a3b8', fontWeight: isOnline ? '600' : 'normal' }}>
+                            {isOnline ? 'Online' : 'Offline'}
                           </span>
                         )}
                       </div>
                       {unreadCount > 0 && (
-                        <div style={{ marginLeft: 'auto', background: 'var(--brand-red)', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                        <div style={{ 
+                          marginLeft: 'auto', 
+                          background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)', 
+                          color: '#ffffff', 
+                          borderRadius: '12px', 
+                          padding: '3px 8px', 
+                          fontSize: '0.75rem', 
+                          fontWeight: '800',
+                          boxShadow: '0 4px 12px rgba(0, 114, 255, 0.4)'
+                        }}>
                           {unreadCount}
                         </div>
                       )}
