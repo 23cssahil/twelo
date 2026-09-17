@@ -82,7 +82,12 @@ export default function App() {
   // Handle socket connection
   useEffect(() => {
     if (user && token) {
-      const newSocket = io(API_URL, { transports: ['websocket'] });
+      const newSocket = io(API_URL, { 
+        transports: ['polling', 'websocket'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000
+      });
       setSocket(newSocket);
 
       newSocket.on('connect', () => {
