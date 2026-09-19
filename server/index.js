@@ -19,6 +19,7 @@ const os = require('os');
 const webpush = require('web-push');
 const cloudinary = require('cloudinary').v2;
 const { nudityCheck } = require('./middleware/nudityCheck');
+const { encrypt: encryptMsg, decrypt: decryptMsg } = require('./utils/encryption');
 
 webpush.setVapidDetails(
   'mailto:admin@twelo.com',
@@ -2398,8 +2399,17 @@ app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
     const hasMore = messages.length === limit;
     const nextCursor = messages.length > 0 ? messages[messages.length - 1]._id : null;
 
+    // Decrypt messages before sending to client
+    const decryptedMessages = messages.reverse().map(m => {
+      const obj = m.toObject ? m.toObject() : Object.assign({}, m);
+      obj.message = decryptMsg(obj.message);
+      if (obj.replyTo && obj.replyTo.messageText) {
+        obj.replyTo = Object.assign({}, obj.replyTo, { messageText: decryptMsg(obj.replyTo.messageText) });
+      }
+      return obj;
+    });
     res.json({
-      messages: messages.reverse(), // Reverse to have oldest first in UI
+      messages: decryptedMessages,
       hasMore,
       nextCursor
     });
@@ -2528,7 +2538,7 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
         gender: u ? u.gender : null,
         isDeleted: !u,
         lastMessageAt: chat.lastMessageAt,
-        lastMessage: chat.lastMessage,
+        lastMessage: decryptMsg(chat.lastMessage),
         lastMessageType: chat.lastMessageType,
         unreadCount: chat.unreadCount
       };
@@ -2561,9 +2571,35 @@ app.get('/api/chats/recent', authenticateToken, async (req, res) => {
 // ==========================================
 app.post('/api/reports/create', authenticateToken, async (req, res) => {
   try {
-    const { reportedUserId, reportedUsername, reason, chatContext } = req.body;
+    const { reportedUserId, reportedUsername, reason } = req.body;
     const reporterId = req.user.userId;
     const reporter = await User.findById(reporterId);
+
+    // Auto-fetch last 20 messages between reporter and reported user from DB
+    let chatContext = '[]';
+    try {
+      const last20 = await Message.find({
+        $or: [
+          { sender: reporterId, receiver: reportedUserId },
+          { sender: reportedUserId, receiver: reporterId }
+        ],
+        isDeletedForEveryone: { $ne: true }
+      })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean();
+
+      const formatted = last20.reverse().map(m => ({
+        from: m.sender.toString() === reporterId.toString() ? reporter.username : reportedUsername,
+        message: decryptMsg(m.message),
+        type: m.messageType,
+        fileUrl: m.fileUrl || null,
+        time: m.createdAt
+      }));
+      chatContext = JSON.stringify(formatted);
+    } catch (fetchErr) {
+      console.error('[Report] Could not fetch chat context:', fetchErr.message);
+    }
 
     const newReport = new Report({
       reporterId,
@@ -3397,11 +3433,17 @@ io.on('connection', (socket) => {
         activeSessions.get(socket.id).messagesSent += 1;
       }
       
+      // Encrypt message text before saving to DB for privacy
+      const encryptedMsgText = (messageType === 'text' && messageText) ? encryptMsg(messageText) : messageText;
+      let encryptedReplyTo = replyTo;
+      if (replyTo && replyTo.messageText) {
+        encryptedReplyTo = Object.assign({}, replyTo, { messageText: encryptMsg(replyTo.messageText) });
+      }
       const message = new Message({
         sender: senderId,
         receiver: receiverId,
-        message: messageText,
-        replyTo: replyTo,
+        message: encryptedMsgText,
+        replyTo: encryptedReplyTo,
         messageType: messageType,
         fileUrl: fileUrl,
         isViewOnce: isViewOnce

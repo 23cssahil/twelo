@@ -1339,8 +1339,25 @@ export default function DeveloperAdmin() {
               <h3 style={{ color: '#f59e0b', marginBottom: '10px' }}>Reason: {selectedReport.reason}</h3>
               <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginBottom: '10px' }}>Reporter: @{selectedReport.reporterUsername}</p>
               
-              <div style={{ background: '#111', padding: '15px', borderRadius: '8px', maxHeight: '300px', overflowY: 'auto', border: '1px solid #333', marginBottom: '20px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', color: '#ccc' }}>
-                {selectedReport.chatContext || "No chat context provided."}
+              <div style={{ background: '#0a0a0a', padding: '15px', borderRadius: '8px', maxHeight: '350px', overflowY: 'auto', border: '1px solid #333', marginBottom: '20px' }}>
+                <p style={{ color: '#666', fontSize: '0.75rem', marginBottom: '10px', textAlign: 'center' }}>{'🔒 Last 20 encrypted messages (server-decrypted for review)'}</p>
+                {(() => {
+                  if (!selectedReport.chatContext) return <p style={{ color: '#666', fontStyle: 'italic' }}>No chat context available.</p>;
+                  try {
+                    const msgs = JSON.parse(selectedReport.chatContext);
+                    if (!Array.isArray(msgs) || msgs.length === 0) return <pre style={{ color: '#ccc', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.8rem' }}>{selectedReport.chatContext}</pre>;
+                    return msgs.map((m, i) => (
+                      <div key={i} style={{ marginBottom: '8px', display: 'flex', flexDirection: 'column', alignItems: m.from === selectedReport.reportedUsername ? 'flex-start' : 'flex-end' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#666', marginBottom: '2px' }}>{'@'}{m.from} {m.time ? new Date(m.time).toLocaleString() : ''}</span>
+                        <div style={{ background: m.from === selectedReport.reportedUsername ? '#1a1a2e' : '#0d2137', border: '1px solid ' + (m.from === selectedReport.reportedUsername ? '#e74c3c' : '#2980b9'), color: '#fff', padding: '8px 12px', borderRadius: '10px', maxWidth: '85%', fontSize: '0.85rem', wordBreak: 'break-word' }}>
+                          {m.type === 'image' ? '📷 Image' : m.type === 'audio' ? '🎵 Audio' : m.type === 'screenshot' ? '📸 Took a screenshot' : (m.message || '(empty)')}
+                        </div>
+                      </div>
+                    ));
+                  } catch (e) {
+                    return <pre style={{ color: '#ccc', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.8rem' }}>{selectedReport.chatContext}</pre>;
+                  }
+                })()}
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>

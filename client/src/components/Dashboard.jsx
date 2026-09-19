@@ -3762,8 +3762,8 @@ const handleStoryUpload = async () => {
         body: JSON.stringify({
           reportedUserId: reportTarget.id,
           reportedUsername: reportTarget.username,
-          reason: reportReason,
-          chatContext: simplifiedContext
+          reason: reportReason
+          // chatContext is now auto-fetched server-side from encrypted DB messages
         })
       });
       if (res.ok) {
