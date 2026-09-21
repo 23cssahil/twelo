@@ -2943,10 +2943,12 @@ export default function Dashboard() {
   const fetchBlockedUsers = async () => {
     try {
       const res = await fetch(`${API_URL}/api/users/blocked`, { headers: { Authorization: `Bearer ${token}` } });
+      // If the endpoint is missing/not deployed yet (non-2xx, e.g. 404 HTML), stay silent and no-op.
+      if (!res.ok) return;
       const data = await res.json();
-      if (res.ok && Array.isArray(data.blocked)) setBlockedIds(new Set(data.blocked));
+      if (Array.isArray(data.blocked)) setBlockedIds(new Set(data.blocked));
     } catch (err) {
-      console.error('Error loading blocked users:', err);
+      // Never block the chat flow over this; ignore parse/network errors quietly.
     }
   };
 
@@ -3006,11 +3008,11 @@ export default function Dashboard() {
     setIsFetchingBlockedList(true);
     try {
       const res = await fetch(`${API_URL}/api/users/blocked_list`, { headers: { Authorization: `Bearer ${token}` } });
+      // Only parse JSON on a successful response; a 404 (HTML) would otherwise throw a parse error.
+      if (!res.ok) { setBlockedUsersList([]); return; }
       const data = await res.json();
-      if (res.ok && Array.isArray(data.blockedUsers)) setBlockedUsersList(data.blockedUsers);
-      else setBlockedUsersList([]);
+      setBlockedUsersList(Array.isArray(data.blockedUsers) ? data.blockedUsers : []);
     } catch (err) {
-      console.error('Error loading blocked users list:', err);
       setBlockedUsersList([]);
     } finally {
       setIsFetchingBlockedList(false);
