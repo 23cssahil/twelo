@@ -4545,6 +4545,33 @@ const handleStoryUpload = async () => {
     return Math.floor(seconds) + " seconds ago";
   };
 
+  const markNotifRead = (notifId) => {
+    const target = notifications.find(n => n._id === notifId);
+    if (target && !target.read) {
+      setUnreadNotifsCount(c => Math.max(0, c - 1));
+      setNotifications(prev => prev.map(n => n._id === notifId ? { ...n, read: true } : n));
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadNotifsCount(0);
+    try {
+      await fetch(`${API_URL}/api/users/notifications/read`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (e) { console.error(e); }
+  };
+
+  // Render **bold** segments as React nodes (avoids dangerouslySetInnerHTML).
+  const renderRichText = (text) => {
+    if (!text) return text;
+    return String(text).split('**').map((part, i) => (
+      i % 2 === 1 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>
+    ));
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'wallet':
@@ -4962,138 +4989,176 @@ const handleStoryUpload = async () => {
           </div>
         );
 
-      case 'notifications':
+      case 'notifications': {
+        const REQUEST_TYPES = ['follow_request', 'anonymous_follow_request', 'follow_back_request'];
+        const updates = notifications.filter(n => n.type === 'system_alert');
+        const requests = notifications.filter(n => REQUEST_TYPES.includes(n.type));
+        const followBacks = notifications.filter(n => n.type === 'started_following_you');
+        const activityRest = notifications.filter(n => !REQUEST_TYPES.includes(n.type) && n.type !== 'system_alert' && n.type !== 'started_following_you');
+        const sectionTitle = { fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-secondary)', margin: '18px 4px 8px' };
+        const unreadDot = { width: '8px', height: '8px', borderRadius: '50%', background: 'var(--brand-blue)', display: 'inline-block', marginLeft: '6px', verticalAlign: 'middle' };
+
+        const renderAlert = (notif) => {
+          let borderLeftColor = '#3b82f6';
+          let bgColor = 'rgba(59, 130, 246, 0.05)';
+          if (notif.alertType === 'urgent') { borderLeftColor = '#ef4444'; bgColor = 'rgba(239, 68, 68, 0.05)'; }
+          else if (notif.alertType === 'warning') { borderLeftColor = '#f59e0b'; bgColor = 'rgba(245, 158, 11, 0.05)'; }
+          else if (notif.alertType === 'success') { borderLeftColor = '#10b981'; bgColor = 'rgba(16, 185, 129, 0.05)'; }
+          return (
+            <div className="user-card" key={notif._id} onClick={() => markNotifRead(notif._id)} style={{ position: 'relative', borderLeft: `4px solid ${borderLeftColor}`, backgroundColor: bgColor, borderRadius: '10px', paddingLeft: '12px' }}>
+              <div className="user-card-info" style={{ cursor: 'default', alignItems: 'flex-start' }}>
+                <div className="user-avatar-small" style={{ padding: '2px', background: borderLeftColor, borderRadius: '50%' }}>
+                  <img src="/icon-192.png" alt="Twelo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', background: '#000' }} />
+                </div>
+                <div className="user-names" style={{ flex: 1, marginLeft: '10px' }}>
+                  <span className="user-username" style={{ color: borderLeftColor }}>@twelo <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>• Official</span>{!notif.read && <span style={unreadDot} />}</span>
+                  <span className="user-id" style={{ fontSize: '0.8rem', lineHeight: '1.4', wordBreak: 'break-word', whiteSpace: 'pre-wrap', color: 'var(--text-primary)', marginTop: '4px', display: 'block' }}>
+                    {notif.message.length > 100 && !expandedAlerts.has(notif._id) ? notif.message.substring(0, 100) + '...' : renderRichText(notif.message)}
+                  </span>
+                  {notif.message.length > 100 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setExpandedAlerts(prev => { const next = new Set(prev); if (next.has(notif._id)) next.delete(notif._id); else next.add(notif._id); return next; }); }}
+                      style={{ background: 'none', border: 'none', color: borderLeftColor, fontSize: '0.8rem', cursor: 'pointer', padding: 0, marginTop: '4px', fontWeight: '600' }}
+                    >
+                      {expandedAlerts.has(notif._id) ? 'Show Less' : 'Read More'}
+                    </button>
+                  )}
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '6px', display: 'block' }}>{timeSince(notif.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        const renderCard = (notif) => {
+          const reqUser = notif.user;
+          if (!reqUser) return null;
+          const isFollowingBack = profileStats?.following?.includes(reqUser._id);
+          const hasSentFollowBack = notif.followBackRequested === true;
+          const textMap = {
+            request_accepted: 'accepted your follow request',
+            anonymous_request_accepted: 'Random room stranger has accepted your request',
+            follow_request: 'wants to follow you',
+            anonymous_follow_request: 'Random room stranger request',
+            follow_back_request: 'also wants to follow you',
+            started_following_you: 'started following you',
+            request_rejected: 'rejected your follow request'
+          };
+          const text = textMap[notif.type] || 'interacted with you';
+          const unread = !notif.read;
+          return (
+            <div
+              className="user-card"
+              key={notif._id}
+              onTouchStart={() => handleNotificationTouchStart(notif)}
+              onTouchEnd={handleNotificationTouchEnd}
+              onTouchMove={handleNotificationTouchEnd}
+              onMouseDown={() => handleNotificationTouchStart(notif)}
+              onMouseUp={handleNotificationTouchEnd}
+              onMouseLeave={handleNotificationTouchEnd}
+              onContextMenu={(e) => { e.preventDefault(); return false; }}
+              style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', background: unread ? 'rgba(0,149,246,0.08)' : 'transparent', borderRadius: '10px', paddingLeft: '10px', paddingRight: '10px' }}
+            >
+              <div className="user-card-info" onClick={() => { markNotifRead(notif._id); viewPublicProfile(reqUser._id); }} style={{ cursor: 'pointer' }}>
+                <div className="user-avatar-small">{(notif.type === 'anonymous_follow_request' || notif.type === 'anonymous_request_accepted' ? null : reqUser.avatarUrl) ? <img src={reqUser.avatarUrl} alt='avatar' /> : reqUser.username.charAt(0).toUpperCase()}</div>
+                <div className="user-names">
+                  <span className="user-username">@{reqUser.username?.length > 10 ? reqUser.username.substring(0, 10) + '...' : reqUser.username}{unread && <span style={unreadDot} />}</span>
+                  <span className="user-id" style={{ fontSize: '0.8rem' }}>{text} · {timeSince(notif.createdAt)}</span>
+                </div>
+              </div>
+              {['request_accepted', 'anonymous_request_accepted'].includes(notif.type) ? (
+                <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => { markNotifRead(notif._id); startChatWithUser(reqUser); }}>Chat</button>
+              ) : ['follow_request', 'anonymous_follow_request', 'follow_back_request'].includes(notif.type) ? (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="chat-now-btn accept-btn" style={{ flex: 1 }} onClick={() => { markNotifRead(notif._id); acceptRequest(reqUser._id); }}>Accept</button>
+                  <button className="chat-now-btn" style={{ flex: 1, background: 'var(--insta-gradient)' }} onClick={() => { markNotifRead(notif._id); rejectRequest(reqUser._id); }}>Reject</button>
+                </div>
+              ) : notif.type === 'started_following_you' ? (
+                isFollowingBack ? (
+                  <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => { markNotifRead(notif._id); startChatWithUser(reqUser); }}>Chat</button>
+                ) : hasSentFollowBack ? (
+                  <button className="chat-now-btn" style={{ background: 'var(--insta-gradient)', cursor: 'default' }} disabled>Request Sent</button>
+                ) : (
+                  <button className="chat-now-btn" style={{ background: '#10b981' }} onClick={() => { markNotifRead(notif._id); sendFollowRequest(reqUser._id); }}>Follow Back</button>
+                )
+              ) : notif.type === 'request_rejected' ? (
+                <button className="chat-now-btn" style={{ background: 'var(--insta-gradient)', cursor: 'default' }} disabled>Rejected</button>
+              ) : null}
+            </div>
+          );
+        };
+
+        const activityNodes = [];
+        if (followBacks.length >= 2) {
+          const first = followBacks[0];
+          const others = followBacks.length - 1;
+          activityNodes.push(
+            <div className="user-card" key="follows-group" onClick={() => { setNotifications(prev => prev.map(n => n.type === 'started_following_you' ? { ...n, read: true } : n)); handleConnectionsClick('followers', user.id || user._id); }} style={{ cursor: 'pointer' }}>
+              <div className="user-card-info">
+                <div style={{ display: 'flex' }}>
+                  {followBacks.slice(0, 3).map((n, i) => (
+                    <div key={n._id} className="user-avatar-small" style={{ width: '40px', height: '40px', border: '2px solid var(--panel-bg)', marginLeft: i > 0 ? '-14px' : '0', zIndex: 3 - i }}>
+                      {n.user?.avatarUrl ? <img src={n.user.avatarUrl} alt='' /> : (n.user?.username?.charAt(0).toUpperCase() || '?')}
+                    </div>
+                  ))}
+                </div>
+                <div className="user-names">
+                  <span className="user-username">@{first.user?.username}{others > 0 && ` and ${others} other${others > 1 ? 's' : ''}`}</span>
+                  <span className="user-id" style={{ fontSize: '0.8rem' }}>started following you · {timeSince(first.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        } else if (followBacks.length === 1) {
+          activityNodes.push(renderCard(followBacks[0]));
+        }
+        activityRest.forEach(n => { const c = renderCard(n); if (c) activityNodes.push(c); });
+
         return (
           <div className="notifications-container" style={{ padding: '16px', overflowY: 'auto', height: '100%' }} onScroll={handleNotifsScroll}>
-            <h2 className="search-header-text">Notifications</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <h2 className="search-header-text" style={{ margin: 0 }}>Notifications</h2>
+              {unreadNotifsCount > 0 && (
+                <button onClick={markAllNotificationsRead} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }}>Mark all read</button>
+              )}
+            </div>
+
             {notifications.length === 0 && !notifsFetching ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '20px' }}>No notifications yet.</div>
+              <div style={{ textAlign: 'center', padding: '60px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(128,128,128,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Bell size={32} color="var(--text-secondary)" />
+                </div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>You're all caught up</div>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '260px' }}>New follows, requests and updates will appear here.</div>
+              </div>
             ) : (
               <>
-              <div className="requests-list">
-                {notifications.map(notif => {
-                  if (notif.type === 'system_alert') {
-                    let borderLeftColor = '#3b82f6'; // info - blue
-                    let bgColor = 'rgba(59, 130, 246, 0.05)';
-                    
-                    if (notif.alertType === 'urgent') {
-                      borderLeftColor = '#ef4444'; // red
-                      bgColor = 'rgba(239, 68, 68, 0.05)';
-                    } else if (notif.alertType === 'warning') {
-                      borderLeftColor = '#f59e0b'; // amber/orange
-                      bgColor = 'rgba(245, 158, 11, 0.05)';
-                    } else if (notif.alertType === 'success') {
-                      borderLeftColor = '#10b981'; // green
-                      bgColor = 'rgba(16, 185, 129, 0.05)';
-                    }
-
-                    return (
-                      <div className="user-card" key={notif._id} style={{ position: 'relative', borderLeft: `4px solid ${borderLeftColor}`, backgroundColor: bgColor }}>
-                        <div className="user-card-info" style={{ cursor: 'default', alignItems: 'flex-start' }}>
-                          <div className="user-avatar-small" style={{ padding: '2px', background: borderLeftColor, borderRadius: '50%' }}>
-                            <img src="/icon-192.png" alt="Twelo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', background: '#000' }} />
-                          </div>
-                          <div className="user-names" style={{ flex: 1, marginLeft: '10px' }}>
-                            <span className="user-username" style={{ color: borderLeftColor }}>@twelo <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 'normal' }}>• Official</span></span>
-                            <span className="user-id" style={{ fontSize: '0.8rem', lineHeight: '1.4', wordBreak: 'break-word', whiteSpace: 'pre-wrap', color: 'var(--text-primary)', marginTop: '4px', display: 'block' }}>
-                              {notif.message.length > 100 && !expandedAlerts.has(notif._id)
-                                ? notif.message.substring(0, 100) + '...'
-                                : notif.message}
-                            </span>
-                            {notif.message.length > 100 && (
-                              <button
-                                onClick={() => {
-                                  setExpandedAlerts(prev => {
-                                    const next = new Set(prev);
-                                    if (next.has(notif._id)) next.delete(notif._id);
-                                    else next.add(notif._id);
-                                    return next;
-                                  });
-                                }}
-                                style={{
-                                  background: 'none', border: 'none', color: borderLeftColor,
-                                  fontSize: '0.8rem', cursor: 'pointer', padding: 0, marginTop: '4px',
-                                  fontWeight: '600'
-                                }}
-                              >
-                                {expandedAlerts.has(notif._id) ? 'Show Less' : 'Read More'}
-                              </button>
-                            )}
-                            <span style={{ fontSize: '0.7rem', color: '#666', marginTop: '6px', display: 'block' }}>
-                              {new Date(notif.createdAt).toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  const reqUser = notif.user;
-                  if (!reqUser) return null;
-                  const isAccepted = profileStats?.followers?.includes(reqUser._id);
-                  const isFollowingBack = profileStats?.following?.includes(reqUser._id);
-                  const hasSentFollowBack = notif.followBackRequested === true;
-                  
-                  const textMap = {
-                    request_accepted: 'accepted your follow request',
-                    anonymous_request_accepted: 'Random room stranger has accepted your request',
-                    follow_request: 'wants to follow you',
-                    anonymous_follow_request: 'Random room stranger request',
-                    follow_back_request: 'also wants to follow you',
-                    started_following_you: 'started following you',
-                    request_rejected: 'rejected your follow request'
-                  };
-                  const text = textMap[notif.type] || 'interacted with you';
-                  
-                  return (
-                    <div 
-                      className="user-card" 
-                      key={notif._id}
-                      onTouchStart={() => handleNotificationTouchStart(notif)}
-                      onTouchEnd={handleNotificationTouchEnd}
-                      onTouchMove={handleNotificationTouchEnd}
-                      onMouseDown={() => handleNotificationTouchStart(notif)}
-                      onMouseUp={handleNotificationTouchEnd}
-                      onMouseLeave={handleNotificationTouchEnd}
-                      onContextMenu={(e) => { e.preventDefault(); return false; }}
-                      style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', msUserSelect: 'none', MozUserSelect: 'none' }}
-                    >
-                      <div className="user-card-info" onClick={() => viewPublicProfile(reqUser._id)} style={{ cursor: 'pointer' }}>
-                        <div className="user-avatar-small">{(notif.type === 'anonymous_follow_request' || notif.type === 'anonymous_request_accepted' ? null : reqUser.avatarUrl) ? <img src={reqUser.avatarUrl} alt='avatar' /> : reqUser.username.charAt(0).toUpperCase()}</div>
-                        <div className="user-names">
-                          <span className="user-username">@{reqUser.username?.length > 10 ? reqUser.username.substring(0, 10) + '...' : reqUser.username}</span>
-                          <span className="user-id" style={{ fontSize: '0.8rem' }}>{text}</span>
-                        </div>
-                      </div>
-                      {['request_accepted', 'anonymous_request_accepted'].includes(notif.type) ? (
-                        <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWithUser(reqUser)}>Chat</button>
-                      ) : ['follow_request', 'anonymous_follow_request', 'follow_back_request'].includes(notif.type) ? (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="chat-now-btn accept-btn" style={{ flex: 1 }} onClick={() => acceptRequest(reqUser._id)}>Accept</button>
-                          <button className="chat-now-btn" style={{ flex: 1, background: 'var(--insta-gradient)' }} onClick={() => rejectRequest(reqUser._id)}>Reject</button>
-                        </div>
-                      ) : notif.type === 'started_following_you' ? (
-                        isFollowingBack ? (
-                          <button className="chat-now-btn" style={{ background: 'var(--brand-blue)' }} onClick={() => startChatWithUser(reqUser)}>Chat</button>
-                        ) : hasSentFollowBack ? (
-                          <button className="chat-now-btn" style={{ background: 'var(--insta-gradient)', cursor: 'default' }} disabled>Request Sent</button>
-                        ) : (
-                          <button className="chat-now-btn" style={{ background: '#10b981' }} onClick={() => sendFollowRequest(reqUser._id)}>Follow Back</button>
-                        )
-                      ) : notif.type === 'request_rejected' ? (
-                        <button className="chat-now-btn" style={{ background: 'var(--insta-gradient)', cursor: 'default' }} disabled>Rejected</button>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-              {notifsFetching && (
-                <div style={{ textAlign: 'center', padding: '15px', color: '#888', fontSize: '0.85rem' }}>Loading more...</div>
-              )}
+                {requests.length > 0 && (
+                  <div>
+                    <div style={sectionTitle}>Requests</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{requests.map(renderCard)}</div>
+                  </div>
+                )}
+                {activityNodes.length > 0 && (
+                  <div>
+                    <div style={sectionTitle}>Activity</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{activityNodes}</div>
+                  </div>
+                )}
+                {updates.length > 0 && (
+                  <div>
+                    <div style={sectionTitle}>Updates</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{updates.map(renderAlert)}</div>
+                  </div>
+                )}
+                {notifsFetching && (
+                  <div style={{ textAlign: 'center', padding: '15px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading more...</div>
+                )}
               </>
             )}
           </div>
         );
+      }
 
       case 'search':
         return (
