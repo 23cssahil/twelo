@@ -1176,6 +1176,7 @@ export default function Dashboard() {
   const [showThemesModal, setShowThemesModal] = useState(false);
   const [themePreview, setThemePreview] = useState(null);
   const [blockedIds, setBlockedIds] = useState(() => new Set());
+  const [confirmDialog, setConfirmDialog] = useState(null); // { title, message, confirmText, danger, action }
   
   // Stories State
   const [groupedStories, setGroupedStories] = useState([]);
@@ -2892,24 +2893,45 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteChat = async () => {
+  // Show an in-app confirmation dialog (replaces the native browser confirm()).
+  const askConfirm = ({ title, message, confirmText = 'Confirm', danger = false, action }) => {
+    setConfirmDialog({ title, message, confirmText, danger, action });
+  };
+
+  const runConfirmAction = () => {
+    const action = confirmDialog?.action;
+    setConfirmDialog(null);
+    if (typeof action === 'function') action();
+  };
+
+  const performDeleteChat = async () => {
     if (!activeChatUser) return;
-    if (window.confirm('Are you sure you want to delete all messages in this chat?')) {
-      try {
-        const res = await fetch(`${API_URL}/api/messages/chat/${activeChatUser._id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          setMessages([]);
-          fetchRecentChats();
-        } else {
-          alert('Failed to delete chat');
-        }
-      } catch (err) {
-        console.error('Error deleting chat:', err);
+    try {
+      const res = await fetch(`${API_URL}/api/messages/chat/${activeChatUser._id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setMessages([]);
+        fetchRecentChats();
+      } else {
+        showToastMsg('Failed to delete chat', 'error');
       }
+    } catch (err) {
+      console.error('Error deleting chat:', err);
+      showToastMsg('Failed to delete chat', 'error');
     }
+  };
+
+  const handleDeleteChat = () => {
+    if (!activeChatUser) return;
+    askConfirm({
+      title: 'Delete all messages?',
+      message: `This will permanently delete all messages in your chat with @${activeChatUser.username}. This cannot be undone.`,
+      confirmText: 'Delete chat',
+      danger: true,
+      action: performDeleteChat
+    });
   };
 
   // Load the ids the current user has blocked (for chat UI state).
@@ -2923,10 +2945,8 @@ export default function Dashboard() {
     }
   };
 
-  const handleBlockUser = async () => {
+  const performBlock = async () => {
     if (!activeChatUser) return;
-    const ok = window.confirm(`Block @${activeChatUser.username}? They won't be able to message you and you won't be able to message them.`);
-    if (!ok) return;
     try {
       const res = await fetch(`${API_URL}/api/users/block`, {
         method: 'POST',
@@ -2943,6 +2963,17 @@ export default function Dashboard() {
       console.error('Error blocking user:', err);
       showToastMsg('Failed to block user', 'error');
     }
+  };
+
+  const handleBlockUser = () => {
+    if (!activeChatUser) return;
+    askConfirm({
+      title: `Block @${activeChatUser.username}?`,
+      message: 'They won\'t be able to message you and you won\'t be able to message them.',
+      confirmText: 'Block user',
+      danger: true,
+      action: performBlock
+    });
   };
 
   const handleUnblockUser = async () => {
@@ -9057,6 +9088,42 @@ const handleStoryUpload = async () => {
           </div>
         </div>
       )}
+      {/* In-app Confirm Dialog (replaces native window.confirm) */}
+      {confirmDialog && (
+        <div
+          onClick={() => setConfirmDialog(null)}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10005, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: '360px', background: 'var(--panel-bg, #1a1a1a)', border: '1px solid var(--border-color, #333)', borderRadius: '18px', padding: '22px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
+          >
+            <h3 style={{ margin: '0 0 10px', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary, #fff)' }}>
+              {confirmDialog.title}
+            </h3>
+            <p style={{ margin: '0 0 20px', fontSize: '0.92rem', lineHeight: 1.5, color: 'var(--text-secondary, #a8a8a8)' }}>
+              {confirmDialog.message}
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', background: 'transparent', border: '1px solid var(--border-color, #333)', color: 'var(--text-primary, #fff)', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={runConfirmAction}
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', background: confirmDialog.danger ? 'var(--brand-red, #ff3040)' : 'var(--brand-blue, #0095f6)' }}
+              >
+                {confirmDialog.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Themes Grid Modal */}
       {showThemesModal && !themePreview && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10003, background: '#111', display: 'flex', flexDirection: 'column' }}>
