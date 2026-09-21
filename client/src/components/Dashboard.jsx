@@ -5502,6 +5502,42 @@ const handleStoryUpload = async () => {
                     )}
                   </div>
                 )}
+
+                {/* Empty state: user has no highlights and no global stories */}
+                {(!publicProfileData.highlights || publicProfileData.highlights.length === 0) &&
+                  (!publicProfileData.globalStories || publicProfileData.globalStories.length === 0) && (
+                  <div style={{
+                    marginTop: '24px', width: '100%',
+                    minHeight: '38vh',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    padding: '32px 20px', textAlign: 'center',
+                    border: '1px dashed var(--border-color)', borderRadius: '16px',
+                    background: 'rgba(255,255,255,0.02)'
+                  }}>
+                    <div style={{
+                      width: '68px', height: '68px', borderRadius: '50%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'rgba(255,255,255,0.05)', marginBottom: '16px'
+                    }}>
+                      <Camera size={30} color="var(--text-secondary)" />
+                    </div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                      No stories yet
+                    </div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '300px', lineHeight: '1.45' }}>
+                      When @{publicProfileData.username} shares a story or adds a highlight, it'll show up here.
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '22px' }}>
+                      {[0, 1, 2].map((s) => (
+                        <div key={s} style={{
+                          width: '56px', height: '100px', borderRadius: '10px',
+                          border: '1px dashed var(--border-color)',
+                          background: 'rgba(255,255,255,0.02)'
+                        }} />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
