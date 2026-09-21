@@ -2720,6 +2720,23 @@ app.get('/api/users/blocked', authenticateToken, async (req, res) => {
   }
 });
 
+// Return the current user's blocked users as full profile cards (for the Blocked Users list).
+app.get('/api/users/blocked_list', authenticateToken, async (req, res) => {
+  try {
+    const me = await User.findById(req.user.userId)
+      .select('blockedUsers')
+      .populate('blockedUsers', 'username name avatarUrl uniqueId')
+      .lean();
+    const list = (me?.blockedUsers || [])
+      .filter(Boolean)
+      .map(u => ({ _id: u._id, username: u.username, name: u.name, avatarUrl: u.avatarUrl, uniqueId: u.uniqueId }));
+    res.json({ blockedUsers: list });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching blocked users list' });
+  }
+});
+
 // ==========================================
 // ADMIN ROUTES
 // ==========================================

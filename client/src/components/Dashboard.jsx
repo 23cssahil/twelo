@@ -1177,6 +1177,11 @@ export default function Dashboard() {
   const [themePreview, setThemePreview] = useState(null);
   const [blockedIds, setBlockedIds] = useState(() => new Set());
   const [confirmDialog, setConfirmDialog] = useState(null); // { title, message, confirmText, danger, action }
+  // Blocked Users list page (profile > settings > Blocked Users)
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [blockedUsersList, setBlockedUsersList] = useState([]);
+  const [isFetchingBlockedList, setIsFetchingBlockedList] = useState(false);
+  const [pendingUnblockIds, setPendingUnblockIds] = useState(() => new Set()); // removed from the list only on leaving the page
   
   // Stories State
   const [groupedStories, setGroupedStories] = useState([]);
@@ -2994,6 +2999,60 @@ export default function Dashboard() {
       console.error('Error unblocking user:', err);
       showToastMsg('Failed to unblock user', 'error');
     }
+  };
+
+  // ---- Blocked Users list page ----
+  const fetchBlockedList = async () => {
+    setIsFetchingBlockedList(true);
+    try {
+      const res = await fetch(`${API_URL}/api/users/blocked_list`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.blockedUsers)) setBlockedUsersList(data.blockedUsers);
+      else setBlockedUsersList([]);
+    } catch (err) {
+      console.error('Error loading blocked users list:', err);
+      setBlockedUsersList([]);
+    } finally {
+      setIsFetchingBlockedList(false);
+    }
+  };
+
+  const openBlockedUsers = () => {
+    setShowSettingsModal(false);
+    setPendingUnblockIds(new Set());
+    setShowBlockedModal(true);
+    fetchBlockedList();
+  };
+
+  const handleUnblockFromList = async (uid) => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/unblock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetUserId: uid })
+      });
+      if (res.ok) {
+        // Reflect in chat-side blocked state right away...
+        setBlockedIds(prev => { const n = new Set(prev); n.delete(String(uid)); return n; });
+        // ...but keep the row visible here; it disappears only when leaving the page.
+        setPendingUnblockIds(prev => new Set(prev).add(String(uid)));
+        showToastMsg('User unblocked', 'success');
+      } else {
+        showToastMsg('Failed to unblock user', 'error');
+      }
+    } catch (err) {
+      console.error('Error unblocking user:', err);
+      showToastMsg('Failed to unblock user', 'error');
+    }
+  };
+
+  const closeBlockedUsers = () => {
+    // Leaving the page now: drop the users that were unblocked during this visit.
+    if (pendingUnblockIds.size) {
+      setBlockedUsersList(prev => prev.filter(u => !pendingUnblockIds.has(String(u._id))));
+      setPendingUnblockIds(new Set());
+    }
+    setShowBlockedModal(false);
   };
 
   const fetchSearchHistory = async () => {
@@ -7537,7 +7596,7 @@ const handleStoryUpload = async () => {
                 <SettingsIcon size={20} /> Settings
               </button>
               
-              <button className="settings-item-btn" onClick={() => { setShowSettingsModal(false); alert("Blocked users feature coming soon!"); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button className="settings-item-btn" onClick={openBlockedUsers} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Ban size={20} /> Blocked Users
               </button>
               
@@ -9092,7 +9151,7 @@ const handleStoryUpload = async () => {
       {confirmDialog && (
         <div
           onClick={() => setConfirmDialog(null)}
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10005, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10010, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -9120,6 +9179,50 @@ const handleStoryUpload = async () => {
                 {confirmDialog.confirmText}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Blocked Users list page */}
+      {showBlockedModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10005, background: 'var(--bg-color, #000)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border-color, #262626)', background: 'var(--panel-bg, #000)', flexShrink: 0 }}>
+            <button onClick={closeBlockedUsers} style={{ background: 'transparent', border: 'none', color: 'var(--text-primary, #fff)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '8px' }}><ArrowLeft size={24} /></button>
+            <h2 style={{ marginLeft: '16px', fontSize: '1.2rem', margin: 0, color: 'var(--text-primary, #fff)' }}>Blocked Users</h2>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {isFetchingBlockedList ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary, #a8a8a8)' }}>Loading…</div>
+            ) : blockedUsersList.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '70px 20px', color: 'var(--text-secondary, #a8a8a8)' }}>
+                <Ban size={44} style={{ opacity: 0.4, marginBottom: '12px' }} />
+                <p style={{ margin: 0, fontWeight: 600 }}>You haven't blocked anyone</p>
+              </div>
+            ) : (
+              blockedUsersList.map(u => {
+                const isPending = pendingUnblockIds.has(String(u._id));
+                return (
+                  <div key={u._id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: '1px solid var(--border-color, #1c1c1c)', opacity: isPending ? 0.5 : 1 }}>
+                    {u.avatarUrl ? (
+                      <img src={u.avatarUrl.startsWith('http') ? u.avatarUrl : `${API_URL}${u.avatarUrl}`} alt={u.username} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--insta-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '1.2rem', color: '#fff', flexShrink: 0 }}>{(u.username || '?').charAt(0).toUpperCase()}</div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary, #fff)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name || u.username}</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary, #a8a8a8)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{u.username}</span>
+                    </div>
+                    <button
+                      onClick={() => { if (!isPending) askConfirm({ title: `Unblock @${u.username}?`, message: 'They will be able to message you and see your chats again.', confirmText: 'Unblock', danger: false, action: () => handleUnblockFromList(u._id) }); }}
+                      disabled={isPending}
+                      style={{ background: isPending ? 'transparent' : 'var(--brand-blue, #0095f6)', color: isPending ? 'var(--text-secondary, #a8a8a8)' : '#fff', border: isPending ? '1px solid var(--border-color, #333)' : 'none', borderRadius: '20px', padding: '8px 16px', fontWeight: 700, fontSize: '0.85rem', cursor: isPending ? 'default' : 'pointer', flexShrink: 0 }}
+                    >
+                      {isPending ? 'Unblocked' : 'Unblock'}
+                    </button>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}
