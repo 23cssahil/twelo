@@ -15,9 +15,13 @@
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --instagram-sender-gradient1: linear-gradient(135deg, #bc1888 0%, #cc2366 25%, #dc2743 50%, #e6683c 75%, #f09433 100%);
   --instagram-sender-gradient2: linear-gradient(135deg, #00f0ff 0%, #7000ff 50%, #ff007f 100%);
-  --app-sender-unique-color: #f48fb1; /* Baby pink */
-  --chat-received-bg: #f48fb1; /* Baby pink */
-  --chat-received-text: #ffffff;
+  --app-sender-unique-color: #f48fb1; /* Baby pink (legacy, kept for other usages) */
+  --chat-sent-bg: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+  --chat-received-bg: #262626;
+  --chat-received-text: #f5f5f5;
+  --chat-received-border: rgba(255, 255, 255, 0.06);
+  --msg-meta-color: rgba(255, 255, 255, 0.55);
+  --msg-read-color: #4fc3f7;
   --profile-color: #FF8D75;
 }
 
@@ -43,9 +47,11 @@
     --chat-user-active-bg: rgba(0, 191, 255, 0.1);
     --chat-user-active-border: rgba(0, 191, 255, 0.3);
     --chat-username-shadow: none;
-    --chat-received-bg: #f48fb1; /* Baby pink */
-    --chat-received-text: #ffffff;
-    --app-sender-unique-color: #f48fb1; /* Baby pink for outgoing too */
+    --chat-received-bg: #ffffff;
+    --chat-received-text: #111827;
+    --chat-received-border: rgba(0, 0, 0, 0.08);
+    --chat-sent-bg: linear-gradient(135deg, #0095f6 0%, #0072ff 100%);
+    --app-sender-unique-color: #0095f6;
     --chat-input-area-bg: #d1d5db; /* Grey input area */
     --chat-input-wrapper-bg: #9ca3af; /* Darker grey wrapper */
     --chat-input-wrapper-border: rgba(0, 0, 0, 0.12);
@@ -54,7 +60,8 @@
     --chat-placeholder: rgba(0, 0, 0, 0.4);
     --chat-time-text: rgba(0, 0, 0, 0.5);
     --chat-messages-bg: #f9fafb;
-    --chat-messages-bg: #f9fafb;
+    --msg-meta-color: rgba(0, 0, 0, 0.5);
+    --msg-read-color: #0072ff;
     --chat-room-header-bg: #d1d5db; /* Grey chat room header */
     --chat-room-header-border: rgba(0, 0, 0, 0.08);
     --chat-room-header-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
@@ -642,18 +649,37 @@ input, button, textarea {
 }
 
 .msg-wrapper.sent .msg-bubble {
-    /* 1. Sahi property: Single color ke liye background-color use hota hai */
-    background-color: var(--app-sender-unique-color); 
+    /* Sent (outgoing) bubbles use a distinct brand-blue gradient so they never blend with received */
+    background: var(--chat-sent-bg, linear-gradient(135deg, #00c6ff 0%, #0072ff 100%));
     border-bottom-right-radius: 4px;
     color: #ffffff; /* White text code */
+    box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.18);
 }
 
 
 .msg-wrapper.received .msg-bubble {
-  background-color: var(--chat-received-bg, #262626);
-  color: var(--chat-received-text, var(--text-primary));
+  background: var(--chat-received-bg, #262626);
+  color: var(--chat-received-text, #f5f5f5);
+  border: 1px solid var(--chat-received-border, rgba(255, 255, 255, 0.06));
   border-bottom-left-radius: 4px;
+  box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.12);
 }
+
+/* Always-visible message meta row (time + read receipt) under each bubble */
+.msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  padding: 0 6px;
+  font-size: 0.65rem;
+  line-height: 1;
+  color: var(--msg-meta-color, rgba(255, 255, 255, 0.55));
+}
+.msg-wrapper.sent .msg-meta { justify-content: flex-end; }
+.msg-wrapper.received .msg-meta { justify-content: flex-start; }
+.msg-receipt { display: inline-flex; align-items: center; }
+.msg-receipt.read { color: var(--msg-read-color, #4fc3f7); }
 
 .msg-time {
   font-size: 0.65rem;

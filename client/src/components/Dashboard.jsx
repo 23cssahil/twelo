@@ -20,6 +20,7 @@ import {
   PhoneOff,
   UserCheck,
   Check,
+  CheckCheck,
   X,
   Menu,
   Coins,
@@ -1174,6 +1175,7 @@ export default function Dashboard() {
   const [showChatSettingsMenu, setShowChatSettingsMenu] = useState(false);
   const [showThemesModal, setShowThemesModal] = useState(false);
   const [themePreview, setThemePreview] = useState(null);
+  const [blockedIds, setBlockedIds] = useState(() => new Set());
   
   // Stories State
   const [groupedStories, setGroupedStories] = useState([]);
@@ -2325,6 +2327,12 @@ export default function Dashboard() {
       fetchProfile();
     });
 
+    // Server refused to deliver a message because one side blocked the other.
+    socket.on('message_blocked', ({ tempId, reason }) => {
+      if (tempId) setMessages(prev => prev.filter(m => m._id !== tempId && m.tempId !== tempId));
+      showToastMsg(reason === 'blocked_by_receiver' ? "Can't send — you can't message this user." : "This chat is blocked. Unblock them to send messages.", 'error');
+    });
+
     socket.on('request_accepted_alert', () => {
       fetchProfile();
       if (activeTabRef.current === 'search') {
@@ -2901,6 +2909,59 @@ export default function Dashboard() {
       } catch (err) {
         console.error('Error deleting chat:', err);
       }
+    }
+  };
+
+  // Load the ids the current user has blocked (for chat UI state).
+  const fetchBlockedUsers = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/blocked`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.blocked)) setBlockedIds(new Set(data.blocked));
+    } catch (err) {
+      console.error('Error loading blocked users:', err);
+    }
+  };
+
+  const handleBlockUser = async () => {
+    if (!activeChatUser) return;
+    const ok = window.confirm(`Block @${activeChatUser.username}? They won't be able to message you and you won't be able to message them.`);
+    if (!ok) return;
+    try {
+      const res = await fetch(`${API_URL}/api/users/block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetUserId: activeChatUser._id })
+      });
+      if (res.ok) {
+        setBlockedIds(prev => new Set(prev).add(String(activeChatUser._id)));
+        showToastMsg(`@${activeChatUser.username} blocked`, 'success');
+      } else {
+        showToastMsg('Failed to block user', 'error');
+      }
+    } catch (err) {
+      console.error('Error blocking user:', err);
+      showToastMsg('Failed to block user', 'error');
+    }
+  };
+
+  const handleUnblockUser = async () => {
+    if (!activeChatUser) return;
+    try {
+      const res = await fetch(`${API_URL}/api/users/unblock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetUserId: activeChatUser._id })
+      });
+      if (res.ok) {
+        setBlockedIds(prev => { const n = new Set(prev); n.delete(String(activeChatUser._id)); return n; });
+        showToastMsg(`@${activeChatUser.username} unblocked`, 'success');
+      } else {
+        showToastMsg('Failed to unblock user', 'error');
+      }
+    } catch (err) {
+      console.error('Error unblocking user:', err);
+      showToastMsg('Failed to unblock user', 'error');
     }
   };
 
@@ -4071,6 +4132,7 @@ const handleStoryUpload = async () => {
     setShowMyProfileModal(false);
     setShowCloseFriendsModal(false);
     fetchMessages(targetUser._id);
+    fetchBlockedUsers();
     if (socket) {
       socket.emit('mark_all_read', { senderId: targetUser._id, receiverId: user.id });
     }
@@ -5956,35 +6018,78 @@ const handleStoryUpload = async () => {
                             position: 'absolute',
                             top: '45px',
                             right: '0',
-                            background: '#1a1a1a',
-                            border: '1px solid #333',
+                            background: 'var(--panel-bg, #1a1a1a)',
+                            border: '1px solid var(--border-color, #333)',
                             borderRadius: '12px',
                             padding: '8px',
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '5px',
+                            gap: '2px',
                             zIndex: 9999,
-                            minWidth: '200px',
-                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                            minWidth: '210px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.35)'
                           }}>
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setShowChatSettingsMenu(false);
-                                handleDeleteChat();
+                                viewPublicProfile(activeChatUser._id);
                               }}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: '10px',
-                                background: 'transparent', border: 'none', color: '#ff4b4b',
+                                background: 'transparent', border: 'none', color: 'var(--text-primary, #fff)',
                                 padding: '10px', cursor: 'pointer', borderRadius: '8px',
-                                fontSize: '0.9rem', fontWeight: 'bold', textAlign: 'left',
+                                fontSize: '0.9rem', fontWeight: '600', textAlign: 'left',
                                 width: '100%'
                               }}
-                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 75, 75, 0.1)'}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(128, 128, 128, 0.15)'}
                               onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                             >
-                              <Trash2 size={18} /> Delete all chats
+                              <Eye size={18} /> View Profile
                             </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowChatSettingsMenu(false);
+                                setShowThemesModal(true);
+                                window.history.pushState({ modal: 'themes' }, '');
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                                background: 'transparent', border: 'none', color: 'var(--text-primary, #fff)',
+                                padding: '10px', cursor: 'pointer', borderRadius: '8px',
+                                fontSize: '0.9rem', fontWeight: '600', textAlign: 'left',
+                                width: '100%'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(128, 128, 128, 0.15)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              <Palette size={18} /> Theme
+                            </button>
+                            {(() => {
+                              const isBlockedNow = blockedIds.has(String(activeChatUser._id));
+                              return (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowChatSettingsMenu(false);
+                                if (isBlockedNow) handleUnblockUser(); else handleBlockUser();
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                                background: 'transparent', border: 'none', color: isBlockedNow ? 'var(--brand-blue, #0095f6)' : 'var(--brand-red, #ff4b4b)',
+                                padding: '10px', cursor: 'pointer', borderRadius: '8px',
+                                fontSize: '0.9rem', fontWeight: '600', textAlign: 'left',
+                                width: '100%'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(128, 128, 128, 0.15)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              {isBlockedNow ? <><UserCheck size={18} /> Unblock user</> : <><Ban size={18} /> Block user</>}
+                            </button>
+                              );
+                            })()}
+                            <div style={{ height: '1px', background: 'var(--border-color, #333)', margin: '4px 2px' }} />
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -5994,9 +6099,9 @@ const handleStoryUpload = async () => {
                               }}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: '10px',
-                                background: 'transparent', border: 'none', color: '#ff4b4b',
+                                background: 'transparent', border: 'none', color: 'var(--brand-red, #ff4b4b)',
                                 padding: '10px', cursor: 'pointer', borderRadius: '8px',
-                                fontSize: '0.9rem', fontWeight: 'bold', textAlign: 'left',
+                                fontSize: '0.9rem', fontWeight: '600', textAlign: 'left',
                                 width: '100%'
                               }}
                               onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 75, 75, 0.1)'}
@@ -6008,38 +6113,19 @@ const handleStoryUpload = async () => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setShowChatSettingsMenu(false);
-                                setShowThemesModal(true);
-                                window.history.pushState({ modal: 'themes' }, '');
+                                handleDeleteChat();
                               }}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: '10px',
-                                background: 'transparent', border: 'none', color: '#fff',
+                                background: 'transparent', border: 'none', color: 'var(--brand-red, #ff4b4b)',
                                 padding: '10px', cursor: 'pointer', borderRadius: '8px',
-                                fontSize: '0.9rem', fontWeight: 'bold', textAlign: 'left',
-                                width: '100%'
-                              }}
-                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                            >
-                              <Palette size={18} /> Theme
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowChatSettingsMenu(false);
-                                alert("Block user feature coming soon!");
-                              }}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: '10px',
-                                background: 'transparent', border: 'none', color: '#ff4b4b',
-                                padding: '10px', cursor: 'pointer', borderRadius: '8px',
-                                fontSize: '0.9rem', fontWeight: 'bold', textAlign: 'left',
+                                fontSize: '0.9rem', fontWeight: '600', textAlign: 'left',
                                 width: '100%'
                               }}
                               onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 75, 75, 0.1)'}
                               onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                             >
-                              <Ban size={18} /> Block user
+                              <Trash2 size={18} /> Delete all chats
                             </button>
                           </div>
                         </>
@@ -6203,24 +6289,20 @@ const handleStoryUpload = async () => {
                               return msg.message;
                             })()}
                           </p>
-                          {selectedMsgId === msg._id && (
-                            <div className="msg-time" style={{ display: 'flex', alignItems: 'center', justifyContent: msg.sender === user.id ? 'flex-end' : 'flex-start', gap: '4px' }}>
+                          </div>
+                          {/* Always-visible meta row under the bubble: time + read receipt */}
+                          {!msg.isDeletedForEveryone && (
+                            <div className="msg-meta">
                               <span>{formatTime(msg.createdAt)}</span>
                               {msg.sender === user.id && (
-                                <span style={{ fontSize: '0.65rem', opacity: 0.8, fontWeight: 'bold' }}>
-                                  {msg.isViewed ? `✓ ${formatSeenTime(msg.viewedAt)}` : '✓ Sent'}
-                                </span>
+                                msg.isViewed ? (
+                                  <span className="msg-receipt read" title="Read"><CheckCheck size={14} strokeWidth={2.6} /></span>
+                                ) : (
+                                  <span className="msg-receipt" title="Sent"><Check size={13} strokeWidth={2.6} /></span>
+                                )
                               )}
                             </div>
                           )}
-                          
-                          {/* Message Receipt placed inside the bubble at the bottom right */}
-                          {msg.sender === user.id && index === messages.length - 1 && !selectedMsgId && (
-                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)', marginTop: '4px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px' }}>
-                              {msg.isViewed ? formatSeenTime(msg.viewedAt) : 'Sent'}
-                            </div>
-                          )}
-                          </div>
                         </div>
                         {swipeMsgId === msg._id && (
                           <div className={`swipe-reply-icon ${msg.sender === user.id ? 'sent-icon' : 'received-icon'}`}>
@@ -6256,6 +6338,12 @@ const handleStoryUpload = async () => {
                   </div>
 
                   <form className="chat-input-area" onSubmit={handleSendMessage}>
+                    {blockedIds.has(String(activeChatUser._id)) && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', padding: '10px 12px', marginBottom: '8px', borderRadius: '12px', background: 'var(--brand-red, #ff4b4b)', color: '#fff', fontSize: '0.85rem', fontWeight: 600 }}>
+                        <Ban size={16} /> You blocked this user. They can't message you.
+                        <button type="button" onClick={handleUnblockUser} style={{ background: '#fff', color: 'var(--brand-red, #ff4b4b)', border: 'none', borderRadius: '20px', padding: '4px 14px', fontWeight: 700, cursor: 'pointer' }}>Unblock</button>
+                      </div>
+                    )}
                     {replyingTo && (
                       <div className="replying-to-banner">
                         <div className="reply-content">
@@ -9020,10 +9108,10 @@ const handleStoryUpload = async () => {
               {themePreview.name} Preview
             </div>
             <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', justifyContent: 'center' }}>
-              <div style={{ background: 'var(--insta-gradient)', padding: '12px 16px', borderRadius: '18px 18px 18px 4px', maxWidth: '80%', color: '#fff', alignSelf: 'flex-start' }}>
+              <div style={{ background: 'var(--chat-received-bg, #262626)', padding: '12px 16px', borderRadius: '18px 18px 18px 4px', maxWidth: '80%', color: 'var(--chat-received-text, #f5f5f5)', alignSelf: 'flex-start', border: '1px solid var(--chat-received-border, rgba(255,255,255,0.06))' }}>
                 Hey, how are you?
               </div>
-              <div style={{ background: 'var(--brand-blue)', padding: '12px 16px', borderRadius: '18px 18px 4px 18px', maxWidth: '80%', color: '#fff', alignSelf: 'flex-end' }}>
+              <div style={{ background: 'var(--chat-sent-bg, linear-gradient(135deg, #00c6ff, #0072ff))', padding: '12px 16px', borderRadius: '18px 18px 4px 18px', maxWidth: '80%', color: '#fff', alignSelf: 'flex-end' }}>
                 I'm good! This new theme looks amazing! ✨
               </div>
             </div>

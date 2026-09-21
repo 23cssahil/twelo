@@ -2677,6 +2677,50 @@ app.post('/api/reports/create', authenticateToken, async (req, res) => {
 });
 
 // ==========================================
+// USER BLOCK ROUTES (peer-to-peer blocking)
+// ==========================================
+// Block a user: stops them from delivering messages to you and hides your messages to them.
+app.post('/api/users/block', authenticateToken, async (req, res) => {
+  try {
+    const { targetUserId } = req.body;
+    const blockerId = req.user.userId;
+    if (!targetUserId || String(targetUserId) === String(blockerId)) {
+      return res.status(400).json({ message: 'Invalid target user' });
+    }
+    await User.findByIdAndUpdate(blockerId, { $addToSet: { blockedUsers: targetUserId } }, { new: true });
+    res.json({ success: true, message: 'User blocked' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error blocking user' });
+  }
+});
+
+// Unblock a previously blocked user.
+app.post('/api/users/unblock', authenticateToken, async (req, res) => {
+  try {
+    const { targetUserId } = req.body;
+    const blockerId = req.user.userId;
+    if (!targetUserId) return res.status(400).json({ message: 'Invalid target user' });
+    await User.findByIdAndUpdate(blockerId, { $pull: { blockedUsers: targetUserId } }, { new: true });
+    res.json({ success: true, message: 'User unblocked' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error unblocking user' });
+  }
+});
+
+// Return the current user's blocked user ids (for UI state).
+app.get('/api/users/blocked', authenticateToken, async (req, res) => {
+  try {
+    const me = await User.findById(req.user.userId).select('blockedUsers').lean();
+    res.json({ blocked: (me?.blockedUsers || []).map(id => id.toString()) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching blocked users' });
+  }
+});
+
+// ==========================================
 // ADMIN ROUTES
 // ==========================================
 const adminAuth = (req, res, next) => {
@@ -3505,6 +3549,23 @@ io.on('connection', (socket) => {
       }
       if (activeSessions.has(socket.id)) {
         activeSessions.get(socket.id).messagesSent += 1;
+      }
+
+      // Block guard: if either user has blocked the other, do not deliver the message.
+      // Fail-open on any error so normal chat is never broken by a lookup problem.
+      try {
+        const [senderDoc, receiverDoc] = await Promise.all([
+          User.findById(senderId).select('blockedUsers').lean(),
+          User.findById(receiverId).select('blockedUsers').lean(),
+        ]);
+        const senderBlockedReceiver = (senderDoc?.blockedUsers || []).some(id => String(id) === String(receiverId));
+        const receiverBlockedSender = (receiverDoc?.blockedUsers || []).some(id => String(id) === String(senderId));
+        if (senderBlockedReceiver || receiverBlockedSender) {
+          io.to(socket.id).emit('message_blocked', { tempId, reason: receiverBlockedSender ? 'blocked_by_receiver' : 'you_blocked' });
+          return;
+        }
+      } catch (blockErr) {
+        console.error('[Block guard] lookup failed:', blockErr.message);
       }
       
       // Encrypt message text before saving to DB for privacy
