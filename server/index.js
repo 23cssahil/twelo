@@ -205,13 +205,21 @@ app.use(helmet({
 // Strip $/. operators from user input to block NoSQL injection.
 app.use(mongoSanitize());
 
-// Lock CORS to the known frontend origin(s) (comma-separated FRONTEND_URL supported).
-const corsOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+// CORS: set FRONTEND_URL (comma-separated) to LOCK the API to specific origins
+// (recommended for production). If it is left unset we reflect the caller's origin
+// instead of falling back to a localhost default — this keeps the live web app and
+// the mobile/Capacitor app working out of the box rather than silently breaking them.
+const configuredOrigins = (process.env.FRONTEND_URL || '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
+const corsStrict = configuredOrigins.length > 0;
+const corsOrigin = corsStrict ? configuredOrigins : true;
+if (!corsStrict) {
+  console.warn('[CORS] FRONTEND_URL is not set — reflecting any origin. Set FRONTEND_URL to lock CORS down for production.');
+}
 app.use(cors({
-  origin: corsOrigins,
+  origin: corsOrigin,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-pass']
@@ -312,9 +320,9 @@ mongoose.connection.once('open', async () => {
 
 const io = socketIo(server, {
   cors: {
-    origin: corsOrigins,
+    origin: corsOrigin,
     methods: ['GET', 'POST'],
-    credentials: true
+    credentials: corsStrict
   }
 });
 
