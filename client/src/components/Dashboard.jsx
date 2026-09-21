@@ -5451,7 +5451,7 @@ const handleStoryUpload = async () => {
                               <img src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                             )}
                           </div>
-                          <span style={{ fontSize: '0.75rem', marginTop: '5px', color: '#ccc' }}>Highlight</span>
+                          <span style={{ fontSize: '0.75rem', marginTop: '5px', color: 'var(--text-secondary)' }}>Highlight</span>
                         </div>
                       ))}
                     </div>
@@ -6290,12 +6290,12 @@ const handleStoryUpload = async () => {
                     <span className="profile-username" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>@{user.username}</span>
                     <div className="profile-stats" style={{ display: 'flex', gap: '30px', marginTop: '4px' }}>
                       <div onClick={() => handleConnectionsClick('followers', user.id)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{formatCount(profileStats?.followers?.length || 0)}</span>
-                        <span style={{ fontSize: '0.9rem', color: '#a8a8a8' }}>followers</span>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{formatCount(profileStats?.followers?.length || 0)}</span>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>followers</span>
                       </div>
                       <div onClick={() => handleConnectionsClick('following', user.id)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{formatCount(profileStats?.following?.length || 0)}</span>
-                        <span style={{ fontSize: '0.9rem', color: '#a8a8a8' }}>following</span>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{formatCount(profileStats?.following?.length || 0)}</span>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>following</span>
                       </div>
                     </div>
                   </div>
@@ -6308,7 +6308,7 @@ const handleStoryUpload = async () => {
               <div className="profile-info">
 
                 {(profileStats?.bio || user?.bio) && (
-                  <div style={{ width: '100%', padding: '0', marginBottom: '15px', color: '#fff', fontSize: '0.95rem', lineHeight: '1.4', textAlign: 'left', wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                  <div style={{ width: '100%', padding: '0', marginBottom: '15px', color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: '1.4', textAlign: 'left', wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
                     {profileStats?.bio || user?.bio}
                   </div>
                 )}
@@ -6365,7 +6365,7 @@ const handleStoryUpload = async () => {
                               <img src={highlight.mediaUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                             )}
                           </div>
-                          <span style={{ fontSize: '0.75rem', marginTop: '5px', color: '#ccc' }}>Highlight</span>
+                          <span style={{ fontSize: '0.75rem', marginTop: '5px', color: 'var(--text-secondary)' }}>Highlight</span>
                         </div>
                       ))}
                     </div>
