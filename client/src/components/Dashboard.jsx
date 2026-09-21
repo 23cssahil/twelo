@@ -1340,6 +1340,11 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
   const [onlineUsers, setOnlineUsers] = useState([]);
+  // O(1) membership lookups (industry-standard pattern): replace O(n) Array.includes()
+  // scans in list-render hot paths (search rows, chat list, profiles). Set.has() is
+  // exactly equivalent to includes() for primitive ids, so results are unchanged — only faster.
+  const onlineUsersSet = useMemo(() => new Set(onlineUsers), [onlineUsers]);
+  const followingSet = useMemo(() => new Set(profileStats?.following || []), [profileStats]);
   const [unreadMessages, setUnreadMessages] = useState({});
 
   // Report States
@@ -5074,7 +5079,7 @@ const handleStoryUpload = async () => {
         const renderCard = (notif) => {
           const reqUser = notif.user;
           if (!reqUser) return null;
-          const isFollowingBack = profileStats?.following?.includes(reqUser._id);
+          const isFollowingBack = followingSet.has(reqUser._id);
           const hasSentFollowBack = notif.followBackRequested === true;
           const textMap = {
             request_accepted: 'accepted your follow request',
@@ -5245,9 +5250,9 @@ const handleStoryUpload = async () => {
                 <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-secondary)', margin: '14px 4px 4px' }}>Discover people</div>
               )}
               {searchResults.map((searchUser) => {
-                const isFollowing = profileStats?.following?.includes(searchUser._id);
+                const isFollowing = followingSet.has(searchUser._id);
                 const hasRequested = searchUser.friendRequests?.includes(user.id);
-                const isOnline = onlineUsers.includes(searchUser._id);
+                const isOnline = onlineUsersSet.has(searchUser._id);
                 const followerCount = searchUser.followers?.length || 0;
                 return (
                   <div 
@@ -5425,7 +5430,7 @@ const handleStoryUpload = async () => {
             </div>
           );
         }
-        const isFollowing = profileStats?.following?.includes(publicProfileData._id);
+        const isFollowing = followingSet.has(publicProfileData._id);
         const hasRequested = publicProfileData.friendRequests?.includes(user.id);
         
         return (
@@ -5442,8 +5447,8 @@ const handleStoryUpload = async () => {
                         </div>
                       )}
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : 'var(--text-secondary)', marginTop: '8px' }}>
-                      {onlineUsers.includes(publicProfileData._id) ? '🟢 Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
+                    <div style={{ fontSize: '0.85rem', color: onlineUsersSet.has(publicProfileData._id) ? '#2bd856' : 'var(--text-secondary)', marginTop: '8px' }}>
+                      {onlineUsersSet.has(publicProfileData._id) ? '🟢 Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
@@ -5752,7 +5757,7 @@ const handleStoryUpload = async () => {
 
               <div className="chat-users-scroll" onScroll={handleChatsScroll}>
                 {recentChats.map((chatUser) => {
-                  const isOnline = onlineUsers.includes(chatUser._id);
+                  const isOnline = onlineUsersSet.has(chatUser._id);
                   const unreadCount = unreadMessages[chatUser._id] || 0;
                   
                   // Check if this chat user has a story
@@ -5928,8 +5933,8 @@ const handleStoryUpload = async () => {
                       </div>
                       <div className="user-names" onClick={() => viewPublicProfile(activeChatUser._id)} style={{ cursor: 'pointer' }}>
                         <span className="user-username">@{activeChatUser.username}</span>
-                        <span style={{ fontSize: '0.75rem', color: onlineUsers.includes(activeChatUser._id) ? '#2bd856' : 'var(--chat-user-subtext, #a8a8a8)' }}>
-                          {onlineUsers.includes(activeChatUser._id) ? 'Active now' : 'offline'}
+                        <span style={{ fontSize: '0.75rem', color: onlineUsersSet.has(activeChatUser._id) ? '#2bd856' : 'var(--chat-user-subtext, #a8a8a8)' }}>
+                          {onlineUsersSet.has(activeChatUser._id) ? 'Active now' : 'offline'}
                         </span>
                       </div>
                     </div>
@@ -7591,7 +7596,7 @@ const handleStoryUpload = async () => {
                       <div className="pulse-avatar" style={{ width: '40px', height: '40px', fontSize: '1.2rem', margin: '0 auto' }}>
                         {callerAvatar ? <img src={callerAvatar} alt="caller" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : callerName.charAt(0).toUpperCase()}
                       </div>
-                      <p style={{ marginTop: '8px', color: '#fff', fontSize: '10px' }}>{onlineUsers.includes(callerId) ? 'Ringing...' : 'Calling...'}</p>
+                      <p style={{ marginTop: '8px', color: '#fff', fontSize: '10px' }}>{onlineUsersSet.has(callerId) ? 'Ringing...' : 'Calling...'}</p>
                     </div>
                   </div>
                 )}
@@ -7602,7 +7607,7 @@ const handleStoryUpload = async () => {
                   {callerAvatar ? <img src={callerAvatar} alt="caller" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : callerName.charAt(0).toUpperCase()}
                 </div>
                 <h2>@{callerName}</h2>
-                <p style={{ color: 'var(--text-secondary)' }}>{callAccepted ? 'Voice Call Connected' : (onlineUsers.includes(callerId) ? 'Ringing...' : 'Calling...')}</p>
+                <p style={{ color: 'var(--text-secondary)' }}>{callAccepted ? 'Voice Call Connected' : (onlineUsersSet.has(callerId) ? 'Ringing...' : 'Calling...')}</p>
                 <audio ref={userVideoRef} autoPlay style={{ display: 'none' }} />
                 <audio ref={myVideoRef} muted autoPlay style={{ display: 'none' }} />
               </div>
