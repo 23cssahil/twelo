@@ -20,15 +20,44 @@ const webpush = require('web-push');
 const cloudinary = require('cloudinary').v2;
 const { nudityCheck } = require('./middleware/nudityCheck');
 const { encrypt: encryptMsg, decrypt: decryptMsg } = require('./utils/encryption');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const { authLimiter } = require('./utils/rateLimiter');
 
-webpush.setVapidDetails(
-  'mailto:admin@twelo.com',
-  'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA',
-  '3ZmJhL9NsYAEHfMuCbFaZCgCEJ88pPFFLZ4e5w0uC6c'
-);
+// ---- Required secrets: no hardcoded fallbacks. The server refuses to boot if any
+// ---- of these are missing so a leaked default can never silently reappear in prod.
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`[FATAL] Required environment variable ${name} is not set. Refusing to start.`);
+    process.exit(1);
+  }
+  return value;
+}
+const JWT_SECRET = requireEnv('JWT_SECRET');
+requireEnv('MONGO_URI');
+requireEnv('ADMIN_PASSWORD');
 
-const googleClient = new OAuth2Client('440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com');
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'insta_encryption_secret_key_1234567890123456';
+// Web push (VAPID) keys — optional. When absent, push notifications are disabled
+// rather than shipping a leaked key pair.
+const pushEnabled = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+if (pushEnabled) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || 'mailto:admin@twelo.com',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+} else {
+  console.warn('[Warn] VAPID keys not configured — web push notifications are disabled.');
+}
+
+// Google OAuth client ID is a public identifier (not a secret) but kept configurable.
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+// Email-at-rest encryption key kept separate from the chat ENCRYPTION_KEY so that
+// rotating one never silently breaks decryption of the other.
+const ENCRYPTION_KEY = requireEnv('EMAIL_ENCRYPTION_KEY');
 const IV_LENGTH = 16;
 
 function encryptEmail(text) {
@@ -165,11 +194,32 @@ const CountryFact = require('./models/CountryFact');
 
 const app = express();
 
+// Security headers. COOP/CSP defaults are relaxed here because the SPA relies on
+// cross-origin socket/polling connections and inline styles set elsewhere.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false,
+}));
+
+// Strip $/. operators from user input to block NoSQL injection.
+app.use(mongoSanitize());
+
+// Lock CORS to the known frontend origin(s) (comma-separated FRONTEND_URL supported).
+const corsOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 app.use(cors({
-  origin: '*',
+  origin: corsOrigins,
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-pass']
 }));
+
+// Body size limits to blunt JSON payload DoS.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', time: new Date().toISOString() });
@@ -206,19 +256,23 @@ async function getRandomCountryFact(countryCode) {
 const server = http.createServer(app);
 setupOptimizations(app, server);
 
-// Encrypt old plaintext emails on startup to ensure privacy (Ignore already hashed/encrypted ones)
-// Encrypt old plaintext emails on startup to ensure privacy (Ignore already hashed/encrypted ones)
+// One-time backfill of plaintext emails to encrypted form. Off by default so it
+// does not iterate the whole user collection on every boot; run it explicitly with
+// RUN_EMAIL_MIGRATION=true after ENCRYPTION/EMAIL key setup.
 mongoose.connection.once('open', async () => {
-  try {
-    const users = await User.find({ email: { $not: /^(hash_|enc_)/ } });
-    for (let u of users) {
-      if (u.email && !u.email.startsWith('hash_') && !u.email.startsWith('enc_')) {
-        u.email = encryptEmail(u.email);
-        await u.save();
+  if (process.env.RUN_EMAIL_MIGRATION === 'true') {
+    try {
+      const users = await User.find({ email: { $not: /^(hash_|enc_)/ } });
+      for (let u of users) {
+        if (u.email && !u.email.startsWith('hash_') && !u.email.startsWith('enc_')) {
+          u.email = encryptEmail(u.email);
+          await u.save();
+        }
       }
+      console.log(`Email migration completed for ${users.length} users.`);
+    } catch(e) {
+      console.error('Error encrypting old emails:', e);
     }
-  } catch(e) {
-    console.error('Error encrypting old emails:', e);
   }
 
   try {
@@ -258,9 +312,31 @@ mongoose.connection.once('open', async () => {
 
 const io = socketIo(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: corsOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
   }
+});
+
+// Authenticate the socket handshake when a JWT is supplied. We do not reject
+// connections without a token (admin dashboards connect anonymously), but a valid
+// token binds the socket to a trusted identity used to prevent impersonation below.
+io.use((socket, next) => {
+  try {
+    const raw = socket.handshake.auth && socket.handshake.auth.token
+      ? socket.handshake.auth.token
+      : (socket.handshake.headers.authorization || '').split(' ')[1];
+    if (raw) {
+      const decoded = jwt.verify(raw, JWT_SECRET);
+      if (decoded && decoded.userId) {
+        socket.data.userId = decoded.userId.toString();
+        socket.data.authenticated = true;
+      }
+    }
+  } catch (e) {
+    // Invalid/expired token -> treated as unauthenticated, connection still allowed.
+  }
+  next();
 });
 
 const onlineUsers = new Map();
@@ -273,13 +349,13 @@ const Redis = require('ioredis');
 // OPTIMIZED REDIS-BASED MATCHMAKING SYSTEM (O(log N) ZSET QUEUE)
 // Upstash Redis Connection with TLS & Socket.io Redis Adapter
 // =========================================================================
-const redisUrl = process.env.REDIS_URL || 'rediss://default:gQAAAAAAAkHeAAIgcDI5Mjg5ZTJhNDU5MTc0NWQ2YmMwNjJiNjc1YTdjMDBiNw@keen-seahorse-147934.upstash.io:6379';
+const redisUrl = process.env.REDIS_URL;
 let pubClient = null;
 let subClient = null;
 
 if (redisUrl) {
   pubClient = new Redis(redisUrl, {
-    tls: redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
+    tls: redisUrl.startsWith('rediss://') ? {} : undefined,
     maxRetriesPerRequest: null
   });
   subClient = pubClient.duplicate();
@@ -293,8 +369,7 @@ if (redisUrl) {
   console.log('No REDIS_URL found. Running without Redis Adapter.');
 }
 
-app.use(cors());
-app.use(express.json());
+// CORS, helmet, mongo-sanitize and body parsers are configured once above.
 
 app.use((req, res, next) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
@@ -359,7 +434,7 @@ app.post('/api/check', upload.single('file'), nudityCheck, (req, res) => {
 // Database Connection
 let cachedGlobeStatus = { isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null };
 
-mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://23cssahil_db_user:xsBXlihiFfWrsEZY@cluster0.pmn7via.mongodb.net/twelo_db?retryWrites=true&w=majority&appName=Cluster0', mongoOptions)
+mongoose.connect(process.env.MONGO_URI, mongoOptions)
   .then(() => {
     console.log('MongoDB Connected');
     AdminData.findOne().then(data => { if (data?.globeStatus) cachedGlobeStatus = data.globeStatus; }).catch(e => {});
@@ -385,7 +460,7 @@ const generateUniqueId = () => {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
   for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars.charAt(crypto.randomInt(chars.length));
   }
   return result;
 };
@@ -397,7 +472,7 @@ const authenticateToken = (req, res, next) => {
 
   if (!token) return res.status(401).json({ message: 'Access token missing' });
 
-  jwt.verify(token, process.env.JWT_SECRET || 'insta_jwt_secret_key_12345', (err, user) => {
+  jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ message: 'Invalid or expired token' });
     req.user = user;
     next();
@@ -405,7 +480,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Auth Routes
-app.post('/api/auth/google', async (req, res) => {
+app.post('/api/auth/google', authLimiter, async (req, res) => {
   try {
     const { token, access_token } = req.body;
     let googleId, email;
@@ -414,7 +489,7 @@ app.post('/api/auth/google', async (req, res) => {
       try {
         const ticket = await googleClient.verifyIdToken({
           idToken: token,
-          audience: '440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com',
+          audience: GOOGLE_CLIENT_ID,
         });
         const payload = ticket.getPayload();
         googleId = payload.sub;
@@ -462,7 +537,7 @@ app.post('/api/auth/google', async (req, res) => {
 
     const jwtToken = jwt.sign(
       { userId: user._id, username: user.username, uniqueId: user.uniqueId },
-      process.env.JWT_SECRET || 'insta_jwt_secret_key_12345',
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -484,7 +559,7 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 
-  app.post('/api/auth/complete_profile', async (req, res) => {
+  app.post('/api/auth/complete_profile', authLimiter, async (req, res) => {
   try {
     const { name, email, googleId, age, country, gender, referredBy } = req.body;
     if (!name || !email || !googleId || !age || !country || !gender) return res.status(400).json({ message: 'All fields required' });
@@ -566,7 +641,7 @@ app.post('/api/auth/google', async (req, res) => {
 
     const jwtToken = jwt.sign(
       { userId: newUser._id, username: newUser.username, uniqueId: newUser.uniqueId },
-      process.env.JWT_SECRET || 'insta_jwt_secret_key_12345',
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -923,7 +998,7 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
     // Generate new token with updated username
     const jwtToken = jwt.sign(
       { userId: user._id, username: user.username, uniqueId: user.uniqueId },
-      process.env.JWT_SECRET || 'insta_jwt_secret_key_12345',
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -2623,11 +2698,16 @@ app.post('/api/reports/create', authenticateToken, async (req, res) => {
 // ==========================================
 const adminAuth = (req, res, next) => {
   const pass = req.headers['x-admin-pass'];
-  if (pass === process.env.ADMIN_PASSWORD) {
-    next();
-  } else {
-    res.status(401).json({ message: 'Unauthorized Admin Access' });
+  const expected = process.env.ADMIN_PASSWORD; // guaranteed non-empty (validated at boot)
+  // Constant-time comparison; never fall open when the header is missing.
+  if (typeof pass === 'string' && pass.length === expected.length) {
+    const a = Buffer.from(pass);
+    const b = Buffer.from(expected);
+    if (crypto.timingSafeEqual(a, b)) {
+      return next();
+    }
   }
+  res.status(401).json({ message: 'Unauthorized Admin Access' });
 };
 
 app.get('/api/admin/stats', adminAuth, async (req, res) => {
@@ -3404,9 +3484,15 @@ io.on('connection', (socket) => {
 
   // Register user online
   socket.on('register', async (userId) => {
-    onlineUsers.set(userId?.toString(), socket.id);
-    activeSessions.set(socket.id, { userId: userId?.toString(), startTime: Date.now(), messagesSent: 0, matchesMade: 0 });
-    console.log(`User ${userId} registered with socket ${socket.id}`);
+    // Only an authenticated socket may claim presence. This stops an untrusted
+    // client from mapping itself as (or shadowing) another user's userId.
+    if (!socket.data.authenticated || !socket.data.userId) {
+      return;
+    }
+    const effectiveUserId = socket.data.userId;
+    onlineUsers.set(effectiveUserId, socket.id);
+    activeSessions.set(socket.id, { userId: effectiveUserId, startTime: Date.now(), messagesSent: 0, matchesMade: 0 });
+    console.log(`User ${effectiveUserId} registered with socket ${socket.id}`);
     io.emit('online_users', Array.from(onlineUsers.keys()));
     
     // Send globe status on connect
@@ -3429,6 +3515,11 @@ io.on('connection', (socket) => {
   // Handle incoming private message
   socket.on('send_message', async ({ tempId, senderId, receiverId, messageText, replyTo, messageType = 'text', fileUrl = null, isViewOnce = false }) => {
     try {
+      // Prevent impersonation: for an authenticated socket the sender identity is
+      // taken from the verified token, never from the (client-controlled) payload.
+      if (socket.data.authenticated && socket.data.userId) {
+        senderId = socket.data.userId;
+      }
       if (activeSessions.has(socket.id)) {
         activeSessions.get(socket.id).messagesSent += 1;
       }
@@ -3496,7 +3587,8 @@ io.on('connection', (socket) => {
         if (isMutual && !isReceiverOnline && !receiverObj.ownedByAdmin && receiverObj.pushSubscriptions && receiverObj.pushSubscriptions.length > 0) {
             const pushPayload = JSON.stringify({
               title: `New message from ${senderObj.username}`,
-              body: messageType === 'text' ? messageText : `Sent a ${messageType}`,
+              // Do not leak (potentially encrypted) message content into the push payload.
+              body: messageType === 'text' ? 'You have a new message' : `Sent a ${messageType}`,
               icon: '/icon-192.png',
               url: `/?chat=${senderId}`
             });
@@ -4338,8 +4430,8 @@ io.on('connection', (socket) => {
   });
 });
 
-// Setup optimizations (compression, keepAlive, health API)
-setupOptimizations(app, server);
+// Optimizations (compression, keepAlive, health API) are applied once right after
+// the HTTP server is created above.
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

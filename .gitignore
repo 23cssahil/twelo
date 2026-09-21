@@ -1,5 +1,18 @@
 node_modules/
 .env
+.env.local
+server/.env
+client/.env.local
 dist/
 build/
 .DS_Store
+
+# Large local backups / archives should never be committed
+*.zip
+latest_backup*
+
+# Old scratch / one-off migration leftovers
+old_dash.*
+server/git
+server/fix-likes.js
+server/fix_likes.js

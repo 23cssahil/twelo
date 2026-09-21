@@ -6,7 +6,11 @@
 const crypto = require('crypto');
 
 const ALGORITHM = 'aes-256-cbc';
-const KEY_RAW = process.env.ENCRYPTION_KEY || 'Twelo_AES256_Encryption_Secret_Key_2026_!@#';
+const KEY_RAW = process.env.ENCRYPTION_KEY;
+if (!KEY_RAW) {
+  console.error('[FATAL] Required environment variable ENCRYPTION_KEY is not set. Refusing to start.');
+  process.exit(1);
+}
 
 // AES-256 requires exactly 32 bytes key — derive it using SHA-256
 const KEY = crypto.createHash('sha256').update(KEY_RAW).digest(); // 32 bytes

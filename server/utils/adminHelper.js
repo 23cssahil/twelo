@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const generateAdminToken = (adminId) => {
   return jwt.sign(
     { adminId, role: 'admin' },
-    process.env.ADMIN_JWT_SECRET || 'admin_secret_key_12345',
+    process.env.ADMIN_JWT_SECRET,
     { expiresIn: '7d' }
   );
 };
@@ -20,7 +20,7 @@ const generateAdminToken = (adminId) => {
  */
 const verifyAdminToken = (token) => {
   try {
-    return jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'admin_secret_key_12345');
+    return jwt.verify(token, process.env.ADMIN_JWT_SECRET);
   } catch (error) {
     throw new Error('Invalid or expired admin token');
   }

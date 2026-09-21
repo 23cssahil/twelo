@@ -79,7 +79,7 @@ const adminAuth = (req, res, next) => {
       return res.status(401).json({ message: 'Admin token missing' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'insta_jwt_secret_key_12345');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     if (decoded.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized - Admin access required' });

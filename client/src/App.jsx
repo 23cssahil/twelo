@@ -86,7 +86,8 @@ export default function App() {
         transports: ['polling', 'websocket'],
         reconnection: true,
         reconnectionAttempts: 10,
-        reconnectionDelay: 1000
+        reconnectionDelay: 1000,
+        auth: { token }
       });
       setSocket(newSocket);
 
