@@ -5430,7 +5430,6 @@ const handleStoryUpload = async () => {
                               },
                               stories: publicProfileData.highlights
                             }]);
-                            setActiveTab('profile-stories');
                             setCurrentStoryUserIndex(0);
                             setCurrentStoryIndex(index);
                             setStoryViewerActive(true);
@@ -6344,7 +6343,6 @@ const handleStoryUpload = async () => {
                               },
                               stories: profileStats.highlights
                             }]);
-                            setActiveTab('profile-stories');
                             setCurrentStoryUserIndex(0);
                             setCurrentStoryIndex(index);
                             setStoryViewerActive(true);
