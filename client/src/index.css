@@ -704,7 +704,7 @@ input, button, textarea {
 
 /* Profile View */
 .profile-container {
-  padding: 16px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -716,15 +716,16 @@ input, button, textarea {
 .profile-card {
   position: relative;
   width: 100%;
-  max-width: 520px;
+  max-width: 100%;
   background: var(--panel-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 18px;
-  padding: 28px 20px;
+  border: none;
+  border-radius: 0;
+  padding: 24px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: none;
+  min-height: 100vh;
 }
 
 .profile-avatar-large {
@@ -1079,6 +1080,16 @@ input, button, textarea {
     margin: 0 auto;
     width: 100%;
     padding: 40px !important;
+  }
+
+  /* On desktop the profile reads as a centered card; on mobile it is full-bleed */
+  .profile-card {
+    max-width: 720px;
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    padding: 32px 28px;
+    min-height: 0;
   }
   
   .no-chat-selected {
