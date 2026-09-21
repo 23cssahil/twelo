@@ -3101,6 +3101,43 @@ export default function Dashboard() {
     } catch (err) { console.error(err); }
   };
 
+  const connectionsSearchTimer = useRef(null);
+  const lastConnectionsQuery = useRef('');
+
+  // Fetch the first page of a connections list, optionally filtered server-side by search term.
+  const fetchConnectionsPage = async (searchTerm) => {
+    const type = connectionsPage.title.toLowerCase();
+    const userId = connectionsPage.userId;
+    if (!userId) return;
+    setConnectionsLoading(true);
+    try {
+      const params = new URLSearchParams({ type, limit: '20' });
+      if (searchTerm) params.append('search', searchTerm);
+      const res = await fetch(`${API_URL}/api/users/connections/${userId}?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) {
+        setConnectionsCursor(data.nextCursor);
+        setConnectionsHasMore(data.hasMore);
+        setConnectionsPage(prev => ({ ...prev, users: data.users || [] }));
+      }
+    } catch (err) { console.error(err); } finally {
+      setConnectionsLoading(false);
+    }
+  };
+
+  // Debounced server-side search whenever the connections search box changes.
+  useEffect(() => {
+    if (activeTab !== 'connections') return;
+    const term = connectionsSearch.trim();
+    if (term === lastConnectionsQuery.current) return;
+    if (connectionsSearchTimer.current) clearTimeout(connectionsSearchTimer.current);
+    connectionsSearchTimer.current = setTimeout(() => {
+      lastConnectionsQuery.current = term;
+      fetchConnectionsPage(term);
+    }, 300);
+    return () => { if (connectionsSearchTimer.current) clearTimeout(connectionsSearchTimer.current); };
+  }, [connectionsSearch, activeTab]);
+
   const handleConnectionsClick = async (type, userId) => {
     try {
       setConnectionsLoading(true);
@@ -3108,6 +3145,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (res.ok) {
         setConnectionsSearch('');
+        lastConnectionsQuery.current = '';
         setConnectionsCursor(data.nextCursor);
         setConnectionsHasMore(data.hasMore);
         setConnectionsPage({
@@ -3131,7 +3169,10 @@ export default function Dashboard() {
     try {
       setConnectionsLoading(true);
       const type = connectionsPage.title.toLowerCase();
-      const res = await fetch(`${API_URL}/api/users/connections/${connectionsPage.userId}?type=${type}&cursor=${connectionsCursor}&limit=20`, { headers: { Authorization: `Bearer ${token}` } });
+      const params = new URLSearchParams({ type, cursor: connectionsCursor, limit: '20' });
+      const term = connectionsSearch.trim();
+      if (term) params.append('search', term);
+      const res = await fetch(`${API_URL}/api/users/connections/${connectionsPage.userId}?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
         setConnectionsCursor(data.nextCursor);
@@ -5269,12 +5310,8 @@ const handleStoryUpload = async () => {
         );
 
       case 'connections': {
-        const normalizedSearch = connectionsSearch.trim().toLowerCase();
-        const visibleConnections = connectionsPage.users.filter(connection => {
-          const username = (connection.username || '').toLowerCase();
-          const name = (connection.name || '').toLowerCase();
-          return !normalizedSearch || username.includes(normalizedSearch) || name.includes(normalizedSearch);
-        });
+        // Search is handled server-side (covers ALL connections, not just the loaded page)
+        const visibleConnections = connectionsPage.users;
         return (
           <div style={{ height: '100%', width: '100%', boxSizing: 'border-box', background: '#0b0b0d', color: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
             {/* Sticky Header + Search */}

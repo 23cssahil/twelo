@@ -1704,71 +1704,46 @@ app.get('/api/users/connections/:id', authenticateToken, async (req, res) => {
     } else {
       allIds = (user[type] || []).filter(id => id != null);
     }
-    const total = allIds.length;
 
+    // Newest connections first (follows are appended to the end of the array via push)
+    const orderedIds = allIds.slice().reverse().map(id => id.toString());
+
+    // Optional search across ALL connections (server-side, preserving newest-first order)
+    let filteredIds = orderedIds;
     if (search) {
-      const searchRegex = new RegExp(search, 'i');
-      let query = {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const searchRegex = new RegExp(escaped, 'i');
+      const matched = await User.find({
         _id: { $in: allIds },
         $or: [
           { username: searchRegex },
           { uniqueId: searchRegex }
         ]
-      };
-
-      if (cursor && cursor !== 'null') {
-        query._id = { $in: allIds, $gt: cursor };
-      }
-
-      const matchedUsers = await User.find(query)
-        .sort({ _id: 1 })
-        .select('username uniqueId avatarUrl gender')
-        .limit(limit)
-        .lean();
-
-      // Check if there are more results
-      const totalMatches = await User.countDocuments({
-        _id: { $in: allIds },
-        $or: [
-          { username: searchRegex },
-          { uniqueId: searchRegex }
-        ]
-      });
-
-      const hasMore = matchedUsers.length === limit;
-      const nextCursor = matchedUsers.length > 0 ? matchedUsers[matchedUsers.length - 1]._id : null;
-
-      return res.json({
-        users: matchedUsers,
-        total: totalMatches,
-        hasMore,
-        nextCursor
-      });
+      }).select('_id').lean();
+      const matchedSet = new Set(matched.map(u => u._id.toString()));
+      filteredIds = orderedIds.filter(id => matchedSet.has(id));
     }
 
-    // Find the cursor position in the array
+    const total = filteredIds.length;
+
+    // Cursor is the last id of the previous page; take the next slice after it
     let startIndex = 0;
     if (cursor && cursor !== 'null') {
-      const cursorIndex = allIds.findIndex(id => id.toString() === cursor);
-      if (cursorIndex !== -1) {
-        startIndex = cursorIndex + 1;
-      }
+      const cursorIndex = filteredIds.findIndex(id => id === String(cursor));
+      if (cursorIndex !== -1) startIndex = cursorIndex + 1;
     }
-
-    // Slice the IDs for this page
-    const pageIds = allIds.slice(startIndex, startIndex + limit);
+    const pageIds = filteredIds.slice(startIndex, startIndex + limit);
 
     // Populate only the sliced IDs
     const populatedUsers = await User.find({ _id: { $in: pageIds } })
       .select('username uniqueId avatarUrl gender')
       .lean();
-
-    // Maintain the original order from the array
-    const idOrder = pageIds.map(id => id.toString());
-    const orderedUsers = idOrder.map(id => populatedUsers.find(u => u._id.toString() === id)).filter(Boolean);
+    const idMap = {};
+    populatedUsers.forEach(u => { idMap[u._id.toString()] = u; });
+    const orderedUsers = pageIds.map(id => idMap[id]).filter(Boolean);
 
     const hasMore = startIndex + limit < total;
-    const nextCursor = orderedUsers.length > 0 ? orderedUsers[orderedUsers.length - 1]._id : null;
+    const nextCursor = pageIds.length > 0 ? pageIds[pageIds.length - 1] : null;
 
     res.json({
       users: orderedUsers,
