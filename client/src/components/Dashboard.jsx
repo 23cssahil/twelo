@@ -5174,15 +5174,18 @@ const handleStoryUpload = async () => {
                   value={searchQuery}
                   onChange={handleSearch}
                 />
+                {searchQuery && (
+                  <button className="search-clear-btn" aria-label="Clear search" onClick={() => handleSearch('')}>
+                    <X size={18} />
+                  </button>
+                )}
               </div>
             </div>
             
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px 16px' }} onScroll={handleSearchResultsScroll}>
-              {searchLoading && !searchCursor && <div style={{ textAlign: 'center', color: '#a8a8a8', padding: '10px 0' }}>Searching...</div>}
-            
-            {isFetchingSearchHistory && !searchQuery && searchResults.length === 0 ? (
+            {searchLoading && searchResults.length === 0 ? (
               <div className="chats-skeleton-loader" style={{ padding: '10px' }}>
-                {[1, 2, 3].map(i => (
+                {[1, 2, 3, 4].map(i => (
                   <div key={i} className="user-card" style={{ cursor: 'default', borderBottom: '1px solid var(--border-color)' }}>
                     <div className="user-card-info" style={{ width: '100%' }}>
                       <div className="skeleton-avatar shimmer"></div>
@@ -5193,13 +5196,18 @@ const handleStoryUpload = async () => {
                     </div>
                   </div>
                 ))}
-                <div style={{ textAlign: 'center', marginTop: '15px', color: '#888', fontSize: '0.85rem' }}>Loading recent searches...</div>
+                <div style={{ textAlign: 'center', marginTop: '15px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Searching...</div>
               </div>
             ) : (
             <div className="search-results">
+              {!searchQuery.trim() && searchResults.length > 0 && (
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-secondary)', margin: '14px 4px 4px' }}>Discover people</div>
+              )}
               {searchResults.map((searchUser) => {
                 const isFollowing = profileStats?.following?.includes(searchUser._id);
                 const hasRequested = searchUser.friendRequests?.includes(user.id);
+                const isOnline = onlineUsers.includes(searchUser._id);
+                const followerCount = searchUser.followers?.length || 0;
                 return (
                   <div 
                     className="user-card" 
@@ -5214,12 +5222,15 @@ const handleStoryUpload = async () => {
                     style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', msUserSelect: 'none', MozUserSelect: 'none' }}
                   >
                     <div className="user-card-info" onClick={() => viewPublicProfile(searchUser._id)} style={{ cursor: 'pointer' }}>
-                      <div className="user-avatar-small">
-                        {searchUser.avatarUrl ? <img src={searchUser.avatarUrl} alt='avatar' /> : searchUser.username.charAt(0).toUpperCase()}
+                      <div className="search-avatar-wrap">
+                        <div className="user-avatar-small">
+                          {searchUser.avatarUrl ? <img src={searchUser.avatarUrl} alt='avatar' /> : searchUser.username.charAt(0).toUpperCase()}
+                        </div>
+                        {isOnline && <span className="search-online-dot" />}
                       </div>
                       <div className="user-names">
-                        <span className="user-username">@{searchUser.username?.length > 10 ? searchUser.username.substring(0, 10) + '...' : searchUser.username}</span>
-                        <span className="user-id">ID: {searchUser.uniqueId}</span>
+                        <span className="user-username">@{searchUser.username}</span>
+                        <span className="user-id">{followerCount} {followerCount === 1 ? 'follower' : 'followers'} · ID: {searchUser.uniqueId}</span>
                       </div>
                     </div>
                     
@@ -5235,14 +5246,21 @@ const handleStoryUpload = async () => {
               })}
               
               {searchLoading && searchCursor && (
-                <div style={{ textAlign: 'center', padding: '15px', color: '#888', fontSize: '0.85rem' }}>Loading more...</div>
+                <div style={{ textAlign: 'center', padding: '15px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading more...</div>
               )}
               
-              {!searchLoading && searchQuery && searchResults.length === 0 && (
-                <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No users found</div>
-              )}
-              {!searchLoading && !searchQuery && searchResults.length === 0 && (
-                <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No users found.</div>
+              {!searchLoading && searchResults.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '50px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(128,128,128,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {searchQuery.trim() ? <SearchIcon size={28} color="var(--text-secondary)" /> : <Users size={28} color="var(--text-secondary)" />}
+                  </div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {searchQuery.trim() ? 'No users found' : 'No people yet'}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '260px' }}>
+                    {searchQuery.trim() ? `We couldn't find anyone matching "${searchQuery.trim()}". Try a different name or ID.` : 'Check back later to discover new people.'}
+                  </div>
+                </div>
               )}
             </div>
             )}
