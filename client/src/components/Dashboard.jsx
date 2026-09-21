@@ -4967,7 +4967,7 @@ const handleStoryUpload = async () => {
           <div className="notifications-container" style={{ padding: '16px', overflowY: 'auto', height: '100%' }} onScroll={handleNotifsScroll}>
             <h2 className="search-header-text">Notifications</h2>
             {notifications.length === 0 && !notifsFetching ? (
-              <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No notifications yet.</div>
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '20px' }}>No notifications yet.</div>
             ) : (
               <>
               <div className="requests-list">
@@ -4995,7 +4995,7 @@ const handleStoryUpload = async () => {
                           </div>
                           <div className="user-names" style={{ flex: 1, marginLeft: '10px' }}>
                             <span className="user-username" style={{ color: borderLeftColor }}>@twelo <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 'normal' }}>• Official</span></span>
-                            <span className="user-id" style={{ fontSize: '0.8rem', lineHeight: '1.4', wordBreak: 'break-word', whiteSpace: 'pre-wrap', color: '#e2e8f0', marginTop: '4px', display: 'block' }}>
+                            <span className="user-id" style={{ fontSize: '0.8rem', lineHeight: '1.4', wordBreak: 'break-word', whiteSpace: 'pre-wrap', color: 'var(--text-primary)', marginTop: '4px', display: 'block' }}>
                               {notif.message.length > 100 && !expandedAlerts.has(notif._id)
                                 ? notif.message.substring(0, 100) + '...'
                                 : notif.message}

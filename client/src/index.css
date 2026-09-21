@@ -1692,6 +1692,14 @@ input, button, textarea {
 .requests-list::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
 .requests-list::-webkit-scrollbar-track { background: transparent; }
 
+/* Notifications reuses chat-panel components (.user-card/.user-username/.user-id)
+   whose text colors flip dark in light mode, so the container must switch to the
+   light surface too — otherwise dark text sits on the always-black --bg-color. */
+.notifications-container {
+  background: var(--panel-bg);
+  color: var(--text-primary);
+}
+
 /* Match Found Card UI */
 .match-found-overlay {
   position: absolute;
