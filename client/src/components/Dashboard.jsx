@@ -5322,7 +5322,7 @@ const handleStoryUpload = async () => {
                         </div>
                       )}
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : '#a8a8a8', marginTop: '8px' }}>
+                    <div style={{ fontSize: '0.85rem', color: onlineUsers.includes(publicProfileData._id) ? '#2bd856' : 'var(--text-secondary)', marginTop: '8px' }}>
                       {onlineUsers.includes(publicProfileData._id) ? '🟢 Online' : `Last active: ${timeSince(publicProfileData.lastActive)}`}
                     </div>
                   </div>
@@ -5330,12 +5330,12 @@ const handleStoryUpload = async () => {
                     <span className="profile-username" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>@{publicProfileData.username}</span>
                     <div className="profile-stats" style={{ display: 'flex', gap: '30px', marginTop: '4px' }}>
                       <div style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }} onClick={() => handleConnectionsClick('followers', publicProfileData._id)}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{formatCount(publicProfileData.followers?.length || 0)}</span>
-                        <span style={{ fontSize: '0.9rem', color: '#a8a8a8' }}>followers</span>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{formatCount(publicProfileData.followers?.length || 0)}</span>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>followers</span>
                       </div>
                       <div style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }} onClick={() => handleConnectionsClick('following', publicProfileData._id)}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{formatCount(publicProfileData.following?.length || 0)}</span>
-                        <span style={{ fontSize: '0.9rem', color: '#a8a8a8' }}>following</span>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{formatCount(publicProfileData.following?.length || 0)}</span>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>following</span>
                       </div>
                     </div>
                   </div>
@@ -5356,7 +5356,7 @@ const handleStoryUpload = async () => {
               </div>
               <div className="profile-info">
                 {publicProfileData.bio && (
-                  <div style={{ width: '100%', padding: '0', marginBottom: '15px', color: '#fff', fontSize: '0.95rem', lineHeight: '1.4', textAlign: 'left', wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                  <div style={{ width: '100%', padding: '0', marginBottom: '15px', color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: '1.4', textAlign: 'left', wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
                     {publicProfileData.bio}
                   </div>
                 )}
@@ -5366,7 +5366,7 @@ const handleStoryUpload = async () => {
                       <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎂</span>
                       <span>{publicProfileData.age} Yrs</span>
                     </div>
-                    <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                    <div style={{ width: '1px', background: 'rgba(128,128,128,0.25)' }}></div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textTransform: 'capitalize' }}>
                       <span style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{publicProfileData.gender === 'male' ? '👨' : '👩'}</span>
                       <span>{publicProfileData.gender}</span>
@@ -5404,13 +5404,13 @@ const handleStoryUpload = async () => {
                         </div>
                       ))}
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: '#ccc', flex: 1, textAlign: 'left' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', flex: 1, textAlign: 'left' }}>
                       Followed by <strong>{publicProfileData.mutualConnections.previewUsers[0].username}</strong>
                       {publicProfileData.mutualConnections.totalCount > 1 && 
                         ` and ${publicProfileData.mutualConnections.totalCount - 1} other${publicProfileData.mutualConnections.totalCount - 1 > 1 ? 's' : ''}`
                       }
                     </div>
-                    <div style={{ fontSize: '1.2rem', color: '#888' }}>›</div>
+                    <div style={{ fontSize: '1.2rem', color: 'var(--text-secondary)' }}>›</div>
                   </div>
                 )}
 
@@ -5462,7 +5462,7 @@ const handleStoryUpload = async () => {
                   <div style={{ marginTop: '20px', width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div style={{ display: 'flex', gap: '15px' }}>
                       {[0, 1, 2].map((s) => (
-                        <div key={s} style={{ width: '64px', height: '64px', borderRadius: '50%', border: '1px dashed var(--border-color)', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div key={s} style={{ width: '64px', height: '64px', borderRadius: '50%', border: '1px dashed rgba(128,128,128,0.45)', background: 'rgba(128,128,128,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Star size={20} color="var(--text-secondary)" />
                         </div>
                       ))}
@@ -5524,13 +5524,13 @@ const handleStoryUpload = async () => {
                     minHeight: '30vh',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                     padding: '32px 20px', textAlign: 'center',
-                    border: '1px dashed var(--border-color)', borderRadius: '16px',
-                    background: 'rgba(255,255,255,0.02)'
+                    border: '1px dashed rgba(128,128,128,0.45)', borderRadius: '16px',
+                    background: 'rgba(128,128,128,0.06)'
                   }}>
                     <div style={{
                       width: '68px', height: '68px', borderRadius: '50%',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'rgba(255,255,255,0.05)', marginBottom: '16px'
+                      background: 'rgba(128,128,128,0.12)', marginBottom: '16px'
                     }}>
                       <Camera size={30} color="var(--text-secondary)" />
                     </div>
