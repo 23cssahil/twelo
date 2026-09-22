@@ -316,6 +316,19 @@ mongoose.connection.once('open', async () => {
   } catch(e) {
     console.error('Error fixing comment likes:', e);
   }
+
+  // Backfill Story.comment_count from the real Comment collection so the visible comment
+  // badge is accurate even for comments created before the denormalized counter existed.
+  // Counts all comments (root + replies) to match the $inc behavior on the create route.
+  try {
+    const countRows = await Comment.aggregate([{ $group: { _id: '$story_id', n: { $sum: 1 } } }]);
+    const bulk = countRows
+      .filter(r => r._id)
+      .map(r => ({ updateOne: { filter: { _id: r._id }, update: { $set: { comment_count: r.n } } } }));
+    if (bulk.length) await Story.bulkWrite(bulk);
+  } catch (e) {
+    console.error('Error backfilling comment counts:', e);
+  }
 });
 
 const io = socketIo(server, {
@@ -635,7 +648,7 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
         if (referrer) {
           referrer.coins = (referrer.coins || 0) + 20; // Reward 20 coins for referral
           referrer.notifications.push({
-            type: 'system',
+            type: 'system_alert',
             user: referrer._id,
             message: `Someone joined using your referral link! You earned 20 Coins.`,
             createdAt: new Date()
@@ -1786,7 +1799,46 @@ app.post('/api/stories/:id/comments', authenticateToken, async (req, res) => {
     
     // Broadcast to room
     io.to(`story_${story._id}`).emit('new_comment', populatedComment);
-    
+
+    // Notify the right people about this comment (best-effort: never fail the request).
+    //  - Root comment  -> the story owner (global/admin stories have no owner -> skipped).
+    //  - Reply         -> the author of the comment being replied to.
+    // A user is never notified about their own action.
+    try {
+      const commenterId = req.user.userId;
+      const actorName = commentUser?.username || 'Someone';
+      const recipients = [];
+      if (!parent_id) {
+        if (story.user && !story.isAdminStory && String(story.user) !== String(commenterId)) {
+          recipients.push({ to: story.user, type: 'story_comment' });
+        }
+      } else {
+        const parent = await Comment.findById(parent_id).select('user_id').lean();
+        if (parent && parent.user_id && String(parent.user_id) !== String(commenterId)) {
+          recipients.push({ to: parent.user_id, type: 'comment_reply' });
+        }
+      }
+      for (const r of recipients) {
+        const targetUser = await User.findById(r.to);
+        if (!targetUser) continue;
+        targetUser.notifications.push({
+          type: r.type,
+          user: commenterId,
+          storyId: story._id,
+          commentId: newComment._id,
+          message: r.type === 'comment_reply'
+            ? `@${actorName} replied to your comment on a story`
+            : `@${actorName} commented on your story`,
+          createdAt: new Date()
+        });
+        await targetUser.save();
+        const targetSocketId = onlineUsers.get(String(r.to));
+        if (targetSocketId) io.to(targetSocketId).emit('new_notification');
+      }
+    } catch (notifErr) {
+      console.error('[comment notify] failed:', notifErr.message);
+    }
+
     res.json({ comment: populatedComment });
   } catch (error) {
     console.error(error);

@@ -70,10 +70,12 @@ const UserSchema = new mongoose.Schema({
   isBlocked: { type: Boolean, default: false },
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   notifications: [{
-    type: { type: String, enum: ['follow_request', 'request_accepted', 'system_alert', 'anonymous_follow_request', 'anonymous_request_accepted', 'follow_back_request', 'started_following_you', 'request_rejected'], required: true },
+    type: { type: String, enum: ['follow_request', 'request_accepted', 'system_alert', 'anonymous_follow_request', 'anonymous_request_accepted', 'follow_back_request', 'started_following_you', 'request_rejected', 'story_comment', 'comment_reply'], required: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     message: { type: String },
     alertType: { type: String, enum: ['info', 'warning', 'success', 'urgent'] },
+    storyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Story' },
+    commentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Comment' },
     createdAt: { type: Date, default: Date.now },
     read: { type: Boolean, default: false }
   }],

@@ -5242,7 +5242,9 @@ const handleStoryUpload = async () => {
             anonymous_follow_request: 'Random room stranger request',
             follow_back_request: 'also wants to follow you',
             started_following_you: 'started following you',
-            request_rejected: 'rejected your follow request'
+            request_rejected: 'rejected your follow request',
+            story_comment: 'commented on your story',
+            comment_reply: 'replied to your comment'
           };
           const text = textMap[notif.type] || 'interacted with you';
           const unread = !notif.read;
@@ -5259,7 +5261,7 @@ const handleStoryUpload = async () => {
               onContextMenu={(e) => { e.preventDefault(); return false; }}
               style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', background: unread ? 'rgba(0,149,246,0.08)' : 'transparent', borderRadius: '10px', paddingLeft: '10px', paddingRight: '10px' }}
             >
-              <div className="user-card-info" onClick={() => { markNotifRead(notif._id); viewPublicProfile(reqUser._id); }} style={{ cursor: 'pointer' }}>
+              <div className="user-card-info" onClick={() => { markNotifRead(notif._id); if (notif.storyId) { openSharedStory(notif.storyId); } else { viewPublicProfile(reqUser._id); } }} style={{ cursor: 'pointer' }}>
                 <div className="user-avatar-small">{(notif.type === 'anonymous_follow_request' || notif.type === 'anonymous_request_accepted' ? null : reqUser.avatarUrl) ? <img src={reqUser.avatarUrl} alt='avatar' /> : reqUser.username.charAt(0).toUpperCase()}</div>
                 <div className="user-names">
                   <span className="user-username">@{reqUser.username?.length > 10 ? reqUser.username.substring(0, 10) + '...' : reqUser.username}{unread && <span style={unreadDot} />}</span>
@@ -6863,16 +6865,27 @@ const handleStoryUpload = async () => {
   
   
   const updateCommentCount = (delta) => {
-    const updatedViewerStories = [...viewerStories];
-    if (updatedViewerStories[currentStoryUserIndex]?.stories[currentStoryIndex]) {
-        let count = updatedViewerStories[currentStoryUserIndex].stories[currentStoryIndex].comment_count || 0;
-        updatedViewerStories[currentStoryUserIndex].stories[currentStoryIndex].comment_count = Math.max(0, count + delta);
-        
-        if (profileStoryGroups) {
-           setProfileStoryGroups([...updatedViewerStories]);
-        } else if (activeTab === 'everyone-stories') {
-           seteveryoneStories([...updatedViewerStories]);
-        }
+    // Immutably bump the comment_count on the currently-viewed story and push the new
+    // array into whichever source list is active (home feed / profile / everyone-stories),
+    // so the badge re-renders. The old version mutated in place and never updated
+    // groupedStories, so the count didn't refresh live on the home feed.
+    const bump = (groups) => (groups || []).map((g, gi) => {
+      if (gi !== currentStoryUserIndex || !g?.stories) return g;
+      return {
+        ...g,
+        stories: g.stories.map((s, si) =>
+          si === currentStoryIndex
+            ? { ...s, comment_count: Math.max(0, (s.comment_count || 0) + delta) }
+            : s
+        )
+      };
+    });
+    if (profileStoryGroups) {
+      setProfileStoryGroups(bump(profileStoryGroups));
+    } else if (activeTab === 'everyone-stories') {
+      seteveryoneStories(bump(everyoneStories));
+    } else {
+      setGroupedStories(bump(groupedStories));
     }
   };
 
