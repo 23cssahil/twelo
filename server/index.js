@@ -1856,6 +1856,9 @@ app.delete('/api/stories/:id/comments/:commentId', authenticateToken, async (req
     if (comment.parent_id) {
       await Comment.updateOne({ _id: comment.parent_id }, { $inc: { reply_count: -1 } });
     }
+    // Evict the deleted comment from the Redis top-comments ZSET so it can't linger
+    // as a ghost id and skew subsequent cache-hit reads.
+    try { await redisService.redis.zrem(`story:${story._id}:top_comments`, comment._id.toString()); } catch (e) {}
     res.json({ success: true, message: 'Comment deleted' });
   } catch (error) {
     console.error(error);
@@ -1892,8 +1895,12 @@ app.get('/api/stories/:id/comments', authenticateToken, async (req, res) => {
           // next_cursor for ZSET is tricky, we fallback to timestamp for now
           next_cursor = comments[comments.length - 1].created_at;
         }
-      } else {
-        // Cache Miss! Fetch from DB
+      }
+
+      // Cache Miss (no key) OR stale cache (the ZSET held ids that no longer resolve,
+      // e.g. after deletions that were never evicted): fall back to MongoDB so real
+      // comments are never wrongly hidden behind a bad cache.
+      if (comments.length === 0) {
         comments = await Comment.find({ story_id: storyId, parent_id: null })
           .sort({ is_pinned: -1, created_at: -1 })
           .limit(parseInt(limit))

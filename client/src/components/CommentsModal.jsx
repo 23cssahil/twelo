@@ -259,11 +259,17 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       return res.json();
     },
+    // v5 requires an explicit initialPageParam; without it infinite pagination misbehaves.
+    initialPageParam: null,
     getNextPageParam: (lastPage) => lastPage.next_cursor || undefined,
     enabled: !!story?._id && isOpen,
   });
 
-  const flatComments = data?.pages?.flatMap(page => page.comments) || [];
+  // Tolerate both shapes defensively: `{ comments: [...] }` (current API) and a bare
+  // array `[...]` (older/variant response) so comments are never silently dropped.
+  const flatComments = (data?.pages || []).flatMap(page =>
+    Array.isArray(page) ? page : (Array.isArray(page?.comments) ? page.comments : [])
+  );
 
   const rowVirtualizer = useVirtualizer({
     count: hasNextPage ? flatComments.length + 1 : flatComments.length,
