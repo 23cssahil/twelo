@@ -1821,16 +1821,32 @@ app.post('/api/stories/:id/comments', authenticateToken, async (req, res) => {
       for (const r of recipients) {
         const targetUser = await User.findById(r.to);
         if (!targetUser) continue;
-        targetUser.notifications.push({
-          type: r.type,
-          user: commenterId,
-          storyId: story._id,
-          commentId: newComment._id,
-          message: r.type === 'comment_reply'
-            ? `@${actorName} replied to your comment on a story`
-            : `@${actorName} commented on your story`,
-          createdAt: new Date()
-        });
+        const message = r.type === 'comment_reply'
+          ? `@${actorName} replied to your comment on a story`
+          : `@${actorName} commented on your story`;
+        // Dedup: a back-and-forth reply chain on the same story should NOT spam a fresh
+        // notification every time. If this same actor already has an UNREAD notification
+        // of this type for this story, bump/refresh it (moves to top) instead of adding another.
+        const existing = (targetUser.notifications || []).find(n =>
+          !n.read &&
+          n.type === r.type &&
+          n.user && String(n.user) === String(commenterId) &&
+          n.storyId && String(n.storyId) === String(story._id)
+        );
+        if (existing) {
+          existing.commentId = newComment._id;
+          existing.message = message;
+          existing.createdAt = new Date();
+        } else {
+          targetUser.notifications.push({
+            type: r.type,
+            user: commenterId,
+            storyId: story._id,
+            commentId: newComment._id,
+            message,
+            createdAt: new Date()
+          });
+        }
         await targetUser.save();
         const targetSocketId = onlineUsers.get(String(r.to));
         if (targetSocketId) io.to(targetSocketId).emit('new_notification');

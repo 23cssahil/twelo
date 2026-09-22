@@ -133,107 +133,109 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwn
   });
 
   return (
-    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'flex-start', marginLeft: depth > 0 ? (depth > 1 ? '-36px' : '0') : '0', marginTop: isReply ? '8px' : '0' }}>
-      <img 
-        src={comment.user?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${comment.user?.username}`} 
-        style={{ width: isReply ? '24px' : '32px', height: isReply ? '24px' : '32px', borderRadius: '50%', backgroundColor: '#eee', objectFit: 'cover', flexShrink: 0 }} 
-        alt=""
-      />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontWeight: '600', fontSize: '14px', color: '#111' }}>{comment.user?.username}</span>
-          <span style={{ fontSize: '12px', color: '#888' }}>
-            {(comment.created_at || comment.createdAt) ? formatDistanceToNow(new Date(comment.created_at || comment.createdAt), { addSuffix: true }) : ''}
-          </span>
-        </div>
-        <p style={{ fontSize: '14px', color: '#333', wordBreak: 'break-word', marginTop: '2px', marginBottom: '0' }}>
-           {comment.text?.split(' ').map((word, i) => 
-             word.startsWith('@') ? <span key={i} style={{ color: '#2563eb', fontWeight: '500' }}>{word} </span> : word + ' '
-           )}
-        </p>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', fontSize: '12px', color: '#888', fontWeight: '500' }}>
-          <button 
-            onClick={() => !comment.isOptimistic && onReply(comment)} 
-            style={{ background: 'none', border: 'none', color: comment.isOptimistic ? '#ddd' : '#888', cursor: comment.isOptimistic ? 'default' : 'pointer', padding: 0 }}
-            disabled={comment.isOptimistic || likeMutation.isPending || deleteMutation.isPending}
-          >
-            Reply
-          </button>
-
-          {((user?.id || user?._id) === comment.user?._id || (user?.id || user?._id) === storyOwnerId) && (
-            <button 
-              onClick={() => {
-                if (window.confirm('Delete this comment?')) {
-                  deleteMutation.mutate();
-                }
-              }}
-              style={{ background: 'none', border: 'none', color: deleteMutation.isPending ? '#ddd' : '#ef4444', cursor: deleteMutation.isPending ? 'default' : 'pointer', padding: 0 }}
-              disabled={comment.isOptimistic || deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-            </button>
-          )}
-          
-          {comment.reply_count > 0 && !showReplies && (
-            <button 
-              onClick={() => setShowReplies(true)}
-              style={{ background: 'none', border: 'none', color: '#111', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
-            >
-              <div style={{ width: '24px', height: '1px', backgroundColor: '#ddd' }}></div>
-              View {comment.reply_count} replies
-            </button>
-          )}
-          {showReplies && (
-            <button 
-              onClick={() => setShowReplies(false)}
-              style={{ background: 'none', border: 'none', color: '#111', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
-            >
-              <div style={{ width: '24px', height: '1px', backgroundColor: '#ddd' }}></div>
-              Hide replies
-            </button>
-          )}
-        </div>
-
-        {/* Nested Replies */}
-        {showReplies && (
-          <div style={{ marginTop: '12px' }}>
-             {isLoadingReplies ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#aaa' }}>
-                   <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Loading replies...
-                </div>
-             ) : (
-                repliesData?.comments?.map(reply => (
-                  <CommentItem 
-                    key={reply._id} 
-                    comment={reply} 
-                    token={token} 
-                    user={user}
-                    API_URL={API_URL} 
-                    onReply={onReply} 
-                    storyId={storyId}
-                    storyOwnerId={storyOwnerId}
-                    updateCommentCount={updateCommentCount}
-                    isReply={true} 
-                    depth={depth + 1}
-                  />
-                ))
-             )}
+    <div style={{ marginBottom: isReply ? '10px' : '16px' }}>
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+        <img 
+          src={comment.user?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${comment.user?.username}`} 
+          style={{ width: isReply ? '24px' : '32px', height: isReply ? '24px' : '32px', borderRadius: '50%', backgroundColor: '#eee', objectFit: 'cover', flexShrink: 0 }} 
+          alt=""
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontWeight: '600', fontSize: '14px', color: '#111' }}>{comment.user?.username}</span>
           </div>
-        )}
+          <p style={{ fontSize: '14px', color: '#333', wordBreak: 'break-word', marginTop: '2px', marginBottom: '0' }}>
+             {comment.text?.split(' ').map((word, i) => 
+               word.startsWith('@') ? <span key={i} style={{ color: '#2563eb', fontWeight: '500' }}>{word} </span> : word + ' '
+             )}
+          </p>
+          
+          {/* Meta row: time + actions + like are all inline & left-anchored so they never drift as the reply tree deepens. */}
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginTop: '6px', fontSize: '12px', color: '#888', fontWeight: '500' }}>
+            <span style={{ fontSize: '12px', color: '#888' }}>
+              {(comment.created_at || comment.createdAt) ? formatDistanceToNow(new Date(comment.created_at || comment.createdAt), { addSuffix: true }) : ''}
+            </span>
 
-      </div>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0, padding: '0 8px' }}>
-        <motion.button 
-          whileTap={{ scale: comment.isOptimistic ? 1 : 0.8 }}
-          onClick={() => !comment.isOptimistic && likeMutation.mutate()}
-          style={{ background: 'none', border: 'none', color: comment.isOptimistic ? '#eee' : '#aaa', cursor: comment.isOptimistic ? 'default' : 'pointer', padding: 0 }}
-          disabled={comment.isOptimistic || likeMutation.isPending}
-        >
-          <Heart size={14} fill={likeData.isLiked ? '#ef4444' : 'none'} color={likeData.isLiked ? '#ef4444' : 'currentColor'} />
-        </motion.button>
-        <span style={{ fontSize: '10px', color: '#888' }}>{likeData.count}</span>
+            <button 
+              onClick={() => !comment.isOptimistic && onReply(comment)} 
+              style={{ background: 'none', border: 'none', color: comment.isOptimistic ? '#ddd' : '#888', cursor: comment.isOptimistic ? 'default' : 'pointer', padding: 0, fontSize: '12px', fontWeight: 600 }}
+              disabled={comment.isOptimistic || likeMutation.isPending || deleteMutation.isPending}
+            >
+              Reply
+            </button>
+
+            {((user?.id || user?._id) === comment.user?._id || (user?.id || user?._id) === storyOwnerId) && (
+              <button 
+                onClick={() => {
+                  if (window.confirm('Delete this comment?')) {
+                    deleteMutation.mutate();
+                  }
+                }}
+                style={{ background: 'none', border: 'none', color: deleteMutation.isPending ? '#ddd' : '#ef4444', cursor: deleteMutation.isPending ? 'default' : 'pointer', padding: 0, fontSize: '12px', fontWeight: 600 }}
+                disabled={comment.isOptimistic || deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            )}
+
+            <motion.button 
+              whileTap={{ scale: comment.isOptimistic ? 1 : 0.8 }}
+              onClick={() => !comment.isOptimistic && likeMutation.mutate()}
+              disabled={comment.isOptimistic || likeMutation.isPending}
+              style={{ background: 'none', border: 'none', color: comment.isOptimistic ? '#eee' : '#aaa', cursor: comment.isOptimistic ? 'default' : 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Heart size={14} fill={likeData.isLiked ? '#ef4444' : 'none'} color={likeData.isLiked ? '#ef4444' : 'currentColor'} />
+              {likeData.count > 0 && <span style={{ fontSize: '11px', color: '#888' }}>{likeData.count}</span>}
+            </motion.button>
+
+            {comment.reply_count > 0 && !showReplies && (
+              <button 
+                onClick={() => setShowReplies(true)}
+                style={{ background: 'none', border: 'none', color: '#111', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 600 }}
+              >
+                <div style={{ width: '24px', height: '1px', backgroundColor: '#ddd' }}></div>
+                View {comment.reply_count} replies
+              </button>
+            )}
+            {showReplies && (
+              <button 
+                onClick={() => setShowReplies(false)}
+                style={{ background: 'none', border: 'none', color: '#111', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 600 }}
+              >
+                <div style={{ width: '24px', height: '1px', backgroundColor: '#ddd' }}></div>
+                Hide replies
+              </button>
+            )}
+          </div>
+
+          {/* Nested Replies: bounded, clean indent with a thread guide line (no compounding avatar offset). */}
+          {showReplies && (
+            <div style={{ marginTop: '10px', marginLeft: '10px', paddingLeft: '12px', borderLeft: '2px solid rgba(0,0,0,0.08)' }}>
+               {isLoadingReplies ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#aaa' }}>
+                     <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Loading replies...
+                  </div>
+               ) : (
+                  repliesData?.comments?.map(reply => (
+                    <CommentItem 
+                      key={reply._id} 
+                      comment={reply} 
+                      token={token} 
+                      user={user}
+                      API_URL={API_URL} 
+                      onReply={onReply} 
+                      storyId={storyId}
+                      storyOwnerId={storyOwnerId}
+                      updateCommentCount={updateCommentCount}
+                      isReply={true} 
+                      depth={Math.min(depth + 1, 3)}
+                    />
+                  ))
+               )}
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
