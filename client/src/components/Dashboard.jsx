@@ -2609,33 +2609,13 @@ export default function Dashboard() {
     showThemesModal
   ].filter(Boolean).length;
   const prevOverlaysCount = useRef(0);
-  const suppressOverlayPush = useRef(false);
 
   useEffect(() => {
-    // A programmatic reopen (e.g. returning from a Settings sub-page) reuses the
-    // history entry that already represents the open drawer, so skip exactly one push.
-    if (suppressOverlayPush.current) {
-      suppressOverlayPush.current = false;
-      prevOverlaysCount.current = openOverlaysCount;
-      return;
-    }
     if (openOverlaysCount > prevOverlaysCount.current) {
       window.history.pushState({ overlayOpen: true }, '');
     }
     prevOverlaysCount.current = openOverlaysCount;
   }, [openOverlaysCount]);
-
-  // When we come back to the Dashboard after visiting a Settings sub-page
-  // (About Us / Privacy / Terms / Contact), reopen the Settings drawer so that the
-  // browser / phone Back lands the user back on the hamburger menu, not the Home feed.
-  useEffect(() => {
-    if (sessionStorage.getItem('reopenSettingsDrawer') === '1') {
-      sessionStorage.removeItem('reopenSettingsDrawer');
-      suppressOverlayPush.current = true;
-      setShowSettingsModal(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     const handlePopState = (e) => {
@@ -7623,22 +7603,22 @@ const handleStoryUpload = async () => {
               </button>
               
               
-              <button className="settings-item-btn" onClick={() => { sessionStorage.setItem('reopenSettingsDrawer', '1'); navigate('/about-us'); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button className="settings-item-btn" onClick={() => navigate('/about-us')} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Info size={20} /> About Us
               </button>
               
               
               
 
-<button className="settings-item-btn" onClick={() => { sessionStorage.setItem('reopenSettingsDrawer', '1'); navigate('/privacy-policy'); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+<button className="settings-item-btn" onClick={() => navigate('/privacy-policy')} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Shield size={20} /> Privacy Policy
               </button>
               
-              <button className="settings-item-btn" onClick={() => { sessionStorage.setItem('reopenSettingsDrawer', '1'); navigate('/terms'); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button className="settings-item-btn" onClick={() => navigate('/terms')} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <FileText size={20} /> Terms & Conditions
               </button>
 
-              <button className="settings-item-btn" onClick={() => { sessionStorage.setItem('reopenSettingsDrawer', '1'); navigate('/contact-us'); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button className="settings-item-btn" onClick={() => navigate('/contact-us')} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Mail size={20} /> Contact Us
               </button>
               
