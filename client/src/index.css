@@ -47,9 +47,10 @@
     --chat-user-active-bg: rgba(0, 191, 255, 0.1);
     --chat-user-active-border: rgba(0, 191, 255, 0.3);
     --chat-username-shadow: none;
-    --chat-received-bg: #ffffff;
+    /* Light mode incoming bubble: soft grey fill so it never blends into the white chat background */
+    --chat-received-bg: #eceff1;
     --chat-received-text: #111827;
-    --chat-received-border: rgba(0, 0, 0, 0.08);
+    --chat-received-border: rgba(0, 0, 0, 0.06);
     --chat-sent-bg: linear-gradient(135deg, #0095f6 0%, #0072ff 100%);
     --app-sender-unique-color: #0095f6;
     --chat-input-area-bg: #d1d5db; /* Grey input area */
