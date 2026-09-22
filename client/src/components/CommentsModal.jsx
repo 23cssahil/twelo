@@ -126,6 +126,7 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwn
       const res = await fetch(`${API_URL}/api/stories/${storyId}/comments?parent_id=${comment._id}&limit=50`, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
+      if (!res.ok) throw new Error(`Failed to load replies (${res.status})`);
       return res.json();
     },
     enabled: showReplies,
@@ -257,6 +258,9 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
       let url = `${API_URL}/api/stories/${story._id}/comments?limit=20`;
       if (pageParam) url += `&cursor=${pageParam}`;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      // Surface real failures (401/500/HTML 404) as an error state instead of a
+      // misleading "No comments yet" from parsing an error body into an empty page.
+      if (!res.ok) throw new Error(`Failed to load comments (${res.status})`);
       return res.json();
     },
     // v5 requires an explicit initialPageParam; without it infinite pagination misbehaves.

@@ -1878,42 +1878,41 @@ app.get('/api/stories/:id/comments', authenticateToken, async (req, res) => {
     // We only use Redis ZSET for root comments (parent_id is null) without a cursor (first page)
     // Cursor pagination still relies on MongoDB for older comments.
     if (!parent_id && !cursor) {
-      const topCommentIds = await redisService.getTopComments(storyId, parseInt(limit));
-      
-      if (topCommentIds && topCommentIds.length > 0) {
-        // Cache Hit!
-        const unsortedComments = await Comment.find({ _id: { $in: topCommentIds } })
-          .populate('user_id', 'username avatarUrl')
-          .lean();
-        
-        // Preserve ZSET order
-        const map = new Map(unsortedComments.map(c => [c._id.toString(), c]));
-        comments = topCommentIds.map(id => map.get(id)).filter(Boolean);
-        
-        if (comments.length === parseInt(limit)) {
-          has_more = true;
-          // next_cursor for ZSET is tricky, we fallback to timestamp for now
-          next_cursor = comments[comments.length - 1].created_at;
+      // MongoDB is the source of truth for the first page — real comments can never be
+      // hidden behind a stale or partially-evicted Redis ZSET (ghost ids from deletions
+      // that predate the eviction fix). The cache is used only to reorder the page by
+      // engagement, and it rebuilds itself when cold.
+      const rootQuery = { story_id: storyId, parent_id: null };
+      comments = await Comment.find(rootQuery)
+        .sort({ is_pinned: -1, created_at: -1 })
+        .limit(parseInt(limit))
+        .populate('user_id', 'username avatarUrl')
+        .lean();
+
+      try {
+        let topCommentIds = await redisService.getTopComments(storyId, 500);
+        if (!Array.isArray(topCommentIds) || topCommentIds.length === 0) {
+          // Cache cold -> rebuild from this story's root comments, then read it back.
+          const allRoot = await Comment.find(rootQuery).select('_id likes_count reply_count').lean();
+          await redisService.warmupTopComments(storyId, allRoot);
+          topCommentIds = await redisService.getTopComments(storyId, 500);
         }
+        if (Array.isArray(topCommentIds) && topCommentIds.length) {
+          const rank = new Map(topCommentIds.map((id, i) => [String(id), i]));
+          comments.sort((a, b) => {
+            const ra = rank.has(String(a._id)) ? rank.get(String(a._id)) : Number.MAX_SAFE_INTEGER;
+            const rb = rank.has(String(b._id)) ? rank.get(String(b._id)) : Number.MAX_SAFE_INTEGER;
+            return ra - rb;
+          });
+        }
+      } catch (cacheErr) {
+        // Engagement ordering is best-effort only; a cache failure must never block
+        // serving comments, so we simply keep the fresh MongoDB (pinned/newest) order.
+        console.error('[comments] cache reorder skipped:', cacheErr.message);
       }
 
-      // Cache Miss (no key) OR stale cache (the ZSET held ids that no longer resolve,
-      // e.g. after deletions that were never evicted): fall back to MongoDB so real
-      // comments are never wrongly hidden behind a bad cache.
-      if (comments.length === 0) {
-        comments = await Comment.find({ story_id: storyId, parent_id: null })
-          .sort({ is_pinned: -1, created_at: -1 })
-          .limit(parseInt(limit))
-          .populate('user_id', 'username avatarUrl')
-          .lean();
-          
-        // Warmup Redis Cache with all root comments for this story
-        const allRootComments = await Comment.find({ story_id: storyId, parent_id: null }).lean();
-        await redisService.warmupTopComments(storyId, allRootComments);
-        
-        has_more = comments.length === parseInt(limit);
-        next_cursor = has_more ? comments[comments.length - 1].created_at : null;
-      }
+      has_more = comments.length === parseInt(limit);
+      next_cursor = has_more ? comments[comments.length - 1].created_at : null;
     } else {
       // Normal DB Cursor Pagination for replies or older pages
       const query = { story_id: storyId, parent_id: parent_id || null };
