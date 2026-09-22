@@ -329,6 +329,50 @@ mongoose.connection.once('open', async () => {
   } catch (e) {
     console.error('Error backfilling comment counts:', e);
   }
+
+  // Flatten any pre-existing reply chains so the comment tree is at most one level deep:
+  // every reply is re-pointed to its top-level root comment, and each root's reply_count
+  // is recomputed from the flattened set. Idempotent and cheap at current scale.
+  try {
+    const allComments = await Comment.find({}).select('_id parent_id').lean();
+    const byId = new Map(allComments.map(c => [String(c._id), c]));
+    const rootOf = (startId) => {
+      let cur = byId.get(String(startId));
+      const seen = new Set();
+      while (cur && cur.parent_id && byId.has(String(cur.parent_id))) {
+        if (seen.has(String(cur._id))) break; // cycle guard
+        seen.add(String(cur._id));
+        cur = byId.get(String(cur.parent_id));
+      }
+      return cur ? String(cur._id) : null;
+    };
+    const reparentBulk = [];
+    const replyTotals = new Map();
+    for (const c of allComments) {
+      if (!c.parent_id) continue;
+      const root = rootOf(c.parent_id);
+      if (!root) continue;
+      replyTotals.set(root, (replyTotals.get(root) || 0) + 1);
+      if (String(root) !== String(c.parent_id)) {
+        reparentBulk.push({ updateOne: { filter: { _id: c._id }, update: { $set: { parent_id: root } } } });
+      }
+    }
+    if (reparentBulk.length) await Comment.bulkWrite(reparentBulk);
+    const rcBulk = [];
+    for (const [rootId, n] of replyTotals) {
+      rcBulk.push({ updateOne: { filter: { _id: rootId }, update: { $set: { reply_count: n } } } });
+    }
+    // Reset reply_count to 0 for comments that ended up with no replies.
+    for (const c of allComments) {
+      if (c.parent_id) continue;
+      if (!replyTotals.has(String(c._id))) {
+        rcBulk.push({ updateOne: { filter: { _id: c._id }, update: { $set: { reply_count: 0 } } } });
+      }
+    }
+    if (rcBulk.length) await Comment.bulkWrite(rcBulk);
+  } catch (e) {
+    console.error('Error flattening comment replies:', e);
+  }
 });
 
 const io = socketIo(server, {
@@ -1778,17 +1822,33 @@ app.post('/api/stories/:id/comments', authenticateToken, async (req, res) => {
     if (!text || text.trim().length === 0) return res.status(400).json({ message: 'Comment cannot be empty' });
     const story = await Story.findById(req.params.id);
     if (!story) return res.status(404).json({ message: 'Story not found' });
+
+    // Keep the reply tree FLAT (Instagram-style, max one level). If someone replies to a
+    // reply, attach the new comment to the top-level ROOT of that thread instead of nesting
+    // one level deeper (deep nesting squeezes the text and drifts the meta row). The
+    // @mention and the direct replyee notification still use the original parent_id.
+    let rootParentId = parent_id || null;
+    if (rootParentId) {
+      let ancestor = await Comment.findById(rootParentId).select('parent_id').lean();
+      const guard = new Set();
+      while (ancestor && ancestor.parent_id && !guard.has(String(ancestor._id))) {
+        guard.add(String(ancestor._id));
+        ancestor = await Comment.findById(ancestor.parent_id).select('parent_id').lean();
+      }
+      if (ancestor) rootParentId = String(ancestor._id);
+    }
+
     const newComment = new Comment({
       story_id: story._id,
       user_id: req.user.userId,
       text: text.trim(),
-      parent_id: parent_id || null
+      parent_id: rootParentId
     });
     await newComment.save();
     await Story.updateOne({ _id: story._id }, { $inc: { comment_count: 1 } });
-    if (parent_id) {
-      await Comment.updateOne({ _id: parent_id }, { $inc: { reply_count: 1 } });
-      await redisService.updateCommentScore(story._id.toString(), parent_id, 2);
+    if (rootParentId) {
+      await Comment.updateOne({ _id: rootParentId }, { $inc: { reply_count: 1 } });
+      await redisService.updateCommentScore(story._id.toString(), rootParentId, 2);
     } else {
       await redisService.addCommentToCache(story._id.toString(), newComment);
     }
