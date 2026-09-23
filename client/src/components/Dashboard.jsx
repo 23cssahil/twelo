@@ -60,7 +60,8 @@ import {
   PenTool,
   Ban,
   Palette,
-  Globe as GlobeIcon
+  Globe as GlobeIcon,
+  SkipForward
 } from 'lucide-react';
 
 const CHAT_THEMES = [
@@ -2489,7 +2490,7 @@ export default function Dashboard() {
     });
 
     socket.on('receive_anonymous_message', (msg) => {
-      setAnonymousMessages(prev => [...prev, msg]);
+      setAnonymousMessages(prev => [...prev, { ...msg, createdAt: msg.createdAt || new Date().toISOString() }]);
     });
 
     socket.on('anonymous_chat_ended', () => {
@@ -4756,6 +4757,28 @@ const handleStoryUpload = async () => {
     setActiveTab('home');
   };
 
+  // End the current stranger chat and immediately start looking for a new one
+  const handleSkipAnonymousChat = () => {
+    if (socket && anonymousRoomId) {
+      socket.emit('leave_anonymous_chat', { roomId: anonymousRoomId });
+    }
+    setAnonymousRoomId(null);
+    setAnonymousPartnerId(null);
+    setAnonymousPartnerName('Stranger');
+    setIsAiCompanion(false);
+    setIsAnonymousChatActive(false);
+    setAnonymousMessages([]);
+    setActiveTab('home');
+    // Respect the gender-filter coin cost before starting a fresh search
+    if (genderFilter !== 'any' && coins < 2) {
+      alert("Not enough coins! You need 2 coins to use the gender filter.");
+      return;
+    }
+    setIsSearchingRandom(true);
+    setRandomSearchTimer(3);
+    setMatchFailed(false);
+  };
+
   // Globe removed — replaced by Match button
 
   const timeSince = (date) => {
@@ -5081,71 +5104,91 @@ const handleStoryUpload = async () => {
           <div className="chat-container">
             <div className="chat-area" style={{ position: 'relative', zIndex: 40 }}>
               <div className="chat-room-header">
-                <div className="chat-header-info" style={{ display: 'flex', alignItems: 'center' }}>
-                  <button 
-                    className="back-btn" 
+                <div className="chat-header-info" style={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1, gap: '10px' }}>
+                  <button
+                    className="back-btn"
                     onClick={handleLeaveAnonymousChat}
-                    style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', cursor: 'pointer', marginRight: '12px' }}
-                    title="Leave Chat"
+                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', padding: '4px', flexShrink: 0 }}
+                    title="Leave chat"
                   >
-                    {getFlagEmoji(anonymousPartnerCountry, anonymousPartnerCountryCode) || '🌍'}
+                    <ArrowLeft size={22} />
                   </button>
-                  
+
                   {anonymousPartnerAvatar ? (
-                    <div className='user-avatar-small' style={{ width: '45px', height: '45px', minWidth: '45px', minHeight: '45px', flexShrink: 0, borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className='user-avatar-small' style={{ width: '42px', height: '42px', minWidth: '42px', minHeight: '42px', flexShrink: 0, borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <img src={anonymousPartnerAvatar} alt='avatar' style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                     </div>
                   ) : (
-                    <div className='user-avatar-small' style={{ width: '45px', height: '45px', minWidth: '45px', minHeight: '45px', flexShrink: 0, borderRadius: '50%', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)' }}>
+                    <div className='user-avatar-small' style={{ width: '42px', height: '42px', minWidth: '42px', minHeight: '42px', flexShrink: 0, borderRadius: '50%', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)', color: '#fff' }}>
                       ?
                     </div>
                   )}
 
-                  <div className="user-names" style={{ marginLeft: '12px', display: 'flex', flexDirection: 'column' }}>
-                    <span className="user-username" style={{ fontSize: '1rem', fontWeight: 'bold' }}>
-                      {anonymousPartnerName}
+                  <div className="user-names" style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                    <span className="user-username" style={{ fontSize: '1rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{anonymousPartnerName}</span>
+                      {isAiCompanion && (
+                        <span style={{ flexShrink: 0, fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.5px', color: '#fff', background: 'linear-gradient(135deg, #a855f7, #ec4899)', padding: '2px 6px', borderRadius: '6px' }}>AI</span>
+                      )}
                     </span>
-                    <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>
-                      {anonymousPartnerCountry}
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ flexShrink: 0 }}>{getFlagEmoji(anonymousPartnerCountry, anonymousPartnerCountryCode) || '🌍'}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{anonymousPartnerCountry}</span>
                     </span>
                   </div>
                 </div>
-                <div className="chat-actions">
+                <div className="chat-actions" style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
                   <button
-                    className="action-icon-btn" 
+                    className="action-icon-btn"
+                    onClick={handleSkipAnonymousChat}
+                    title="Next stranger"
+                    style={{ color: 'var(--brand-blue)', display: 'flex', alignItems: 'center', padding: '8px' }}
+                  >
+                    <SkipForward size={22} />
+                  </button>
+                  <button
+                    className="action-icon-btn"
                     onClick={() => {
                       setReportTarget({ id: anonymousPartnerId, username: 'Anonymous User', isAnonymous: true });
                       setShowReportModal(true);
-                    }} 
+                    }}
                     title="Report User"
-                    style={{ color: '#ff4b4b' }}
+                    style={{ color: '#ff4b4b', display: 'flex', alignItems: 'center', padding: '8px' }}
                   >
                     <Flag size={20} />
                   </button>
                   <button
-                      className="premium-btn primary" 
-                      style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center' }}
-                      onClick={handleSendAnonymousFriendRequest}
-                      title="Send Friend Request (Costs 5 Coins)"
-                    >
-                      <UserPlus size={16} style={{ marginRight: '6px' }} /> Add Friend (5 <CoinSVG size={12} style={{marginLeft: '2px'}}/>)
-                    </button>
+                    className="action-icon-btn"
+                    onClick={handleSendAnonymousFriendRequest}
+                    title="Add friend (costs 5 coins)"
+                    style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', padding: '8px' }}
+                  >
+                    <UserPlus size={20} />
+                  </button>
                 </div>
               </div>
               
-              <div className="chat-messages-area" style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: 'var(--bg-color)' }}>
+              <div className="chat-messages-area" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                {anonymousMessages.length === 0 && (
+                  <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '24px' }}>
+                    <div style={{ fontSize: '2.6rem' }}>👋</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>You're matched with {anonymousPartnerName}{isAiCompanion ? ' (AI)' : ''}</div>
+                    <div style={{ fontSize: '0.9rem' }}>from {anonymousPartnerCountry} &mdash; say hello to break the ice!</div>
+                  </div>
+                )}
                 {anonymousMessages.map((msg) => (
                   <div key={msg._id} className={`msg-wrapper ${msg.isSystem ? 'system' : (msg.isMine ? 'sent' : 'received')}`}>
-                    <div className={`msg-bubble ${msg.isSystem ? 'system-bubble' : ''}`} style={msg.isSystem ? { background: 'transparent', color: '#888', textAlign: 'center', width: '100%', fontStyle: 'italic' } : {}}>
+                    <div className={`msg-bubble ${msg.isSystem ? 'system-bubble' : ''}`} style={msg.isSystem ? { background: 'transparent', color: 'var(--text-secondary)', textAlign: 'center', width: '100%', fontStyle: 'italic', fontSize: '0.82rem' } : {}}>
                       <div>{msg.message}</div>
+                      {!msg.isSystem && msg.createdAt && (
+                        <span className="msg-time">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      )}
                     </div>
-                    
-                    {/* Context Menu for Delete removed from anonymous chats (not supported) */}
                   </div>
                 ))}
                 {anonymousPartnerTyping && (
                   <div className="msg-wrapper received">
-                    <div className="msg-bubble" style={{ opacity: 0.7, padding: '8px 12px', fontSize: '0.85rem', color: '#a8a8a8', fontStyle: 'italic', background: 'rgba(255,255,255,0.05)' }}>
+                    <div className="msg-bubble" style={{ opacity: 0.75, padding: '8px 12px', fontSize: '0.85rem', fontStyle: 'italic' }}>
                       Stranger is typing...
                     </div>
                   </div>
@@ -5200,8 +5243,9 @@ const handleStoryUpload = async () => {
                   </div>
                 </form>
               ) : (
-                <div style={{ padding: '20px', paddingBottom: '65px', textAlign: 'center', color: '#a8a8a8', background: 'var(--bg-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                  <div>Chat has ended.</div>
+                <div style={{ padding: '20px', paddingBottom: '65px', textAlign: 'center', color: 'var(--text-secondary)', background: 'var(--chat-messages-bg, rgba(255,192,203,0.08))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ fontSize: '1.6rem' }}>💬</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Chat has ended</div>
                   {anonymousPartnerId && (
                     <button 
                       className="premium-btn primary" 
@@ -5211,6 +5255,13 @@ const handleStoryUpload = async () => {
                       <UserPlus size={16} style={{ marginRight: '6px' }} /> Add Friend (5 <CoinSVG size={12} style={{marginLeft: '2px'}}/>)
                     </button>
                   )}
+                  <button
+                    className="premium-btn primary"
+                    style={{ fontSize: '0.85rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    onClick={handleSkipAnonymousChat}
+                  >
+                    <SkipForward size={16} /> Find new stranger
+                  </button>
                   <button onClick={handleLeaveAnonymousChat} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', cursor: 'pointer', fontWeight: 'bold' }}>Return Home</button>
                 </div>
               )}
