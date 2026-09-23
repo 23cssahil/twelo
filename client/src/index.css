@@ -72,6 +72,17 @@
     --mobile-nav-border: #333333;
     --mobile-nav-icon: #ffffff;
   }
+
+  /* The app shell (sidebar + mobile header) keeps its dark background in light mode, so
+     its nav/header icons must stay light too. Otherwise var(--text-primary) flips dark and
+     the notification Bell (and other shell icons) vanish on the black bar. Inline-colored
+     items (avatar cyan, logout red) and .nav-item.active (brand-red) are left untouched. */
+  .sidebar .nav-item:not(.active) {
+    color: #f5f5f5;
+  }
+  .mobile-header button {
+    color: #f5f5f5;
+  }
 }
 
 * {
