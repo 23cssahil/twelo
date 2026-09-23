@@ -59,7 +59,8 @@ import {
   Mail,
   PenTool,
   Ban,
-  Palette
+  Palette,
+  Globe as GlobeIcon
 } from 'lucide-react';
 
 const CHAT_THEMES = [
@@ -768,6 +769,8 @@ export default function Dashboard() {
   const [videoRoomId, setVideoRoomId] = useState(null);
   const [localVideoStream, setLocalVideoStream] = useState(null);
   const [remoteVideoStream, setRemoteVideoStream] = useState(null);
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(true);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const videoPeerRef = useRef(null);
@@ -837,6 +840,32 @@ export default function Dashboard() {
       socket.emit('video_skip', { roomId: videoRoomId });
     }
     startVideoMatch();
+  };
+
+  // In-call controls: mute the local mic / hide the local camera by enabling/disabling the
+  // real MediaStream tracks (so the peer stops receiving them), and a clean hang-up that
+  // returns to idle without destroying the local preview stream.
+  const toggleMic = () => {
+    if (!localVideoStream) return;
+    const next = !micOn;
+    localVideoStream.getAudioTracks().forEach(t => { t.enabled = next; });
+    setMicOn(next);
+  };
+  const toggleCam = () => {
+    if (!localVideoStream) return;
+    const next = !camOn;
+    localVideoStream.getVideoTracks().forEach(t => { t.enabled = next; });
+    setCamOn(next);
+  };
+  const stopVideoCall = () => {
+    socket.emit('cancel_video_match');
+    if (videoRoomId) socket.emit('video_skip', { roomId: videoRoomId });
+    setVideoMatchingStatus('idle');
+    setRemoteVideoStream(null);
+    if (videoPeerRef.current) {
+      videoPeerRef.current.destroy();
+      videoPeerRef.current = null;
+    }
   };
 
   useEffect(() => {
@@ -5015,8 +5044,8 @@ const handleStoryUpload = async () => {
               )}
               {!isSearchingRandom && !matchFailed && (
                 <div className="search-text" style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
-                  <span style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)', fontWeight: 'bold' }}>Tap the globe to find a random chat!</span>
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', background: 'rgba(255,255,255,0.1)', padding: '6px', borderRadius: '30px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', transform: 'scale(0.95)' }}>
+                  <span style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '1.6px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.8)' }}>Who do you want to meet?</span>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', background: 'rgba(255,255,255,0.1)', padding: '6px', borderRadius: '30px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
                     <button 
                       onClick={(e) => { e.stopPropagation(); setGenderFilter('any'); }} 
                       style={{ padding: '8px 16px', borderRadius: '25px', border: 'none', background: genderFilter === 'any' ? 'linear-gradient(135deg, #00c6ff, #0072ff)' : 'transparent', color: genderFilter === 'any' ? '#fff' : '#aaa', cursor: 'pointer', transition: '0.3s', fontWeight: 'bold', fontSize: '0.9rem', boxShadow: genderFilter === 'any' ? '0 4px 15px rgba(0, 114, 255, 0.4)' : 'none' }}
@@ -7007,11 +7036,11 @@ const handleStoryUpload = async () => {
                 onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.94)'; }}
                 onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
               >
-                <span style={{ fontSize: '2.4rem', lineHeight: 1 }}>🌍</span>
+                <GlobeIcon size={46} strokeWidth={1.5} color="#fff" style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.35))' }} />
                 <span style={{ color: '#fff', fontWeight: '900', fontSize: '1.05rem', letterSpacing: '3px', fontFamily: 'Inter, sans-serif' }}>MATCH</span>
               </button>
             </div>
-            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem', margin: 0, fontFamily: 'Inter, sans-serif', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Tap to find a random chat</p>
+            <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.82rem', margin: 0, fontFamily: 'Inter, sans-serif', letterSpacing: '1.5px', textTransform: 'uppercase', textShadow: '0 2px 6px rgba(0,0,0,0.55)', fontWeight: 600 }}>Tap to find a random chat</p>
           </div>
           <style>{`
             @keyframes matchPulse {
@@ -7024,74 +7053,112 @@ const handleStoryUpload = async () => {
       )}
   {/* Omegle Video Chat Interface */}
   {activeTab === 'home' && !activeChatUser && chatMode === 'video' && (
-    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100dvh', zIndex: 50, background: '#000', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Remote Video (Top Half) */}
-      <div style={{ height: '50%', position: 'relative', borderBottom: '2px solid #333' }}>
+    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100dvh', zIndex: 50, background: '#05060a', overflow: 'hidden' }}>
+      <style>{`
+        @keyframes vcSpin { to { transform: rotate(360deg); } }
+        @keyframes vcAurora { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+        @keyframes vcPulse { 0%,100%{opacity:.55;transform:scale(1)} 50%{opacity:1;transform:scale(1.06)} }
+        .vc-stage{ position:absolute; inset:0; }
+        .vc-stage video{ width:100%; height:100%; object-fit:cover; }
+        .vc-empty{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; text-align:center; padding:24px; overflow:hidden;
+          background: radial-gradient(120% 120% at 50% 0%, #1b1240 0%, #0a0a1f 45%, #05060a 100%); }
+        .vc-empty::before{ content:''; position:absolute; inset:-40%; background: conic-gradient(from 0deg, rgba(124,58,237,.25), rgba(0,198,255,.18), rgba(236,72,153,.22), rgba(124,58,237,.25)); filter: blur(60px); animation: vcAurora 12s ease infinite; opacity:.55; z-index:0; }
+        .vc-empty > *{ position:relative; z-index:1; }
+        .vc-orb{ width:120px; height:120px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff;
+          background: linear-gradient(135deg,#6d28d9,#a855f7 50%,#ec4899); box-shadow:0 0 45px rgba(139,92,246,.6), inset 0 1px 0 rgba(255,255,255,.25); animation: vcPulse 2.4s ease-in-out infinite; }
+        .vc-spin{ animation: vcSpin 1s linear infinite; }
+        .vc-empty-title{ font-size:1.25rem; font-weight:800; color:#fff; letter-spacing:.3px; }
+        .vc-empty-sub{ font-size:.9rem; color:rgba(255,255,255,.6); max-width:280px; }
+        .vc-pip{ position:absolute; right:14px; bottom:152px; width:112px; height:150px; border-radius:16px; overflow:hidden; z-index:20;
+          border:1.5px solid rgba(255,255,255,.35); box-shadow:0 8px 24px rgba(0,0,0,.5); background:#111; }
+        .vc-pip video{ width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+        .vc-pip-label{ position:absolute; left:8px; bottom:6px; font-size:.62rem; font-weight:700; letter-spacing:.5px; color:#fff; background:rgba(0,0,0,.5); padding:2px 7px; border-radius:8px; }
+        .vc-pip-off{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#fff; background:rgba(10,10,20,.85); font-size:.62rem; font-weight:600; }
+        .vc-topbar{ position:absolute; top:14px; left:0; width:100%; display:flex; justify-content:center; z-index:20; }
+        .vc-status-pill{ display:flex; align-items:center; gap:8px; padding:7px 14px; border-radius:20px; font-size:.78rem; font-weight:700; color:#fff;
+          background:rgba(20,20,30,.55); border:1px solid rgba(255,255,255,.14); backdrop-filter:blur(10px); }
+        .vc-dot{ width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e; animation:vcPulse 1.4s ease-in-out infinite; }
+        .vc-dot.searching{ background:#f59e0b; box-shadow:0 0 8px #f59e0b; }
+        .vc-dot.idle{ background:#64748b; box-shadow:none; animation:none; }
+        .vc-controls{ position:absolute; bottom:80px; left:0; width:100%; display:flex; justify-content:center; align-items:center; gap:16px; z-index:30; }
+        .vc-ctrl{ width:56px; height:56px; border-radius:50%; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.1); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(10px); transition:transform .12s ease, background .2s ease; }
+        .vc-ctrl:active{ transform:scale(.92); }
+        .vc-ctrl.off{ background:rgba(255,255,255,.92); color:#111; }
+        .vc-ctrl.hangup{ background:#e50914; border-color:transparent; box-shadow:0 6px 18px rgba(229,9,20,.45); }
+        .vc-ctrl.skip{ background:linear-gradient(135deg,#00c6ff,#0072ff); border-color:transparent; box-shadow:0 6px 18px rgba(0,114,255,.4); }
+        .vc-match-btn{ display:flex; align-items:center; gap:10px; padding:16px 40px; font-size:1.15rem; font-weight:800; color:#fff; border:none; border-radius:30px; cursor:pointer;
+          background:linear-gradient(135deg,#00c6ff,#0072ff); box-shadow:0 8px 24px rgba(0,114,255,.45); }
+        .vc-grant{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; text-align:center; padding:28px; overflow:hidden;
+          background: radial-gradient(120% 120% at 50% 0%, #1b1240 0%, #0a0a1f 45%, #05060a 100%); }
+      `}</style>
+
+      {/* Main stage: remote when connected, otherwise premium waiting / permission state */}
+      <div className="vc-stage">
         {remoteVideoStream ? (
-          <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <video ref={remoteVideoRef} autoPlay playsInline />
+        ) : !localVideoStream ? (
+          <div className="vc-grant">
+            <div className="vc-orb"><Video size={44} /></div>
+            <div className="vc-empty-title">Camera access needed</div>
+            <div className="vc-empty-sub">Allow camera and microphone to start matching with strangers.</div>
+            <button className="vc-match-btn" onClick={requestVideoPermissions}><Video size={20} /> Grant Permissions</button>
+          </div>
         ) : (
-          <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#666', background: '#111' }}>
-            {videoMatchingStatus === 'searching' ? 'Looking for someone...' : 
-             videoMatchingStatus === 'partner_left' ? 'Stranger has disconnected.' : 
-             'Stranger'}
+          <div className="vc-empty">
+            <div className="vc-orb">
+              {videoMatchingStatus === 'searching' ? <Loader2 size={44} className="vc-spin" /> : <UserIcon size={44} />}
+            </div>
+            <div className="vc-empty-title">
+              {videoMatchingStatus === 'searching' ? 'Looking for someone…'
+               : videoMatchingStatus === 'matched' ? 'Connecting you…'
+               : videoMatchingStatus === 'partner_left' ? 'Stranger disconnected'
+               : 'Ready when you are'}
+            </div>
+            <div className="vc-empty-sub">
+              {videoMatchingStatus === 'searching' ? 'Matching you with a random stranger around the world.'
+               : 'Tap Match to find a stranger and start the video chat.'}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Local Video (Bottom Half) */}
-      <div style={{ height: '50%', position: 'relative' }}>
-        
-        {localVideoStream ? (
-          <video ref={localVideoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff', background: '#1a1a1a', padding: '20px', textAlign: 'center' }}>
-            <Video size={48} style={{ marginBottom: '15px', color: '#666' }} />
-            <h3 style={{ margin: '0 0 10px 0' }}>Camera Required</h3>
-            <p style={{ margin: '0 0 20px 0', color: '#aaa', fontSize: '0.9rem' }}>Please allow camera and microphone access to match with strangers.</p>
-            <button 
-              onClick={requestVideoPermissions}
-              style={{ padding: '10px 25px', background: '#0072ff', color: '#fff', border: 'none', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0, 114, 255, 0.3)' }}
-            >
-              Grant Permissions
-            </button>
-          </div>
-        )}
-
+      {/* Top status pill */}
+      <div className="vc-topbar">
+        <div className="vc-status-pill">
+          <span className={`vc-dot ${remoteVideoStream ? '' : videoMatchingStatus === 'searching' ? 'searching' : 'idle'}`} />
+          {remoteVideoStream ? 'Connected'
+            : videoMatchingStatus === 'searching' ? 'Searching…'
+            : videoMatchingStatus === 'partner_left' ? 'Disconnected'
+            : 'Idle'}
+        </div>
       </div>
+
+      {/* Self view (Picture-in-Picture) */}
+      {localVideoStream && (
+        <div className="vc-pip">
+          <video ref={localVideoRef} autoPlay playsInline muted style={{ filter: camOn ? 'none' : 'grayscale(1) brightness(.4)' }} />
+          {!camOn && <div className="vc-pip-off"><VideoOff size={20} /><span>Camera off</span></div>}
+          <span className="vc-pip-label">You</span>
+        </div>
+      )}
 
       {/* Controls */}
-      <div style={{ position: 'absolute', bottom: '80px', left: 0, width: '100%', display: 'flex', justifyContent: 'center', gap: '20px', zIndex: 60 }}>
-        {videoMatchingStatus === 'idle' ? (
-          <button 
-            onClick={startVideoMatch}
-            style={{ padding: '15px 40px', fontSize: '1.2rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #00c6ff, #0072ff)', color: '#fff', border: 'none', borderRadius: '30px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0, 114, 255, 0.4)' }}
-          >
-            Match
-          </button>
+      <div className="vc-controls">
+        {!remoteVideoStream && !localVideoStream ? null
+        : !remoteVideoStream && (videoMatchingStatus === 'idle' || videoMatchingStatus === 'partner_left') ? (
+          <button className="vc-match-btn" onClick={startVideoMatch}><Video size={20} /> Match</button>
         ) : (
           <>
-            <button 
-              onClick={() => {
-                socket.emit('cancel_video_match');
-                if (videoRoomId) socket.emit('video_skip', { roomId: videoRoomId });
-                setVideoMatchingStatus('idle');
-                setRemoteVideoStream(null);
-                if (videoPeerRef.current) {
-                  videoPeerRef.current.destroy();
-                  videoPeerRef.current = null;
-                }
-              }}
-              style={{ padding: '15px 30px', fontSize: '1.1rem', fontWeight: 'bold', background: 'var(--insta-gradient)', color: '#fff', border: 'none', borderRadius: '30px', cursor: 'pointer' }}
-            >
-              Stop
+            <button className={`vc-ctrl ${micOn ? '' : 'off'}`} onClick={toggleMic} title={micOn ? 'Mute microphone' : 'Unmute microphone'}>
+              {micOn ? <Mic size={22} /> : <MicOff size={22} />}
             </button>
-            <button 
-              onClick={skipVideoMatch}
-              style={{ padding: '15px 30px', fontSize: '1.1rem', fontWeight: 'bold', background: '#e50914', color: '#fff', border: 'none', borderRadius: '30px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(229, 9, 20, 0.4)' }}
-            >
-              Skip
+            <button className={`vc-ctrl ${camOn ? '' : 'off'}`} onClick={toggleCam} title={camOn ? 'Turn camera off' : 'Turn camera on'}>
+              {camOn ? <Video size={22} /> : <VideoOff size={22} />}
             </button>
+            {remoteVideoStream && (
+              <button className="vc-ctrl skip" onClick={skipVideoMatch} title="Skip to next stranger"><SwitchCamera size={22} /></button>
+            )}
+            <button className="vc-ctrl hangup" onClick={stopVideoCall} title="Hang up"><PhoneOff size={22} /></button>
           </>
         )}
       </div>
@@ -7106,7 +7173,7 @@ const handleStoryUpload = async () => {
               style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.5)', color: 'gold', padding: '4px 10px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}
             >
               <CoinSVG size={16} />
-              <span>{parseFloat(coins || 0).toFixed(1)}</span>
+              <span>{Number(parseFloat(coins || 0).toFixed(1))}</span>
             </div>
           </div>
           <nav className="nav-links">
@@ -7150,7 +7217,7 @@ const handleStoryUpload = async () => {
             style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.5)', color: 'gold', padding: '4px 8px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}
           >
             <CoinSVG size={16} />
-            <span>{parseFloat(coins || 0).toFixed(1)}</span>
+            <span>{Number(parseFloat(coins || 0).toFixed(1))}</span>
           </div>
           <button onClick={() => setActiveTab('notifications')} style={{ position: 'relative' }}>
             <Bell size={20} />
