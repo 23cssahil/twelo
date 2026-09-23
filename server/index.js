@@ -3638,6 +3638,8 @@ async function redisQueueFindMatch(redis, myUserId, myGender, wantGender, io) {
       // Atomically claim the candidate: if a concurrent matcher already took them, del returns 0.
       const claimed = await redis.del(metaKey);
       if (!claimed) continue;
+      // Cancel the claimed candidate's pending AI-companion fallback so they don't also get a bot.
+      candidateSocket.data.randomSearching = false;
       return { userId: candidateId, ...meta };
     }
   }
@@ -4076,12 +4078,17 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // Mark this socket as actively searching. The AI-companion fallback below keys off this
+      // socket-scoped flag (not the Redis meta) so a reconnect / stale meta can never strand a
+      // user with neither a real match nor a bot.
+      socket.data.randomSearching = true;
+
       // ── REDIS PATH (primary, O(log N)) ────────────────────────────
       if (pubClient) {
         try {
           // Ensure the user is not already waiting (idempotent)
           const existingMeta = await pubClient.hgetall(`rq_meta:${userId}`);
-          if (!existingMeta || !existingMeta.socketId) {
+          if (!existingMeta || !existingMeta.socketId || existingMeta.socketId !== socket.id) {
             await redisQueueAdd(pubClient, userId, socket.id, userGender, genderFilter, userCountry, userCountryCode);
           }
 
@@ -4089,6 +4096,9 @@ io.on('connection', (socket) => {
           const matched = await redisQueueFindMatch(pubClient, userId, userGender, genderFilter, io);
 
           if (matched) {
+            // A real partner was found — stop our own AI-companion fallback. (The claimed
+            // partner's flag is cleared inside redisQueueFindMatch.)
+            socket.data.randomSearching = false;
             // Remove ourselves from the queue too
             await redisQueueRemove(pubClient, userId);
 
@@ -4123,9 +4133,13 @@ io.on('connection', (socket) => {
           }
 
           setTimeout(async () => {
-            // Check if user is still in Redis queue (hasn't been matched in the meantime)
-            const stillWaiting = await pubClient.hgetall(`rq_meta:${userId}`);
-            if (!stillWaiting || stillWaiting.socketId !== socket.id) return;
+            // Only fall back to an AI companion if THIS socket is still connected and still
+            // searching (hasn't been matched by a real user, cancelled, or disconnected). Using
+            // the socket-scoped flag instead of comparing rq_meta.socketId makes the bot reliable
+            // across reconnects / stale Redis meta, which previously left users stuck with neither
+            // a real match nor a bot.
+            if (!socket.connected || !socket.data.randomSearching) return;
+            socket.data.randomSearching = false;
             await redisQueueRemove(pubClient, userId);
 
             const companion = createAiCompanion(userGender, userCountry, userCountryCode, genderFilter);
@@ -4157,6 +4171,8 @@ io.on('connection', (socket) => {
       }
       if (matchedIndex !== -1) {
         const u2 = _fallbackQueue[matchedIndex];
+        socket.data.randomSearching = false;
+        const pSock = io.sockets.sockets.get(u2.socketId); if (pSock) pSock.data.randomSearching = false;
         if (myIndex > matchedIndex) { _fallbackQueue.splice(myIndex, 1); _fallbackQueue.splice(matchedIndex, 1); } else { _fallbackQueue.splice(matchedIndex, 1); _fallbackQueue.splice(myIndex, 1); }
         const u1 = { userId, socketId: socket.id, genderFilter, userGender, userCountry, userCountryCode };
         const roomId = `random_${Date.now()}_${Math.random().toString(36).substring(2,8)}`;
@@ -4175,8 +4191,10 @@ io.on('connection', (socket) => {
       const availableAdmins2 = Array.from(adminSockets2).filter(sid => !adminBusySockets.has(sid));
       if (availableAdmins2.length > 0 && targetDbUser) availableAdmins2.forEach(sid => io.to(sid).emit('admin_alert_new_random', targetDbUser));
       setTimeout(async () => {
+        if (!socket.connected || !socket.data.randomSearching) return;
         const qi = _fallbackQueue.findIndex(e => e.userId === userId && e.socketId === socket.id);
-        if (qi === -1) return;
+        if (qi === -1) { socket.data.randomSearching = false; return; }
+        socket.data.randomSearching = false;
         const queuedUser = _fallbackQueue.splice(qi, 1)[0];
         const companion = createAiCompanion(userGender, queuedUser.userCountry, queuedUser.userCountryCode, queuedUser.genderFilter);
         const roomId = `ai_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -4351,6 +4369,7 @@ io.on('connection', (socket) => {
 
 
   socket.on('cancel_search', async (userId) => {
+    socket.data.randomSearching = false;
     if (pubClient) {
       try { await redisQueueRemove(pubClient, userId); } catch(e) {}
     }
