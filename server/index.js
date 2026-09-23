@@ -3567,14 +3567,19 @@ let lastGlobePushTime = 0; // Cooldown tracker for push notifications (5 min thr
 
 // Helper: determine which ZSET buckets to search for a given user
 function getMatchBuckets(myGender, wantGender) {
-  // Returns ordered list of Redis ZSET keys representing compatible waiting users
+  // A waiting user in bucket rq:<theirGender>_<theirWant> is compatible with me only if THEY
+  // would accept me — i.e. their want is 'any' or exactly my gender. Self-collision is handled
+  // later in redisQueueFindMatch (which parks and skips my own id), so we must NOT filter out
+  // same-gender buckets here. The old `.filter(!startsWith(rq:<myGender>_))` removed
+  // rq:<myGender>_any and rq:<myGender>_<myGender>, so two same-gender "Any" users (the common
+  // case, since most accounts default to gender 'male') never looked in each other's bucket and
+  // always fell back to an AI companion.
   if (wantGender === 'any') {
-    // I accept anyone → look in people who want my gender OR want any
-    return [`rq:male_${myGender}`, `rq:female_${myGender}`, `rq:male_any`, `rq:female_any`]
-      .filter(k => !k.startsWith(`rq:${myGender}_`)); // exclude self-bucket
+    // I accept anyone → everyone who accepts my gender: any-wanters + people who specifically want me.
+    return [`rq:male_any`, `rq:female_any`, `rq:male_${myGender}`, `rq:female_${myGender}`];
   }
-  // I want a specific gender → only match with that gender who wants my gender OR any
-  return [`rq:${wantGender}_${myGender}`, `rq:${wantGender}_any`];
+  // I want a specific gender → only that gender, and only those who accept me (want any or want me).
+  return [`rq:${wantGender}_any`, `rq:${wantGender}_${myGender}`];
 }
 
 // Helper: which ZSET bucket does this user sit in while waiting?
@@ -3610,42 +3615,35 @@ async function redisQueueRemove(redis, userId) {
 // Returns meta object or null if no match found
 async function redisQueueFindMatch(redis, myUserId, myGender, wantGender, io) {
   const buckets = getMatchBuckets(myGender, wantGender);
+  let parkedSelf = null; // { bucket, score } if we popped ourselves while scanning
   for (const bucket of buckets) {
-    // ZPOPMIN atomically pops the earliest waiting user
-    let result = await redis.zpopmin(bucket, 1);
-    if (!result || result.length < 2) continue;
-    const candidateId = result[0]; // userId string
-    if (candidateId === myUserId) {
-      // Accidentally popped ourselves — put back and continue
-      await redis.zadd(bucket, Date.now(), candidateId);
-      continue;
+    // Pop candidates from this bucket until we find a real match or it empties. The guard
+    // bounds work on a heavily-contended bucket.
+    for (let guard = 0; guard < 10; guard++) {
+      const result = await redis.zpopmin(bucket, 1);
+      if (!result || result.length < 2) break; // bucket now empty
+      const candidateId = result[0];
+      const candidateScore = result[1];
+      if (candidateId === myUserId) {
+        // Popped ourselves: park (remember original score) and keep scanning this bucket for
+        // a real partner instead of abandoning it (the old code skipped the whole bucket here).
+        parkedSelf = { bucket, score: candidateScore };
+        continue;
+      }
+      const metaKey = `rq_meta:${candidateId}`;
+      const meta = await redis.hgetall(metaKey);
+      if (!meta || !meta.socketId) { await redis.del(metaKey); continue; } // stale entry, try next
+      const candidateSocket = io.sockets.sockets.get(meta.socketId);
+      if (!candidateSocket || !candidateSocket.connected) { await redis.del(metaKey); continue; } // socket gone, try next
+      // Atomically claim the candidate: if a concurrent matcher already took them, del returns 0.
+      const claimed = await redis.del(metaKey);
+      if (!claimed) continue;
+      return { userId: candidateId, ...meta };
     }
-    // Fetch metadata for this candidate
-    const metaKey = `rq_meta:${candidateId}`;
-    const meta = await redis.hgetall(metaKey);
-    if (!meta || !meta.socketId) {
-      // Stale entry — skip and try next
-      await redis.del(metaKey);
-      continue;
-    }
-    // Verify their socket is still connected on this node
-    const candidateSocket = io.sockets.sockets.get(meta.socketId);
-    if (!candidateSocket || !candidateSocket.connected) {
-      // Socket gone — remove stale meta, try again in same bucket
-      await redis.del(metaKey);
-      result = await redis.zpopmin(bucket, 1);
-      if (!result || result.length < 2) continue;
-      const nextId = result[0];
-      const nextMeta = await redis.hgetall(`rq_meta:${nextId}`);
-      if (!nextMeta || !nextMeta.socketId) { await redis.del(`rq_meta:${nextId}`); continue; }
-      const nextSocket = io.sockets.sockets.get(nextMeta.socketId);
-      if (!nextSocket || !nextSocket.connected) { await redis.del(`rq_meta:${nextId}`); continue; }
-      await redis.del(`rq_meta:${nextId}`);
-      return { userId: nextId, ...nextMeta };
-    }
-    await redis.del(metaKey);
-    return { userId: candidateId, ...meta };
   }
+  // No partner found — restore ourselves to the exact position we were popped from so we keep
+  // waiting (the caller's AI-companion fallback timer relies on our meta still being present).
+  if (parkedSelf) await redis.zadd(parkedSelf.bucket, parkedSelf.score, myUserId);
   return null; // No compatible user found
 }
 
