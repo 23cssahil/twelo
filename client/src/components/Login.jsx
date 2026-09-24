@@ -324,14 +324,16 @@ export default function Login() {
               {!showRecover ? (
                 <span onClick={() => setShowRecover(true)} style={{ marginTop: '10px', fontSize: '0.82rem', color: 'var(--brand-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Have a guest recovery code?</span>
               ) : (
-                <form onSubmit={handleRecoverGuest} style={{ width: '280px', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <form onSubmit={handleRecoverGuest} style={{ width: '280px', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid #333', borderRadius: '14px', padding: '14px' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#a8a8a8', textAlign: 'left', fontWeight: 600, letterSpacing: '0.3px' }}>Enter your guest recovery code</label>
                   <input
                     type="text"
                     value={recoverCode}
                     onChange={(e) => setRecoverCode(e.target.value.toUpperCase())}
                     placeholder="TWG-XXXX-XXXX"
-                    className="auth-input"
-                    style={{ width: '100%', boxSizing: 'border-box', letterSpacing: '1px', textTransform: 'uppercase' }}
+                    autoComplete="off"
+                    spellCheck={false}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px', borderRadius: '10px', background: '#0a0a0a', border: '1px solid #444', color: '#ffffff', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '2px', textTransform: 'uppercase', textAlign: 'center', outline: 'none' }}
                   />
                   <button type="submit" disabled={loading} style={{ width: '100%', padding: '10px', borderRadius: '20px', border: 'none', background: '#0095f6', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Restore Guest Account</button>
                 </form>
