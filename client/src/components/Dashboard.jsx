@@ -6838,6 +6838,20 @@ const handleStoryUpload = async () => {
                   </div>
                 )}
 
+                {/* Highlights empty-state: no highlights on own profile */}
+                {(!profileStats?.highlights || profileStats.highlights.length === 0) && (
+                  <div style={{ marginTop: '20px', width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '15px' }}>
+                      {[0, 1, 2].map((s) => (
+                        <div key={s} style={{ width: '64px', height: '64px', borderRadius: '50%', border: '1px dashed rgba(128,128,128,0.45)', background: 'rgba(128,128,128,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Star size={20} color="var(--text-secondary)" />
+                        </div>
+                      ))}
+                    </div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>No highlights yet</span>
+                  </div>
+                )}
+
                 {profileStats?.globalStories && profileStats.globalStories.length > 0 && (
                   <div style={{ marginTop: '20px', width: '100%' }}>
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
@@ -6881,6 +6895,32 @@ const handleStoryUpload = async () => {
                         See More
                       </button>
                     )}
+                  </div>
+                )}
+
+                {/* Empty state: no stories on own profile */}
+                {(!profileStats?.globalStories || profileStats.globalStories.length === 0) && (
+                  <div style={{
+                    marginTop: '24px', width: '100%',
+                    minHeight: '30vh',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    padding: '32px 20px', textAlign: 'center',
+                    border: '1px dashed rgba(128,128,128,0.45)', borderRadius: '16px',
+                    background: 'rgba(128,128,128,0.06)'
+                  }}>
+                    <div style={{
+                      width: '68px', height: '68px', borderRadius: '50%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'rgba(128,128,128,0.12)', marginBottom: '16px'
+                    }}>
+                      <Camera size={30} color="var(--text-secondary)" />
+                    </div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                      No stories yet
+                    </div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '300px', lineHeight: '1.45' }}>
+                      Share your first story and it'll show up here.
+                    </div>
                   </div>
                 )}
               </div>
