@@ -1407,7 +1407,7 @@ export default function DeveloperAdmin() {
                     if (!Array.isArray(msgs) || msgs.length === 0) return <pre style={{ color: '#ccc', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.8rem' }}>{selectedReport.chatContext}</pre>;
                     return msgs.map((m, i) => (
                       <div key={i} style={{ marginBottom: '8px', display: 'flex', flexDirection: 'column', alignItems: m.from === selectedReport.reportedUsername ? 'flex-start' : 'flex-end' }}>
-                        <span style={{ fontSize: '0.7rem', color: '#666', marginBottom: '2px' }}>{'@'}{m.from} {m.time ? new Date(m.time).toLocaleString() : ''}{m.deletedForEveryone ? <span style={{ color: '#e74c3c', fontWeight: 700 }}> · 🗑️ deleted (recovered for review)</span> : null}</span>
+                        <span style={{ fontSize: '0.7rem', color: '#666', marginBottom: '2px' }}>{'@'}{m.from} {m.time ? new Date(m.time).toLocaleString() : ''}{m.deletedForEveryone ? <span style={{ color: m.recovered ? '#10b981' : '#e74c3c', fontWeight: 700 }}> · 🗑️ {m.recovered ? 'deleted (original recovered)' : 'deleted before recovery existed (content gone)'}</span> : null}</span>
                         <div style={{ background: m.from === selectedReport.reportedUsername ? '#1a1a2e' : '#0d2137', border: '1px solid ' + (m.from === selectedReport.reportedUsername ? '#e74c3c' : '#2980b9'), color: '#fff', padding: '8px 12px', borderRadius: '10px', maxWidth: '85%', fontSize: '0.85rem', wordBreak: 'break-word' }}>
                           {m.type === 'image' ? '📷 Image' : m.type === 'audio' ? '🎵 Audio' : m.type === 'screenshot' ? '📸 Took a screenshot' : (m.message || '(empty)')}
                         </div>

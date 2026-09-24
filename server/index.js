@@ -2961,7 +2961,8 @@ app.post('/api/reports/create', authenticateToken, async (req, res) => {
       const formatted = last20.reverse().map(m => {
         const deleted = !!m.isDeletedForEveryone;
         const snap = m.moderationSnapshot || {};
-        const rawContent = deleted && snap.content ? snap.content : m.message;
+        const hasSnapshot = deleted && !!snap.content;
+        const rawContent = hasSnapshot ? snap.content : m.message;
         const rawType = deleted && snap.type ? snap.type : m.messageType;
         const rawFile = deleted ? (snap.fileUrl || null) : (m.fileUrl || null);
         return {
@@ -2970,7 +2971,8 @@ app.post('/api/reports/create', authenticateToken, async (req, res) => {
           type: rawType,
           fileUrl: rawFile,
           time: m.createdAt,
-          deletedForEveryone: deleted
+          deletedForEveryone: deleted,
+          recovered: hasSnapshot
         };
       });
       chatContext = JSON.stringify(formatted);
