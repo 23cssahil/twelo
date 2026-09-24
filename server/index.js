@@ -2036,55 +2036,78 @@ app.post('/api/stories/:id/comments', authenticateToken, async (req, res) => {
     io.to(`story_${story._id}`).emit('new_comment', populatedComment);
 
     // Notify the right people about this comment (best-effort: never fail the request).
-    //  - Root comment  -> the story owner (global/admin stories have no owner -> skipped).
-    //  - Reply         -> the author of the comment being replied to.
-    // A user is never notified about their own action.
+    //  - Root comment  -> ONE AGGREGATED 'story_comment' notification for the story owner:
+    //    every new root comment updates the SAME notification (per story) so the newest
+    //    commenter's username + avatar bubble to the top and the text reads
+    //    "<latest comment> · <N> others commented on your story". Global/admin stories have
+    //    no owner -> skipped; a user is never notified about their own comment.
+    //  - Reply         -> the author of the comment being replied to (per-actor dedup, as before).
     try {
       const commenterId = req.user.userId;
       const actorName = commentUser?.username || 'Someone';
-      const recipients = [];
+      const commentText = (text || '').trim();
+
       if (!parent_id) {
+        // Root comment -> aggregate into a single story_comment notification for the owner
         if (story.user && !story.isAdminStory && String(story.user) !== String(commenterId)) {
-          recipients.push({ to: story.user, type: 'story_comment' });
+          const ownerId = String(story.user);
+          const owner = await User.findById(ownerId);
+          if (owner) {
+            const updatedStory = await Story.findById(story._id).select('comment_count').lean();
+            const totalComments = (updatedStory?.comment_count || 1);
+            const others = Math.max(0, totalComments - 1);
+            const snippet = commentText.length > 80 ? commentText.slice(0, 80) + '…' : commentText;
+            const actionText = others > 0
+              ? `“${snippet}” · ${formatCompactCount(others)} others commented on your story`
+              : `“${snippet}” · commented on your story`;
+            const existing = (owner.notifications || []).find(n =>
+              n.type === 'story_comment' && n.storyId && String(n.storyId) === String(story._id)
+            );
+            if (existing) {
+              existing.user = commenterId;   // newest commenter -> client shows their username + avatar
+              existing.commentId = newComment._id;
+              existing.message = actionText;
+              existing.read = false;
+              existing.createdAt = new Date(); // resurface to the top
+            } else {
+              owner.notifications.push({
+                type: 'story_comment', user: commenterId, storyId: story._id,
+                commentId: newComment._id, message: actionText, createdAt: new Date(), read: false
+              });
+            }
+            await owner.save();
+            const ownerSocketId = onlineUsers.get(ownerId);
+            if (ownerSocketId) io.to(ownerSocketId).emit('new_notification', { type: 'story_comment' });
+          }
         }
       } else {
+        // Reply -> notify the comment author being replied to (unchanged per-actor dedup)
         const parent = await Comment.findById(parent_id).select('user_id').lean();
         if (parent && parent.user_id && String(parent.user_id) !== String(commenterId)) {
-          recipients.push({ to: parent.user_id, type: 'comment_reply' });
+          const targetUser = await User.findById(parent.user_id);
+          if (targetUser) {
+            const message = `@${actorName} replied to your comment on a story`;
+            const existing = (targetUser.notifications || []).find(n =>
+              !n.read &&
+              n.type === 'comment_reply' &&
+              n.user && String(n.user) === String(commenterId) &&
+              n.storyId && String(n.storyId) === String(story._id)
+            );
+            if (existing) {
+              existing.commentId = newComment._id;
+              existing.message = message;
+              existing.createdAt = new Date();
+            } else {
+              targetUser.notifications.push({
+                type: 'comment_reply', user: commenterId, storyId: story._id,
+                commentId: newComment._id, message, createdAt: new Date()
+              });
+            }
+            await targetUser.save();
+            const targetSocketId = onlineUsers.get(String(parent.user_id));
+            if (targetSocketId) io.to(targetSocketId).emit('new_notification');
+          }
         }
-      }
-      for (const r of recipients) {
-        const targetUser = await User.findById(r.to);
-        if (!targetUser) continue;
-        const message = r.type === 'comment_reply'
-          ? `@${actorName} replied to your comment on a story`
-          : `@${actorName} commented on your story`;
-        // Dedup: a back-and-forth reply chain on the same story should NOT spam a fresh
-        // notification every time. If this same actor already has an UNREAD notification
-        // of this type for this story, bump/refresh it (moves to top) instead of adding another.
-        const existing = (targetUser.notifications || []).find(n =>
-          !n.read &&
-          n.type === r.type &&
-          n.user && String(n.user) === String(commenterId) &&
-          n.storyId && String(n.storyId) === String(story._id)
-        );
-        if (existing) {
-          existing.commentId = newComment._id;
-          existing.message = message;
-          existing.createdAt = new Date();
-        } else {
-          targetUser.notifications.push({
-            type: r.type,
-            user: commenterId,
-            storyId: story._id,
-            commentId: newComment._id,
-            message,
-            createdAt: new Date()
-          });
-        }
-        await targetUser.save();
-        const targetSocketId = onlineUsers.get(String(r.to));
-        if (targetSocketId) io.to(targetSocketId).emit('new_notification');
       }
     } catch (notifErr) {
       console.error('[comment notify] failed:', notifErr.message);
