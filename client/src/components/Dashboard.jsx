@@ -116,6 +116,22 @@ const COUNTRY_DATA = {
   "Other": { lat: 0, lng: 0, fact: "Did you know? Earth has over 195 countries!" }
 };
 
+// Compact count formatter for on-screen counts (heart/comment/follower tallies):
+// 1..999 raw, 1000 -> 1k, 1100 -> 1.1k, 100100 -> 100.1k, 999999 -> 999.9k,
+// 1e6 -> 1M, 1.5e6 -> 1.5M, 2e9 -> 2B. (Notification text on the server keeps the
+// stricter 3-significant-digit rule, so '999k others' stays short there.)
+function formatCompactCount(n) {
+  n = Number(n) || 0;
+  if (n < 1000) return String(n);
+  const fmt = (val, suffix) => {
+    const s = val < 1000 ? (Math.round(val * 10) / 10) : Math.floor(val);
+    return String(s).replace(/\.0$/, '') + suffix;
+  };
+  if (n >= 1e9) return fmt(n / 1e9, 'B');
+  if (n >= 1e6) return fmt(n / 1e6, 'M');
+  return fmt(n / 1e3, 'k');
+}
+
 
   const groupStoriesByDay = (stories) => {
     if (!stories || stories.length === 0) return [];
@@ -128,15 +144,7 @@ const COUNTRY_DATA = {
     return Object.entries(groups).map(([date, st]) => ({ date, stories: st }));
   };
 
-  const formatCount = (num) => {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-    }
-    if (num >= 10000) {
-      return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-    }
-    return num;
-  };
+  const formatCount = (num) => formatCompactCount(num);
 
   const getFlagEmoji = (countryName, countryCode) => {
   if (countryCode && countryCode !== 'UN') {
@@ -199,12 +207,7 @@ const StorySlide = ({
   const story = group.stories[isActiveSlide ? currentStoryIndex : 0];
   if (!story) return null;
 
-  const formatCount = (count) => {
-    if (!count) return 0;
-    if (count >= 1000000) return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
-    if (count >= 1000) return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-    return count;
-  };
+  const formatCount = (count) => formatCompactCount(count);
 
   const [touchStartX, setTouchStartX] = React.useState(null);
   const [touchEndX, setTouchEndX] = React.useState(null);
@@ -522,7 +525,7 @@ const StorySlide = ({
                 />
               </button>
               <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: '600', marginTop: '4px', textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}>
-                {story.likedBy?.length || 0}
+                {formatCompactCount(story.likedBy?.length || 0)}
               </span>
             </div>
 
