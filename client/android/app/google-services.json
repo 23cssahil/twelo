@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "619328559486",
+    "project_id": "twelo-63e26",
+    "storage_bucket": "twelo-63e26.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:619328559486:android:6f060cf6acb3ad737c7b2f",
+        "android_client_info": {
+          "package_name": "com.twelo.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2YRF5uqg_6nE49izMqLyhb8fYL97j6fM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
