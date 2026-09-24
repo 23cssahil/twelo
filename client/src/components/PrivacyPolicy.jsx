@@ -6,7 +6,7 @@ export default function PrivacyPolicy() {
   const navigate = useNavigate();
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)', minHeight: '100vh', padding: '20px', fontFamily: 'var(--font-sans)' }}>
+    <div style={{ backgroundColor: 'var(--panel-bg)', color: 'var(--text-primary)', minHeight: '100vh', padding: '20px', fontFamily: 'var(--font-sans)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
         <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '8px', marginLeft: '-8px' }}>
           <ArrowLeft size={24} />
