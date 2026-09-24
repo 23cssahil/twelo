@@ -21,13 +21,29 @@ const UserSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: true,
+    trim: true,
     unique: true,
   },
   googleId: {
     type: String,
-    required: true,
+    trim: true,
     unique: true,
+  },
+  // Guest accounts have no email/googleId yet. Because MongoDB unique indexes
+  // permit multiple missing/null values, leaving email/googleId undefined for a
+  // guest never collides. Upgrading a guest links real values onto the SAME doc.
+  isGuest: {
+    type: Boolean,
+    default: false,
+  },
+  // SHA-256 hash of the one-time guest recovery/claim code (sparse so only guests
+  // that still have a code are indexed). Lets a guest restore their account on a
+  // new device, and is cleared once they upgrade to Google.
+  guestClaimCodeHash: {
+    type: String,
+    trim: true,
+    unique: true,
+    sparse: true,
   },
   uniqueId: {
     type: String,

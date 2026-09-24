@@ -530,6 +530,16 @@ const generateUniqueId = () => {
   return result;
 };
 
+// ── Guest account helpers ─────────────────────────────────────────
+// A guest's recovery/claim code is high-entropy and random, so a fast SHA-256
+// (not a password hash) is appropriate and lets us look the code up directly.
+const sha256Hex = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
+const genGuestClaimCode = () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // exclude ambiguous 0/O/1/I
+  const block = (n) => Array.from({ length: n }, () => alphabet[crypto.randomInt(alphabet.length)]).join('');
+  return `TWG-${block(4)}-${block(4)}`;
+};
+
 // Middleware to authenticate JWT token
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -583,10 +593,60 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
       return res.status(400).json({ message: 'Invalid or malformed Google authentication credential.' });
     }
 
+    // Optional guest session: if this request carries a valid guest token and the Google
+    // account is brand-new, PROMOTE the existing guest document (same _id) instead of
+    // creating a fresh user, so all chats/friends/coins carry over seamlessly.
+    const guestAuthHeader = req.headers['authorization'];
+    const guestToken = guestAuthHeader && guestAuthHeader.split(' ')[1];
+    let guestDoc = null;
+    if (guestToken) {
+      try {
+        const decodedGuest = jwt.verify(guestToken, JWT_SECRET);
+        if (decodedGuest && decodedGuest.userId) {
+          const candidate = await User.findById(decodedGuest.userId);
+          if (candidate && candidate.isGuest) guestDoc = candidate;
+        }
+      } catch (e) { /* not a valid guest token; ignore and continue normal flow */ }
+    }
+
     const user = await User.findOne({ googleId });
     if (!user) {
+      if (guestDoc) {
+        // Upgrade the guest in place — link the Google identity onto the SAME account.
+        guestDoc.googleId = googleId;
+        guestDoc.email = encryptEmail(email);
+        guestDoc.isGuest = false;
+        guestDoc.guestClaimCodeHash = undefined; // claim code no longer needed
+        try {
+          await guestDoc.save();
+        } catch (saveErr) {
+          console.error('Guest upgrade failed:', saveErr.message);
+          return res.status(500).json({ message: 'Could not link your guest account. Please try again.' });
+        }
+        const upgradedToken = jwt.sign(
+          { userId: guestDoc._id, username: guestDoc.username, uniqueId: guestDoc.uniqueId },
+          JWT_SECRET,
+          { expiresIn: '7d' }
+        );
+        return res.json({
+          token: upgradedToken,
+          upgraded: true,
+          user: {
+            id: guestDoc._id,
+            username: guestDoc.username,
+            uniqueId: guestDoc.uniqueId,
+            avatarUrl: guestDoc.avatarUrl,
+            country: guestDoc.country,
+            age: guestDoc.age,
+            gender: guestDoc.gender,
+            isGuest: false
+          }
+        });
+      }
       return res.json({ isNewUser: true, email, googleId });
     }
+    // A registered account already exists for this Google id. If the visitor arrived as a
+    // guest, they are now logged into their existing account (guest data is not merged here).
 
     if (user.isBlocked) {
       return res.status(403).json({ message: 'Your account has been blocked by the admin.' });
@@ -724,6 +784,104 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Error completing profile', error: error.message });
+  }
+});
+
+// ── Guest (anonymous) sign-in ────────────────────────────────────
+// Creates a real, limited user account with NO Google/email identity so hesitant
+// visitors can use the app instantly. It can later be UPGRADED to a Google login
+// (see the guest-promotion in /api/auth/google — same _id, all data preserved) or
+// recovered on another device with the one-time claim code returned here.
+app.post('/api/auth/guest', authLimiter, async (req, res) => {
+  try {
+    let uniqueId = generateUniqueId();
+    while (await User.findOne({ uniqueId })) uniqueId = generateUniqueId();
+
+    const gender = Math.random() < 0.5 ? 'male' : 'female';
+    let username = `guest${Math.floor(1000 + Math.random() * 9000)}`;
+    while (await User.findOne({ username })) username = `guest${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const avatarUrl = generateAvatarUrl(gender);
+
+    let finalCountry = 'Earth';
+    let countryCode = 'UN';
+    try {
+      const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || req.ip;
+      if (clientIp && clientIp !== '::1' && clientIp !== '127.0.0.1') {
+        const response = await fetch(`http://ip-api.com/json/${clientIp}`);
+        const geoData = await response.json();
+        if (geoData && geoData.status === 'success') { finalCountry = geoData.country; countryCode = geoData.countryCode; }
+      }
+    } catch (geoErr) { console.error('Guest geolocation failed:', geoErr.message); }
+
+    const claimCode = genGuestClaimCode();
+    const guest = new User({
+      username,
+      name: 'Guest',
+      uniqueId,
+      age: 18,
+      country: finalCountry,
+      countryCode,
+      gender,
+      avatarUrl,
+      coins: 3,
+      lastDailyReward: new Date(),
+      isGuest: true,
+      guestClaimCodeHash: sha256Hex(claimCode),
+    });
+    await guest.save();
+
+    const jwtToken = jwt.sign(
+      { userId: guest._id, username: guest.username, uniqueId: guest.uniqueId },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.status(201).json({
+      token: jwtToken,
+      claimCode,
+      user: {
+        id: guest._id,
+        username: guest.username,
+        uniqueId: guest.uniqueId,
+        avatarUrl: guest.avatarUrl,
+        country: guest.country,
+        age: guest.age,
+        gender: guest.gender,
+        isGuest: true
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Could not create guest account', error: error.message });
+  }
+});
+
+// Recover an existing guest account on a new device using its one-time claim code.
+app.post('/api/auth/guest/recover', authLimiter, async (req, res) => {
+  try {
+    const { claimCode } = req.body || {};
+    if (!claimCode || typeof claimCode !== 'string') return res.status(400).json({ message: 'Enter your recovery code' });
+    const guest = await User.findOne({ guestClaimCodeHash: sha256Hex(claimCode.trim().toUpperCase()), isGuest: true });
+    if (!guest) return res.status(404).json({ message: 'Invalid or already-used recovery code' });
+    const jwtToken = jwt.sign(
+      { userId: guest._id, username: guest.username, uniqueId: guest.uniqueId },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({
+      token: jwtToken,
+      user: {
+        id: guest._id,
+        username: guest.username,
+        uniqueId: guest.uniqueId,
+        avatarUrl: guest.avatarUrl,
+        country: guest.country,
+        age: guest.age,
+        gender: guest.gender,
+        isGuest: true
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Recovery failed', error: error.message });
   }
 });
 

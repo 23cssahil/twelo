@@ -18,6 +18,7 @@ const DeveloperAdmin = React.lazy(() => import('./components/DeveloperAdmin'));
 const BotTrainingAdmin = React.lazy(() => import('./components/BotTrainingAdmin'));
 const Landing = React.lazy(() => import('./components/Landing'));
 const CookieConsent = React.lazy(() => import('./components/CookieConsent'));
+const GuestUpsell = React.lazy(() => import('./components/GuestUpsell'));
 
 export const AuthContext = createContext(null);
 export const SocketContext = createContext(null);
@@ -231,6 +232,7 @@ export default function App() {
               </Routes>
             </Suspense>
             <CookieConsent />
+            <Suspense fallback={null}><GuestUpsell /></Suspense>
           </Router>
         </SocketContext.Provider>
       </AuthContext.Provider>

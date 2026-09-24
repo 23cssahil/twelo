@@ -37,6 +37,8 @@ export default function Login() {
   const [country, setCountry] = useState('');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [gender, setGender] = useState('');
+  const [showRecover, setShowRecover] = useState(false);
+  const [recoverCode, setRecoverCode] = useState('');
 
   React.useEffect(() => {
     // Detect access_token returned in URL hash from direct Google OAuth redirect
@@ -208,6 +210,48 @@ export default function Login() {
     }
   };
 
+  // Instant anonymous access: create a lightweight guest account (no Google/email).
+  const handleGuestLogin = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const res = await fetch(`${API_URL}/api/auth/guest`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Could not start guest session');
+      if (data.claimCode) localStorage.setItem('guestClaimCode', data.claimCode);
+      login(data.user, data.token);
+      navigate(from);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Restore a previously-created guest account on this/new device via its claim code.
+  const handleRecoverGuest = async (e) => {
+    e.preventDefault();
+    if (!recoverCode.trim()) { setError('Enter your recovery code'); return; }
+    try {
+      setLoading(true);
+      setError('');
+      const res = await fetch(`${API_URL}/api/auth/guest/recover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimCode: recoverCode.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Invalid recovery code');
+      localStorage.setItem('guestClaimCode', recoverCode.trim().toUpperCase());
+      login(data.user, data.token);
+      navigate(from);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="auth-container">
       <div className="auth-card">
@@ -261,6 +305,39 @@ export default function Login() {
               )}
             </div>
             
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', marginTop: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '280px', color: '#666', fontSize: '0.8rem', margin: '4px 0 14px' }}>
+                <div style={{ flex: 1, height: '1px', background: '#333' }}></div>
+                or
+                <div style={{ flex: 1, height: '1px', background: '#333' }}></div>
+              </div>
+              <button
+                onClick={handleGuestLogin}
+                disabled={loading}
+                style={{ width: '280px', padding: '12px 24px', background: 'transparent', color: '#fff', border: '1px solid #444', borderRadius: '24px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                👻 Continue as Guest
+              </button>
+              <p style={{ color: '#777', fontSize: '0.78rem', marginTop: '8px', textAlign: 'center', maxWidth: '280px' }}>
+                No sign-up needed. Upgrade to Google anytime to keep your account.
+              </p>
+              {!showRecover ? (
+                <span onClick={() => setShowRecover(true)} style={{ marginTop: '10px', fontSize: '0.82rem', color: 'var(--brand-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Have a guest recovery code?</span>
+              ) : (
+                <form onSubmit={handleRecoverGuest} style={{ width: '280px', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <input
+                    type="text"
+                    value={recoverCode}
+                    onChange={(e) => setRecoverCode(e.target.value.toUpperCase())}
+                    placeholder="TWG-XXXX-XXXX"
+                    className="auth-input"
+                    style={{ width: '100%', boxSizing: 'border-box', letterSpacing: '1px', textTransform: 'uppercase' }}
+                  />
+                  <button type="submit" disabled={loading} style={{ width: '100%', padding: '10px', borderRadius: '20px', border: 'none', background: '#0095f6', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Restore Guest Account</button>
+                </form>
+              )}
+            </div>
+
             <div style={{ marginTop: '20px', fontSize: '0.8rem', color: '#a8a8a8', textAlign: 'center' }}>
               By logging in, you agree to our <br/>
               <span onClick={() => { window.scrollTo(0,0); navigate('/terms'); }} style={{ color: 'var(--brand-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Terms & Conditions</span> and <span onClick={() => { window.scrollTo(0,0); navigate('/privacy-policy'); }} style={{ color: 'var(--brand-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Privacy Policy</span>.<br/><br/>
