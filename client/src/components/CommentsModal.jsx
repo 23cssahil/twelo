@@ -7,7 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { SocketContext } from '../App';
 import { useContext } from 'react';
 
-const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwnerId, updateCommentCount, isReply = false, depth = 0 }) => {
+const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwnerId, updateCommentCount, isReply = false, depth = 0, highlight = false }) => {
   const queryClient = useQueryClient();
   const [likeData, setLikeData] = useState({
     isLiked: comment.liked_by && comment.liked_by.includes(user?.id || user?._id),
@@ -134,7 +134,7 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwn
 
   return (
     <div style={{ marginBottom: isReply ? '10px' : '16px' }}>
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '8px', margin: '-8px', borderRadius: '12px', transition: 'background-color 0.5s ease, box-shadow 0.5s ease', ...(highlight ? { backgroundColor: 'rgba(37,99,235,0.10)', boxShadow: 'inset 0 0 0 1.5px rgba(37,99,235,0.45)' } : {}) }}>
         <img 
           src={comment.user?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${comment.user?.username}`} 
           style={{ width: isReply ? '24px' : '32px', height: isReply ? '24px' : '32px', borderRadius: '50%', backgroundColor: '#eee', objectFit: 'cover', flexShrink: 0 }} 
@@ -241,10 +241,13 @@ const CommentItem = ({ comment, token, user, API_URL, onReply, storyId, storyOwn
   );
 };
 
-export default function CommentsModal({ story, isOpen, onClose, token, user, API_URL, updateCommentCount }) {
+export default function CommentsModal({ story, isOpen, onClose, token, user, API_URL, updateCommentCount, targetCommentId, onCommentLocated }) {
   const [commentInput, setCommentInput] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
+  const [highlightId, setHighlightId] = useState(null);
   const parentRef = useRef(null);
+  const textareaRef = useRef(null);
+  const handledLinkRef = useRef(null);
   const queryClient = useQueryClient();
   const socket = useContext(SocketContext);
 
@@ -293,6 +296,33 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
       fetchNextPage();
     }
   }, [hasNextPage, fetchNextPage, flatComments.length, isFetchingNextPage, rowVirtualizer]);
+
+  // Deep-link from a comment notification: once comments are loaded, scroll to the
+  // targeted comment, flash a highlight, open its reply box and focus the textarea.
+  // handledLinkRef guards against re-running on pagination; timers are intentionally
+  // not cleaned up because onCommentLocated clears the parent intent synchronously.
+  useEffect(() => {
+    if (!isOpen || !targetCommentId) { handledLinkRef.current = null; return; }
+    if (!flatComments || flatComments.length === 0) return;
+    if (handledLinkRef.current === String(targetCommentId)) return;
+    handledLinkRef.current = String(targetCommentId);
+    const idx = flatComments.findIndex(c => String(c._id) === String(targetCommentId));
+    if (idx === -1) {
+      // Not on the loaded pages (e.g. a nested reply) -> just open the sheet, clear the intent.
+      if (onCommentLocated) onCommentLocated();
+      return;
+    }
+    const found = flatComments[idx];
+    const linkId = String(targetCommentId);
+    setTimeout(() => {
+      rowVirtualizer.scrollToIndex(idx, { align: 'center' });
+      setHighlightId(linkId);
+      if (found && !found.isOptimistic) setReplyingTo(found);
+    }, 120);
+    setTimeout(() => { if (textareaRef.current) textareaRef.current.focus(); }, 480);
+    setTimeout(() => setHighlightId(null), 4200);
+    if (onCommentLocated) onCommentLocated();
+  }, [isOpen, targetCommentId, flatComments.length]);
 
 
 
@@ -536,6 +566,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
                             storyId={story._id}
                             storyOwnerId={story?.user?._id || story?.user}
                             updateCommentCount={updateCommentCount}
+                            highlight={String(comment._id) === highlightId}
                           />
                         )}
                       </div>
@@ -577,6 +608,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
                     </span>
                   )}
                   <textarea
+                    ref={textareaRef}
                     placeholder={replyingTo ? 'Add a reply...' : 'Add a comment...'}
                     value={commentInput}
                     onChange={(e) => setCommentInput(e.target.value)}

@@ -1396,6 +1396,9 @@ export default function Dashboard() {
   const [storyProgress, setStoryProgress] = useState(0);
   const [storyPaused, setStoryPaused] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
+  // When set, the CommentsModal auto-scrolls to + highlights this comment and opens
+  // its reply box (used when a story-comment notification is tapped).
+  const [targetCommentId, setTargetCommentId] = useState(null);
   const [commentInput, setCommentInput] = useState('');
   
   
@@ -3461,7 +3464,7 @@ export default function Dashboard() {
     setStoryCameraOpen(false);
     setStoryCapturedImage(null);
   };
-  const openSharedStory = async (storyId) => {
+  const openSharedStory = async (storyId, commentId = null) => {
     try {
       const res = await fetch(`${API_URL}/api/stories/${storyId}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -3478,6 +3481,12 @@ export default function Dashboard() {
         setStoryPaused(false);
         setStoryViewerActive(true);
         window.history.pushState({ page: 'story-viewer' }, 'Story Viewer', window.location.pathname);
+        // Coming from a comment notification: open the comments sheet and jump to that comment.
+        if (commentId) {
+          setTargetCommentId(String(commentId));
+          setStoryPaused(true);
+          setShowCommentsModal(true);
+        }
       } else {
         showToastMsg('Story is no longer available', 'error');
       }
@@ -5386,7 +5395,7 @@ const handleStoryUpload = async () => {
               onContextMenu={(e) => { e.preventDefault(); return false; }}
               style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', background: unread ? 'rgba(0,149,246,0.08)' : 'transparent', borderRadius: '10px', paddingLeft: '10px', paddingRight: '10px' }}
             >
-              <div className="user-card-info" onClick={() => { markNotifRead(notif._id); if (notif.storyId) { openSharedStory(notif.storyId); } else { viewPublicProfile(reqUser._id); } }} style={{ cursor: 'pointer' }}>
+              <div className="user-card-info" onClick={() => { markNotifRead(notif._id); if (notif.storyId) { openSharedStory(notif.storyId, notif.commentId); } else { viewPublicProfile(reqUser._id); } }} style={{ cursor: 'pointer' }}>
                 <div className="user-avatar-small">{(notif.type === 'anonymous_follow_request' || notif.type === 'anonymous_request_accepted' ? null : reqUser.avatarUrl) ? <img src={reqUser.avatarUrl} alt='avatar' /> : reqUser.username.charAt(0).toUpperCase()}</div>
                 <div className="user-names">
                   <span className="user-username">@{reqUser.username?.length > 10 ? reqUser.username.substring(0, 10) + '...' : reqUser.username}{unread && <span style={unreadDot} />}</span>
@@ -7922,6 +7931,7 @@ const handleStoryUpload = async () => {
         isOpen={showCommentsModal}
         onClose={() => {
           setShowCommentsModal(false);
+          setTargetCommentId(null);
           setStoryPaused(false);
         }}
         story={viewerStories[currentStoryUserIndex]?.stories[currentStoryIndex]}
@@ -7929,6 +7939,8 @@ const handleStoryUpload = async () => {
         user={user}
         API_URL={API_URL}
         updateCommentCount={updateCommentCount}
+        targetCommentId={targetCommentId}
+        onCommentLocated={() => setTargetCommentId(null)}
       />
       {/* Share Modal */}
       {showShareModal && (
