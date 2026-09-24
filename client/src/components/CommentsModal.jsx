@@ -601,9 +601,9 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
                   style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#eee', flexShrink: 0, objectFit: 'cover' }} 
                   alt=""
                 />
-                <div style={{ flex: 1, position: 'relative', display: 'flex', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '20px', padding: '12px 48px 12px 20px', alignItems: 'center' }}>
+                <div style={{ flex: 1, minWidth: 0, position: 'relative', display: 'flex', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '20px', padding: '12px 48px 12px 20px', alignItems: 'center' }}>
                   {replyingTo && (
-                    <span style={{ color: '#2563eb', fontWeight: '500', marginRight: '4px', whiteSpace: 'nowrap' }}>
+                    <span style={{ color: '#2563eb', fontWeight: '500', marginRight: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '45%', flexShrink: 1 }}>
                       @{replyingTo.user?.username}
                     </span>
                   )}
@@ -612,7 +612,7 @@ export default function CommentsModal({ story, isOpen, onClose, token, user, API
                     placeholder={replyingTo ? 'Add a reply...' : 'Add a comment...'}
                     value={commentInput}
                     onChange={(e) => setCommentInput(e.target.value)}
-                    style={{ flex: 1, backgroundColor: 'transparent', border: 'none', fontSize: '15px', outline: 'none', color: '#111', resize: 'none', padding: 0, margin: 0, fontFamily: 'inherit', lineHeight: '1.4', overflow: 'hidden' }}
+                    style={{ flex: 1, minWidth: 0, backgroundColor: 'transparent', border: 'none', fontSize: '15px', outline: 'none', color: '#111', resize: 'none', padding: 0, margin: 0, fontFamily: 'inherit', lineHeight: '1.4', overflow: 'hidden' }}
                     rows={1}
                     onInput={(e) => {
                       e.target.style.height = 'auto';

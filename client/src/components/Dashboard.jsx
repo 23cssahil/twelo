@@ -866,6 +866,40 @@ export default function Dashboard() {
     localVideoStream.getVideoTracks().forEach(t => { t.enabled = next; });
     setCamOn(next);
   };
+  // Flip the local camera between front/back WITHOUT ending the call. simple-peer
+  // exposes replaceStream(), so we swap the outgoing media for a new getUserMedia
+  // capture and keep the current mic/cam enabled state.
+  const flipVideoCamera = async () => {
+    if (!localVideoStream) return;
+    const vt = localVideoStream.getVideoTracks()[0];
+    const settings = vt && vt.getSettings ? vt.getSettings() : {};
+    const current = settings.facingMode || currentFacingMode || 'user';
+    const next = current === 'user' ? 'environment' : 'user';
+    try {
+      let newStream;
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: { exact: next } } });
+      } catch (e) {
+        newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: { ideal: next } } });
+      }
+      // Preserve the user's current mute/camera-off choices on the fresh tracks.
+      newStream.getAudioTracks().forEach(t => { t.enabled = micOn; });
+      newStream.getVideoTracks().forEach(t => { t.enabled = camOn; });
+      // Stop the old camera/mic so the recording indicators turn off.
+      localVideoStream.getTracks().forEach(t => t.stop());
+      setLocalVideoStream(newStream);
+      setCurrentFacingMode(next);
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = newStream;
+        localVideoRef.current.play().catch(() => {});
+      }
+      if (videoPeerRef.current && typeof videoPeerRef.current.replaceStream === 'function') {
+        try { videoPeerRef.current.replaceStream(newStream); } catch (e) { console.error('replaceStream failed:', e); }
+      }
+    } catch (err) {
+      console.error('Camera flip failed', err);
+    }
+  };
   const stopVideoCall = () => {
     socket.emit('cancel_video_match');
     if (videoRoomId) socket.emit('video_skip', { roomId: videoRoomId });
@@ -1425,6 +1459,10 @@ export default function Dashboard() {
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
   const chatTypingTimeoutRef = useRef(null);
+  // Receiver-side auto-expiry: typing is ephemeral, so if a typing:false event never
+  // arrives (sender closed the chat / backgrounded the app mid-typing) the "typing..."
+  // indicator must still clear on its own instead of sticking until a page refresh.
+  const typingExpireTimersRef = useRef({});
   const [showNudityWarning, setShowNudityWarning] = useState(false);
   const [previewSafety, setPreviewSafety] = useState('safe');
   const [storyPreviewSafety, setStoryPreviewSafety] = useState('safe');
@@ -2605,9 +2643,25 @@ export default function Dashboard() {
     });
 
     socket.on('typing_status_received', ({ senderId, isTyping }) => {
+      // Cancel any pending expiry for this sender first.
+      if (typingExpireTimersRef.current[senderId]) {
+        clearTimeout(typingExpireTimersRef.current[senderId]);
+        delete typingExpireTimersRef.current[senderId];
+      }
       setTypingUsers(prev => ({ ...prev, [senderId]: isTyping }));
       if (activeChatUserRef.current && activeChatUserRef.current._id === senderId) {
         setPartnerTyping(isTyping);
+      }
+      // When typing starts, arm a safety timer so the indicator clears even if the
+      // matching typing:false never reaches us.
+      if (isTyping) {
+        typingExpireTimersRef.current[senderId] = setTimeout(() => {
+          setTypingUsers(prev => ({ ...prev, [senderId]: false }));
+          if (activeChatUserRef.current && activeChatUserRef.current._id === senderId) {
+            setPartnerTyping(false);
+          }
+          delete typingExpireTimersRef.current[senderId];
+        }, 4000);
       }
     });
 
@@ -2666,6 +2720,9 @@ export default function Dashboard() {
       socket.off('globe_status_update');
       socket.off('call_failed');
       socket.off('chat_theme_changed');
+      // Clear any pending typing auto-expiry timers.
+      Object.values(typingExpireTimersRef.current).forEach(t => clearTimeout(t));
+      typingExpireTimersRef.current = {};
     };
   }, [socket, user]);
 
@@ -7385,8 +7442,9 @@ const handleStoryUpload = async () => {
             <button className={`vc-ctrl ${camOn ? '' : 'off'}`} onClick={toggleCam} title={camOn ? 'Turn camera off' : 'Turn camera on'}>
               {camOn ? <Video size={22} /> : <VideoOff size={22} />}
             </button>
+            <button className="vc-ctrl" onClick={flipVideoCamera} title="Switch camera"><SwitchCamera size={22} /></button>
             {remoteVideoStream && (
-              <button className="vc-ctrl skip" onClick={skipVideoMatch} title="Skip to next stranger"><SwitchCamera size={22} /></button>
+              <button className="vc-ctrl skip" onClick={skipVideoMatch} title="Skip to next stranger"><SkipForward size={22} /></button>
             )}
             <button className="vc-ctrl hangup" onClick={stopVideoCall} title="Hang up"><PhoneOff size={22} /></button>
           </>
