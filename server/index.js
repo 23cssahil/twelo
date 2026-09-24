@@ -3581,12 +3581,61 @@ app.post('/api/admin/clear-queue', adminAuth, async (req, res) => {
   res.json({ success: true, queuedRandom: 0 });
 });
 
+// Build a professional, reason-based official warning delivered to a reported user.
+function buildWarningMessage(reason, username) {
+  const who = username ? `@${username}` : 'Your account';
+  const map = {
+    'Sexual Harassment': 'sexual harassment and inappropriate sexual conduct',
+    'Spam / Scams': 'spam, scams or misleading behaviour',
+    'Abuse / Insult': 'abusive language, insults or harassment of other users',
+    'Other Inappropriate Behavior': 'behaviour that violates our community guidelines'
+  };
+  const what = map[reason] || 'conduct that violates our community guidelines';
+  return `⚠️ Community Guidelines Warning\n\n${who} has been reported and reviewed by our moderation team for ${what}. This is an official warning. Repeated violations may lead to temporary restrictions or a permanent ban from Twelo. Please treat other users with respect.`;
+}
+
 app.get('/api/admin/reports', adminAuth, async (req, res) => {
   try {
     const reports = await Report.find({ status: 'pending' }).sort({ createdAt: -1 }).lean();
-    res.json(reports);
+    // How many total reports exist against each reported user (repeat-offender signal).
+    const counts = await Report.aggregate([
+      { $group: { _id: '$reportedUserId', count: { $sum: 1 } } }
+    ]);
+    const countMap = {};
+    counts.forEach(c => { if (c._id) countMap[String(c._id)] = c.count; });
+    const withCounts = reports.map(r => ({ ...r, reportsAgainstUser: countMap[String(r.reportedUserId)] || 1 }));
+    res.json(withCounts);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching reports' });
+  }
+});
+
+// Admin sends an (optionally custom) reason-based warning to the reported user's notifications.
+// Once sent it is flagged so it cannot be delivered twice for the same report.
+app.post('/api/admin/reports/:id/warn', adminAuth, async (req, res) => {
+  try {
+    const report = await Report.findById(req.params.id);
+    if (!report) return res.status(404).json({ message: 'Report not found' });
+    if (report.warnSent) return res.status(409).json({ message: 'Warning already sent for this report' });
+
+    const message = (req.body && req.body.message && req.body.message.trim())
+      || buildWarningMessage(report.reason, report.reportedUsername);
+
+    const newNotif = { type: 'system_alert', message, alertType: 'warning', read: false };
+    await User.findByIdAndUpdate(report.reportedUserId, { $push: { notifications: newNotif } });
+    report.warnSent = true;
+    report.warningMessage = message;
+    await report.save();
+
+    const socketId = onlineUsers.get(String(report.reportedUserId));
+    if (socketId) {
+      io.to(socketId).emit('new_notification');
+      io.to(socketId).emit('system_alert_toast', { message, type: 'personal' });
+    }
+    res.json({ success: true, warnSent: true, message });
+  } catch (error) {
+    console.error('[Report warn]', error);
+    res.status(500).json({ message: 'Error sending warning' });
   }
 });
 
@@ -3670,9 +3719,29 @@ app.get('/api/admin/bots/messages/:botId/:userId', adminAuth, async (req, res) =
 
 app.post('/api/admin/reports/:id/resolve', adminAuth, async (req, res) => {
   try {
-    await Report.findByIdAndUpdate(req.params.id, { status: 'resolved' });
+    const report = await Report.findById(req.params.id);
+    if (!report) return res.status(404).json({ message: 'Report not found' });
+
+    report.status = 'resolved';
+    report.resolvedAt = new Date();
+    await report.save();
+
+    // Let the reporter know action was taken (professional notice, delivered once).
+    if (!report.actionTaken && report.reporterId) {
+      const actionMessage = `✅ Action taken on your report\n\nThank you for reporting @${report.reportedUsername} for "${report.reason}". Our moderation team has reviewed it and taken appropriate action to keep Twelo safe for everyone.`;
+      const notif = { type: 'system_alert', message: actionMessage, alertType: 'success', read: false };
+      await User.findByIdAndUpdate(report.reporterId, { $push: { notifications: notif } });
+      report.actionTaken = true;
+      await report.save();
+      const rSocketId = onlineUsers.get(String(report.reporterId));
+      if (rSocketId) {
+        io.to(rSocketId).emit('new_notification');
+        io.to(rSocketId).emit('system_alert_toast', { message: actionMessage, type: 'personal' });
+      }
+    }
     res.json({ success: true });
   } catch (error) {
+    console.error('[Report resolve]', error);
     res.status(500).json({ message: 'Error resolving report' });
   }
 });

@@ -57,6 +57,8 @@ export default function DeveloperAdmin() {
   const [growthTimeframe, setGrowthTimeframe] = useState('monthly');
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [warnNotice, setWarnNotice] = useState('');
+  const [sendingWarn, setSendingWarn] = useState(false);
 
   const [chatViewTarget, setChatViewTarget] = useState(null);
   const [selectedUserChats, setSelectedUserChats] = useState(null);
@@ -148,7 +150,8 @@ export default function DeveloperAdmin() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchStats();
-      const interval = setInterval(fetchStats, 10000); // Poll every 10s
+      fetchReports(); // load pending reports so the User Reports badge shows without opening the tab
+      const interval = setInterval(() => { fetchStats(); fetchReports(); }, 10000); // Poll every 10s
       
       fetch(`${API_URL}/api/config/globe`)
         .then(res => res.json())
@@ -643,9 +646,54 @@ export default function DeveloperAdmin() {
       if (res.ok) {
         setReports(reports.filter(r => r._id !== reportId));
         setSelectedReport(null);
+        alert('Report resolved. The reporter has been notified that action was taken.');
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Build a reason-based official warning text (mirrors the server default) to prefill the composer.
+  const buildWarning = (reason, username) => {
+    const map = {
+      'Sexual Harassment': 'sexual harassment and inappropriate sexual conduct',
+      'Spam / Scams': 'spam, scams or misleading behaviour',
+      'Abuse / Insult': 'abusive language, insults or harassment of other users',
+      'Other Inappropriate Behavior': 'behaviour that violates our community guidelines'
+    };
+    const what = map[reason] || 'conduct that violates our community guidelines';
+    const who = username ? `@${username}` : 'Your account';
+    return `⚠️ Community Guidelines Warning\n\n${who} has been reported and reviewed by our moderation team for ${what}. This is an official warning. Repeated violations may lead to temporary restrictions or a permanent ban from Twelo. Please treat other users with respect.`;
+  };
+
+  const openInvestigate = (report) => {
+    setSelectedReport(report);
+    setWarnNotice(buildWarning(report.reason, report.reportedUsername));
+  };
+
+  const handleSendReportWarning = async (report) => {
+    if (report.warnSent || sendingWarn) return;
+    const message = (warnNotice || '').trim() || buildWarning(report.reason, report.reportedUsername);
+    setSendingWarn(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/reports/${report._id}/warn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
+        body: JSON.stringify({ message })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setReports(prev => prev.map(r => r._id === report._id ? { ...r, warnSent: true, warningMessage: data.message } : r));
+        setSelectedReport(prev => prev ? { ...prev, warnSent: true, warningMessage: data.message } : prev);
+        alert('Warning sent to the reported user.');
+      } else {
+        alert(data.message || 'Failed to send warning');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to send warning');
+    } finally {
+      setSendingWarn(false);
     }
   };
 
@@ -1197,10 +1245,16 @@ export default function DeveloperAdmin() {
                             <h3>Reported User: @{report.reportedUsername}</h3>
                             <div className="dev-user-meta" style={{ color: '#ff4b4b', fontWeight: 'bold' }}>Reason: {report.reason}</div>
                             <div className="dev-user-meta" style={{ fontSize: '0.8rem' }}>Reported by: @{report.reporterUsername} | {new Date(report.createdAt).toLocaleString()}</div>
+                            <div className="dev-user-meta" style={{ fontSize: '0.8rem', marginTop: '6px' }}>
+                              {report.reportsAgainstUser >= 2
+                                ? <span style={{ background: '#ff4b4b', color: '#fff', fontWeight: 'bold', fontSize: '0.72rem', padding: '2px 8px', borderRadius: '10px' }}>⚠ Reported {report.reportsAgainstUser} times</span>
+                                : <span style={{ background: '#f59e0b', color: '#111', fontWeight: 'bold', fontSize: '0.72rem', padding: '2px 8px', borderRadius: '10px' }}>1st report</span>}
+                              {report.warnSent && <span style={{ marginLeft: '8px', color: '#10b981', fontSize: '0.78rem', fontWeight: 'bold' }}>✓ Warning sent</span>}
+                            </div>
                           </div>
                         </div>
                         <button 
-                          onClick={() => setSelectedReport(report)}
+                          onClick={() => openInvestigate(report)}
                           className="dev-btn-primary"
                         >
                           <Search size={16} style={{ marginRight: '5px' }} />
@@ -1338,6 +1392,11 @@ export default function DeveloperAdmin() {
             <div style={{ padding: '20px 0' }}>
               <h3 style={{ color: '#f59e0b', marginBottom: '10px' }}>Reason: {selectedReport.reason}</h3>
               <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginBottom: '10px' }}>Reporter: @{selectedReport.reporterUsername}</p>
+              <div style={{ marginBottom: '12px' }}>
+                {selectedReport.reportsAgainstUser >= 2
+                  ? <span style={{ background: '#ff4b4b', color: '#fff', fontWeight: 'bold', fontSize: '0.75rem', padding: '3px 10px', borderRadius: '10px' }}>⚠ This user has been reported {selectedReport.reportsAgainstUser} times — consider blocking</span>
+                  : <span style={{ background: '#f59e0b', color: '#111', fontWeight: 'bold', fontSize: '0.75rem', padding: '3px 10px', borderRadius: '10px' }}>First report on this user</span>}
+              </div>
               
               <div style={{ background: '#0a0a0a', padding: '15px', borderRadius: '8px', maxHeight: '350px', overflowY: 'auto', border: '1px solid #333', marginBottom: '20px' }}>
                 <p style={{ color: '#666', fontSize: '0.75rem', marginBottom: '10px', textAlign: 'center' }}>{'🔒 Last 20 encrypted messages (server-decrypted for review)'}</p>
@@ -1360,23 +1419,46 @@ export default function DeveloperAdmin() {
                 })()}
               </div>
 
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', color: '#a8a8a8', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '6px' }}>Warning notice to @{selectedReport.reportedUsername} <span style={{ color: '#666', fontWeight: 'normal' }}>(built-in from the report reason &mdash; editable)</span></label>
+                <textarea
+                  value={warnNotice}
+                  onChange={(e) => setWarnNotice(e.target.value)}
+                  disabled={selectedReport.warnSent}
+                  rows={5}
+                  className="dev-input"
+                  style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit', fontSize: '0.85rem', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}
+                  placeholder="Enter the warning message to send to this user..."
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setWarnNotice(buildWarning(selectedReport.reason, selectedReport.reportedUsername))}
+                    disabled={selectedReport.warnSent}
+                    style={{ background: 'none', border: 'none', color: '#0095f6', cursor: 'pointer', fontSize: '0.78rem', textDecoration: 'underline', padding: 0 }}
+                  >Reset to built-in text</button>
+                  {selectedReport.warnSent && <span style={{ color: '#10b981', fontSize: '0.8rem', fontWeight: 'bold' }}>✓ Warning already sent</span>}
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button 
-                  onClick={() => handlePersonalNotification(selectedReport.reportedUserId, selectedReport.reportedUsername)}
+                <button
+                  onClick={() => handleSendReportWarning(selectedReport)}
+                  disabled={selectedReport.warnSent || sendingWarn}
                   className="dev-btn-secondary"
-                  style={{ background: '#222' }}
+                  style={{ background: '#222', opacity: (selectedReport.warnSent || sendingWarn) ? 0.5 : 1, cursor: (selectedReport.warnSent || sendingWarn) ? 'not-allowed' : 'pointer' }}
                 >
                   <AlertTriangle size={16} style={{ marginRight: '5px' }} />
-                  Send Warning
+                  {sendingWarn ? 'Sending…' : (selectedReport.warnSent ? 'Warning Sent' : 'Send Warning')}
                 </button>
-                <button 
+                <button
                   onClick={() => handleBlockUser(selectedReport.reportedUserId, false)}
                   className="dev-btn-danger"
                 >
                   <Ban size={16} style={{ marginRight: '5px' }} />
                   Block User
                 </button>
-                <button 
+                <button
                   onClick={() => handleResolveReport(selectedReport._id)}
                   className="dev-btn-primary"
                   style={{ background: '#10b981' }}
