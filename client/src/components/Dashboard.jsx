@@ -167,6 +167,11 @@ async function subscribeWebPush(API_URL, token) {
   }
 }
 
+// Emoji shown in the long-press reaction picker. The heart is also the double-tap
+// default. Kept small and expressive (WhatsApp-style) so it fits on one mobile row.
+const REACTION_EMOJIS = ['❤️', '👍', '😂', '', '😢', ''];
+const DEFAULT_REACTION = '❤️';
+
 
   const groupStoriesByDay = (stories) => {
     if (!stories || stories.length === 0) return [];
@@ -1638,6 +1643,8 @@ export default function Dashboard() {
   const swipeStartX = useRef(null);
   const swipeCurrentX = useRef(null);
   const [swipeMsgId, setSwipeMsgId] = useState(null);
+  // Double-tap detection for touch devices (onDoubleClick is unreliable there).
+  const lastTapRef = useRef({ time: 0, msgId: null });
   const [selectedMsgId, setSelectedMsgId] = useState(null);
   
   const isCallerRef = useRef(false);
@@ -2570,6 +2577,11 @@ export default function Dashboard() {
         }
       });
       fetchRecentChats();
+    });
+
+    // Partner reacted (or removed a reaction) -> apply the authoritative list.
+    socket.on('message_reaction_updated', ({ messageId, reactions }) => {
+      setMessages(prev => prev.map(m => (m._id === messageId ? { ...m, reactions: reactions || [] } : m)));
     });
 
     socket.on('new_notification', () => {
@@ -4302,6 +4314,25 @@ const handleStoryUpload = async () => {
     setReplyingTo(null);
   };
 
+  // Add / toggle-off a reaction on a message. Reacting with the emoji you already
+  // used removes it; a different emoji replaces it. Updates the UI immediately and
+  // syncs to the partner over the socket (message_reaction -> message_reaction_updated).
+  const toggleReaction = (msg, emoji) => {
+    if (!socket || !msg || msg.isDeletedForEveryone) return;
+    const uid = String(user.id || user._id);
+    const existing = (msg.reactions || []).find(r => String(r.userId) === uid);
+    const removing = existing && existing.emoji === emoji;
+    setMessages(prev => prev.map(m => {
+      if (m._id !== msg._id) return m;
+      let reactions = (m.reactions || []).filter(r => String(r.userId) !== uid);
+      if (!removing) reactions = [...reactions, { userId: uid, emoji }];
+      return { ...m, reactions };
+    }));
+    socket.emit('message_reaction', { messageId: msg._id, emoji: removing ? '' : emoji, userId: uid });
+    if (navigator.vibrate) navigator.vibrate(removing ? 0 : 20);
+    setContextMenu({ visible: false, msgId: null, isSender: false });
+  };
+
   const handleLongPress = (msg) => {
     setContextMenu({
       visible: true,
@@ -4398,6 +4429,18 @@ const handleStoryUpload = async () => {
     if (pressTimerRef.current) {
       clearTimeout(pressTimerRef.current);
       pressTimerRef.current = null;
+    }
+    // Double-tap = like. Only counts a clean tap (no swipe, no long-press fired).
+    if (swipeCurrentX.current === null) {
+      const now = Date.now();
+      if (lastTapRef.current.msgId === msg._id && now - lastTapRef.current.time < 300) {
+        toggleReaction(msg, DEFAULT_REACTION);
+        lastTapRef.current = { time: 0, msgId: null };
+      } else {
+        lastTapRef.current = { time: now, msgId: msg._id };
+      }
+    } else {
+      lastTapRef.current = { time: 0, msgId: null };
     }
     if (swipeCurrentX.current !== null) {
       const diff = swipeCurrentX.current;
@@ -6650,6 +6693,7 @@ const handleStoryUpload = async () => {
                                 onTouchStart={(e) => handleTouchStart(e, msg)}
                                 onTouchMove={(e) => handleTouchMove(e, msg, msg.sender === user.id)}
                                 onTouchEnd={(e) => handleTouchEnd(e, msg, msg.sender === user.id)}
+                                onDoubleClick={() => toggleReaction(msg, DEFAULT_REACTION)}
                               >
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: msg.sender === user.id ? 'flex-end' : 'flex-start', width: '100%' }}>
                           <div 
@@ -6779,6 +6823,26 @@ const handleStoryUpload = async () => {
                               )}
                             </div>
                           )}
+                          {(() => {
+                            const rx = msg.reactions || [];
+                            if (!rx.length) return null;
+                            const uid = String(user.id || user._id);
+                            const grouped = {};
+                            rx.forEach(r => { grouped[r.emoji] = (grouped[r.emoji] || 0) + 1; });
+                            return (
+                              <div className={`msg-reactions ${msg.sender === user.id ? 'sent' : 'received'}`}>
+                                {Object.entries(grouped).map(([emoji, count]) => {
+                                  const mine = rx.some(r => r.emoji === emoji && String(r.userId) === uid);
+                                  return (
+                                    <button key={emoji} type="button" className={`reaction-pill${mine ? ' mine' : ''}`}
+                                      onClick={() => toggleReaction(msg, emoji)} title={mine ? 'Tap to remove' : 'React'}>
+                                      <span>{emoji}</span>{count > 1 && <span className="reaction-count">{count}</span>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </div>
                         {swipeMsgId === msg._id && (
                           <div className={`swipe-reply-icon ${msg.sender === user.id ? 'sent-icon' : 'received-icon'}`}>
@@ -6789,6 +6853,11 @@ const handleStoryUpload = async () => {
                         {/* Context Menu for Delete */}
                         {contextMenu.visible && contextMenu.msgId === msg._id && (
                           <div className={`msg-context-menu ${msg.sender === user.id ? 'sent-menu' : 'received-menu'}`}>
+                            <div className="reaction-row">
+                              {REACTION_EMOJIS.map(emoji => (
+                                <button key={emoji} type="button" className="reaction-btn" onClick={() => toggleReaction(msg, emoji)}>{emoji}</button>
+                              ))}
+                            </div>
                             <button onClick={() => deleteMessage('me')} className="context-btn"><Trash2 size={14} /> Delete for me</button>
                             {contextMenu.isSender && (
                               <button onClick={() => deleteMessage('everyone')} className="context-btn" style={{ color: '#ff4b4b' }}><Trash2 size={14} /> Delete for everyone</button>

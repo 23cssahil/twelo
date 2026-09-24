@@ -4288,6 +4288,7 @@ io.on('connection', (socket) => {
         isViewOnce: isViewOnce,
         isDelivered: deliveredNow,
         isViewed: false,
+        reactions: [],
         createdAt: message.createdAt
       };
 
@@ -4375,6 +4376,32 @@ io.on('connection', (socket) => {
       }
     } catch (error) {
       console.error(error);
+    }
+  });
+
+  // Handle message reactions (double-tap heart / long-press emoji picker).
+  // Only the two participants may react; one emoji per user (reacting again with the
+  // same emoji removes it, a different one replaces it). Broadcast the full reaction
+  // list to both sides so every open view stays in sync in real time.
+  socket.on('message_reaction', async ({ messageId, emoji, userId }) => {
+    try {
+      if (socket.data.authenticated && socket.data.userId) userId = socket.data.userId;
+      if (!userId) return;
+      const message = await Message.findById(messageId);
+      if (!message) return;
+      const uid = String(userId);
+      if (String(message.sender) !== uid && String(message.receiver) !== uid) return;
+      const clean = String(emoji || '').trim();
+      const updated = (message.reactions || []).filter(r => String(r.userId) !== uid);
+      if (clean) updated.push({ userId: uid, emoji: clean.slice(0, 8) });
+      await Message.findByIdAndUpdate(messageId, { $set: { reactions: updated } });
+      const payload = { messageId, reactions: updated.map(r => ({ userId: String(r.userId), emoji: r.emoji })) };
+      const senderSocketId = onlineUsers.get(String(message.sender));
+      const receiverSocketId = onlineUsers.get(String(message.receiver));
+      if (senderSocketId) io.to(senderSocketId).emit('message_reaction_updated', payload);
+      if (receiverSocketId && receiverSocketId !== senderSocketId) io.to(receiverSocketId).emit('message_reaction_updated', payload);
+    } catch (error) {
+      console.error('[message_reaction]', error);
     }
   });
 

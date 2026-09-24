@@ -69,6 +69,12 @@ const MessageSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  // Reactions (double-tap heart or long-press emoji picker). One entry per user:
+  // reacting again with the same emoji removes it, a different emoji replaces it.
+  reactions: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    emoji: { type: String, required: true }
+  }],
   // ========== FIXED REPLYTO SCHEMA ==========
   replyTo: {
     messageId: {
