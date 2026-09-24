@@ -5587,7 +5587,7 @@ const handleStoryUpload = async () => {
                       </div>
                       <div className="user-names">
                         <span className="user-username">@{searchUser.username}</span>
-                        <span className="user-id">{followerCount} {followerCount === 1 ? 'follower' : 'followers'} · ID: {searchUser.uniqueId}</span>
+                        <span className="user-id">{formatCount(followerCount)} {followerCount === 1 ? 'follower' : 'followers'} · ID: {searchUser.uniqueId}</span>
                       </div>
                     </div>
                     
