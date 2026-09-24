@@ -4175,12 +4175,17 @@ const handleStoryUpload = async () => {
     }
   };
 
+  // Long-press / swipe-to-reply. NOTE: this used to fire sendScreenshotNotification()
+  // whenever 3+ fingers touched a bubble. A browser cannot observe an OS screenshot,
+  // so that was a guess - and a wrong one: a normal 3-finger touch, palm touch or
+  // pinch announced "📸 took a screenshot" in the chat. Screenshot notices now come
+  // only from the real capture events below (PrintScreen / Mac shortcuts).
   const handleTouchStart = (e, msg) => {
-    if (e.touches && e.touches.length > 1) {
-      if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
-      if (e.touches.length >= 3) {
-        sendScreenshotNotification();
-      }
+    // Ignore secondary fingers so multi-touch never starts a ghost swipe/long-press.
+    if (e.touches && e.touches.length !== 1) {
+      if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
+      swipeStartX.current = null;
+      setSwipeMsgId(null);
       return;
     }
     swipeStartX.current = e.touches[0].clientX;
@@ -4194,6 +4199,8 @@ const handleStoryUpload = async () => {
 
   const handleTouchMove = (e, msg, isSent) => {
     if (!swipeStartX.current) return;
+    // Only a single-finger drag counts as a swipe-to-reply gesture.
+    if (!e.touches || e.touches.length !== 1) return;
     const currentX = e.touches[0].clientX;
     const diff = currentX - swipeStartX.current;
 
@@ -4699,8 +4706,10 @@ const handleStoryUpload = async () => {
 
   // Screenshot Detection
   useEffect(() => {
-    // Screenshot Detection helper is defined in component body
-    // Desktop: PrintScreen key or Mac screenshot shortcuts
+    // Only genuine capture actions are reported. On mobile the browser sandbox
+    // exposes no screenshot event at all, so nothing is announced there rather
+    // than guessing from touch patterns (which produced false "took a screenshot"
+    // messages for a plain 3-finger touch).
     const handleKeyUp = (e) => {
       const isPrintScreen = e.key === 'PrintScreen';
       const isMacScreenshot = e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5' || e.key === 'S' || e.key === 's');
