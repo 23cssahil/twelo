@@ -5439,27 +5439,29 @@ const handleStoryUpload = async () => {
         activityRest.forEach(n => { const c = renderCard(n); if (c) activityNodes.push(c); });
 
         return (
-          <div className="notifications-container" style={{ padding: '16px', overflowY: 'auto', height: '100%' }} onScroll={handleNotifsScroll}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <h2 className="search-header-text" style={{ margin: 0 }}>Notifications</h2>
-              {unreadNotifsCount > 0 && (
-                <button onClick={markAllNotificationsRead} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }}>Mark all read</button>
+          <div className="notifications-container" style={{ padding: '0 16px 16px', overflowY: 'auto', height: '100%' }} onScroll={handleNotifsScroll}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 5, background: 'var(--panel-bg)', padding: '12px 0 8px', boxShadow: '0 3px 6px rgba(0,0,0,0.18)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <h2 className="search-header-text" style={{ margin: 0 }}>Notifications</h2>
+                {unreadNotifsCount > 0 && (
+                  <button onClick={markAllNotificationsRead} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }}>Mark all read</button>
+                )}
+              </div>
+
+              {notifications.length > 0 && (
+                <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid var(--border-color)' }}>
+                  {[{ id: 'all', label: 'All' }, { id: 'activity', label: 'Activity' }, { id: 'updates', label: 'Updates' }].map(t => {
+                    const active = notifTab === t.id;
+                    const count = t.id === 'all' ? notifications.length : t.id === 'updates' ? updates.length : (requests.length + followBacks.length + activityRest.length);
+                    return (
+                      <button key={t.id} onClick={() => setNotifTab(t.id)} style={{ flex: 1, background: 'none', border: 'none', borderBottom: `2px solid ${active ? 'var(--brand-blue)' : 'transparent'}`, color: active ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: active ? 700 : 500, padding: '10px 4px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                        {t.label}{count > 0 ? ` (${count})` : ''}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
-
-            {notifications.length > 0 && (
-              <div style={{ display: 'flex', gap: '6px', margin: '12px 0 6px', borderBottom: '1px solid var(--border-color)' }}>
-                {[{ id: 'all', label: 'All' }, { id: 'activity', label: 'Activity' }, { id: 'updates', label: 'Updates' }].map(t => {
-                  const active = notifTab === t.id;
-                  const count = t.id === 'all' ? notifications.length : t.id === 'updates' ? updates.length : (requests.length + followBacks.length + activityRest.length);
-                  return (
-                    <button key={t.id} onClick={() => setNotifTab(t.id)} style={{ flex: 1, background: 'none', border: 'none', borderBottom: `2px solid ${active ? 'var(--brand-blue)' : 'transparent'}`, color: active ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: active ? 700 : 500, padding: '10px 4px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                      {t.label}{count > 0 ? ` (${count})` : ''}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
 
             {notifications.length === 0 && !notifsFetching ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
