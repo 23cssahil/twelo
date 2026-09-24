@@ -134,6 +134,39 @@ function formatCompactCount(n) {
   return fmt(n / 1e3, 'k');
 }
 
+// Shared web-push (PWA/browser) subscription helper. Used both by the notification
+// toggle and by the "default on" auto-subscribe so the logic lives in one place.
+// Returns 'subscribed' | 'denied' | 'unsupported' | 'error'.
+async function subscribeWebPush(API_URL, token) {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported';
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return 'denied';
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      const vapidPublicKey = 'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA';
+      const convertedVapidKey = (base64String => {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+        return outputArray;
+      })(vapidPublicKey);
+      subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: convertedVapidKey });
+    }
+    const res = await fetch(`${API_URL}/api/users/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(subscription.toJSON())
+    });
+    return res.ok ? 'subscribed' : 'error';
+  } catch (e) {
+    return 'error';
+  }
+}
+
 
   const groupStoriesByDay = (stories) => {
     if (!stories || stories.length === 0) return [];
@@ -1670,6 +1703,14 @@ export default function Dashboard() {
         if ('serviceWorker' in navigator && 'PushManager' in window) {
           const registration = await navigator.serviceWorker.ready;
           const subscription = await registration.pushManager.getSubscription();
+          // "Default on": if the browser already has permission but this device was never
+          // subscribed (or the subscription was cleared), subscribe silently so web push
+          // works without the user hunting for the toggle.
+          if (!subscription && Notification.permission === 'granted' && token) {
+            const r = await subscribeWebPush(API_URL, token);
+            if (r === 'subscribed') { setPushNotifEnabled(true); }
+            return;
+          }
           const enabled = !!subscription && Notification.permission === 'granted';
           setPushNotifEnabled(enabled);
           // Re-sync the live subscription on every app open. Browsers rotate/expire push
@@ -1690,18 +1731,28 @@ export default function Dashboard() {
       } catch (e) { console.log('Push check error:', e); }
     };
     checkPushStatus();
+    // The OS permission prompt (and the app's own initNativePush registration) can
+    // resolve AFTER this mount effect runs, so re-check shortly after launch to keep
+    // the toggle in sync with the real permission state.
+    const t1 = setTimeout(checkPushStatus, 1500);
+    const t2 = setTimeout(checkPushStatus, 4000);
 
-    // When user returns to the tab, clear any push notifications
+    // When user returns to the tab / app, re-sync the toggle and clear push notifications.
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && 'serviceWorker' in navigator) {
+      if (document.visibilityState !== 'visible') return;
+      checkPushStatus();
+      if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(reg => {
           if (reg.active) reg.active.postMessage({ type: 'CLEAR_NOTIFICATIONS' });
         }).catch(() => {});
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+    return () => {
+      clearTimeout(t1); clearTimeout(t2);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [token]);
 
   const handleToggleNotifications = async () => {
     // Native (Capacitor) app: notifications come through FCM, NOT the web-push service

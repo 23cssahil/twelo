@@ -4,15 +4,22 @@
 // into behaviour on the web.
 //
 // On the packaged Android app it:
-//   1. asks for the Android 13+ notification permission (system prompt),
-//   2. registers with Firebase Cloud Messaging (needs google-services.json in the app),
-//   3. forwards the FCM device token to the backend (/api/users/fcm-token) so the
+//   1. creates the "twelo_default" notification channel (Android 8+ drops pushes that
+//      target a non-existent channel — this was why closed-app notifications never
+//      appeared in the shade),
+//   2. asks for the Android 13+ notification permission (system prompt),
+//   3. registers with Firebase Cloud Messaging (needs google-services.json in the app),
+//   4. forwards the FCM device token to the backend (/api/users/fcm-token) so the
 //      server can deliver chat / like / comment / follow notifications while the app is
-//      closed. The backend send path (sendToUserDevices) is already wired for this.
+//      closed, and shows a tray notification when a push arrives in the foreground.
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
+// Must match the channelId the backend sends (sendToUserDevices -> android.notification.channelId).
+const CHANNEL_ID = 'twelo_default';
 let wired = false;
+let channelReady = false;
 // Latest API_URL / token so the (once-attached) FCM listeners always authenticate with
 // the current session even after a re-login rotates the JWT.
 let _API_URL = null;
@@ -36,9 +43,33 @@ function _sendToken(value) {
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_authToken}` },
     body: JSON.stringify({ token: value })
   }).catch((e) => {
-    // Offline / transient - retried on next login or token refresh.
     console.warn('FCM token sync failed:', e);
   });
+}
+
+// Create the high-importance channel so background/killed pushes are shown by the
+// system in the notification shade with a heads-up + vibration.
+async function _ensureChannel() {
+  if (channelReady) return;
+  try {
+    if (Capacitor.getPlatform() === 'android') {
+      await LocalNotifications.createChannel({
+        id: CHANNEL_ID,
+        name: 'Twelo',
+        description: 'Chats, likes, comments and follow activity',
+        importance: 5, // MAX -> heads-up
+        visibility: 1,
+        vibration: true,
+        lights: true,
+        audio: { critical: false }
+      });
+    }
+    channelReady = true;
+  } catch (e) {
+    // Older/other platforms or already-created channel: safe to ignore.
+    console.warn('Notification channel setup skipped:', e && e.message);
+    channelReady = true;
+  }
 }
 
 function _ensureWired() {
@@ -51,20 +82,40 @@ function _ensureWired() {
   });
   // Token can rotate; keep the server copy fresh.
   PushNotifications.addListener('tokenRefresh', (token) => { _sendToken(token.value); });
+  // Foreground: the system does NOT auto-display a push while the app is open, so we
+  // surface it ourselves in the shade (matches what the user expects from other apps).
+  PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    try {
+      LocalNotifications.schedule({
+        notifications: [{
+          id: Math.floor(Date.now() % 1000000000),
+          title: notification.title || 'Twelo',
+          body: notification.body || '',
+          channel: CHANNEL_ID
+        }]
+      }).catch(() => {});
+    } catch (e) {}
+  });
 }
 
 // Register the device for push and sync its token to the backend. Safe to call on
 // every login / token change; listeners are attached only once.
-export function initNativePush(API_URL, authToken) {
+export async function initNativePush(API_URL, authToken) {
   if (!isNativeApp() || !authToken) return;
   _API_URL = API_URL;
   _authToken = authToken;
+  await _ensureChannel();
   _ensureWired();
   // Honour an explicit opt-out made in the app's notification toggle.
   try { if (localStorage.getItem(PREF_KEY) === 'false') return; } catch (e) {}
-  PushNotifications.requestPermissions().then((status) => {
-    if (status.receive === 'granted') PushNotifications.register();
-  }).catch(() => {});
+  try {
+    const status = await PushNotifications.requestPermissions();
+    if (status.receive === 'granted') {
+      PushNotifications.register();
+      // Reflect the OS grant back into the stored preference so the toggle reads "on".
+      if (localStorage.getItem(PREF_KEY) == null) { try { localStorage.setItem(PREF_KEY, 'true'); } catch (e) {} }
+    }
+  } catch (e) {}
 }
 
 // Request the OS permission and register for FCM. Returns the resulting permission
@@ -74,6 +125,7 @@ export async function enableNativePush(API_URL, authToken) {
   if (!isNativeApp()) return 'unsupported';
   _API_URL = API_URL;
   _authToken = authToken;
+  await _ensureChannel();
   _ensureWired();
   try {
     const status = await PushNotifications.requestPermissions();
