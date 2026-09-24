@@ -1490,12 +1490,20 @@ app.get('/api/users/notifications', authenticateToken, async (req, res) => {
       }
     }
 
+    const notifTime = (n) => {
+      if (n.createdAt) { const t = new Date(n.createdAt).getTime(); if (!isNaN(t)) return t; }
+      // Fall back to the ObjectId timestamp so legacy notifications pushed without
+      // createdAt (raw $push skips Mongoose defaults) still sort newest-first.
+      const id = String(n._id || '');
+      if (id.length >= 8) { const t = parseInt(id.slice(0, 8), 16) * 1000; if (!isNaN(t)) return t; }
+      return 0;
+    };
     if (migrated) {
       await user.save();
       const populatedUser = await User.findById(req.user.userId).populate('notifications.user', 'username uniqueId avatarUrl friendRequests');
-      var sorted = populatedUser.notifications.sort((a, b) => b.createdAt - a.createdAt);
+      var sorted = populatedUser.notifications.sort((a, b) => notifTime(b) - notifTime(a));
     } else {
-      var sorted = user.notifications.sort((a, b) => b.createdAt - a.createdAt);
+      var sorted = user.notifications.sort((a, b) => notifTime(b) - notifTime(a));
     }
     
     const total = sorted.length;
@@ -3434,7 +3442,7 @@ app.post('/api/admin/broadcast', adminAuth, async (req, res) => {
     const { message, alertType } = req.body;
     
     // Save to all users' notifications
-    const newNotif = { type: 'system_alert', message, alertType: alertType || 'info', read: false };
+    const newNotif = { type: 'system_alert', message, alertType: alertType || 'info', read: false, createdAt: new Date() };
     await User.updateMany({}, { $push: { notifications: newNotif } });
 
     // Emit to online users
@@ -3506,7 +3514,7 @@ app.post('/api/admin/notify-user', adminAuth, async (req, res) => {
   try {
     const { userId, message } = req.body;
     
-    const newNotif = { type: 'system_alert', message, read: false };
+    const newNotif = { type: 'system_alert', message, read: false, createdAt: new Date() };
     await User.findByIdAndUpdate(userId, { $push: { notifications: newNotif } });
 
     const socketId = onlineUsers.get(userId?.toString());
@@ -3621,7 +3629,7 @@ app.post('/api/admin/reports/:id/warn', adminAuth, async (req, res) => {
     const message = (req.body && req.body.message && req.body.message.trim())
       || buildWarningMessage(report.reason, report.reportedUsername);
 
-    const newNotif = { type: 'system_alert', message, alertType: 'warning', read: false };
+    const newNotif = { type: 'system_alert', message, alertType: 'warning', read: false, createdAt: new Date() };
     await User.findByIdAndUpdate(report.reportedUserId, { $push: { notifications: newNotif } });
     report.warnSent = true;
     report.warningMessage = message;
@@ -3729,7 +3737,7 @@ app.post('/api/admin/reports/:id/resolve', adminAuth, async (req, res) => {
     // Let the reporter know action was taken (professional notice, delivered once).
     if (!report.actionTaken && report.reporterId) {
       const actionMessage = `✅ Action taken on your report\n\nThank you for reporting @${report.reportedUsername} for "${report.reason}". Our moderation team has reviewed it and taken appropriate action to keep Twelo safe for everyone.`;
-      const notif = { type: 'system_alert', message: actionMessage, alertType: 'success', read: false };
+      const notif = { type: 'system_alert', message: actionMessage, alertType: 'success', read: false, createdAt: new Date() };
       await User.findByIdAndUpdate(report.reporterId, { $push: { notifications: notif } });
       report.actionTaken = true;
       await report.save();
