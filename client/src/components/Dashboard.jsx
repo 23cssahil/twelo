@@ -1200,6 +1200,7 @@ export default function Dashboard() {
   const [notifsFetching, setNotifsFetching] = useState(false);
   const notifsFetchingRef = useRef(false);
   const [expandedAlerts, setExpandedAlerts] = useState(new Set());
+  const [notifTab, setNotifTab] = useState('all'); // 'all' | 'activity' | 'updates'
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [publicProfileData, setPublicProfileData] = useState(null);
   const [connectionsPage, setConnectionsPage] = useState({ title: '', users: [], returnTab: 'profile', userId: null, total: 0 });
@@ -5446,6 +5447,20 @@ const handleStoryUpload = async () => {
               )}
             </div>
 
+            {notifications.length > 0 && (
+              <div style={{ display: 'flex', gap: '6px', margin: '12px 0 6px', borderBottom: '1px solid var(--border-color)' }}>
+                {[{ id: 'all', label: 'All' }, { id: 'activity', label: 'Activity' }, { id: 'updates', label: 'Updates' }].map(t => {
+                  const active = notifTab === t.id;
+                  const count = t.id === 'all' ? notifications.length : t.id === 'updates' ? updates.length : (requests.length + followBacks.length + activityRest.length);
+                  return (
+                    <button key={t.id} onClick={() => setNotifTab(t.id)} style={{ flex: 1, background: 'none', border: 'none', borderBottom: `2px solid ${active ? 'var(--brand-blue)' : 'transparent'}`, color: active ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: active ? 700 : 500, padding: '10px 4px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                      {t.label}{count > 0 ? ` (${count})` : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {notifications.length === 0 && !notifsFetching ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(128,128,128,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -5454,26 +5469,40 @@ const handleStoryUpload = async () => {
                 <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>You're all caught up</div>
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '260px' }}>New follows, requests and updates will appear here.</div>
               </div>
+            ) : notifTab === 'updates' ? (
+              <>
+                {updates.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>No updates yet.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{updates.map(renderAlert)}</div>
+                )}
+                {notifsFetching && <div style={{ textAlign: 'center', padding: '15px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading more...</div>}
+              </>
+            ) : notifTab === 'activity' ? (
+              <>
+                {requests.length === 0 && activityNodes.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>No activity yet.</div>
+                ) : (
+                  <>
+                    {requests.length > 0 && (
+                      <div>
+                        <div style={sectionTitle}>Requests</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{requests.map(renderCard)}</div>
+                      </div>
+                    )}
+                    {activityNodes.length > 0 && (
+                      <div>
+                        <div style={sectionTitle}>Activity</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{activityNodes}</div>
+                      </div>
+                    )}
+                  </>
+                )}
+                {notifsFetching && <div style={{ textAlign: 'center', padding: '15px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading more...</div>}
+              </>
             ) : (
               <>
-                {updates.length > 0 && (
-                  <div>
-                    <div style={sectionTitle}>Updates</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{updates.map(renderAlert)}</div>
-                  </div>
-                )}
-                {requests.length > 0 && (
-                  <div>
-                    <div style={sectionTitle}>Requests</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{requests.map(renderCard)}</div>
-                  </div>
-                )}
-                {activityNodes.length > 0 && (
-                  <div>
-                    <div style={sectionTitle}>Activity</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{activityNodes}</div>
-                  </div>
-                )}
+                {[...notifications].sort((a, b) => { const t = (n) => n.createdAt ? new Date(n.createdAt).getTime() : (n._id ? parseInt(String(n._id).slice(0, 8), 16) * 1000 : 0); return t(b) - t(a); }).map(n => n.type === 'system_alert' ? renderAlert(n) : renderCard(n))}
                 {notifsFetching && (
                   <div style={{ textAlign: 'center', padding: '15px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading more...</div>
                 )}
