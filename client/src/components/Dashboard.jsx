@@ -3,6 +3,7 @@ import StoryMusicModal from "./StoryMusicModal";
 import ShayariStudio from "./ShayariStudio";
 import AdBanner from "./AdBanner";
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect, Suspense } from 'react';
+import { GoogleLogin } from '@react-oauth/google';
 import CommentsModal from './CommentsModal';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -61,7 +62,10 @@ import {
   Ban,
   Palette,
   Globe as GlobeIcon,
-  SkipForward
+  SkipForward,
+  Key,
+  Link2,
+  Copy
 } from 'lucide-react';
 
 const CHAT_THEMES = [
@@ -1120,6 +1124,43 @@ export default function Dashboard() {
 
   // Settings & Profile Edit State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  // Guest account options surfaced in the hamburger (settings) menu
+  const [guestMenu, setGuestMenu] = useState(null); // 'code' | 'link' | null
+  const [guestCopied, setGuestCopied] = useState(false);
+  const [guestLinkBusy, setGuestLinkBusy] = useState(false);
+  const [guestLinkMsg, setGuestLinkMsg] = useState('');
+
+  const handleCopyGuestCode = () => {
+    const code = localStorage.getItem('guestClaimCode') || '';
+    if (!code) return;
+    try { navigator.clipboard?.writeText(code); } catch (e) {}
+    setGuestCopied(true);
+    setTimeout(() => setGuestCopied(false), 2000);
+  };
+
+  const handleGuestGoogleLink = async (cred) => {
+    setGuestLinkBusy(true);
+    setGuestLinkMsg('');
+    try {
+      // Carry the guest token so the server promotes this exact account in place.
+      const res = await fetch(`${API_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ token: cred.credential })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Link failed');
+      if (data.isNewUser) { setGuestLinkMsg('Please finish sign-up from the login page.'); return; }
+      login(data.user, data.token); // isGuest now false -> guest options disappear
+      localStorage.removeItem('guestClaimCode');
+      setShowSettingsModal(false);
+      setGuestMenu(null);
+    } catch (e) {
+      setGuestLinkMsg(e.message);
+    } finally {
+      setGuestLinkBusy(false);
+    }
+  };
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [profileName, setProfileName] = useState('');
@@ -7753,10 +7794,51 @@ const handleStoryUpload = async () => {
                 <Mail size={20} /> Contact Us
               </button>
               
+              {user?.isGuest && (
+                <>
+                  <button className="settings-item-btn" onClick={() => { setShowSettingsModal(false); setGuestMenu('code'); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Key size={20} /> Recovery code
+                  </button>
+                  <button className="settings-item-btn" onClick={() => { setShowSettingsModal(false); setGuestLinkMsg(''); setGuestMenu('link'); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--brand-blue)', fontWeight: 700 }}>
+                    <Link2 size={20} /> Link Gmail to save account
+                  </button>
+                </>
+              )}
+
               <button className="settings-item-btn logout-danger" onClick={() => { setShowSettingsModal(false); setShowLogoutConfirm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <LogOut size={20} /> Log Out
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {user?.isGuest && guestMenu && (
+        <div className="settings-drawer-overlay" onClick={() => setGuestMenu(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', background: '#151515', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '26px', width: '100%', maxWidth: '380px', color: '#fff', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', zIndex: 10000 }}>
+            {guestMenu === 'code' && (
+              <div style={{ textAlign: 'center' }}>
+                <h3 style={{ margin: '0 0 6px', fontSize: '1.3rem' }}><Key size={18} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Your recovery code</h3>
+                <p style={{ color: '#a8a8a8', fontSize: '0.88rem', marginTop: 0, marginBottom: '16px' }}>Save this somewhere safe. It restores your guest account on any device &mdash; and you can still link Gmail later.</p>
+                <div style={{ background: '#0d0d0d', border: '1px dashed #444', borderRadius: '12px', padding: '14px', fontSize: '1.15rem', letterSpacing: '2px', fontWeight: 700, marginBottom: '12px', wordBreak: 'break-all' }}>{localStorage.getItem('guestClaimCode') || 'No code available'}</div>
+                <button onClick={handleCopyGuestCode} style={{ background: '#262626', color: '#fff', border: '1px solid #444', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Copy size={15} /> {guestCopied ? 'Copied!' : 'Copy code'}</button>
+                <div style={{ marginTop: '16px' }}><button onClick={() => { setGuestLinkMsg(''); setGuestMenu('link'); }} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline' }}>Or link Gmail to save account</button></div>
+                <div style={{ marginTop: '10px' }}><button onClick={() => setGuestMenu(null)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '0.85rem' }}>Close</button></div>
+              </div>
+            )}
+            {guestMenu === 'link' && (
+              <div style={{ textAlign: 'center' }}>
+                <h3 style={{ margin: '0 0 6px', fontSize: '1.3rem' }}><Link2 size={18} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Link your Gmail</h3>
+                <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginTop: 0, marginBottom: '18px' }}>Link Google to keep everything. Your guest chats, friends &amp; coins stay intact, and you can log in anywhere.</p>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px', minHeight: '44px' }}>
+                  <GoogleLogin onSuccess={(c) => handleGuestGoogleLink(c)} onError={() => setGuestLinkMsg('Google sign-up failed. Please try again.')} useOneTap={false} theme="filled_black" shape="pill" size="large" text="continue_with" />
+                </div>
+                {guestLinkBusy && <p style={{ color: '#a8a8a8', fontSize: '0.85rem' }}>Linking your account&hellip;</p>}
+                {guestLinkMsg && <p style={{ color: '#ff6b6b', fontSize: '0.85rem' }}>{guestLinkMsg}</p>}
+                <div style={{ marginTop: '6px' }}><button onClick={() => setGuestMenu('code')} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline' }}>Or view my recovery code</button></div>
+                <div style={{ marginTop: '10px' }}><button onClick={() => setGuestMenu(null)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '0.85rem' }}>Close</button></div>
+              </div>
+            )}
           </div>
         </div>
       )}
