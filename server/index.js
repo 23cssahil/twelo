@@ -2668,6 +2668,20 @@ app.post('/api/stories/:id/highlight', authenticateToken, async (req, res) => {
   }
 });
 
+// Compact count formatter for notification text: 1->1, 1100->1.1k, 999000->999k,
+// 1500000->1.5M, 2000000000->2B.
+function formatCompactCount(n) {
+  n = Number(n) || 0;
+  if (n < 1000) return String(n);
+  const fmt = (val, suffix) => {
+    const s = val < 100 ? (Math.round(val * 10) / 10) : Math.floor(val);
+    return String(s).replace(/\.0$/, '') + suffix;
+  };
+  if (n >= 1e9) return fmt(n / 1e9, 'B');
+  if (n >= 1e6) return fmt(n / 1e6, 'M');
+  return fmt(n / 1e3, 'k');
+}
+
 app.post('/api/stories/:id/like', authenticateToken, async (req, res) => {
   try {
     const storyId = req.params.id;
@@ -2693,9 +2707,38 @@ app.post('/api/stories/:id/like', authenticateToken, async (req, res) => {
         io.emit('admin_story_interaction');
       } else if (story.user) {
         const ownerId = story.user.toString();
-        const ownerSocketId = onlineUsers.get(ownerId?.toString());
+        const ownerSocketId = onlineUsers.get(ownerId);
         if (ownerSocketId) {
           io.to(ownerSocketId).emit('story_interaction');
+        }
+
+        // Aggregated "liked your story" notification: one per story, updated in
+        // place so the newest liker + total count bubble to the top (skip self-likes).
+        if (ownerId !== userId.toString()) {
+          try {
+            const likeCount = (updated.likedBy || []).length;
+            const actionText = likeCount <= 1
+              ? 'liked your story'
+              : `and ${formatCompactCount(likeCount - 1)} others liked your story`;
+            const owner = await User.findById(ownerId);
+            if (owner) {
+              const existing = owner.notifications.find(n =>
+                n.type === 'story_like' && n.storyId && n.storyId.toString() === storyId.toString()
+              );
+              if (existing) {
+                existing.user = userId;
+                existing.message = actionText;
+                existing.read = false;
+                existing.createdAt = new Date();
+              } else {
+                owner.notifications.push({ type: 'story_like', user: userId, storyId, message: actionText, createdAt: new Date(), read: false });
+              }
+              await owner.save();
+              if (ownerSocketId) io.to(ownerSocketId).emit('new_notification', { type: 'story_like' });
+            }
+          } catch (notifErr) {
+            console.error('[Story Like] notification error:', notifErr.message);
+          }
         }
       }
     }

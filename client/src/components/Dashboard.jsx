@@ -5368,7 +5368,7 @@ const handleStoryUpload = async () => {
             story_comment: 'commented on your story',
             comment_reply: 'replied to your comment'
           };
-          const text = textMap[notif.type] || 'interacted with you';
+          const text = notif.type === 'story_like' ? (notif.message || 'liked your story') : (textMap[notif.type] || 'interacted with you');
           const unread = !notif.read;
           return (
             <div
