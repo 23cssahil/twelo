@@ -900,6 +900,15 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
         { username: regexQuery },
         { uniqueId: regexQuery }
       ];
+    } else {
+      // No query -> "Discover people" feed. Don't expose brand-new accounts (or
+      // guests) to everyone just because they registered. Newly created IDs were
+      // leaking here because the list was sorted newest-first with no filter. Only
+      // surface established, non-guest accounts; a new/guest account shows up ONLY
+      // when someone searches its exact username or ID.
+      const discoverCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      filter.isGuest = { $ne: true };
+      filter.createdAt = { $lt: discoverCutoff };
     }
 
     if (cursor) {
