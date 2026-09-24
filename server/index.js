@@ -2872,7 +2872,7 @@ app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
     if (!cursor || cursor === 'null' || cursor === 'undefined') {
       Message.updateMany(
         { sender: otherUserId, receiver: currentUserId, isViewed: false, isViewOnce: { $ne: true } },
-        { $set: { isViewed: true, viewedAt: new Date() } }
+        { $set: { isViewed: true, viewedAt: new Date(), isDelivered: true, deliveredAt: new Date() } }
       ).catch(err => console.log('Error updating view status', err));
     }
 
@@ -4046,6 +4046,29 @@ const randomChatQueue = new Proxy(_fallbackQueue, {
   get(target, prop) { return target[prop]; }
 });
 
+// Mark a batch of messages as delivered (two grey ticks) and tell their senders.
+// Called when the receiver's device actually got them: while online at send time,
+// or on their next socket connection for everything that queued up while offline.
+async function markDeliveredAndNotify(senderId, receiverId, now) {
+  try {
+    const updated = await Message.updateMany(
+      { sender: senderId, receiver: receiverId, isDelivered: false },
+      { $set: { isDelivered: true, deliveredAt: now } }
+    );
+    if (!updated || !updated.modified) return;
+    // Notify the sender's device(s) so the tick count updates live
+    for (const sid of Array.from(onlineUsers.entries())) {
+      if (sid[0] === String(senderId)) io.to(sid[1]).emit('messages_delivered', { senderId: receiverId });
+    }
+    // Also notify the receiver's own device(s) so a re-opened chat reflects delivery
+    for (const sid of Array.from(onlineUsers.entries())) {
+      if (sid[0] === String(receiverId)) io.to(sid[1]).emit('messages_delivered', { senderId: receiverId });
+    }
+  } catch (e) {
+    console.error('markDeliveredAndNotify error:', e.message);
+  }
+}
+
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
 
@@ -4061,6 +4084,29 @@ io.on('connection', (socket) => {
     activeSessions.set(socket.id, { userId: effectiveUserId, startTime: Date.now(), messagesSent: 0, matchesMade: 0 });
     console.log(`User ${effectiveUserId} registered with socket ${socket.id}`);
     io.emit('online_users', Array.from(onlineUsers.keys()));
+
+    // Coming online counts as receiving everything that arrived while offline:
+    // flip those one-tick messages to two ticks for their senders.
+    try {
+      const meDoc = await User.findById(effectiveUserId).select('following').lean();
+      const pending = await Message.distinct('sender', {
+        receiver: effectiveUserId,
+        isDelivered: false,
+        isDeletedForEveryone: { $ne: true },
+        deletedBy: { $ne: effectiveUserId },
+      });
+      // Cap the work per connection and include followed users so a legacy backlog
+      // (messages stored before delivery receipts existed) cannot slow down login.
+      const followSet = new Set((meDoc?.following || []).map(id => String(id)));
+      const targets = pending
+        .map(id => String(id))
+        .filter(id => id === effectiveUserId || followSet.has(id))
+        .slice(0, 50);
+      const now = new Date();
+      for (const senderId of targets) await markDeliveredAndNotify(senderId, effectiveUserId, now);
+    } catch (e) {
+      console.error('Delivery flush on connect failed:', e.message);
+    }
     
     // Send globe status on connect
     try {
@@ -4127,6 +4173,16 @@ io.on('connection', (socket) => {
 
       const receiverSocketId = onlineUsers.get(receiverId?.toString());
       const senderSocketId = onlineUsers.get(senderId?.toString());
+      // Receiver connected = their device received it straight away -> delivered (two ticks).
+      const deliveredNow = !!receiverSocketId;
+      if (deliveredNow) {
+        try {
+          await Message.updateOne(
+            { _id: message._id },
+            { $set: { isDelivered: true, deliveredAt: new Date() } }
+          );
+        } catch (e) {}
+      }
 
       const payload = {
         _id: message._id.toString(),
@@ -4137,6 +4193,7 @@ io.on('connection', (socket) => {
         messageType: messageType,
         fileUrl: fileUrl,
         isViewOnce: isViewOnce,
+        isDelivered: deliveredNow,
         isViewed: false,
         createdAt: message.createdAt
       };
@@ -4144,6 +4201,10 @@ io.on('connection', (socket) => {
 
       // Echo real message ID back to sender to update their UI
       io.to(socket.id).emit('message_sent', { tempId, message: payload });
+      // If it landed while the receiver was online, upgrade the sender's other tabs too
+      if (deliveredNow && senderSocketId && senderSocketId !== socket.id) {
+        io.to(senderSocketId).emit('messages_delivered', { senderId: receiverId });
+      }
       
       // Also echo to sender's OTHER devices/tabs
       if (senderSocketId && senderSocketId !== socket.id) {
@@ -4909,13 +4970,15 @@ io.on('connection', (socket) => {
 
       msg.isViewed = true;
       msg.viewedAt = now;
+      // Seeing it implies the device had it - keep the delivery receipt consistent.
+      if (!msg.isDelivered) { msg.isDelivered = true; msg.deliveredAt = now; }
       await msg.save();
 
       if (!msg.isViewOnce) {
         // Mark all older regular messages from the same sender as viewed
         await Message.updateMany(
           { sender: senderId, receiver: receiverId, createdAt: { $lte: msg.createdAt }, isViewed: false, isViewOnce: { $ne: true } },
-          { $set: { isViewed: true, viewedAt: now } }
+          { $set: { isViewed: true, viewedAt: now, isDelivered: true, deliveredAt: now } }
         );
         // Emit messages_marked_read to update the entire chat state
         const senderSocketId = onlineUsers.get(senderId?.toString());
@@ -4947,7 +5010,7 @@ io.on('connection', (socket) => {
       const now = new Date();
       await Message.updateMany(
         { sender: senderId, receiver: receiverId, isViewed: false, isViewOnce: { $ne: true } },
-        { $set: { isViewed: true, viewedAt: now } }
+        { $set: { isViewed: true, viewedAt: now, isDelivered: true, deliveredAt: now } }
       );
       // Notify the ORIGINAL SENDER that their messages were read (seen status)
       const senderSocketId = onlineUsers.get(senderId?.toString());

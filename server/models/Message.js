@@ -49,6 +49,18 @@ const MessageSchema = new mongoose.Schema({
     fileUrl: { type: String, default: null },
     deletedAt: { type: Date, default: null }
   },
+  // Delivery receipt (one tick vs two ticks). A message becomes "delivered" once
+  // the receiver's device has actually received it: immediately if they are online
+  // when it is sent, or on their next socket connection if they were offline.
+  // isViewed (blue ticks) always implies isDelivered.
+  isDelivered: {
+    type: Boolean,
+    default: false,
+  },
+  deliveredAt: {
+    type: Date,
+    default: null,
+  },
   isViewed: {
     type: Boolean,
     default: false,

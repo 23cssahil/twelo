@@ -691,6 +691,9 @@ input, button, textarea {
 .msg-wrapper.sent .msg-meta { justify-content: flex-end; }
 .msg-wrapper.received .msg-meta { justify-content: flex-start; }
 .msg-receipt { display: inline-flex; align-items: center; }
+/* Sent (single tick) and delivered (double tick) stay in the muted meta colour;
+   only a read message turns blue, so the three states read at a glance. */
+.msg-receipt.delivered { color: var(--msg-meta-color, rgba(255, 255, 255, 0.55)); }
 .msg-receipt.read { color: var(--msg-read-color, #4fc3f7); }
 
 .msg-time {

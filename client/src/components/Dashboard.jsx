@@ -2583,6 +2583,16 @@ export default function Dashboard() {
       fetchRecentChats();
     });
 
+    socket.on('messages_delivered', ({ senderId }) => {
+      // The partner's device received my messages: one tick -> two ticks (still grey).
+      // `senderId` in the payload is the partner (sender of those messages from my POV).
+      if (activeChatUserRef.current && String(activeChatUserRef.current._id) === String(senderId)) {
+        setMessages(prev => prev.map(msg =>
+          msg.sender === user.id ? { ...msg, isDelivered: true } : msg
+        ));
+      }
+    });
+
     socket.on('typing_status_received', ({ senderId, isTyping }) => {
       setTypingUsers(prev => ({ ...prev, [senderId]: isTyping }));
       if (activeChatUserRef.current && activeChatUserRef.current._id === senderId) {
@@ -3932,6 +3942,7 @@ const handleStoryUpload = async () => {
             } : null,
             isViewOnce: isViewOnce,
             isViewed: false,
+            isDelivered: false,
             createdAt: new Date().toISOString() 
           }]);
           
@@ -3985,6 +3996,7 @@ const handleStoryUpload = async () => {
             messageType: 'audio',
             fileUrl: url,
             replyTo: null,
+            isDelivered: false,
             createdAt: new Date().toISOString() 
           }]);
           fetchRecentChats();
@@ -4101,9 +4113,10 @@ const handleStoryUpload = async () => {
       _id: tempId,
       sender: user.id || user._id, 
       receiver: activeChatUser._id, 
-      message: textToSend, 
+      message: textToSend,
       replyTo: replyToObj,
       messageType: 'text',
+      isDelivered: false,
       createdAt: new Date().toISOString()
     }]);
     
@@ -4156,6 +4169,7 @@ const handleStoryUpload = async () => {
         message: '📸 Took a screenshot', 
         replyTo: null,
         messageType: 'screenshot',
+        isDelivered: false,
         createdAt: new Date().toISOString()
       }]);
     }
@@ -4236,6 +4250,7 @@ const handleStoryUpload = async () => {
         sender: user.id || user._id,
         receiver: targetId,
         message: messageText,
+        isDelivered: false,
         createdAt: new Date().toISOString()
       }]);
     }
@@ -6562,10 +6577,16 @@ const handleStoryUpload = async () => {
                           {/* Always-visible meta row under the bubble: time + read receipt */}
                           {!msg.isDeletedForEveryone && (
                             <div className="msg-meta">
+                              {/* Receipt states: single tick = sent only (partner's device never
+                                  got it while they were offline), double grey = delivered, double
+                                  blue = read. A missing isDelivered (legacy rows) counts as
+                                  delivered so old chats don't regress to one tick. */}
                               <span>{formatTime(msg.createdAt)}</span>
                               {msg.sender === user.id && (
                                 msg.isViewed ? (
                                   <span className="msg-receipt read" title="Read"><CheckCheck size={14} strokeWidth={2.6} /></span>
+                                ) : msg.isDelivered !== false ? (
+                                  <span className="msg-receipt delivered" title="Delivered"><CheckCheck size={14} strokeWidth={2.6} /></span>
                                 ) : (
                                   <span className="msg-receipt" title="Sent"><Check size={13} strokeWidth={2.6} /></span>
                                 )
