@@ -2760,6 +2760,7 @@ app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
     }
 
     const messages = await Message.find(query)
+      .select('-moderationSnapshot') // never leak delete-for-everyone originals to chat clients
       .sort({ _id: -1 }) // Get newest first
       .limit(limit);
       
@@ -2945,24 +2946,33 @@ app.post('/api/reports/create', authenticateToken, async (req, res) => {
     // Auto-fetch last 20 messages between reporter and reported user from DB
     let chatContext = '[]';
     try {
+      // Include deleted-for-everyone messages too: moderation must still see the
+      // evidence. Original content is recovered from moderationSnapshot when present.
       const last20 = await Message.find({
         $or: [
           { sender: reporterId, receiver: reportedUserId },
           { sender: reportedUserId, receiver: reporterId }
-        ],
-        isDeletedForEveryone: { $ne: true }
+        ]
       })
         .sort({ createdAt: -1 })
         .limit(20)
         .lean();
 
-      const formatted = last20.reverse().map(m => ({
-        from: m.sender.toString() === reporterId.toString() ? reporter.username : reportedUsername,
-        message: decryptMsg(m.message),
-        type: m.messageType,
-        fileUrl: m.fileUrl || null,
-        time: m.createdAt
-      }));
+      const formatted = last20.reverse().map(m => {
+        const deleted = !!m.isDeletedForEveryone;
+        const snap = m.moderationSnapshot || {};
+        const rawContent = deleted && snap.content ? snap.content : m.message;
+        const rawType = deleted && snap.type ? snap.type : m.messageType;
+        const rawFile = deleted ? (snap.fileUrl || null) : (m.fileUrl || null);
+        return {
+          from: m.sender.toString() === reporterId.toString() ? reporter.username : reportedUsername,
+          message: rawContent ? decryptMsg(rawContent) : '',
+          type: rawType,
+          fileUrl: rawFile,
+          time: m.createdAt,
+          deletedForEveryone: deleted
+        };
+      });
       chatContext = JSON.stringify(formatted);
     } catch (fetchErr) {
       console.error('[Report] Could not fetch chat context:', fetchErr.message);
@@ -4063,8 +4073,19 @@ io.on('connection', (socket) => {
       if (type === 'everyone') {
         // Only sender can delete for everyone
         if (message.sender.toString() === userId) {
-          await Message.findByIdAndUpdate(messageId, { 
-            $set: { isDeletedForEveryone: true, message: '🚫 This message was deleted', messageType: 'text', fileUrl: null } 
+          // Preserve the original (still-encrypted) content for moderation/report
+          // review before replacing the visible copy with a tombstone.
+          await Message.findByIdAndUpdate(messageId, {
+            $set: {
+              isDeletedForEveryone: true,
+              moderationSnapshot: {
+                content: message.message,
+                type: message.messageType,
+                fileUrl: message.fileUrl || null,
+                deletedAt: new Date()
+              },
+              message: '🚫 This message was deleted', messageType: 'text', fileUrl: null
+            }
           });
           const receiverSocketId = onlineUsers.get(message.receiver?.toString());
           const senderSocketId = onlineUsers.get(message.sender?.toString());

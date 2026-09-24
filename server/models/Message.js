@@ -40,6 +40,15 @@ const MessageSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // Original (still-encrypted) content preserved when a message is deleted for
+  // everyone, so moderation/report review can still recover the evidence.
+  // Never returned to normal chat clients.
+  moderationSnapshot: {
+    content: { type: String, default: null },
+    type: { type: String, default: null },
+    fileUrl: { type: String, default: null },
+    deletedAt: { type: Date, default: null }
+  },
   isViewed: {
     type: Boolean,
     default: false,
