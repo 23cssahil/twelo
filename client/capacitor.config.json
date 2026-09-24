@@ -2,6 +2,7 @@
   "appId": "com.twelo.app",
   "appName": "Twelo",
   "webDir": "dist",
+  "androidScheme": "https",
   "plugins": {
     "GoogleAuth": {
       "scopes": ["profile", "email"],

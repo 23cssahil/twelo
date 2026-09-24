@@ -11,6 +11,10 @@ build/
 *.zip
 latest_backup*
 
+# Local Android build artifacts (APK + build logs) - not for the repo
+*.apk
+android-build-*.log
+
 # Old scratch / one-off migration leftovers
 old_dash.*
 server/git

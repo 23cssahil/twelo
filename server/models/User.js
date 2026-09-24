@@ -96,6 +96,9 @@ const UserSchema = new mongoose.Schema({
     read: { type: Boolean, default: false }
   }],
   pushSubscriptions: { type: Array, default: [] },
+  // Firebase Cloud Messaging device token for the packaged native (Capacitor) app.
+  // Set by POST /api/users/fcm-token; used by sendToUserDevices for closed-app push.
+  fcmToken: { type: String, default: null },
   coins: { type: Number, default: 10 },
   lastCoinReplenishDate: { type: Date, default: Date.now },
   ownedByAdmin: { type: Boolean, default: false },

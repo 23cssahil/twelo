@@ -2,6 +2,7 @@ import StoryAudioTrimmer from './StoryAudioTrimmer';
 import StoryMusicModal from "./StoryMusicModal";
 import ShayariStudio from "./ShayariStudio";
 import AdBanner from "./AdBanner";
+import { initNativePush } from '../nativePush';
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect, Suspense } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import CommentsModal from './CommentsModal';
@@ -978,6 +979,13 @@ export default function Dashboard() {
       .catch(err => console.error('Error claiming daily coins:', err));
     }
   }, [token, API_URL]);
+
+  // Native (Capacitor) app: register for FCM push and sync the device token so the
+  // backend can deliver notifications while the app is closed. No-op on web.
+  useEffect(() => {
+    initNativePush(API_URL, token);
+  }, [token, API_URL]);
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);

@@ -51,29 +51,81 @@ if (pushEnabled) {
   console.warn('[Warn] VAPID keys not configured — web push notifications are disabled.');
 }
 
-// Send a web-push notification to a user who is currently OFFLINE (the in-app socket
-// toast already covers the online case). Accepts an already-loaded user document that
-// includes pushSubscriptions/ownedByAdmin so we avoid a redundant query. No-ops when
-// push is disabled, the user is connected, is an admin bot, or has no subscriptions.
+// Firebase Admin (FCM) — OPTIONAL native push. It initialises only when a Firebase
+// service-account JSON is supplied via the FIREBASE_SERVICE_ACCOUNT env var AND the
+// firebase-admin package is installed. If either is missing, adminMessaging stays null
+// and native push is silently skipped, so web push keeps working and the server never
+// crashes. This is the FCM-ready seam: add google-services.json (client) + this env
+// (backend) and closed-app notifications go live with no further code changes.
+let adminMessaging = null;
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const admin = require('firebase-admin');
+    const creds = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(creds) });
+    adminMessaging = admin.messaging();
+    console.log('[FCM] Firebase Admin initialized — native push enabled.');
+  } else {
+    console.warn('[FCM] FIREBASE_SERVICE_ACCOUNT not set — native push disabled (web push unaffected).');
+  }
+} catch (e) {
+  console.warn('[FCM] not initialized (install firebase-admin + set FIREBASE_SERVICE_ACCOUNT):', e.message);
+  adminMessaging = null;
+}
+
+// Deliver an offline notification to every device channel a user has registered:
+// FCM for the packaged native app and/or web-push for PWA browser clients.
+async function sendToUserDevices(userDoc, { title, body, url = '/' } = {}) {
+  if (!userDoc) return;
+  const t = title || 'Twelo';
+  const b = body || '';
+  // 1) Native app via FCM (works even when VAPID/web-push is disabled).
+  if (adminMessaging && userDoc.fcmToken) {
+    try {
+      await adminMessaging.send({
+        token: userDoc.fcmToken,
+        notification: { title: t, body: b },
+        data: { url: String(url) },
+        android: { notification: { channelId: 'twelo_default' } }
+      });
+    } catch (e) {
+      const code = e && e.code;
+      if (code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token') {
+        User.updateOne({ _id: userDoc._id }, { $unset: { fcmToken: 1 } }).catch(() => {});
+      } else {
+        console.log('[fcm] send error:', e && e.message);
+      }
+    }
+  }
+  // 2) PWA via web-push.
+  if (!pushEnabled) return;
+  const subs = userDoc.pushSubscriptions || [];
+  if (!subs.length) return;
+  const payload = JSON.stringify({ title: t, body: b, icon: '/icon-192.png', url });
+  await Promise.allSettled(subs.map(async (sub) => {
+    try {
+      await webpush.sendNotification(sub, payload);
+    } catch (e) {
+      if (e.statusCode === 410 || e.statusCode === 404) {
+        User.updateOne({ _id: userDoc._id }, { $pull: { pushSubscriptions: { endpoint: sub.endpoint } } }).catch(() => {});
+      } else {
+        console.log('[push notify] send error:', e.message);
+      }
+    }
+  }));
+}
+
+// Send a notification to a user who is currently OFFLINE (the in-app socket
+// toast already covers the online case). Accepts an already-loaded user document
+// that includes pushSubscriptions/fcmToken/ownedByAdmin so we avoid a redundant
+// query. No-ops when the user is connected or is an admin bot.
 async function pushToOfflineUser(userDoc, { title, body, url = '/' } = {}) {
   try {
-    if (!pushEnabled || !userDoc || userDoc.ownedByAdmin) return;
+    if (!userDoc || userDoc.ownedByAdmin) return;
+    if (!pushEnabled && !adminMessaging) return;
     const uid = String(userDoc._id || userDoc.id || '');
     if (!uid || onlineUsers.get(uid)) return; // online -> in-app toast shows it
-    const subs = userDoc.pushSubscriptions || [];
-    if (!subs.length) return;
-    const payload = JSON.stringify({ title: title || 'Twelo', body: body || '', icon: '/icon-192.png', url });
-    await Promise.allSettled(subs.map(async (sub) => {
-      try {
-        await webpush.sendNotification(sub, payload);
-      } catch (e) {
-        if (e.statusCode === 410 || e.statusCode === 404) {
-          User.updateOne({ _id: userDoc._id }, { $pull: { pushSubscriptions: { endpoint: sub.endpoint } } }).catch(() => {});
-        } else {
-          console.log('[push notify] send error:', e.message);
-        }
-      }
-    }));
+    await sendToUserDevices(userDoc, { title, body, url });
   } catch (e) {
     console.error('[push notify] failed:', e.message);
   }
@@ -242,12 +294,22 @@ const configuredOrigins = (process.env.FRONTEND_URL || '')
   .map((s) => s.trim())
   .filter(Boolean);
 const corsStrict = configuredOrigins.length > 0;
-const corsOrigin = corsStrict ? configuredOrigins : true;
+// Always allow the packaged native/Capacitor app origins. A Capacitor WebView sends
+// http(s)://localhost (or capacitor://localhost) as its Origin, which would otherwise
+// be rejected the moment FRONTEND_URL locks CORS down. Random browser origins still
+// have to match FRONTEND_URL in strict mode.
+const NATIVE_ORIGINS = ['http://localhost', 'https://localhost', 'capacitor://localhost', 'local://localhost', 'null'];
+const corsOriginFn = (origin, callback) => {
+  if (!origin) return callback(null, true);                 // same-origin / non-browser (curl, native)
+  if (NATIVE_ORIGINS.includes(origin)) return callback(null, true);
+  if (!corsStrict) return callback(null, true);             // reflecting mode
+  return callback(null, configuredOrigins.includes(origin));
+};
 if (!corsStrict) {
   console.warn('[CORS] FRONTEND_URL is not set — reflecting any origin. Set FRONTEND_URL to lock CORS down for production.');
 }
 app.use(cors({
-  origin: corsOrigin,
+  origin: corsOriginFn,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-pass']
@@ -405,7 +467,7 @@ mongoose.connection.once('open', async () => {
 
 const io = socketIo(server, {
   cors: {
-    origin: corsOrigin,
+    origin: corsOriginFn,
     methods: ['GET', 'POST'],
     credentials: corsStrict
   }
@@ -1958,6 +2020,22 @@ app.post('/api/users/subscribe', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error saving subscription:', error);
     res.status(500).json({ message: 'Error saving subscription' });
+  }
+});
+
+// Store the FCM device token reported by the packaged native (Capacitor) app so the
+// server can deliver closed-app push to it. Empty/omitted token clears it (e.g. logout).
+app.post('/api/users/fcm-token', authenticateToken, async (req, res) => {
+  try {
+    const token = (req.body && req.body.token || '').trim();
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.fcmToken = token || null;
+    await user.save();
+    res.status(201).json({ message: token ? 'FCM token saved' : 'FCM token cleared' });
+  } catch (error) {
+    console.error('Error saving FCM token:', error);
+    res.status(500).json({ message: 'Error saving FCM token' });
   }
 });
 
@@ -4213,7 +4291,7 @@ io.on('connection', (socket) => {
 
       // Check if they are mutual followers (friends) to send a push notification
       const senderObj = await User.findById(senderId).select('username avatarUrl followers following');
-      const receiverObj = await User.findById(receiverId).select('pushSubscriptions followers following');
+      const receiverObj = await User.findById(receiverId).select('pushSubscriptions fcmToken followers following ownedByAdmin');
       
       // Enrich payload with sender info for rich toast
       payload.senderUsername = senderObj?.username || '';
@@ -4224,37 +4302,21 @@ io.on('connection', (socket) => {
       }
       
       if (senderObj && receiverObj) {
-        // Only send push notifications when receiver is OFFLINE (not connected via socket)
-        // When online, the in-app toast handles notifications
+        // Only push when the receiver is OFFLINE (online -> in-app toast).
         const isReceiverOnline = !!receiverSocketId;
-        const isMutual = senderObj.followers.some(id => id.toString() === receiverId.toString()) && 
+        const isMutual = senderObj.followers.some(id => id.toString() === receiverId.toString()) &&
                          senderObj.following.some(id => id.toString() === receiverId.toString());
-        if (isMutual && !isReceiverOnline && !receiverObj.ownedByAdmin && receiverObj.pushSubscriptions && receiverObj.pushSubscriptions.length > 0) {
-            const pushPayload = JSON.stringify({
-              title: `New message from ${senderObj.username}`,
-              // Do not leak (potentially encrypted) message content into the push payload.
-              body: messageType === 'text' ? 'You have a new message' : `Sent a ${messageType}`,
-              icon: '/icon-192.png',
-              url: `/?chat=${senderId}`
-            });
-            const pushes = receiverObj.pushSubscriptions.map(async (sub) => {
-              try {
-                await webpush.sendNotification(sub, pushPayload);
-              } catch (e) {
-                if (e.statusCode === 410 || e.statusCode === 404) {
-                  // Subscription is dead or no longer valid, remove it
-                  await User.updateOne(
-                    { _id: receiverObj._id },
-                    { $pull: { pushSubscriptions: { endpoint: sub.endpoint } } }
-                  );
-                } else {
-                  console.log('Push error:', e);
-                }
-              }
-            });
-            await Promise.all(pushes);
-          }
+        const hasAnyChannel = (receiverObj.pushSubscriptions && receiverObj.pushSubscriptions.length > 0) || receiverObj.fcmToken;
+        if (isMutual && !isReceiverOnline && !receiverObj.ownedByAdmin && hasAnyChannel) {
+          // sendToUserDevices delivers over FCM (native app) and/or web-push (PWA).
+          await sendToUserDevices(receiverObj, {
+            title: `New message from ${senderObj.username}`,
+            // Do not leak (potentially encrypted) message content into the push payload.
+            body: messageType === 'text' ? 'You have a new message' : `Sent a ${messageType}`,
+            url: `/?chat=${senderId}`
+          });
         }
+      }
     } catch (error) {
       console.error(error);
     }
