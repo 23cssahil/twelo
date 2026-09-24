@@ -59,6 +59,7 @@ export default function DeveloperAdmin() {
   const [selectedReport, setSelectedReport] = useState(null);
   const [warnNotice, setWarnNotice] = useState('');
   const [sendingWarn, setSendingWarn] = useState(false);
+  const [resolvingReport, setResolvingReport] = useState(false);
 
   const [chatViewTarget, setChatViewTarget] = useState(null);
   const [selectedUserChats, setSelectedUserChats] = useState(null);
@@ -638,6 +639,10 @@ export default function DeveloperAdmin() {
   }
 
   const handleResolveReport = async (reportId) => {
+    // Guard against rapid re-clicks while the request is in-flight (server is also
+    // idempotent now, but this stops the confusing multi-notify from the UI side).
+    if (resolvingReport) return;
+    setResolvingReport(true);
     try {
       const res = await fetch(`${API_URL}/api/admin/reports/${reportId}/resolve`, {
         method: 'POST',
@@ -650,6 +655,8 @@ export default function DeveloperAdmin() {
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setResolvingReport(false);
     }
   };
 
@@ -1461,10 +1468,11 @@ export default function DeveloperAdmin() {
                 <button
                   onClick={() => handleResolveReport(selectedReport._id)}
                   className="dev-btn-primary"
-                  style={{ background: '#10b981' }}
+                  disabled={resolvingReport}
+                  style={{ background: '#10b981', opacity: resolvingReport ? 0.6 : 1, cursor: resolvingReport ? 'not-allowed' : 'pointer' }}
                 >
                   <CheckCircle size={16} style={{ marginRight: '5px' }} />
-                  Mark as Resolved
+                  {resolvingReport ? 'Resolving…' : 'Mark as Resolved'}
                 </button>
               </div>
             </div>

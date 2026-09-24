@@ -3950,24 +3950,39 @@ app.get('/api/admin/bots/messages/:botId/:userId', adminAuth, async (req, res) =
 
 app.post('/api/admin/reports/:id/resolve', adminAuth, async (req, res) => {
   try {
-    const report = await Report.findById(req.params.id);
-    if (!report) return res.status(404).json({ message: 'Report not found' });
+    // Atomically claim the transition pending -> resolved. Only the FIRST concurrent
+    // request wins; rapid double/triple clicks return here with null and are treated
+    // as an idempotent success, so the reporter can never be notified more than once.
+    const report = await Report.findOneAndUpdate(
+      { _id: req.params.id, status: { $ne: 'resolved' } },
+      { status: 'resolved', resolvedAt: new Date() },
+      { new: true }
+    );
 
-    report.status = 'resolved';
-    report.resolvedAt = new Date();
-    await report.save();
+    if (!report) {
+      const existing = await Report.findById(req.params.id);
+      if (!existing) return res.status(404).json({ message: 'Report not found' });
+      return res.json({ success: true, alreadyResolved: true });
+    }
 
     // Let the reporter know action was taken (professional notice, delivered once).
+    // The actionTaken flag is flipped atomically so even the winning request can't
+    // race a duplicate notice if it is retried.
     if (!report.actionTaken && report.reporterId) {
-      const actionMessage = `✅ Action taken on your report\n\nThank you for reporting @${report.reportedUsername} for "${report.reason}". Our moderation team has reviewed it and taken appropriate action to keep Twelo safe for everyone.`;
-      const notif = { type: 'system_alert', message: actionMessage, alertType: 'success', read: false, createdAt: new Date() };
-      await User.findByIdAndUpdate(report.reporterId, { $push: { notifications: notif } });
-      report.actionTaken = true;
-      await report.save();
-      const rSocketId = onlineUsers.get(String(report.reporterId));
-      if (rSocketId) {
-        io.to(rSocketId).emit('new_notification');
-        io.to(rSocketId).emit('system_alert_toast', { message: actionMessage, type: 'personal' });
+      const claimed = await Report.findOneAndUpdate(
+        { _id: report._id, actionTaken: { $ne: true } },
+        { actionTaken: true },
+        { new: true }
+      );
+      if (claimed) {
+        const actionMessage = `✅ Action taken on your report\n\nThank you for reporting @${report.reportedUsername} for "${report.reason}". Our moderation team has reviewed it and taken appropriate action to keep Twelo safe for everyone.`;
+        const notif = { type: 'system_alert', message: actionMessage, alertType: 'success', read: false, createdAt: new Date() };
+        await User.findByIdAndUpdate(report.reporterId, { $push: { notifications: notif } });
+        const rSocketId = onlineUsers.get(String(report.reporterId));
+        if (rSocketId) {
+          io.to(rSocketId).emit('new_notification');
+          io.to(rSocketId).emit('system_alert_toast', { message: actionMessage, type: 'personal' });
+        }
       }
     }
     res.json({ success: true });

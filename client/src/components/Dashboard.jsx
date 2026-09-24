@@ -2003,7 +2003,10 @@ export default function Dashboard() {
         }
         setNotifsCursor(data.nextCursor);
         setNotifsHasMore(data.hasMore);
-        if (activeTab !== 'notifications') {
+        // Read the CURRENT tab via ref (not the captured closure) so the badge
+        // reliably lights up on real-time new_notification / socket reconnect even
+        // when this function instance was created on an older render.
+        if (activeTabRef.current !== 'notifications') {
           setUnreadNotifsCount(data.totalUnread || 0);
         }
       }
@@ -2838,6 +2841,9 @@ export default function Dashboard() {
     if (!socket) return;
 
     const handleConnect = () => {
+      // The socket drops when the app is backgrounded/closed. Any notifications that
+      // arrived during that gap never fire a live event, so re-sync the badge on reconnect.
+      fetchNotifications();
       if (isSearchingRandom) {
         console.log('[MATCH] Socket connected/reconnected. Emitting search_random...');
         socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });
