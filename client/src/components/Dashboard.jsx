@@ -5456,6 +5456,12 @@ const handleStoryUpload = async () => {
               </div>
             ) : (
               <>
+                {updates.length > 0 && (
+                  <div>
+                    <div style={sectionTitle}>Updates</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{updates.map(renderAlert)}</div>
+                  </div>
+                )}
                 {requests.length > 0 && (
                   <div>
                     <div style={sectionTitle}>Requests</div>
@@ -5466,12 +5472,6 @@ const handleStoryUpload = async () => {
                   <div>
                     <div style={sectionTitle}>Activity</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{activityNodes}</div>
-                  </div>
-                )}
-                {updates.length > 0 && (
-                  <div>
-                    <div style={sectionTitle}>Updates</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>{updates.map(renderAlert)}</div>
                   </div>
                 )}
                 {notifsFetching && (
