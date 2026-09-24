@@ -51,6 +51,34 @@ if (pushEnabled) {
   console.warn('[Warn] VAPID keys not configured — web push notifications are disabled.');
 }
 
+// Send a web-push notification to a user who is currently OFFLINE (the in-app socket
+// toast already covers the online case). Accepts an already-loaded user document that
+// includes pushSubscriptions/ownedByAdmin so we avoid a redundant query. No-ops when
+// push is disabled, the user is connected, is an admin bot, or has no subscriptions.
+async function pushToOfflineUser(userDoc, { title, body, url = '/' } = {}) {
+  try {
+    if (!pushEnabled || !userDoc || userDoc.ownedByAdmin) return;
+    const uid = String(userDoc._id || userDoc.id || '');
+    if (!uid || onlineUsers.get(uid)) return; // online -> in-app toast shows it
+    const subs = userDoc.pushSubscriptions || [];
+    if (!subs.length) return;
+    const payload = JSON.stringify({ title: title || 'Twelo', body: body || '', icon: '/icon-192.png', url });
+    await Promise.allSettled(subs.map(async (sub) => {
+      try {
+        await webpush.sendNotification(sub, payload);
+      } catch (e) {
+        if (e.statusCode === 410 || e.statusCode === 404) {
+          User.updateOne({ _id: userDoc._id }, { $pull: { pushSubscriptions: { endpoint: sub.endpoint } } }).catch(() => {});
+        } else {
+          console.log('[push notify] send error:', e.message);
+        }
+      }
+    }));
+  } catch (e) {
+    console.error('[push notify] failed:', e.message);
+  }
+}
+
 // Google OAuth client ID is a public identifier (not a secret) but kept configurable.
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -1589,6 +1617,11 @@ app.post('/api/users/follow/:id', authenticateToken, async (req, res) => {
     if (targetSocketId) {
       io.to(targetSocketId).emit('new_notification');
     }
+    // Offline -> push so the owner sees it on the phone even with the app closed.
+    pushToOfflineUser(targetUser, {
+      title: 'New follower request',
+      body: `@${currentUser.username} ${notifType === 'follow_back_request' ? 'also wants to follow you' : 'wants to follow you'}`
+    });
 
     res.json({ message: "Request sent successfully" });
   } catch (error) {
@@ -1642,6 +1675,11 @@ app.post('/api/users/anonymous_follow/:id', authenticateToken, async (req, res) 
     if (targetSocketId) {
       io.to(targetSocketId).emit('new_notification');
     }
+    // Anonymous -> do not reveal the actor in the push body either.
+    pushToOfflineUser(targetUser, {
+      title: 'New follow request',
+      body: 'Someone sent you a follow request'
+    });
 
     res.json({ message: "Request sent successfully", coinsLeft: currentUser.coins });
   } catch (error) {
@@ -1693,6 +1731,12 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
     if (reqSocketId) {
       io.to(reqSocketId).emit('new_notification');
     }
+    if (requester) {
+      pushToOfflineUser(requester, {
+        title: 'Request accepted',
+        body: `@${currentUser.username} accepted your follow request`
+      });
+    }
 
     res.json({ message: "Request accepted" });
   } catch (error) {
@@ -1729,6 +1773,10 @@ app.post('/api/users/reject/:id', authenticateToken, async (req, res) => {
         io.to(reqSocketId).emit('request_rejected_alert');
         io.to(reqSocketId).emit('new_notification');
       }
+      pushToOfflineUser(requester, {
+        title: 'Follow request',
+        body: `@${currentUser.username} declined your follow request`
+      });
     }
 
     res.json({ message: "Request rejected" });
@@ -2084,6 +2132,7 @@ app.post('/api/stories/:id/comments', authenticateToken, async (req, res) => {
             await owner.save();
             const ownerSocketId = onlineUsers.get(ownerId);
             if (ownerSocketId) io.to(ownerSocketId).emit('new_notification', { type: 'story_comment' });
+            else pushToOfflineUser(owner, { title: 'New comment on your story', body: `@${actorName}: “${snippet}”` });
           }
         }
       } else {
@@ -2112,6 +2161,10 @@ app.post('/api/stories/:id/comments', authenticateToken, async (req, res) => {
             await targetUser.save();
             const targetSocketId = onlineUsers.get(String(parent.user_id));
             if (targetSocketId) io.to(targetSocketId).emit('new_notification');
+            else {
+              const rSnip = commentText.length > 80 ? commentText.slice(0, 80) + '…' : commentText;
+              pushToOfflineUser(targetUser, { title: 'New reply to your comment', body: `@${actorName} replied: “${rSnip}”` });
+            }
           }
         }
       }
@@ -2764,6 +2817,14 @@ app.post('/api/stories/:id/like', authenticateToken, async (req, res) => {
               }
               await owner.save();
               if (ownerSocketId) io.to(ownerSocketId).emit('new_notification', { type: 'story_like' });
+              else {
+                const actorUser = await User.findById(userId).select('username').lean();
+                const likeName = actorUser?.username || 'Someone';
+                pushToOfflineUser(owner, {
+                  title: 'New like on your story',
+                  body: likeCount <= 1 ? `${likeName} liked your story` : `${likeName} and ${formatCompactCount(likeCount - 1)} others liked your story`
+                });
+              }
             }
           } catch (notifErr) {
             console.error('[Story Like] notification error:', notifErr.message);
