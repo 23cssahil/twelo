@@ -5440,7 +5440,7 @@ const handleStoryUpload = async () => {
 
         return (
           <div className="notifications-container" style={{ padding: '0 16px 16px', overflowY: 'auto', height: '100%' }} onScroll={handleNotifsScroll}>
-            <div style={{ position: 'sticky', top: 0, zIndex: 5, background: 'var(--panel-bg)', padding: '12px 0 8px', boxShadow: '0 3px 6px rgba(0,0,0,0.18)' }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 5, background: 'var(--panel-bg)', margin: '0 -16px', padding: '12px 16px 8px', boxShadow: '0 3px 6px rgba(0,0,0,0.18)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                 <h2 className="search-header-text" style={{ margin: 0 }}>Notifications</h2>
                 {unreadNotifsCount > 0 && (
