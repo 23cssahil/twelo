@@ -1589,7 +1589,18 @@ export default function Dashboard() {
         if ('serviceWorker' in navigator && 'PushManager' in window) {
           const registration = await navigator.serviceWorker.ready;
           const subscription = await registration.pushManager.getSubscription();
-          setPushNotifEnabled(!!subscription && Notification.permission === 'granted');
+          const enabled = !!subscription && Notification.permission === 'granted';
+          setPushNotifEnabled(enabled);
+          // Re-sync the live subscription on every app open. Browsers rotate/expire push
+          // endpoints over time and a redeploy can prune stale ones server-side; without
+          // this the server keeps a dead endpoint and offline message pushes stop working.
+          if (enabled && token) {
+            fetch(`${API_URL}/api/users/subscribe`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify(subscription.toJSON())
+            }).catch(() => {});
+          }
           // Clear any lingering push notifications since user is now on the site
           if (registration.active) {
             registration.active.postMessage({ type: 'CLEAR_NOTIFICATIONS' });

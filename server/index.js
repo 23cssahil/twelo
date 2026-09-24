@@ -1894,12 +1894,18 @@ app.post('/api/users/subscribe', authenticateToken, async (req, res) => {
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
     
-    // Check if subscription already exists
-    const exists = user.pushSubscriptions.some(sub => sub.endpoint === subscription.endpoint);
-    if (!exists) {
+    // Upsert by endpoint. Browsers occasionally rotate a subscription's p256dh/auth
+    // keys while keeping the same endpoint; a plain "skip if endpoint exists" left the
+    // OLD keys stored, so every webpush.sendNotification failed with 400/410 and the
+    // subscription got pruned -> offline message pushes silently stopped. Refresh in
+    // place so the freshest keys are always saved.
+    const idx = user.pushSubscriptions.findIndex(sub => sub && sub.endpoint === subscription.endpoint);
+    if (idx >= 0) {
+      user.pushSubscriptions[idx] = subscription;
+    } else {
       user.pushSubscriptions.push(subscription);
-      await user.save();
     }
+    await user.save();
     res.status(201).json({ message: 'Subscription saved' });
   } catch (error) {
     console.error('Error saving subscription:', error);
