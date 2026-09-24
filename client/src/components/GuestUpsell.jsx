@@ -1,6 +1,10 @@
 import React, { useContext, useState } from 'react';
 import { AuthContext } from '../App';
 import { GoogleLogin } from '@react-oauth/google';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+
+const GOOGLE_CLIENT_ID = '440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com';
 
 // Big-company style guest upsell: a lightweight, dismissible banner shown only to
 // guest accounts, offering a one-tap upgrade to Google (which links the identity onto
@@ -17,7 +21,7 @@ export default function GuestUpsell() {
 
   const claimCode = localStorage.getItem('guestClaimCode') || '';
 
-  const handleGoogleUpgrade = async (cred) => {
+  const handleGoogleUpgrade = async (idToken) => {
     setBusy(true);
     setMsg('');
     try {
@@ -25,7 +29,7 @@ export default function GuestUpsell() {
       const res = await fetch(`${API_URL}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ token: cred.credential })
+        body: JSON.stringify({ token: idToken })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Upgrade failed');
@@ -41,6 +45,23 @@ export default function GuestUpsell() {
       setMsg(e.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Native (Capacitor) upgrade: the web GIS popup is blocked in the WebView, so use
+  // the GoogleAuth plugin (opens a real Chrome Custom Tab).
+  const handleNativeGoogleUpgrade = async () => {
+    setBusy(true);
+    setMsg('');
+    try {
+      await GoogleAuth.initialize({ clientId: GOOGLE_CLIENT_ID, scopes: ['profile', 'email'], grantOfflineAccess: true });
+      const googleUser = await GoogleAuth.signIn();
+      const idToken = googleUser.authentication?.idToken;
+      if (!idToken) throw new Error('Google sign-in returned no token.');
+      await handleGoogleUpgrade(idToken);
+    } catch (e) {
+      setBusy(false);
+      setMsg(e?.message && String(e.message).toLowerCase() !== 'cancelled login flow' ? e.message : 'Google link cancelled.');
     }
   };
 
@@ -68,7 +89,18 @@ export default function GuestUpsell() {
                 <h3 style={{ margin: '0 0 6px', fontSize: '1.3rem' }}>Save your account</h3>
                 <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginTop: 0, marginBottom: '18px' }}>Link Google to keep everything. Your guest chats, friends & coins stay intact.</p>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px', minHeight: '44px' }}>
-                  <GoogleLogin onSuccess={(c) => handleGoogleUpgrade(c)} onError={() => setMsg('Google sign-up failed. Please try again.')} useOneTap={false} theme="filled_black" shape="pill" size="large" text="continue_with" />
+                  {Capacitor.isNativePlatform() ? (
+                    <button
+                      onClick={handleNativeGoogleUpgrade}
+                      disabled={busy}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1a1a1a', color: '#fff', border: '1px solid #333', borderRadius: '24px', padding: '11px 22px', fontSize: '1rem', fontWeight: 600, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}
+                    >
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" style={{ width: '20px', height: '20px' }} />
+                      Continue with Google
+                    </button>
+                  ) : (
+                    <GoogleLogin onSuccess={(c) => handleGoogleUpgrade(c.credential)} onError={() => setMsg('Google sign-up failed. Please try again.')} useOneTap={false} theme="filled_black" shape="pill" size="large" text="continue_with" />
+                  )}
                 </div>
                 {busy && <p style={{ color: '#a8a8a8', fontSize: '0.85rem' }}>Linking your account…</p>}
                 {msg && <p style={{ color: '#ff6b6b', fontSize: '0.85rem' }}>{msg}</p>}

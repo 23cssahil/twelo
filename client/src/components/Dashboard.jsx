@@ -2,7 +2,7 @@ import StoryAudioTrimmer from './StoryAudioTrimmer';
 import StoryMusicModal from "./StoryMusicModal";
 import ShayariStudio from "./ShayariStudio";
 import AdBanner from "./AdBanner";
-import { initNativePush } from '../nativePush';
+import { initNativePush, isNativeApp, enableNativePush, disableNativePush, getNativePushStatus } from '../nativePush';
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect, Suspense } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import CommentsModal from './CommentsModal';
@@ -102,6 +102,7 @@ const CoinSVG = ({ size = 18, style = {} }) => (
   <span style={{ fontSize: `${size}px`, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', ...style }}>🪙</span>
 );
 import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { AdMob, RewardAdPluginEvents, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
 
 const COUNTRY_DATA = {
@@ -1183,7 +1184,9 @@ export default function Dashboard() {
     setTimeout(() => setGuestCopied(false), 2000);
   };
 
-  const handleGuestGoogleLink = async (cred) => {
+  // Promote the current guest account by linking a Google identity. Accepts a raw
+  // Google ID token (works for both the web GIS credential and the native plugin).
+  const handleGuestGoogleLink = async (idToken) => {
     setGuestLinkBusy(true);
     setGuestLinkMsg('');
     try {
@@ -1191,7 +1194,7 @@ export default function Dashboard() {
       const res = await fetch(`${API_URL}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ token: cred.credential })
+        body: JSON.stringify({ token: idToken })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Link failed');
@@ -1204,6 +1207,29 @@ export default function Dashboard() {
       setGuestLinkMsg(e.message);
     } finally {
       setGuestLinkBusy(false);
+    }
+  };
+
+  // Native (Capacitor) guest -> Google link. The web GIS <GoogleLogin> popup is blocked
+  // inside the WebView ("access blocked / authorization error"), so use the native
+  // GoogleAuth plugin which opens a real Chrome Custom Tab instead.
+  const handleNativeGuestGoogleLink = async () => {
+    setGuestLinkBusy(true);
+    setGuestLinkMsg('');
+    try {
+      await GoogleAuth.initialize({
+        clientId: '440916901093-30lfk61qkml9b9bd6jb00bcot13csvsv.apps.googleusercontent.com',
+        scopes: ['profile', 'email'],
+        grantOfflineAccess: true,
+      });
+      const googleUser = await GoogleAuth.signIn();
+      const idToken = googleUser.authentication?.idToken;
+      if (!idToken) throw new Error('Google sign-in returned no token.');
+      await handleGuestGoogleLink(idToken);
+    } catch (e) {
+      // User cancelling surfaces as an error here; keep it non-alarming.
+      setGuestLinkBusy(false);
+      setGuestLinkMsg(e?.message && String(e.message).toLowerCase() !== 'cancelled login flow' ? e.message : 'Google link cancelled.');
     }
   };
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
@@ -1632,6 +1658,15 @@ export default function Dashboard() {
   useEffect(() => {
     const checkPushStatus = async () => {
       try {
+        // Native (Capacitor) app: web-push service workers don't exist here — push is
+        // delivered through FCM. Reflect the OS permission + the user's stored choice.
+        if (isNativeApp()) {
+          const perm = await getNativePushStatus();
+          let pref = null;
+          try { pref = localStorage.getItem('twelo_native_push'); } catch (e) {}
+          setPushNotifEnabled(perm === 'granted' && pref !== 'false');
+          return;
+        }
         if ('serviceWorker' in navigator && 'PushManager' in window) {
           const registration = await navigator.serviceWorker.ready;
           const subscription = await registration.pushManager.getSubscription();
@@ -1669,6 +1704,26 @@ export default function Dashboard() {
   }, []);
 
   const handleToggleNotifications = async () => {
+    // Native (Capacitor) app: notifications come through FCM, NOT the web-push service
+    // worker (which is unavailable in the WebView and was throwing "Error toggling
+    // notifications"). Use the OS permission + FCM registration path instead.
+    if (isNativeApp()) {
+      if (pushNotifEnabled) {
+        setPushNotifEnabled(false);
+        await disableNativePush(API_URL, token);
+        showToastMsg('Push notifications disabled', 'info');
+      } else {
+        setPushNotifEnabled(true);
+        const result = await enableNativePush(API_URL, token);
+        if (result === 'granted') {
+          showToastMsg('Push notifications enabled!', 'info');
+        } else {
+          setPushNotifEnabled(false);
+          showToastMsg('Notifications are blocked. Allow them in your phone settings.', 'error');
+        }
+      }
+      return;
+    }
     if (pushNotifEnabled) {
       // Turn OFF immediately
       setPushNotifEnabled(false);
@@ -8027,7 +8082,18 @@ const handleStoryUpload = async () => {
                 <h3 style={{ margin: '0 0 6px', fontSize: '1.3rem' }}><Link2 size={18} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Link your Gmail</h3>
                 <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginTop: 0, marginBottom: '18px' }}>Link Google to keep everything. Your guest chats, friends &amp; coins stay intact, and you can log in anywhere.</p>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px', minHeight: '44px' }}>
-                  <GoogleLogin onSuccess={(c) => handleGuestGoogleLink(c)} onError={() => setGuestLinkMsg('Google sign-up failed. Please try again.')} useOneTap={false} theme="filled_black" shape="pill" size="large" text="continue_with" />
+                  {Capacitor.isNativePlatform() ? (
+                    <button
+                      onClick={handleNativeGuestGoogleLink}
+                      disabled={guestLinkBusy}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1a1a1a', color: '#fff', border: '1px solid #333', borderRadius: '24px', padding: '11px 22px', fontSize: '1rem', fontWeight: 600, cursor: guestLinkBusy ? 'default' : 'pointer', opacity: guestLinkBusy ? 0.6 : 1 }}
+                    >
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" style={{ width: '20px', height: '20px' }} />
+                      Continue with Google
+                    </button>
+                  ) : (
+                    <GoogleLogin onSuccess={(c) => handleGuestGoogleLink(c.credential)} onError={() => setGuestLinkMsg('Google sign-up failed. Please try again.')} useOneTap={false} theme="filled_black" shape="pill" size="large" text="continue_with" />
+                  )}
                 </div>
                 {guestLinkBusy && <p style={{ color: '#a8a8a8', fontSize: '0.85rem' }}>Linking your account&hellip;</p>}
                 {guestLinkMsg && <p style={{ color: '#ff6b6b', fontSize: '0.85rem' }}>{guestLinkMsg}</p>}
