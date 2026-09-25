@@ -714,16 +714,20 @@ export default function DeveloperAdmin() {
   // Accepting a request opens the per-friend identity form first (how the admin will
   // appear to this user, since the admin was a stranger when the request was sent).
   const openIdentityForm = (req) => {
+    // Prefill from the bot's existing persona so the admin doesn't retype it. But if the
+    // persona is already dedicated to a DIFFERENT user, don't show their data — accepting
+    // will clone a fresh bot for this requester, so start blank.
+    const ownedByOther = req.bot.dedicatedTo && String(req.bot.dedicatedTo) !== String(req.requester._id);
     setIdentityForm({
       botId: req.bot._id,
       userId: req.requester._id,
       requesterName: req.requester.username,
-      name: req.bot.name || req.bot.username || '',
-      username: req.bot.username || '',
-      age: req.bot.age || '',
-      country: req.bot.country || '',
-      gender: req.bot.gender || 'male',
-      bio: req.bot.bio || ''
+      name: ownedByOther ? '' : (req.bot.name || req.bot.username || ''),
+      username: ownedByOther ? '' : (req.bot.username || ''),
+      age: ownedByOther ? '' : (req.bot.age || ''),
+      country: ownedByOther ? '' : (req.bot.country || ''),
+      gender: ownedByOther ? 'male' : (req.bot.gender || 'male'),
+      bio: ownedByOther ? '' : (req.bot.bio || '')
     });
   };
 

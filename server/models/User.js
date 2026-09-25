@@ -102,6 +102,9 @@ const UserSchema = new mongoose.Schema({
   coins: { type: Number, default: 10 },
   lastCoinReplenishDate: { type: Date, default: Date.now },
   ownedByAdmin: { type: Boolean, default: false },
+  // For admin bot accounts: the single real user this persona is dedicated to.
+  // Guarantees each user sees their own admin identity, never a shared/overwritten one.
+  dedicatedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   lastActive: { type: Date, default: Date.now },
   lastDailyReward: { type: Date },
   isPrivate: { type: Boolean, default: false },

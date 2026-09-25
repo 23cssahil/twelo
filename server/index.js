@@ -3930,13 +3930,23 @@ app.post('/api/admin/reports/:id/warn', adminAuth, async (req, res) => {
 
 app.get('/api/admin/bots/requests', adminAuth, async (req, res) => {
   try {
-    const bots = await User.find({ ownedByAdmin: true }).select('_id friendRequests username');
+    const bots = await User.find({ ownedByAdmin: true }).select('_id friendRequests username name age country countryCode gender bio avatarUrl dedicatedTo').lean();
     let allRequests = [];
     for (let bot of bots) {
       if (bot.friendRequests && bot.friendRequests.length > 0) {
         const requesters = await User.find({ _id: { $in: bot.friendRequests } }).select('username uniqueId avatarUrl').lean();
         for (let rq of requesters) {
-          allRequests.push({ bot: { _id: bot._id, username: bot.username }, requester: rq });
+          allRequests.push({
+            bot: {
+              _id: bot._id, username: bot.username, name: bot.name, age: bot.age,
+              country: bot.country, countryCode: bot.countryCode, gender: bot.gender,
+              bio: bot.bio, avatarUrl: bot.avatarUrl,
+              // If this persona already belongs to another user, accepting will clone a
+              // fresh one, so the form should start blank rather than reuse their data.
+              dedicatedTo: bot.dedicatedTo ? bot.dedicatedTo.toString() : null
+            },
+            requester: rq
+          });
         }
       }
     }
@@ -3948,14 +3958,42 @@ app.get('/api/admin/bots/requests', adminAuth, async (req, res) => {
 
 app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) => {
   try {
-    const bot = await User.findById(req.params.botId);
+    let bot = await User.findById(req.params.botId);
     const user = await User.findById(req.params.userId);
     if (!bot || !user || !bot.ownedByAdmin) return res.status(404).json({ message: "Invalid request" });
 
     // Per-friend identity: when the admin accepts, they choose how they appear to THIS
-    // user (the admin was a stranger when the request was sent). Each intercepted chat
-    // created its own bot account, so updating this bot's profile gives a per-friend persona.
+    // user. A bot persona belongs to exactly ONE real user (via dedicatedTo) so editing
+    // it for one friend can NEVER change what another friend sees.
     const idn = (req.body && req.body.identity) || {};
+    const owner = bot.dedicatedTo ? bot.dedicatedTo.toString() : null;
+
+    // If this persona already serves a DIFFERENT user, clone a brand-new dedicated bot
+    // for the current user instead of overwriting the shared one.
+    if (owner && owner !== user._id.toString()) {
+      const cleanU = String(idn.username || '').trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
+      let uname = cleanU || `friend${Date.now().toString(36)}`;
+      const taken = await User.findOne({ username: uname }).lean();
+      if (taken) uname = `${uname}${Math.floor(Math.random() * 9000 + 1000)}`;
+      const rn = Math.floor(Math.random() * 900) + 100;
+      const cloned = new User({
+        name: (idn.name && String(idn.name).trim().slice(0, 60)) || bot.name || `User${rn}`,
+        username: uname,
+        email: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}@twelo.com`,
+        googleId: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+        uniqueId: Math.floor(Math.random() * 1000000000).toString(),
+        avatarUrl: (idn.avatarUrl && String(idn.avatarUrl).trim()) || bot.avatarUrl || generateAvatarUrl(bot.gender),
+        ownedByAdmin: true,
+        dedicatedTo: user._id
+      });
+      await cloned.save();
+      bot = cloned;
+    } else if (!bot.dedicatedTo) {
+      // First person to claim this persona -> it becomes theirs permanently.
+      bot.dedicatedTo = user._id;
+    }
+
+    // Apply the (new or edited) identity to THIS user's dedicated bot only.
     if (idn.name && String(idn.name).trim()) bot.name = String(idn.name).trim().slice(0, 60);
     if (idn.username && String(idn.username).trim()) {
       const uname = String(idn.username).trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
@@ -3974,6 +4012,10 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
     if (idn.bio !== undefined) bot.bio = String(idn.bio).slice(0, 150);
     if (idn.avatarUrl && String(idn.avatarUrl).trim()) bot.avatarUrl = String(idn.avatarUrl).trim();
 
+    // Drop the pending request from the ORIGINAL persona if we cloned to a new bot.
+    if (req.params.botId !== bot._id.toString()) {
+      await User.findByIdAndUpdate(req.params.botId, { $pull: { friendRequests: user._id } });
+    }
     bot.friendRequests = bot.friendRequests.filter(id => id.toString() !== user._id.toString());
     if (!bot.followers.includes(user._id)) bot.followers.push(user._id);
     if (!user.following.includes(bot._id)) user.following.push(bot._id);
@@ -4014,6 +4056,7 @@ app.post('/api/admin/bots/follow/:botId/:userId', adminAuth, async (req, res) =>
 
     if (userFollowsBot) {
       // User already follows the bot -> complete the mutual friendship right away.
+      if (!bot.dedicatedTo) bot.dedicatedTo = user._id; // claim the persona for this user
       if (!bot.following.some(id => id.toString() === userId)) bot.following.push(user._id);
       if (!bot.followers.some(id => id.toString() === userId)) bot.followers.push(user._id);
       if (!user.followers.some(id => id.toString() === botId)) user.followers.push(bot._id);
@@ -4888,17 +4931,23 @@ io.on('connection', (socket) => {
           const randomNames = ["Rahul", "Priya", "Aman", "Neha", "Rohan", "Sneha", "Karan", "Pooja", "Vikram", "Anjali", "Kabir", "Meera", "Aditya", "Riya", "Aryan", "Zara"];
           const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
           const randomSuffix = Math.floor(Math.random() * 900) + 100;
-          
-          const fakeUser = new User({
-            name: randomName,
-            username: `${randomName.toLowerCase()}${randomSuffix}`,
-            email: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}@twelo.com`,
-            googleId: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-            uniqueId: Math.floor(Math.random() * 1000000000).toString(),
-            avatarUrl: generateAvatarUrl(['male', 'female'][Math.floor(Math.random() * 2)]),
-            ownedByAdmin: true
-          });
-        await fakeUser.save();
+
+          // Per-user identity: reuse the persona already dedicated to this user (if any)
+          // so intercepting them again never changes what an existing friend sees.
+          let fakeUser = await User.findOne({ ownedByAdmin: true, dedicatedTo: targetUserId });
+          if (!fakeUser) {
+            fakeUser = new User({
+              name: randomName,
+              username: `${randomName.toLowerCase()}${randomSuffix}`,
+              email: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}@twelo.com`,
+              googleId: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+              uniqueId: Math.floor(Math.random() * 1000000000).toString(),
+              avatarUrl: generateAvatarUrl(['male', 'female'][Math.floor(Math.random() * 2)]),
+              ownedByAdmin: true,
+              dedicatedTo: targetUserId
+            });
+            await fakeUser.save();
+          }
         
         onlineUsers.set(fakeUser._id.toString(), socket.id);
         
