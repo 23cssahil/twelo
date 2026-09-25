@@ -1362,6 +1362,7 @@ export default function Dashboard() {
   const [coins, setCoins] = useState(0);
   const [isSearchingRandom, setIsSearchingRandom] = useState(false);
   const [randomSearchTimer, setRandomSearchTimer] = useState(0);
+  const [matchWaiting, setMatchWaiting] = useState(false); // true once the 3→0 countdown ends and we're in the waiting queue (count-up)
   const [matchFailed, setMatchFailed] = useState(false);
   const [matchFoundData, setMatchFoundData] = useState(null);
   const [showMatchCard, setShowMatchCard] = useState(false);
@@ -2713,6 +2714,7 @@ export default function Dashboard() {
 
     socket.on('match_found', (data) => {
         setIsSearchingRandom(false);
+        setMatchWaiting(false);
         setMatchFoundData(data);
         setShowMatchCard(true);
 
@@ -2740,6 +2742,7 @@ export default function Dashboard() {
 
     socket.on('cancel_search', () => {
       setIsSearchingRandom(false);
+      setMatchWaiting(false);
       setRandomSearchTimer(3);
     });
 
@@ -3034,14 +3037,19 @@ export default function Dashboard() {
     }
 
     let interval;
-    if (isSearchingRandom && randomSearchTimer > 0) {
+    if (isSearchingRandom && !matchWaiting && randomSearchTimer > 0) {
+      // Initial 3→0 "matching" countdown.
       interval = setInterval(() => setRandomSearchTimer(prev => prev - 1), 1000);
-    } else if (isSearchingRandom && randomSearchTimer === 0) {
-      // Don't auto-cancel on the frontend. The backend will ALWAYS send a match or bot within this time.
-      // We just keep the UI in 'searching' state until the server responds, which should be instantaneous now.
+    } else if (isSearchingRandom && !matchWaiting && randomSearchTimer === 0) {
+      // Countdown finished but no partner yet → enter the waiting queue and count UP.
+      setMatchWaiting(true);
+    } else if (isSearchingRandom && matchWaiting) {
+      // Waiting for an admin to connect: count elapsed seconds (1,2,3…). The backend
+      // cancels the search (emits cancel_search) if nobody intercepts within 30s.
+      interval = setInterval(() => setRandomSearchTimer(prev => prev + 1), 1000);
     }
     return () => clearInterval(interval);
-  }, [isSearchingRandom, randomSearchTimer, socket, user, activeTab]);
+  }, [isSearchingRandom, matchWaiting, randomSearchTimer, socket, user, activeTab]);
 
   // Robust search_random emitter that handles socket latency and reconnects automatically
   useEffect(() => {
@@ -5027,10 +5035,12 @@ const handleStoryUpload = async () => {
         return;
       }
       setIsSearchingRandom(true);
+      setMatchWaiting(false);
       setRandomSearchTimer(3);
       setMatchFailed(false);
     } else {
       setIsSearchingRandom(false);
+      setMatchWaiting(false);
       if (socket) socket.emit('cancel_search', user.id);
     }
   }, [isSearchingRandom, genderFilter, coins, socket, user, globeStatus]);
@@ -5392,9 +5402,9 @@ const handleStoryUpload = async () => {
               {isSearchingRandom && (
                 <div style={{ pointerEvents: 'auto', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                   <div className="match-timer">{randomSearchTimer}s</div>
-                  <div className="search-text">Looking for someone in the universe...</div>
+                  <div className="search-text">{matchWaiting ? 'You are in the waiting queue — a partner will connect shortly…' : 'Looking for someone in the universe...'}</div>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setIsSearchingRandom(false); setRandomSearchTimer(3); if (socket) socket.emit('cancel_search', user.id); }}
+                    onClick={(e) => { e.stopPropagation(); setIsSearchingRandom(false); setMatchWaiting(false); setRandomSearchTimer(3); if (socket) socket.emit('cancel_search', user.id); }}
                     style={{ padding: '8px 20px', borderRadius: '20px', border: '1px solid rgba(255,100,100,0.5)', background: 'rgba(255,50,50,0.2)', color: '#ff6b6b', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}
                   >
                     Cancel

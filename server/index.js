@@ -4267,13 +4267,30 @@ async function assignAiCompanion(socket, ctx) {
   } catch (e) { console.error('[companion]', e.message); }
 }
 
+// Cancel a still-searching user's random search: clears every queue/board entry and
+// tells the client to drop back to idle (the client listens for 'cancel_search').
+async function cancelRandomSearch(socket, userId) {
+  socket.data.randomSearching = false;
+  if (pubClient) { try { await redisQueueRemove(pubClient, userId); } catch (e) {} }
+  _fallbackQueue = _fallbackQueue.filter(u => u.userId !== userId);
+  removeFromLiveWaiting(userId);
+  socket.emit('cancel_search', userId);
+}
+
 // Arm the AI-companion fallback. While an admin is actively watching the live
 // board we HOLD the user (no bot) so they stay available to intercept; the check
-// re-runs every 5s and a bot is assigned the moment the admin leaves.
+// re-runs every 2s. If the admin never intercepts within 30s the search is cancelled
+// (user returns to idle). If the admin leaves the board before that, a bot is assigned.
+const LIVE_HOLD_MAX_MS = 30000;
 function scheduleCompanionFallback(socket, ctx) {
+  const startedAt = Date.now();
   const tryFallback = () => {
     if (!socket.connected || !socket.data.randomSearching) { removeFromLiveWaiting(ctx.userId); return; }
-    if (isLiveAdminWatching()) { setTimeout(tryFallback, 5000); return; }
+    if (isLiveAdminWatching()) {
+      if (Date.now() - startedAt >= LIVE_HOLD_MAX_MS) { cancelRandomSearch(socket, ctx.userId); return; }
+      setTimeout(tryFallback, 2000);
+      return;
+    }
     assignAiCompanion(socket, ctx);
   };
   setTimeout(tryFallback, AI_COMPANION_FALLBACK_DELAY_MS);
