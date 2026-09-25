@@ -587,28 +587,58 @@ app.post('/api/check', upload.single('file'), nudityCheck, (req, res) => {
 
 
 // Database Connection
-let cachedGlobeStatus = { isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null };
+// ---- Globe (Random Chat) control : single source of truth ----
+// cachedGlobeStatus is ALWAYS a plain JS object (never a Mongoose document) so it
+// serializes cleanly over Socket.IO and behaves predictably across restarts.
+const GLOBE_DEFAULT = { isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null };
+let cachedGlobeStatus = { ...GLOBE_DEFAULT };
+
+function normalizeGlobe(raw) {
+  return {
+    isEnabled: raw && raw.isEnabled !== undefined ? !!raw.isEnabled : true,
+    customMessage: (raw && raw.customMessage) || GLOBE_DEFAULT.customMessage,
+    enableAt: raw && raw.enableAt ? new Date(raw.enableAt).toISOString() : null
+  };
+}
+
+async function persistGlobeStatus() {
+  try {
+    let adminData = await AdminData.findOne();
+    if (!adminData) adminData = new AdminData();
+    adminData.globeStatus = { isEnabled: cachedGlobeStatus.isEnabled, customMessage: cachedGlobeStatus.customMessage, enableAt: cachedGlobeStatus.enableAt };
+    await adminData.save();
+  } catch (e) { console.error('[globe] persist failed:', e.message); }
+}
+
+// If the globe is offline but its scheduled re-enable time has passed, flip it back
+// online, persist and broadcast. Idempotent and called from the timer, on every read
+// and on every match attempt, so the auto-reset never depends on a single interval
+// surviving a Render restart / instance sleep (the previous bug).
+async function evaluateGlobeStatus() {
+  if (!cachedGlobeStatus.isEnabled && cachedGlobeStatus.enableAt && Date.now() >= new Date(cachedGlobeStatus.enableAt).getTime()) {
+    cachedGlobeStatus = { ...cachedGlobeStatus, isEnabled: true, enableAt: null };
+    io.emit('globe_status_update', cachedGlobeStatus);
+    await persistGlobeStatus();
+    console.log('[globe] auto re-enabled (scheduled time elapsed)');
+  }
+  return cachedGlobeStatus;
+}
+
+function globeWithRemaining() {
+  const remainingMs = (!cachedGlobeStatus.isEnabled && cachedGlobeStatus.enableAt)
+    ? Math.max(0, new Date(cachedGlobeStatus.enableAt).getTime() - Date.now())
+    : 0;
+  return { ...cachedGlobeStatus, remainingMs };
+}
 
 mongoose.connect(process.env.MONGO_URI, mongoOptions)
   .then(() => {
     console.log('MongoDB Connected');
-    AdminData.findOne().then(data => { if (data?.globeStatus) cachedGlobeStatus = data.globeStatus; }).catch(e => {});
+    AdminData.findOne().then(data => { if (data?.globeStatus) cachedGlobeStatus = normalizeGlobe(data.globeStatus); evaluateGlobeStatus().catch(() => {}); }).catch(e => {});
   })
   .catch(err => console.error('MongoDB Connection Error:', err));
-// Active Globe Timer Check
-setInterval(() => {
-  if (!cachedGlobeStatus.isEnabled && cachedGlobeStatus.enableAt) {
-    const enableTime = new Date(cachedGlobeStatus.enableAt).getTime();
-    if (Date.now() >= enableTime) {
-      cachedGlobeStatus.isEnabled = true;
-      cachedGlobeStatus.enableAt = null;
-      io.emit('globe_status_update', cachedGlobeStatus);
-      AdminData.findOne().then(adminData => {
-        if(adminData) { adminData.globeStatus = cachedGlobeStatus; adminData.save(); }
-      }).catch(e => console.error("Globe timer update error", e));
-    }
-  }
-}, 1000);
+// Safety-net timer for the auto re-enable (also handled on read / match).
+setInterval(() => { evaluateGlobeStatus().catch(e => console.error('Globe timer update error', e)); }, 5000);
 
 // Generate custom unique ID for User (8 chars alphanumeric)
 const generateUniqueId = () => {
@@ -3543,20 +3573,28 @@ app.post('/api/admin/subscribe', adminAuth, async (req, res) => {
 // Globe Control APIs
 app.post('/api/admin/globe', adminAuth, async (req, res) => {
   try {
-    const { isEnabled, customMessage, enableAt } = req.body;
-    let adminData = await AdminData.findOne();
-    if (!adminData) adminData = new AdminData();
-    
-    adminData.globeStatus = { 
-      isEnabled: isEnabled !== undefined ? isEnabled : adminData.globeStatus?.isEnabled, 
-      customMessage: customMessage || adminData.globeStatus?.customMessage, 
-      enableAt: enableAt !== undefined ? enableAt : adminData.globeStatus?.enableAt 
-    };
-    await adminData.save();
-    cachedGlobeStatus = adminData.globeStatus;
-    
-    io.emit('globe_status_update', adminData.globeStatus);
-    res.json(adminData.globeStatus);
+    const { isEnabled, customMessage, durationMinutes, enableAt } = req.body;
+    const next = { ...cachedGlobeStatus };
+    if (isEnabled !== undefined) next.isEnabled = !!isEnabled;
+    if (customMessage !== undefined) next.customMessage = String(customMessage).slice(0, 300);
+    // Resolve the scheduled re-enable time server-side (avoids client clock skew).
+    // Going online always clears any pending timer; going offline needs a target time
+    // from either a duration (minutes) or an explicit enableAt.
+    if (next.isEnabled) {
+      next.enableAt = null;
+    } else {
+      let when = null;
+      const mins = parseInt(durationMinutes, 10);
+      if (!Number.isNaN(mins) && mins > 0) when = new Date(Date.now() + mins * 60000);
+      else if (enableAt) when = new Date(enableAt);
+      if (when && !Number.isNaN(when.getTime())) next.enableAt = when.toISOString();
+      else if (enableAt === null || durationMinutes === 0 || durationMinutes === '') next.enableAt = null;
+      // otherwise keep the existing enableAt (e.g. only the message was edited)
+    }
+    cachedGlobeStatus = next;
+    await persistGlobeStatus();
+    io.emit('globe_status_update', cachedGlobeStatus);
+    res.json(globeWithRemaining());
   } catch (err) {
     console.error("Globe status error", err);
     res.status(500).json({ error: 'Failed to update globe status' });
@@ -3564,7 +3602,8 @@ app.post('/api/admin/globe', adminAuth, async (req, res) => {
 });
 
 app.get('/api/config/globe', async (req, res) => {
-  res.json(cachedGlobeStatus);
+  await evaluateGlobeStatus().catch(() => {});
+  res.json(globeWithRemaining());
 });
 
 app.get('/api/admin/users', adminAuth, async (req, res) => {
@@ -4204,7 +4243,7 @@ io.on('connection', (socket) => {
     // Send globe status on connect
     try {
       if (cachedGlobeStatus) {
-        socket.emit('globe_status_update', cachedGlobeStatus);
+        socket.emit('globe_status_update', globeWithRemaining());
       }
     } catch (e) {}
   });
@@ -4599,21 +4638,12 @@ io.on('connection', (socket) => {
     // --- Anonymous Random Chat Events (Redis-optimized) ---
     socket.on('search_random', async (payload) => {
       try {
+        // Recompute effective status first so an elapsed timer unlocks instantly,
+        // then block the search only if the globe is genuinely still offline.
+        await evaluateGlobeStatus();
         if (!cachedGlobeStatus.isEnabled) {
-           const now = new Date();
-           const enableTime = cachedGlobeStatus.enableAt ? new Date(cachedGlobeStatus.enableAt) : null;
-           if (!enableTime || now < enableTime) {
-               io.to(socket.id).emit('cancel_search');
-               return; // Globe is offline, ignore search
-           } else if (enableTime && now >= enableTime) {
-               // Auto re-enable since timer passed
-               cachedGlobeStatus.isEnabled = true;
-               cachedGlobeStatus.enableAt = null;
-               io.emit('globe_status_update', cachedGlobeStatus);
-               AdminData.findOne().then(adminData => {
-                   if(adminData) { adminData.globeStatus = cachedGlobeStatus; adminData.save(); }
-               }).catch(e=>{});
-           }
+          io.to(socket.id).emit('cancel_search');
+          return; // Globe is offline, ignore search
         }
       } catch (e) { console.error("Globe check error", e); }
 

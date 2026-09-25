@@ -32,6 +32,13 @@ ChartJS.register(
   Legend
 );
 
+// HH:MM:SS from a millisecond remainder (for the auto-online countdown).
+function formatCountdown(ms) {
+  const total = Math.max(0, Math.floor((ms || 0) / 1000));
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(Math.floor(total / 3600))}:${p(Math.floor((total % 3600) / 60))}:${p(total % 60)}`;
+}
+
 export default function DeveloperAdmin() {
   const { API_URL } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -73,11 +80,22 @@ export default function DeveloperAdmin() {
 
   const [globeStatus, setGlobeStatus] = useState({ isEnabled: true, customMessage: 'Globe is currently offline.', enableAt: null });
   const [globeTimerMinutes, setGlobeTimerMinutes] = useState('');
+  const [globeSaving, setGlobeSaving] = useState(false);
+  const [globeMsg, setGlobeMsg] = useState({ text: '', ok: true });
+  const [globeTick, setGlobeTick] = useState(Date.now());
 
   // Sync ref with state
   useEffect(() => {
     activeRandomChatRef.current = activeRandomChat;
   }, [activeRandomChat]);
+
+  // Drive the auto-online countdown while the globe is offline with a timer set.
+  useEffect(() => {
+    if (!globeStatus.isEnabled && globeStatus.enableAt) {
+      const id = setInterval(() => setGlobeTick(Date.now()), 1000);
+      return () => clearInterval(id);
+    }
+  }, [globeStatus.isEnabled, globeStatus.enableAt]);
 
   const [totalStories, setTotalStories] = useState(0);
   const [totalChats, setTotalChats] = useState(0);
@@ -413,26 +431,39 @@ export default function DeveloperAdmin() {
     }
   };
 
-  const handleUpdateGlobe = async (e) => {
-    e.preventDefault();
-    const enableAt = globeTimerMinutes ? new Date(Date.now() + parseInt(globeTimerMinutes) * 60000) : null;
+  // Persist a globe change and refresh local state from the authoritative response
+  // (the server returns the effective status + remainingMs, so the UI never drifts).
+  const saveGlobe = async (payload, successMsg) => {
+    setGlobeSaving(true);
     try {
       const res = await fetch(`${API_URL}/api/admin/globe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
-        body: JSON.stringify({
-           isEnabled: globeStatus.isEnabled,
-           customMessage: globeStatus.customMessage,
-           enableAt
-        })
+        body: JSON.stringify(payload)
       });
+      if (!res.ok) throw new Error('request failed');
       const data = await res.json();
       setGlobeStatus(data);
-      setGlobeTimerMinutes('');
-      alert('Globe status updated successfully!');
+      setGlobeTick(Date.now());
+      setGlobeMsg({ text: successMsg || 'Globe status updated.', ok: true });
     } catch (err) {
-      alert('Error updating globe status');
+      setGlobeMsg({ text: 'Error updating globe status', ok: false });
+    } finally {
+      setGlobeSaving(false);
     }
+  };
+
+  const bringGlobeOnline = () => saveGlobe({ isEnabled: true }, 'Globe is now ONLINE — random matching enabled.');
+  const takeGlobeOffline = (minutes) => {
+    const mins = parseInt(minutes, 10);
+    if (!mins || mins <= 0) {
+      // No duration given: while already offline, just persist a message edit (the
+      // server keeps the existing auto-restore time). Otherwise ask for a duration.
+      if (!globeStatus.isEnabled) { saveGlobe({ isEnabled: false, customMessage: globeStatus.customMessage }, 'Offline message updated.'); return; }
+      setGlobeMsg({ text: 'Choose or enter a duration first.', ok: false }); return;
+    }
+    saveGlobe({ isEnabled: false, durationMinutes: mins, customMessage: globeStatus.customMessage }, `Globe OFFLINE for ${mins} min — it will auto-restore.`);
+    setGlobeTimerMinutes('');
   };
 
   const handleFlushQueue = async () => {
@@ -821,47 +852,88 @@ export default function DeveloperAdmin() {
           </div>
 
           {/* Globe Control System */}
-          <div className="dev-panel" style={{ border: globeStatus.isEnabled ? '1px solid #10b981' : '1px solid #ef4444' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3><Globe size={18} style={{ marginRight: '8px' }}/> Globe Control System</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: globeStatus.isEnabled ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>
-                  {globeStatus.isEnabled ? 'ONLINE' : 'OFFLINE'}
-                </span>
-                <label className="switch">
-                  <input 
-                    type="checkbox" 
-                    checked={globeStatus.isEnabled}
-                    onChange={(e) => setGlobeStatus({ ...globeStatus, isEnabled: e.target.checked })}
-                  />
-                  <span className="slider round"></span>
-                </label>
+          {(() => {
+            const online = globeStatus.isEnabled;
+            const remainingMs = (!online && globeStatus.enableAt) ? (new Date(globeStatus.enableAt).getTime() - globeTick) : 0;
+            const presets = [15, 30, 60, 120, 240, 480];
+            const restoreAt = globeStatus.enableAt ? new Date(globeStatus.enableAt) : null;
+            return (
+              <div className="dev-panel" style={{ border: `1px solid ${online ? '#10b981' : '#ef4444'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    <Globe size={18} color={online ? '#10b981' : '#ef4444'} /> Globe Control System
+                  </h3>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '5px 12px', borderRadius: '999px', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.5px', background: online ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: online ? '#10b981' : '#ef4444' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: online ? '#10b981' : '#ef4444', animation: 'globePulse 1.6s infinite' }} />
+                    {online ? 'ONLINE' : 'OFFLINE'}
+                  </span>
+                </div>
+                <p className="panel-desc">Control Random Chat (anonymous matching) for everyone. When offline, a live countdown auto-restores it — no manual reset needed.</p>
+
+                {/* Status / countdown strip */}
+                <div style={{ marginTop: '6px', padding: '12px 14px', borderRadius: '12px', background: online ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${online ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}` }}>
+                  {online ? (
+                    <div style={{ color: '#10b981', fontWeight: 600 }}>✅ Matching is live — users can find strangers right now.</div>
+                  ) : (
+                    <div>
+                      <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: '8px' }}>⛔ Matching is paused. Users see: “{globeStatus.customMessage || 'Globe is currently offline.'}”</div>
+                      {restoreAt ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.72rem', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Auto-restores in</div>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#fff' }}>{formatCountdown(remainingMs)}</div>
+                            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>at {restoreAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({restoreAt.toLocaleDateString()})</div>
+                          </div>
+                          <button onClick={bringGlobeOnline} disabled={globeSaving} className="dev-btn-primary" style={{ background: '#10b981', color: '#fff', opacity: globeSaving ? 0.6 : 1 }}>Bring Online Now</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                          <div style={{ color: '#f59e0b', fontWeight: 600 }}>⚠️ No auto-restore scheduled — it stays offline until you bring it online.</div>
+                          <button onClick={bringGlobeOnline} disabled={globeSaving} className="dev-btn-primary" style={{ background: '#10b981', color: '#fff', opacity: globeSaving ? 0.6 : 1 }}>Bring Online Now</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Offline scheduler */}
+                <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ fontSize: '0.8rem', opacity: 0.8 }}>Take offline for (quick presets):</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {presets.map(p => {
+                      const active = String(globeTimerMinutes) === String(p);
+                      return (
+                        <button key={p} type="button" onClick={() => setGlobeTimerMinutes(String(p))}
+                          style={{ padding: '6px 12px', borderRadius: '999px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                            background: active ? 'var(--brand-blue, #0095f6)' : 'rgba(255,255,255,0.06)',
+                            color: active ? '#fff' : 'inherit', border: '1px solid rgba(255,255,255,0.12)' }}>
+                          {p < 60 ? `${p}m` : `${p / 60}h`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <input type="number" min="1" placeholder="Custom minutes" value={globeTimerMinutes} onChange={(e) => setGlobeTimerMinutes(e.target.value)} className="dev-input" style={{ flex: '1 1 140px' }} />
+                    <input type="text" placeholder="Custom offline message (users see this)" value={globeStatus.customMessage} onChange={(e) => setGlobeStatus({ ...globeStatus, customMessage: e.target.value })} className="dev-input" style={{ flex: '2 1 220px' }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button onClick={() => takeGlobeOffline(globeTimerMinutes)} disabled={globeSaving} className="dev-btn-primary" style={{ background: '#ef4444', color: '#fff', opacity: globeSaving ? 0.6 : 1 }}>
+                      {globeSaving ? 'Saving…' : online ? 'Take Offline' : 'Update Offline Timer'}
+                    </button>
+                    {!online && (
+                      <button onClick={bringGlobeOnline} disabled={globeSaving} className="dev-btn-primary" style={{ background: '#10b981', color: '#fff', opacity: globeSaving ? 0.6 : 1 }}>Bring Online</button>
+                    )}
+                  </div>
+                </div>
+
+                {globeMsg.text && (
+                  <div style={{ marginTop: '12px', padding: '8px 12px', borderRadius: '8px', fontSize: '0.85rem', background: globeMsg.ok ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: globeMsg.ok ? '#10b981' : '#ef4444' }}>
+                    {globeMsg.text}
+                  </div>
+                )}
               </div>
-            </div>
-            <p className="panel-desc">Turn the Random Chat matching ON or OFF.</p>
-            {!globeStatus.isEnabled && (
-              <form onSubmit={handleUpdateGlobe} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
-                <input 
-                  type="text" 
-                  placeholder="Custom Offline Message..."
-                  value={globeStatus.customMessage}
-                  onChange={(e) => setGlobeStatus({ ...globeStatus, customMessage: e.target.value })}
-                  className="dev-input"
-                />
-                <input 
-                  type="number" 
-                  placeholder="Auto-Enable Timer (in minutes, optional)"
-                  value={globeTimerMinutes}
-                  onChange={(e) => setGlobeTimerMinutes(e.target.value)}
-                  className="dev-input"
-                />
-                <button type="submit" className="dev-btn-primary" style={{ background: '#ef4444', color: '#fff' }}>Save Offline State</button>
-              </form>
-            )}
-            {globeStatus.isEnabled && (
-              <button onClick={handleUpdateGlobe} className="dev-btn-primary" style={{ background: '#10b981', color: '#fff', marginTop: '15px' }}>Save Online State</button>
-            )}
-          </div>
+            );
+          })()}
 
           {/* User Management */}
           <div className="dev-panel" style={{ gridColumn: '1 / -1' }}>
