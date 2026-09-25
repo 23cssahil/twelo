@@ -250,6 +250,36 @@ const AdsterraBanner = () => {
   );
 };
 
+// Adsterra interstitial overlay shown between stranger chats (skip / end).
+// It reuses the existing Adsterra native-banner placement (AdBanner) so it works today.
+// When you create a dedicated Adsterra "Interstitial" zone in the dashboard, drop its
+// key into INTERSTITIAL_ADSTERRA_KEY and swap <AdBanner /> for that format for a higher eCPM.
+const INTERSTITIAL_ADSTERRA_KEY = '';
+const InterstitialAd = ({ onClose }) => {
+  const [secs, setSecs] = useState(5);
+  useEffect(() => {
+    if (secs <= 0) return;
+    const t = setTimeout(() => setSecs(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [secs]);
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10006, background: 'rgba(0,0,0,0.93)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ width: '100%', maxWidth: '340px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <span style={{ color: '#888', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sponsored</span>
+        {secs > 0
+          ? <span style={{ color: '#888', fontSize: '0.8rem' }}>Close in {secs}s</span>
+          : <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', borderRadius: '20px', padding: '5px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>✕</button>}
+      </div>
+      <div style={{ width: '100%', maxWidth: '340px' }}>
+        <AdBanner />
+      </div>
+      {secs <= 0 && (
+        <button onClick={onClose} style={{ marginTop: '18px', background: 'var(--brand-blue)', border: 'none', color: '#fff', borderRadius: '24px', padding: '10px 30px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 600 }}>Continue</button>
+      )}
+    </div>
+  );
+};
+
 const StorySlide = ({
   group, groupIdx, isActiveSlide, 
   currentStoryIndex, setCurrentStoryIndex,
@@ -1336,6 +1366,8 @@ export default function Dashboard() {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showMoreInfoModal, setShowMoreInfoModal] = useState(false);
+  const [showInterstitial, setShowInterstitial] = useState(false);
+  const lastInterstitialRef = useRef(0);
   const [isUpdatingPrivacy, setIsUpdatingPrivacy] = useState(false);
   const [showChangeUsernameModal, setShowChangeUsernameModal] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState(null); // null, true, false
@@ -5296,6 +5328,15 @@ const handleStoryUpload = async () => {
     }
   };
 
+  // Show a full-screen Adsterra interstitial when a stranger chat ends/skips.
+  // Rate-limited (max one per 45s) so users are not spammed between every match.
+  const maybeShowInterstitial = () => {
+    const now = Date.now();
+    if (now - lastInterstitialRef.current < 45000) return;
+    lastInterstitialRef.current = now;
+    setShowInterstitial(true);
+  };
+
   const handleLeaveAnonymousChat = () => {
     if (socket && anonymousRoomId) {
       socket.emit('leave_anonymous_chat', { roomId: anonymousRoomId });
@@ -5306,6 +5347,7 @@ const handleStoryUpload = async () => {
     setIsAiCompanion(false);
     setIsAnonymousChatActive(false);
     setActiveTab('home');
+    maybeShowInterstitial();
   };
 
   // End the current stranger chat and immediately start looking for a new one
@@ -5325,6 +5367,7 @@ const handleStoryUpload = async () => {
       alert("Not enough coins! You need 2 coins to use the gender filter.");
       return;
     }
+    maybeShowInterstitial();
     setIsSearchingRandom(true);
     setRandomSearchTimer(3);
     setMatchFailed(false);
@@ -8537,6 +8580,8 @@ const handleStoryUpload = async () => {
         </div>
       )}
       
+      {showInterstitial && <InterstitialAd onClose={() => setShowInterstitial(false)} />}
+
       {showMoreInfoModal && (
         <div className="more-info-screen">
           <div className="more-info-header">
