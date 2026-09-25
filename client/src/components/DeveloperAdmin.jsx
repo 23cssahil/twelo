@@ -116,6 +116,7 @@ export default function DeveloperAdmin() {
   const [identityForm, setIdentityForm] = useState(null);    // { botId, userId, requesterName, name, username, age, country, gender, bio }
   const [identitySaving, setIdentitySaving] = useState(false);
   const [liveTick, setLiveTick] = useState(Date.now());      // re-renders the "waiting Xs" labels every second
+  const [requestToast, setRequestToast] = useState(null);    // transient toast when a new bot request arrives
 
 
 
@@ -178,6 +179,7 @@ export default function DeveloperAdmin() {
     if (isAuthenticated) {
       fetchStats();
       fetchReports(); // load pending reports so the User Reports badge shows without opening the tab
+      fetchBotRequests(); // load pending bot requests so the Live Random badge shows without opening the tab
       const interval = setInterval(() => { fetchStats(); fetchReports(); }, 10000); // Poll every 10s
       
       fetch(`${API_URL}/api/config/globe`)
@@ -195,6 +197,14 @@ export default function DeveloperAdmin() {
         
       newSocket.on('admin_random_queue', (arr) => {
         setLiveQueue(Array.isArray(arr) ? arr : []);
+      });
+
+      // Real-time: a user just sent a request to one of the admin's bots.
+      newSocket.on('admin_new_bot_request', (data) => {
+        fetchBotRequests(); // refresh pending list + badge immediately, no page refresh needed
+        const rn = data && data.requester ? data.requester.username : 'Someone';
+        const bn = data && data.bot ? data.bot.username : 'you';
+        setRequestToast({ text: `🔔 @${rn} ne @${bn} ko request bheji`, ts: Date.now() });
       });
 
       newSocket.on('admin_intercept_started', (data) => {
@@ -235,6 +245,7 @@ export default function DeveloperAdmin() {
         clearInterval(interval);
         newSocket.off('connect');
         newSocket.off('admin_random_queue');
+        newSocket.off('admin_new_bot_request');
         newSocket.off('admin_intercept_started');
         newSocket.off('receive_anonymous_message');
         newSocket.off('receive_message');
@@ -568,6 +579,13 @@ export default function DeveloperAdmin() {
     const id = setInterval(() => setLiveTick(Date.now()), 1000);
     return () => clearInterval(id);
   }, [activeTab]);
+
+  // Auto-dismiss the new-request toast.
+  useEffect(() => {
+    if (!requestToast) return;
+    const id = setTimeout(() => setRequestToast(null), 6000);
+    return () => clearTimeout(id);
+  }, [requestToast]);
 
   const handleSendRandomMessage = (e) => {
     e.preventDefault();
@@ -1010,6 +1028,7 @@ export default function DeveloperAdmin() {
                 >
                   <Radio size={16} style={{ marginRight: '8px' }} />
                   Live Random
+                  {botRequests.length > 0 && <span style={{ position: 'absolute', top: '-5px', left: '-5px', background: '#f59e0b', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{botRequests.length}</span>}
                   {liveQueue.length > 0 && <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#10b981', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{liveQueue.length}</span>}
                 </button>
                 <button 
@@ -1029,6 +1048,15 @@ export default function DeveloperAdmin() {
                   🤖 Bot Training
                 </Link>
               </div>
+
+              {requestToast && (
+                <div
+                  onClick={() => { setActiveTab('live-random'); setAdminRightTab('requests'); setShowRightList(true); openLiveRandomPage(); setRequestToast(null); }}
+                  style={{ position: 'fixed', top: '16px', left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#111827', color: '#fff', padding: '10px 16px', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.35)', border: '1px solid rgba(245,158,11,0.5)', cursor: 'pointer', fontSize: '0.9rem' }}
+                >
+                  {requestToast.text} · <b>View</b>
+                </div>
+              )}
 
               {activeTab === 'analytics' ? (
                 analyticsData ? (
