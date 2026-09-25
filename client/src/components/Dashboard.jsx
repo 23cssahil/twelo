@@ -71,6 +71,8 @@ import {
   Copy
 } from 'lucide-react';
 
+const APP_VERSION = '1.0.0';
+
 const CHAT_THEMES = [
   {"id":"default","name":"Default","bg":"transparent","preview":"#222"},
   {"id":"whatsapp_light","name":"Doodle Chat","bg":"#e5ddd5 url(\"data:image/svg+xml,%3Csvg%20width%3D%22100%22%20height%3D%22100%22%20viewBox%3D%220%200%20100%20100%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2220%22%20r%3D%223%22%20fill%3D%22%23000%22%20opacity%3D%220.05%22%2F%3E%3Crect%20x%3D%2260%22%20y%3D%2240%22%20width%3D%226%22%20height%3D%226%22%20fill%3D%22%23000%22%20opacity%3D%220.05%22%20transform%3D%22rotate(45%2063%2043)%22%2F%3E%3Cpath%20d%3D%22M%2080%2080%20Q%2085%2070%2090%2080%20T%20100%2080%22%20stroke%3D%22%23000%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20opacity%3D%220.05%22%2F%3E%3C%2Fsvg%3E\") repeat","preview":"#e5ddd5 url(\"data:image/svg+xml,%3Csvg%20width%3D%22100%22%20height%3D%22100%22%20viewBox%3D%220%200%20100%20100%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2220%22%20r%3D%223%22%20fill%3D%22%23000%22%20opacity%3D%220.05%22%2F%3E%3Crect%20x%3D%2260%22%20y%3D%2240%22%20width%3D%226%22%20height%3D%226%22%20fill%3D%22%23000%22%20opacity%3D%220.05%22%20transform%3D%22rotate(45%2063%2043)%22%2F%3E%3Cpath%20d%3D%22M%2080%2080%20Q%2085%2070%2090%2080%20T%20100%2080%22%20stroke%3D%22%23000%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20opacity%3D%220.05%22%2F%3E%3C%2Fsvg%3E\") repeat"},
@@ -1333,6 +1335,7 @@ export default function Dashboard() {
   const [showInnerSettingsModal, setShowInnerSettingsModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showMoreInfoModal, setShowMoreInfoModal] = useState(false);
   const [isUpdatingPrivacy, setIsUpdatingPrivacy] = useState(false);
   const [showChangeUsernameModal, setShowChangeUsernameModal] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState(null); // null, true, false
@@ -2952,6 +2955,7 @@ export default function Dashboard() {
     showShareModal,
     showPrivacyModal,
     showAccountModal,
+    showMoreInfoModal,
     storyCameraOpen, 
     showLogoutConfirm,
     themePreview,
@@ -2986,6 +2990,8 @@ export default function Dashboard() {
         setShowPrivacyModal(false);
       } else if (showAccountModal) {
         setShowAccountModal(false);
+      } else if (showMoreInfoModal) {
+        setShowMoreInfoModal(false);
       } else if (showCloseFriendsModal) {
         setShowCloseFriendsModal(false);
       } else if (storyCameraOpen) {
@@ -3030,7 +3036,7 @@ export default function Dashboard() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showMyProfileModal, showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen, showShareModal, showPrivacyModal, showAccountModal, themePreview, showThemesModal, chatMode]);
+  }, [showMyProfileModal, showChangeUsernameModal, showInnerSettingsModal, showCommentsModal, showSettingsModal, publicProfileData, activeChatUser, isAnonymousChatActive, showLogoutConfirm, storyViewerActive, storyEditorOpen, showCloseFriendsModal, showStoryViewsModal, storyCameraOpen, showShareModal, showPrivacyModal, showAccountModal, showMoreInfoModal, themePreview, showThemesModal, chatMode]);
 
   // Lock document scroll when chat is active to prevent keyboard from pushing header out of view
   useEffect(() => {
@@ -8204,7 +8210,7 @@ const handleStoryUpload = async () => {
               <button className="settings-item-btn" onClick={() => setShowAccountModal(true)}>Account</button>
               <button className="settings-item-btn" onClick={() => setShowPrivacyModal(true)}>Privacy</button>
               <button className="settings-item-btn" onClick={() => setShowNotificationsModal(true)}>Notifications</button>
-              <button className="settings-item-btn">More Info</button>
+              <button className="settings-item-btn" onClick={() => setShowMoreInfoModal(true)}>More Info</button>
               <button className="settings-item-btn">Invite Friend</button>
             </div>
           </div>
@@ -8524,6 +8530,66 @@ const handleStoryUpload = async () => {
         </div>
       )}
       
+      {showMoreInfoModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10002, background: '#111', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #333', background: '#000' }}>
+            <button onClick={() => setShowMoreInfoModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowLeft size={24} /></button>
+            <h2 style={{ marginLeft: '20px', fontSize: '1.2rem', margin: '0 0 0 20px' }}>More Info</h2>
+          </div>
+          <div style={{ padding: '20px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+
+            {/* App identity */}
+            <div style={{ textAlign: 'center', padding: '24px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid #222' }}>
+              <img src="/icon-192.png" alt="Twelo" style={{ width: 72, height: 72, borderRadius: 18, marginBottom: 12 }} />
+              <h3 style={{ margin: '0 0 4px', fontSize: '1.3rem' }}>Twelo</h3>
+              <p style={{ margin: '0 0 12px', color: '#888', fontSize: '0.88rem', lineHeight: '1.5' }}>Anonymous chat platform — meet people from around the world, share stories, and earn rewards.</p>
+              <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', color: '#bbb', fontSize: '0.78rem' }}>Version {APP_VERSION}</span>
+            </div>
+
+            {/* About & Help */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <h3 style={{ fontSize: '0.8rem', color: '#888', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>About &amp; Help</h3>
+              {[
+                { icon: <Info size={20} />, label: 'About Twelo', desc: 'Our story and mission', to: '/about-us' },
+                { icon: <Mail size={20} />, label: 'Contact Us', desc: 'Reach our support team', to: '/contact-us' },
+                { icon: <FileText size={20} />, label: 'Terms of Service', desc: 'Rules for using Twelo', to: '/terms' },
+                { icon: <Shield size={20} />, label: 'Privacy Policy', desc: 'How we handle your data', to: '/privacy-policy' },
+              ].map((row, i) => (
+                <button key={i} onClick={() => { setShowMoreInfoModal(false); navigate(row.to); }} style={{ display: 'flex', alignItems: 'center', gap: '14px', width: '100%', textAlign: 'left', padding: '14px 16px', background: 'rgba(255,255,255,0.06)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', cursor: 'pointer' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }}>{row.icon}</span>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: 'block', fontSize: '1rem', fontWeight: 600 }}>{row.label}</span>
+                    <span style={{ display: 'block', fontSize: '0.82rem', color: '#888', marginTop: 2 }}>{row.desc}</span>
+                  </span>
+                  <ChevronRight size={20} color="#666" />
+                </button>
+              ))}
+            </div>
+
+            {/* Spread the word */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <h3 style={{ fontSize: '0.8rem', color: '#888', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Spread the word</h3>
+              <button onClick={async () => {
+                const shareData = { title: 'Twelo', text: 'Join me on Twelo — chat with people from around the world anonymously!', url: window.location.origin };
+                try {
+                  if (navigator.share) { await navigator.share(shareData); }
+                  else { await navigator.clipboard.writeText(shareData.url); showToastMsg('Link copied!'); }
+                } catch (err) { /* user dismissed the share sheet */ }
+              }} style={{ display: 'flex', alignItems: 'center', gap: '14px', width: '100%', textAlign: 'left', padding: '14px 16px', background: 'rgba(255,255,255,0.06)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', cursor: 'pointer' }}>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }}><Share2 size={20} /></span>
+                <span style={{ flex: 1 }}>
+                  <span style={{ display: 'block', fontSize: '1rem', fontWeight: 600 }}>Share Twelo</span>
+                  <span style={{ display: 'block', fontSize: '0.82rem', color: '#888', marginTop: 2 }}>Invite friends to join</span>
+                </span>
+                <ChevronRight size={20} color="#666" />
+              </button>
+            </div>
+
+            <p style={{ textAlign: 'center', color: '#555', fontSize: '0.78rem', margin: '4px 0 20px' }}>© {new Date().getFullYear()} Twelo. All rights reserved.</p>
+          </div>
+        </div>
+      )}
+
       {showSettingsModal && (
         <div className="settings-drawer-overlay" onClick={() => setShowSettingsModal(false)}>
           <div className="settings-drawer" onClick={e => e.stopPropagation()}>
