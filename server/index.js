@@ -1017,7 +1017,9 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
     filter._id = { $ne: new mongoose.Types.ObjectId(req.user.userId) };
 
     if (query) {
-      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // People often paste/type "@username" - strip leading @ so it still matches.
+      const cleanedQuery = String(query).trim().replace(/^@+/, '');
+      const escapedQuery = cleanedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regexQuery = new RegExp('^' + escapedQuery, 'i');
       filter.$or = [
         { username: regexQuery },
@@ -1039,10 +1041,25 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
       filter._id = { $lt: cursor, $ne: new mongoose.Types.ObjectId(req.user.userId) };
     }
 
-    const users = await User.find(filter)
+    let users = await User.find(filter)
       .sort({ _id: -1 })
       .limit(limit + 1)
       .select('username uniqueId avatarUrl friendRequests followers');
+
+    // No prefix hits -> retry as a contains match (e.g. "gel77" finds angel7753),
+    // but only on the first page so cursor pagination stays consistent.
+    const cleanedQuery = String(query || '').trim().replace(/^@+/, '');
+    if (cleanedQuery && users.length === 0 && !cursor) {
+      const escapedQuery = cleanedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const containsQuery = new RegExp(escapedQuery, 'i');
+      users = await User.find({
+        ...filter,
+        $or: [{ username: containsQuery }, { uniqueId: containsQuery }]
+      })
+        .sort({ _id: -1 })
+        .limit(limit + 1)
+        .select('username uniqueId avatarUrl friendRequests followers');
+    }
       
     const hasMore = users.length > limit;
     if (hasMore) users.pop();

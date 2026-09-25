@@ -51,6 +51,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
+  Clock,
+  Compass,
   Heart,
   Eye,
   Download,
@@ -1092,6 +1094,9 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchHistoryCache, setSearchHistoryCache] = useState(null);
+  const [searchMode, setSearchMode] = useState('recent'); // 'recent' | 'discover' (empty-query view)
+  const searchDiscoverLoadedRef = useRef(false); // discover feed fetched at least once
+  const searchLocalDirRef = useRef(new Map()); // id -> user, for instant local matching
   const [longPressTarget, setLongPressTarget] = useState(null);
   const pressTimer = useRef(null);
   const searchHistoryCacheRef = useRef(null);
@@ -3457,11 +3462,14 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (activeTab === 'search' && !searchQuery.trim()) {
-      handleSearch('', null);
-      fetchSearchHistory(); // "Recent" list is shown above the discover feed
+    if (activeTab !== 'search') return;
+    if (searchQuery.trim()) return; // typed queries are handled by handleSearch
+    fetchSearchHistory(); // Recent list backs the "Recent" tab
+    if (searchMode === 'discover' && !searchDiscoverLoadedRef.current) {
+      searchDiscoverLoadedRef.current = true;
+      handleSearch('', null); // lazily load the discover feed only when its tab is used
     }
-  }, [activeTab, searchQuery]);
+  }, [activeTab, searchQuery, searchMode]);
 
   const currentSearchId = useRef(0);
   const searchDebounceTimer = useRef(null);
@@ -3478,8 +3486,11 @@ export default function Dashboard() {
       const data = await res.json();
       
       if (searchId !== currentSearchId.current && !cursor) return; // Prevent race conditions on new searches
-      
+      if (!cursor && value.trim() !== searchQueryRef.current.trim()) return; // stale response for an older query
+
       if (res.ok) {
+        // Grow the local directory so future keystrokes resolve instantly.
+        (data.users || []).forEach(u => { if (u && u._id) searchLocalDirRef.current.set(String(u._id), u); });
         if (!cursor) {
           setSearchResults(dedupeUsersByIdentity(data.users));
         } else {
@@ -3495,27 +3506,71 @@ export default function Dashboard() {
     }
   };
 
+  // Instant client-side matching over everything already loaded (discover feed,
+  // past query results, history). Renders in the same keystroke; the debounced
+  // server request then replaces it with the full result set.
+  const instantLocalSearch = (raw) => {
+    const q = raw.trim().replace(/^@+/, '').toLowerCase();
+    if (!q) return;
+    const users = Array.from(searchLocalDirRef.current.values());
+    let matches = users.filter(u => (u.username || '').toLowerCase().startsWith(q) || String(u.uniqueId || '').toLowerCase().startsWith(q));
+    if (matches.length === 0) {
+      matches = users.filter(u => (u.username || '').toLowerCase().includes(q) || String(u.uniqueId || '').toLowerCase().includes(q));
+    }
+    if (matches.length > 0) {
+      setSearchResults(dedupeUsersByIdentity(matches));
+      setSearchCursor(null);
+      setHasMoreSearch(false);
+    }
+  };
+
   const handleSearch = (eOrValue, cursor = null) => {
     const value = typeof eOrValue === 'string' ? eOrValue : eOrValue.target.value;
     
     if (!cursor) {
       setSearchQuery(value);
+      searchQueryRef.current = value; // keep ref current for the stale-response guard above
       setSearchCursor(null);
       setHasMoreSearch(true);
     }
     
     const searchId = ++currentSearchId.current;
     
-    // Debounce: skip API call for 300ms while user is still typing
     if (!cursor) {
-      if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current);
-      setSearchLoading(true);
-      searchDebounceTimer.current = setTimeout(() => {
-        _doSearch(value, null, searchId);
-      }, 300);
+      if (value.trim()) {
+        instantLocalSearch(value); // show local matches immediately
+        setSearchLoading(true);
+        if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current);
+        // Debounce the network call just enough to skip intermediate keystrokes.
+        searchDebounceTimer.current = setTimeout(() => {
+          _doSearch(value, null, searchId);
+        }, 180);
+      } else {
+        if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current);
+        setSearchLoading(false);
+        setSearchResults([]);
+      }
     } else {
       // Pagination scroll: execute immediately
       _doSearch(value, cursor, searchId);
+    }
+  };
+
+  const handleSearchModeToggle = (mode) => {
+    setSearchMode(mode);
+    if (searchQuery) {
+      // Clearing the input re-shows the selected empty-query view.
+      setSearchQuery('');
+      searchQueryRef.current = '';
+      if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current);
+      ++currentSearchId.current; // invalidate any in-flight query response
+      setSearchLoading(false);
+    }
+    setSearchResults([]);
+    setSearchCursor(null);
+    if (mode === 'discover' && !searchDiscoverLoadedRef.current) {
+      searchDiscoverLoadedRef.current = true;
+      _doSearch('', null, ++currentSearchId.current);
     }
   };
 
@@ -5917,7 +5972,8 @@ const handleStoryUpload = async () => {
         );
       }
 
-      case 'search':
+      case 'search': {
+        const hasQuery = !!searchQuery.trim();
         return (
           <div className="search-container" style={{ padding: 0, display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--panel-bg, #000)' }}>
             <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--panel-bg, #000)', padding: '16px 16px 5px 16px', borderBottom: '1px solid var(--border-color)' }}>
@@ -5937,10 +5993,35 @@ const handleStoryUpload = async () => {
                   </button>
                 )}
               </div>
+              {/* Recent / Discover view toggle (active while the search box is empty) */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                {[
+                  { id: 'recent', label: 'Recent', icon: <Clock size={14} /> },
+                  { id: 'discover', label: 'Discover', icon: <Compass size={14} /> },
+                ].map(m => {
+                  const active = !searchQuery.trim() ? searchMode === m.id : (m.id === 'recent' ? false : true);
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => handleSearchModeToggle(m.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        padding: '6px 14px', borderRadius: '18px', fontSize: '0.82rem', fontWeight: 700,
+                        cursor: 'pointer', transition: 'all 0.15s ease',
+                        border: active ? '1px solid transparent' : '1px solid var(--border-color, #333)',
+                        background: active ? 'var(--insta-gradient, linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%))' : 'transparent',
+                        color: active ? '#fff' : 'var(--text-secondary)',
+                      }}
+                    >
+                      {m.icon} {m.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px 16px' }} onScroll={handleSearchResultsScroll}>
-            {searchLoading && searchResults.length === 0 ? (
+            {searchLoading && searchResults.length === 0 && (hasQuery || searchMode === 'discover') ? (
               <div className="chats-skeleton-loader" style={{ padding: '10px' }}>
                 {[1, 2, 3, 4].map(i => (
                   <div key={i} className="user-card" style={{ cursor: 'default', borderBottom: '1px solid var(--border-color)' }}>
@@ -5957,10 +6038,12 @@ const handleStoryUpload = async () => {
               </div>
             ) : (
             <div className="search-results">
-              {!searchQuery.trim() && (searchHistoryCache?.length > 0) && (
-                <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-secondary)', margin: '14px 4px 4px' }}>Recent</div>
+              {(hasQuery || (searchMode === 'discover' && searchResults.length > 0)) && (
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-secondary)', margin: '14px 4px 4px' }}>{hasQuery ? 'Search results' : 'Discover people'}</div>
               )}
-              {!searchQuery.trim() && (searchHistoryCache || []).map((hUser) => {
+              {!hasQuery && searchMode === 'recent' && (
+                <>
+              {(searchHistoryCache || []).map((hUser) => {
                 const isOnline = onlineUsersSet.has(hUser._id);
                 return (
                   <div
@@ -5990,13 +6073,21 @@ const handleStoryUpload = async () => {
                   </div>
                 );
               })}
-              {!searchQuery.trim() && searchResults.length > 0 && (
-                <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-secondary)', margin: '14px 4px 4px' }}>Discover people</div>
+              {(searchHistoryCache || []).length === 0 && (
+                <div style={{ textAlign: 'center', padding: '50px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(128,128,128,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Clock size={28} color="var(--text-secondary)" />
+                  </div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>No recent searches</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '260px' }}>People you search for and tap will show up here.</div>
+                </div>
               )}
-              {(() => {
-                // Don't repeat a user in Discover who is already shown under Recent.
+                </>
+              )}
+              {(hasQuery || searchMode === 'discover') && (() => {
                 const historyIds = new Set((searchHistoryCache || []).map(h => String(h._id)));
-                return searchResults.filter(su => !historyIds.has(String(su._id))).map((searchUser) => {
+                const filtered = hasQuery ? searchResults : searchResults.filter(su => !historyIds.has(String(su._id)));
+                return filtered.map((searchUser) => {
                 const isFollowing = followingSet.has(searchUser._id);
                 const hasRequested = searchUser.friendRequests?.includes(user.id);
                 const isOnline = onlineUsersSet.has(searchUser._id);
@@ -6039,21 +6130,28 @@ const handleStoryUpload = async () => {
               });
               })()}
               
-              {searchLoading && searchCursor && (
+              {hasQuery && searchLoading && searchCursor && (
                 <div style={{ textAlign: 'center', padding: '15px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading more...</div>
               )}
               
-              {!searchLoading && searchResults.length === 0 && !(searchHistoryCache?.length > 0) && (
+              {!searchLoading && hasQuery && searchResults.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '50px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                   <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(128,128,128,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {searchQuery.trim() ? <SearchIcon size={28} color="var(--text-secondary)" /> : <Users size={28} color="var(--text-secondary)" />}
+                    <SearchIcon size={28} color="var(--text-secondary)" />
                   </div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {searchQuery.trim() ? 'No users found' : 'No people yet'}
-                  </div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>No users found</div>
                   <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '260px' }}>
-                    {searchQuery.trim() ? `We couldn't find anyone matching "${searchQuery.trim()}". Try a different name or ID.` : 'Check back later to discover new people.'}
+                    {`We couldn't find anyone matching "${searchQuery.trim()}". Try a different name or ID.`}
                   </div>
+                </div>
+              )}
+              {!hasQuery && searchMode === 'discover' && searchResults.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '50px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(128,128,128,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Users size={28} color="var(--text-secondary)" />
+                  </div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>No people yet</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '260px' }}>Check back later to discover new people.</div>
                 </div>
               )}
             </div>
@@ -6061,6 +6159,7 @@ const handleStoryUpload = async () => {
             </div>
           </div>
         );
+      }
 
       case 'connections': {
         // Search is handled server-side (covers ALL connections, not just the loaded page)
