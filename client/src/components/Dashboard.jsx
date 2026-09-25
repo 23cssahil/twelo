@@ -1669,6 +1669,8 @@ export default function Dashboard() {
   const ringtoneInRef = useRef(null);
   const callerCandidatesRef = useRef([]);
   const messagesEndRef = useRef(null);
+  const chatMessagesRef = useRef(null);        // the scrollable messages container (normal chat)
+  const [showScrollToLatest, setShowScrollToLatest] = useState(false); // "jump to latest" button visibility
   const globeEl = useRef(null);
 
   // Swipe to reply state
@@ -3145,6 +3147,7 @@ export default function Dashboard() {
     if (activeChatUser) {
       setMessageCursor(null);
       setHasMoreMessages(true);
+      setShowScrollToLatest(false); // reset the jump-to-latest button when opening a chat
       fetchMessages(activeChatUser._id, null);
     }
   }, [activeChatUser]);
@@ -3220,10 +3223,21 @@ export default function Dashboard() {
   };
 
   const handleChatScroll = async (e) => {
-    if (e.target.scrollTop === 0 && hasMoreMessages && !isFetchingMessages && messageCursor) {
-      scrollHeightBeforeUpdate.current = e.target.scrollHeight;
+    // Show the "jump to latest" button once the user has scrolled up away from the bottom.
+    const el = e.target;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollToLatest(distanceFromBottom > 300);
+    if (el.scrollTop === 0 && hasMoreMessages && !isFetchingMessages && messageCursor) {
+      scrollHeightBeforeUpdate.current = el.scrollHeight;
       await fetchMessages(activeChatUser._id, messageCursor);
     }
+  };
+
+  // Smoothly scroll the chat back down to the newest message.
+  const scrollToLatest = () => {
+    const el = chatMessagesRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    setShowScrollToLatest(false);
   };
 
   // Show an in-app confirmation dialog (replaces the native browser confirm()).
@@ -6530,7 +6544,7 @@ const handleStoryUpload = async () => {
               </div>
             </div>
 
-            <div className={`chat-area ${!activeChatUser ? 'hide-on-mobile' : ''}`}>
+            <div className={`chat-area ${!activeChatUser ? 'hide-on-mobile' : ''}`} style={{ position: 'relative' }}>
               {activeChatUser ? (
                 <>
                   <div className="chat-room-header">
@@ -6735,7 +6749,7 @@ const handleStoryUpload = async () => {
                     </div>
                   </div>
 
-                  <div className="chat-messages-area" onScroll={handleChatScroll} style={{ background: user?.chatThemes?.[activeChatUser._id] ? CHAT_THEMES.find(t => t.id === user.chatThemes[activeChatUser._id])?.bg : 'transparent', flex: 1, overflowY: 'auto' }}>
+                  <div ref={chatMessagesRef} className="chat-messages-area" onScroll={handleChatScroll} style={{ background: user?.chatThemes?.[activeChatUser._id] ? CHAT_THEMES.find(t => t.id === user.chatThemes[activeChatUser._id])?.bg : 'transparent', flex: 1, overflowY: 'auto' }}>
                     {isFetchingMessages && messages.length === 0 ? (
                       <div className="messages-skeleton-loader" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
                         <div className="msg-wrapper received" style={{ display: 'flex', justifyContent: 'flex-start' }}><div className="msg-bubble shimmer" style={{ width: '60%', height: '45px', borderRadius: '20px' }}></div></div>
@@ -6970,6 +6984,46 @@ const handleStoryUpload = async () => {
                     )}
                     <div ref={messagesEndRef} style={{ height: '20px', flexShrink: 0 }} />
                   </div>
+
+                  {/* Jump-to-latest button: appears only after the user scrolls up to read
+                      older messages; tapping it smoothly returns to the newest message. */}
+                  <button
+                    onClick={scrollToLatest}
+                    aria-label="Scroll to latest message"
+                    title="Latest messages"
+                    style={{
+                      position: 'absolute',
+                      right: '16px',
+                      bottom: '84px',
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '50%',
+                      border: '1px solid var(--border-color, #333)',
+                      background: 'var(--panel-bg, #1a1a1a)',
+                      color: 'var(--text-primary, #fff)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
+                      opacity: showScrollToLatest ? 1 : 0,
+                      transform: showScrollToLatest ? 'translateY(0)' : 'translateY(12px)',
+                      pointerEvents: showScrollToLatest ? 'auto' : 'none',
+                      transition: 'opacity 0.2s ease, transform 0.2s ease',
+                      zIndex: 20
+                    }}
+                  >
+                    <ChevronDown size={22} />
+                    {(unreadMessages[activeChatUser._id] || 0) > 0 && (
+                      <span style={{
+                        position: 'absolute', top: '-4px', right: '-4px',
+                        minWidth: '18px', height: '18px', padding: '0 4px',
+                        borderRadius: '9px', background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)',
+                        color: '#fff', fontSize: '0.68rem', fontWeight: '800',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}>{unreadMessages[activeChatUser._id]}</span>
+                    )}
+                  </button>
 
                   <form className="chat-input-area" onSubmit={handleSendMessage}>
                     {blockedIds.has(String(activeChatUser._id)) && (
