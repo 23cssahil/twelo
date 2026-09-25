@@ -257,6 +257,24 @@ const AdsterraBanner = () => {
 const INTERSTITIAL_BANNER_KEY = 'b0dd4840ad154ef80f375422ad27c946';
 const INTERSTITIAL_BANNER_NETWORK = 'www.highrevenueformat.com';
 
+// Adsterra Popunder (the top-earning format). It opens a background tab on the user's
+// first interaction and never covers the current screen, so UX impact is minimal.
+// Guarded to load at most once per browser session via sessionStorage.
+const ADSTERRA_POPUNDER_SRC = 'https://pl31512345.profitableratecpmnetwork.com/0a/42/a0/0a42a09a9da9941bde9bf93ed90d5da1.js';
+function ensurePopunderLoaded() {
+  try {
+    if (sessionStorage.getItem('twelo_popunder_loaded') === '1') return;
+  } catch (e) { /* sessionStorage blocked (private mode) — DOM guard below still applies */ }
+  if (document.getElementById('adsterra-popunder-script')) return;
+  const s = document.createElement('script');
+  s.id = 'adsterra-popunder-script';
+  s.src = ADSTERRA_POPUNDER_SRC;
+  s.async = true;
+  s.dataset.cfasync = 'false';
+  document.body.appendChild(s);
+  try { sessionStorage.setItem('twelo_popunder_loaded', '1'); } catch (e) { /* ignore */ }
+}
+
 // Adsterra interstitial overlay shown between stranger chats (skip / end).
 // It injects the Adsterra loader DIRECTLY into a container (single-level invoke) instead of
 // nesting the /ad.html iframe, because ad networks refuse to fill double-nested iframes.
@@ -5383,6 +5401,13 @@ const handleStoryUpload = async () => {
     lastInterstitialRef.current = now;
     setShowInterstitial(true);
   };
+
+  // Arm the Adsterra popunder once per session. It registers a first-interaction handler
+  // and opens a background tab; ensurePopunderLoaded() guarantees it never re-arms in the
+  // same session (sessionStorage + DOM id guard).
+  useEffect(() => {
+    ensurePopunderLoaded();
+  }, []);
 
   const handleLeaveAnonymousChat = () => {
     if (socket && anonymousRoomId) {
