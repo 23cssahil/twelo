@@ -3,7 +3,13 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(clients.claim());
+  // Drop any stale runtime caches so a fresh deploy is reflected immediately,
+  // then take control of open tabs at once.
+  e.waitUntil(
+    caches.keys()
+      .then((names) => Promise.all(names.map((n) => caches.delete(n))))
+      .then(() => clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (e) => {

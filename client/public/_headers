@@ -1,0 +1,21 @@
+# Render Static Site response headers.
+# The whole point: never let the HTML entrypoint or the service worker be cached,
+# so a fresh deploy is picked up on the very next load instead of the browser/CDN
+# serving a stale index.html that points at old hashed assets (this is what made
+# the profile story-tile fix look like it "wasn't working" even though it was live).
+
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/manifest.json
+  Cache-Control: no-cache
+
+# Content-hashed build assets are safe to cache forever (URL changes every build).
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
