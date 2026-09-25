@@ -3468,7 +3468,12 @@ export default function Dashboard() {
         if (!cursor) {
           setSearchResults(data.users);
         } else {
-          setSearchResults(prev => [...prev, ...data.users]);
+          // Append the next page but never allow duplicates (a user can straddle
+          // two pages if new accounts are created while the list is being scrolled).
+          setSearchResults(prev => {
+            const seen = new Set(prev.map(u => String(u._id)));
+            return [...prev, ...data.users.filter(u => !seen.has(String(u._id)))];
+          });
         }
         setSearchCursor(data.nextCursor);
         setHasMoreSearch(!!data.nextCursor);
@@ -3510,8 +3515,9 @@ export default function Dashboard() {
     }
   };
 
-  const viewPublicProfile = async (targetId) => {
+  const viewPublicProfile = async (targetId, fromSearch = false) => {
     if (!targetId || targetId === user.id) return;
+    const cameFromSearch = fromSearch || activeTabRef.current === 'search';
     setPublicProfileData({ isLoading: true, _id: targetId });
     setActiveTab('publicProfile');
     try {
@@ -3520,8 +3526,9 @@ export default function Dashboard() {
       if (res.ok) {
         setPublicProfileData(data);
         
-        // Record search history if viewing from search
-        if (activeTab === 'search') {
+        // Record search history if viewing from search (use the value captured
+        // before setActiveTab above — reading activeTab after the await is stale).
+        if (cameFromSearch) {
           fetch(`${API_URL}/api/users/search-history/${targetId}`, { 
             method: 'POST', 
             headers: { Authorization: `Bearer ${token}` } 
@@ -5952,7 +5959,7 @@ const handleStoryUpload = async () => {
                     onContextMenu={(e) => { e.preventDefault(); return false; }}
                     style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', msUserSelect: 'none', MozUserSelect: 'none' }}
                   >
-                    <div className="user-card-info" onClick={() => viewPublicProfile(searchUser._id)} style={{ cursor: 'pointer' }}>
+                    <div className="user-card-info" onClick={() => viewPublicProfile(searchUser._id, true)} style={{ cursor: 'pointer' }}>
                       <div className="search-avatar-wrap">
                         <div className="user-avatar-small">
                           {searchUser.avatarUrl ? <img src={searchUser.avatarUrl} alt='avatar' /> : searchUser.username.charAt(0).toUpperCase()}
