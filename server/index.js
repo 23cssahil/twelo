@@ -3932,7 +3932,29 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
     const bot = await User.findById(req.params.botId);
     const user = await User.findById(req.params.userId);
     if (!bot || !user || !bot.ownedByAdmin) return res.status(404).json({ message: "Invalid request" });
-    
+
+    // Per-friend identity: when the admin accepts, they choose how they appear to THIS
+    // user (the admin was a stranger when the request was sent). Each intercepted chat
+    // created its own bot account, so updating this bot's profile gives a per-friend persona.
+    const idn = (req.body && req.body.identity) || {};
+    if (idn.name && String(idn.name).trim()) bot.name = String(idn.name).trim().slice(0, 60);
+    if (idn.username && String(idn.username).trim()) {
+      const uname = String(idn.username).trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
+      if (uname) {
+        const clash = await User.findOne({ username: uname, _id: { $ne: bot._id } }).lean();
+        if (!clash) {
+          if (bot.username && !bot.pastUsernames.includes(bot.username)) bot.pastUsernames.push(bot.username);
+          bot.username = uname;
+        }
+      }
+    }
+    if (idn.age) { const a = parseInt(idn.age, 10); if (!isNaN(a)) bot.age = Math.max(1, Math.min(120, a)); }
+    if (idn.country && String(idn.country).trim()) bot.country = String(idn.country).trim().slice(0, 60);
+    if (idn.countryCode && String(idn.countryCode).trim()) bot.countryCode = String(idn.countryCode).trim().slice(0, 4);
+    if (idn.gender && ['male', 'female'].includes(idn.gender)) bot.gender = idn.gender;
+    if (idn.bio !== undefined) bot.bio = String(idn.bio).slice(0, 150);
+    if (idn.avatarUrl && String(idn.avatarUrl).trim()) bot.avatarUrl = String(idn.avatarUrl).trim();
+
     bot.friendRequests = bot.friendRequests.filter(id => id.toString() !== user._id.toString());
     if (!bot.followers.includes(user._id)) bot.followers.push(user._id);
     if (!user.following.includes(bot._id)) user.following.push(bot._id);
@@ -3949,7 +3971,7 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
       io.to(receiverSocketId).emit('new_notification');
     }
 
-    res.json({ message: "Bot request accepted" });
+    res.json({ message: "Bot request accepted", bot: { _id: bot._id, name: bot.name, username: bot.username, avatarUrl: bot.avatarUrl } });
   } catch (error) {
     res.status(500).json({ message: 'Error accepting bot request' });
   }
@@ -3970,6 +3992,37 @@ app.get('/api/admin/bots/chats', adminAuth, async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching bot chats' });
+  }
+});
+
+// Recent conversations between an admin bot and a user, newest activity first,
+// each with a last-message preview. Backs the "Chats" tab of the Live Random page.
+app.get('/api/admin/bots/conversations', adminAuth, async (req, res) => {
+  try {
+    const bots = await User.find({ ownedByAdmin: true }).select('_id username name avatarUrl').lean();
+    const botIds = bots.map(b => b._id);
+    if (botIds.length === 0) return res.json([]);
+    const botMap = {}; bots.forEach(b => { botMap[String(b._id)] = b; });
+    const msgs = await Message.find({ $or: [{ sender: { $in: botIds } }, { receiver: { $in: botIds } }] })
+      .sort({ createdAt: -1 }).limit(800).lean();
+    const seen = new Set(); const result = [];
+    for (const m of msgs) {
+      const s = String(m.sender), r = String(m.receiver);
+      const botId = botMap[s] ? s : (botMap[r] ? r : null);
+      if (!botId) continue;
+      const userId = botId === s ? r : s;
+      const key = `${botId}_${userId}`;
+      if (seen.has(key)) continue; seen.add(key);
+      result.push({ bot: botMap[botId], userId, lastMessage: m.message || (m.fileUrl ? '📎 Attachment' : ''), lastAt: m.createdAt, mine: botId === s });
+      if (result.length >= 50) break;
+    }
+    const userIds = result.map(x => x.userId);
+    const users = await User.find({ _id: { $in: userIds } }).select('_id username name avatarUrl').lean();
+    const uMap = {}; users.forEach(u => { uMap[String(u._id)] = u; });
+    result.forEach(x => { x.user = uMap[String(x.userId)] || { _id: x.userId, username: 'unknown', name: 'Unknown' }; });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching conversations' });
   }
 });
 
@@ -4085,6 +4138,85 @@ const activeVideoChats = new Map();
 const activeRandomChats = new Map(); // roomId -> { user1, user2 }
 const adminBusySockets = new Set(); // Track which admin sockets are currently intercepting
 let lastGlobePushTime = 0; // Cooldown tracker for push notifications (5 min throttle)
+
+// ── Live random-chat waiting board (admin "Live Random" page) ──────────────
+// Tracks users who pressed match but did NOT get a real partner, so an admin
+// watching the live page can intercept them. Newest first, capped to 10 so the
+// feed stays light. This replaces the old "New Random Chat Waiting" popup.
+const liveRandomWaiting = new Map(); // userId -> { userId, socketId, username, avatarUrl, country, countryCode, gender, wantGender, ts }
+const LIVE_QUEUE_MAX = 10;
+
+function isLiveAdminWatching() {
+  try {
+    const room = io.sockets.adapter.rooms.get('admin_live');
+    return !!(room && room.size > 0);
+  } catch (e) { return false; }
+}
+
+function broadcastLiveQueue() {
+  try {
+    const arr = Array.from(liveRandomWaiting.values())
+      .sort((a, b) => b.ts - a.ts) // latest users on top
+      .slice(0, LIVE_QUEUE_MAX)
+      .map(u => ({ userId: u.userId, username: u.username, avatarUrl: u.avatarUrl, country: u.country, countryCode: u.countryCode, gender: u.gender, waitingSince: u.ts }));
+    io.to('admin_live').emit('admin_random_queue', arr);
+  } catch (e) { console.error('[liveQueue] broadcast failed:', e.message); }
+}
+
+function addToLiveWaiting(entry) {
+  if (!entry || !entry.userId) return;
+  const existing = liveRandomWaiting.get(entry.userId);
+  liveRandomWaiting.set(entry.userId, { ...entry, ts: existing ? existing.ts : Date.now() });
+  broadcastLiveQueue();
+}
+
+function removeFromLiveWaiting(userId) {
+  if (liveRandomWaiting.delete(userId)) broadcastLiveQueue();
+}
+
+// Periodically drop entries whose socket disconnected or stopped searching, so a
+// user who got matched / cancelled / left never lingers on the board.
+setInterval(() => {
+  let changed = false;
+  for (const [uid, u] of liveRandomWaiting.entries()) {
+    const s = io.sockets.sockets.get(u.socketId);
+    if (!s || !s.connected || !s.data.randomSearching) { liveRandomWaiting.delete(uid); changed = true; }
+  }
+  if (changed) broadcastLiveQueue();
+}, 8000);
+
+// Assign an AI companion to a still-searching user (used when nobody is watching
+// the live board, or after the admin leaves). Removes them from every queue.
+async function assignAiCompanion(socket, ctx) {
+  try {
+    if (!socket.connected || !socket.data.randomSearching) { removeFromLiveWaiting(ctx.userId); return; }
+    if (pubClient) { try { await redisQueueRemove(pubClient, ctx.userId); } catch (e) {} }
+    const qi = _fallbackQueue.findIndex(e => e.userId === ctx.userId && e.socketId === socket.id);
+    if (qi !== -1) _fallbackQueue.splice(qi, 1);
+    socket.data.randomSearching = false;
+    const companion = createAiCompanion(ctx.userGender, ctx.userCountry, ctx.userCountryCode, ctx.genderFilter);
+    const roomId = `ai_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    activeRandomChats.set(roomId, { user1: { userId: ctx.userId, socketId: socket.id, genderFilter: ctx.genderFilter, userGender: ctx.userGender, userCountry: ctx.userCountry, userCountryCode: ctx.userCountryCode }, user2: { userId: companion.id, socketId: null }, isAiCompanion: true, companion });
+    const factData = await getRandomCountryFact(ctx.userCountryCode);
+    if (ctx.genderFilter && ctx.genderFilter !== 'any') {
+      try { const dbU = await User.findById(ctx.userId); if (dbU && dbU.coins >= 2) { dbU.coins -= 2; await dbU.save(); io.to(socket.id).emit('coins_deducted', { amount: 2, balance: dbU.coins }); } } catch (e) {}
+    }
+    io.to(socket.id).emit('match_found', { roomId, partnerId: companion.id, partnerAvatar: companion.avatarUrl, partnerCountry: factData.countryCode !== 'UN' ? factData.countryName : companion.country, partnerCountryCode: factData.countryCode !== 'UN' ? factData.countryCode : companion.countryCode, partnerFact: factData.fact, partnerName: 'Stranger', isAiCompanion: true });
+    removeFromLiveWaiting(ctx.userId);
+  } catch (e) { console.error('[companion]', e.message); }
+}
+
+// Arm the AI-companion fallback. While an admin is actively watching the live
+// board we HOLD the user (no bot) so they stay available to intercept; the check
+// re-runs every 5s and a bot is assigned the moment the admin leaves.
+function scheduleCompanionFallback(socket, ctx) {
+  const tryFallback = () => {
+    if (!socket.connected || !socket.data.randomSearching) { removeFromLiveWaiting(ctx.userId); return; }
+    if (isLiveAdminWatching()) { setTimeout(tryFallback, 5000); return; }
+    assignAiCompanion(socket, ctx);
+  };
+  setTimeout(tryFallback, AI_COMPANION_FALLBACK_DELAY_MS);
+}
 
 // Helper: determine which ZSET buckets to search for a given user
 function getMatchBuckets(myGender, wantGender) {
@@ -4573,6 +4705,15 @@ io.on('connection', (socket) => {
       });
     });
 
+    // Admin opened / closed the "Live Random" page. While at least one admin is in
+    // the admin_live room, unmatched users are HELD on the board (no AI bot) so the
+    // admin can intercept them.
+    socket.on('admin_watch_live', () => {
+      socket.join('admin_live');
+      broadcastLiveQueue(); // send the current board immediately to the new watcher
+    });
+    socket.on('admin_unwatch_live', () => { socket.leave('admin_live'); });
+
     socket.on('admin_intercept_random', async ({ targetUserId }) => {
       // Find target user's socket — check Redis first, then fallback queue
       let targetUserSocket = null;
@@ -4591,6 +4732,11 @@ io.on('connection', (socket) => {
       }
       if (targetUserSocket) {
         adminBusySockets.add(socket.id);
+        // Take the user off the live board and stop their held AI-companion fallback so
+        // the deferred timer cannot later drop a bot into this intercept chat.
+        removeFromLiveWaiting(targetUserId);
+        const tSock = io.sockets.sockets.get(targetUserSocket);
+        if (tSock) tSock.data.randomSearching = false;
         
           const randomNames = ["Rahul", "Priya", "Aman", "Neha", "Rohan", "Sneha", "Karan", "Pooja", "Vikram", "Anjali", "Kabir", "Meera", "Aditya", "Riya", "Aryan", "Zara"];
           const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
@@ -4694,6 +4840,7 @@ io.on('connection', (socket) => {
             // A real partner was found — stop our own AI-companion fallback. (The claimed
             // partner's flag is cleared inside redisQueueFindMatch.)
             socket.data.randomSearching = false;
+            removeFromLiveWaiting(matched.userId); // claimed partner leaves the live board
             // Remove ourselves from the queue too
             await redisQueueRemove(pubClient, userId);
 
@@ -4720,33 +4867,12 @@ io.on('connection', (socket) => {
             return;
           }
 
-          // No real user found — alert admins then fall back to AI companion
-          const adminSockets = io.sockets.adapter.rooms.get('admin_room') || new Set();
-          const availableAdmins = Array.from(adminSockets).filter(sid => !adminBusySockets.has(sid));
-          if (availableAdmins.length > 0 && targetDbUser) {
-            availableAdmins.forEach(sid => io.to(sid).emit('admin_alert_new_random', targetDbUser));
+          // No real user found — put them on the admin live board (no popup) and arm the
+          // AI-companion fallback (held while an admin is watching so they can intercept).
+          if (targetDbUser) {
+            addToLiveWaiting({ userId, socketId: socket.id, username: targetDbUser.username, avatarUrl: targetDbUser.avatarUrl, country: userCountry, countryCode: userCountryCode, gender: userGender, wantGender: genderFilter });
           }
-
-          setTimeout(async () => {
-            // Only fall back to an AI companion if THIS socket is still connected and still
-            // searching (hasn't been matched by a real user, cancelled, or disconnected). Using
-            // the socket-scoped flag instead of comparing rq_meta.socketId makes the bot reliable
-            // across reconnects / stale Redis meta, which previously left users stuck with neither
-            // a real match nor a bot.
-            if (!socket.connected || !socket.data.randomSearching) return;
-            socket.data.randomSearching = false;
-            await redisQueueRemove(pubClient, userId);
-
-            const companion = createAiCompanion(userGender, userCountry, userCountryCode, genderFilter);
-            const roomId = `ai_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-            activeRandomChats.set(roomId, { user1: { userId, socketId: socket.id, genderFilter, userGender, userCountry, userCountryCode }, user2: { userId: companion.id, socketId: null }, isAiCompanion: true, companion });
-
-            const factData = await getRandomCountryFact(userCountryCode);
-            if (genderFilter && genderFilter !== 'any') {
-              try { const dbU = await User.findById(userId); if (dbU && dbU.coins >= 2) { dbU.coins -= 2; await dbU.save(); io.to(socket.id).emit('coins_deducted', { amount: 2, balance: dbU.coins }); } } catch(e) {}
-            }
-            io.to(socket.id).emit('match_found', { roomId, partnerId: companion.id, partnerAvatar: companion.avatarUrl, partnerCountry: factData.countryCode !== 'UN' ? factData.countryName : companion.country, partnerCountryCode: factData.countryCode !== 'UN' ? factData.countryCode : companion.countryCode, partnerFact: factData.fact, partnerName: 'Stranger', isAiCompanion: true });
-          }, AI_COMPANION_FALLBACK_DELAY_MS);
+          scheduleCompanionFallback(socket, { userId, userGender, userCountry, userCountryCode, genderFilter });
           return;
         } catch (redisErr) {
           console.error('[MATCH] Redis error, falling back to in-memory queue:', redisErr.message);
@@ -4767,6 +4893,7 @@ io.on('connection', (socket) => {
       if (matchedIndex !== -1) {
         const u2 = _fallbackQueue[matchedIndex];
         socket.data.randomSearching = false;
+        removeFromLiveWaiting(u2.userId); // claimed partner leaves the live board
         const pSock = io.sockets.sockets.get(u2.socketId); if (pSock) pSock.data.randomSearching = false;
         if (myIndex > matchedIndex) { _fallbackQueue.splice(myIndex, 1); _fallbackQueue.splice(matchedIndex, 1); } else { _fallbackQueue.splice(matchedIndex, 1); _fallbackQueue.splice(myIndex, 1); }
         const u1 = { userId, socketId: socket.id, genderFilter, userGender, userCountry, userCountryCode };
@@ -4782,24 +4909,12 @@ io.on('connection', (socket) => {
         } catch(err) { console.error('Error emitting match_found (fallback)', err); }
         return;
       }
-      const adminSockets2 = io.sockets.adapter.rooms.get('admin_room') || new Set();
-      const availableAdmins2 = Array.from(adminSockets2).filter(sid => !adminBusySockets.has(sid));
-      if (availableAdmins2.length > 0 && targetDbUser) availableAdmins2.forEach(sid => io.to(sid).emit('admin_alert_new_random', targetDbUser));
-      setTimeout(async () => {
-        if (!socket.connected || !socket.data.randomSearching) return;
-        const qi = _fallbackQueue.findIndex(e => e.userId === userId && e.socketId === socket.id);
-        if (qi === -1) { socket.data.randomSearching = false; return; }
-        socket.data.randomSearching = false;
-        const queuedUser = _fallbackQueue.splice(qi, 1)[0];
-        const companion = createAiCompanion(userGender, queuedUser.userCountry, queuedUser.userCountryCode, queuedUser.genderFilter);
-        const roomId = `ai_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-        activeRandomChats.set(roomId, { user1: queuedUser, user2: { userId: companion.id, socketId: null }, isAiCompanion: true, companion });
-        const factData = await getRandomCountryFact(queuedUser.userCountryCode);
-        if (queuedUser.genderFilter && queuedUser.genderFilter !== 'any') {
-          try { const dbU = await User.findById(queuedUser.userId); if (dbU && dbU.coins >= 2) { dbU.coins -= 2; await dbU.save(); io.to(queuedUser.socketId).emit('coins_deducted', { amount: 2, balance: dbU.coins }); } } catch(e) {}
-        }
-        io.to(socket.id).emit('match_found', { roomId, partnerId: companion.id, partnerAvatar: companion.avatarUrl, partnerCountry: factData.countryCode !== 'UN' ? factData.countryName : companion.country, partnerCountryCode: factData.countryCode !== 'UN' ? factData.countryCode : companion.countryCode, partnerFact: factData.fact, partnerName: 'Stranger', isAiCompanion: true });
-      }, AI_COMPANION_FALLBACK_DELAY_MS);
+      // No real match in the fallback queue either — show on the live board + arm the
+      // AI-companion fallback (held while an admin is watching so they can intercept).
+      if (targetDbUser) {
+        addToLiveWaiting({ userId, socketId: socket.id, username: targetDbUser.username, avatarUrl: targetDbUser.avatarUrl, country: userCountry, countryCode: userCountryCode, gender: userGender, wantGender: genderFilter });
+      }
+      scheduleCompanionFallback(socket, { userId, userGender, userCountry, userCountryCode, genderFilter });
     });
 
   
@@ -4969,6 +5084,7 @@ io.on('connection', (socket) => {
       try { await redisQueueRemove(pubClient, userId); } catch(e) {}
     }
     _fallbackQueue = _fallbackQueue.filter(u => u.userId !== userId);
+    removeFromLiveWaiting(userId); // user stopped searching → leave the live board
   });
 
   socket.on('send_anonymous_message', ({ roomId, messageText }) => {
@@ -5172,6 +5288,11 @@ io.on('connection', (socket) => {
     adminBusySockets.delete(socket.id);
     // Remove from in-memory fallback queue
     _fallbackQueue = _fallbackQueue.filter(u => u.socketId !== socket.id);
+    // Remove from the admin live board if this was a waiting user
+    for (const [uid, u] of liveRandomWaiting.entries()) {
+      if (u.socketId === socket.id) liveRandomWaiting.delete(uid);
+    }
+    broadcastLiveQueue();
     // Redis: find user by socketId via onlineUsers map and remove from queue
     if (pubClient) {
       try {

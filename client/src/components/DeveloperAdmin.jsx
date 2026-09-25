@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
 import io from 'socket.io-client';
-import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity } from 'lucide-react';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck } from 'lucide-react';
 import './DeveloperAdmin.css';
 import {
   Chart as ChartJS,
@@ -72,7 +72,6 @@ export default function DeveloperAdmin() {
   const [selectedUserChats, setSelectedUserChats] = useState(null);
   const [isFetchingChats, setIsFetchingChats] = useState(false);
 
-  const [incomingRandom, setIncomingRandom] = useState(null);
   const [activeRandomChat, setActiveRandomChat] = useState(null);
   const activeRandomChatRef = React.useRef(activeRandomChat);
   const [randomMessages, setRandomMessages] = useState([]);
@@ -108,6 +107,15 @@ export default function DeveloperAdmin() {
   const [unreadBotChats, setUnreadBotChats] = useState(new Set());
   const [botChatMessages, setBotChatMessages] = useState([]);
   const [botChatMessageInput, setBotChatMessageInput] = useState('');
+
+  // ── Live Random page state ──
+  const [liveQueue, setLiveQueue] = useState([]);            // waiting users board (max 10, newest first)
+  const [adminRightTab, setAdminRightTab] = useState('requests'); // requests | friends | chats
+  const [showRightList, setShowRightList] = useState(false); // drawer open on the right pane
+  const [conversations, setConversations] = useState([]);    // recent chats with previews
+  const [identityForm, setIdentityForm] = useState(null);    // { botId, userId, requesterName, name, username, age, country, gender, bio }
+  const [identitySaving, setIdentitySaving] = useState(false);
+  const [liveTick, setLiveTick] = useState(Date.now());      // re-renders the "waiting Xs" labels every second
 
 
 
@@ -185,32 +193,14 @@ export default function DeveloperAdmin() {
         newSocket.emit('admin_online');
       });
         
-      newSocket.on('admin_alert_new_random', (user) => {
-        try {
-          const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-          audio.play()?.catch(e => console.log('Audio blocked', e));
-        } catch (e) {}
-        
-        if (Notification.permission === 'granted') {
-          const notif = new Notification('New Random Chat!', { body: `@${user.username} is waiting...` });
-          notif.onclick = () => {
-            window.focus();
-            if (activeRandomChatRef.current) {
-              newSocket.emit('send_anonymous_message', { roomId: activeRandomChatRef.current.roomId, messageText: 'bye' });
-              newSocket.emit('leave_anonymous_chat', { roomId: activeRandomChatRef.current.roomId });
-            }
-            newSocket.emit('admin_intercept_random', { targetUserId: user._id });
-          };
-        }
-        setIncomingRandom(user);
-        // Auto clear after 6 seconds if not intercepted
-        setTimeout(() => setIncomingRandom(null), 6000);
+      newSocket.on('admin_random_queue', (arr) => {
+        setLiveQueue(Array.isArray(arr) ? arr : []);
       });
 
       newSocket.on('admin_intercept_started', (data) => {
         setActiveRandomChat(data);
-        setIncomingRandom(null);
         setRandomMessages([]);
+        setShowRightList(false); // jump straight to the intercepted chat
       });
 
       newSocket.on('receive_anonymous_message', (msg) => {
@@ -244,7 +234,7 @@ export default function DeveloperAdmin() {
       return () => {
         clearInterval(interval);
         newSocket.off('connect');
-        newSocket.off('admin_alert_new_random');
+        newSocket.off('admin_random_queue');
         newSocket.off('admin_intercept_started');
         newSocket.off('receive_anonymous_message');
         newSocket.off('receive_message');
@@ -547,18 +537,37 @@ export default function DeveloperAdmin() {
     }
   };
 
-  const handleIntercept = () => {
-    if (incomingRandom && adminSocket) {
-      if (activeRandomChat) {
-        adminSocket.emit('send_anonymous_message', { 
-          roomId: activeRandomChat.roomId, 
-          messageText: 'bye' 
-        });
-        adminSocket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId });
-      }
-      adminSocket.emit('admin_intercept_random', { targetUserId: incomingRandom._id });
+  const interceptUser = (userId) => {
+    if (!userId || !adminSocket) return;
+    if (activeRandomChat) {
+      adminSocket.emit('send_anonymous_message', { roomId: activeRandomChat.roomId, messageText: 'bye' });
+      adminSocket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId });
     }
+    setSelectedBotChat(null); // close any persistent chat so the live intercept chat shows
+    setShowRightList(false);
+    adminSocket.emit('admin_intercept_random', { targetUserId: userId });
   };
+
+  const openLiveRandomPage = () => {
+    fetchBotRequests();
+    fetchBotChats();
+    fetchConversations();
+  };
+
+  // Join / leave the admin_live room as the page opens or closes, so waiting users are
+  // held on the board (no AI bot) only while the admin is actually watching it.
+  useEffect(() => {
+    if (!adminSocket) return;
+    if (activeTab === 'live-random') adminSocket.emit('admin_watch_live');
+    else adminSocket.emit('admin_unwatch_live');
+  }, [activeTab, adminSocket]);
+
+  // Tick the waiting-time labels once a second while the live page is open.
+  useEffect(() => {
+    if (activeTab !== 'live-random') return;
+    const id = setInterval(() => setLiveTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [activeTab]);
 
   const handleSendRandomMessage = (e) => {
     e.preventDefault();
@@ -594,20 +603,57 @@ export default function DeveloperAdmin() {
     } catch (err) { console.error(err); }
   };
 
-  const handleAcceptBotRequest = async (botId, userId) => {
+  const fetchConversations = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/bots/accept/${botId}/${userId}`, {
-        method: 'POST', headers: { 'x-admin-pass': password }
-      });
-      if (res.ok) {
-        setBotRequests(botRequests.filter(r => r.requester._id !== userId || r.bot._id !== botId));
-        fetchBotChats();
-        alert('Request accepted!');
-      }
+      const res = await fetch(`${API_URL}/api/admin/bots/conversations`, { headers: { 'x-admin-pass': password } });
+      if (res.ok) setConversations(await res.json());
     } catch (err) { console.error(err); }
   };
 
+  // Accepting a request opens the per-friend identity form first (how the admin will
+  // appear to this user, since the admin was a stranger when the request was sent).
+  const openIdentityForm = (req) => {
+    setIdentityForm({
+      botId: req.bot._id,
+      userId: req.requester._id,
+      requesterName: req.requester.username,
+      name: req.bot.name || req.bot.username || '',
+      username: req.bot.username || '',
+      age: req.bot.age || '',
+      country: req.bot.country || '',
+      gender: req.bot.gender || 'male',
+      bio: req.bot.bio || ''
+    });
+  };
+
+  const submitIdentityForm = async (e) => {
+    e.preventDefault();
+    if (!identityForm || !identityForm.name.trim() || !identityForm.username.trim()) return;
+    setIdentitySaving(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bots/accept/${identityForm.botId}/${identityForm.userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
+        body: JSON.stringify({ identity: { name: identityForm.name, username: identityForm.username, age: identityForm.age, country: identityForm.country, gender: identityForm.gender, bio: identityForm.bio } })
+      });
+      if (res.ok) {
+        setBotRequests(prev => prev.filter(r => r.requester._id !== identityForm.userId || r.bot._id !== identityForm.botId));
+        setIdentityForm(null);
+        fetchBotChats();
+        fetchConversations();
+      }
+    } catch (err) { console.error(err); }
+    finally { setIdentitySaving(false); }
+  };
+
   const openBotChat = async (chat) => {
+    // Switching to a persistent chat closes any open live intercept chat first.
+    if (activeRandomChat && adminSocket) {
+      adminSocket.emit('send_anonymous_message', { roomId: activeRandomChat.roomId, messageText: 'bye' });
+      adminSocket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId });
+      setActiveRandomChat(null);
+    }
+    setShowRightList(false);
     setSelectedBotChat(chat);
     setUnreadBotChats(prev => {
       const newSet = new Set(prev);
@@ -958,20 +1004,13 @@ export default function DeveloperAdmin() {
                   {reports.length > 0 && <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ff4b4b', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{reports.length}</span>}
                 </button>
                 <button 
-                  onClick={() => { setActiveTab('bot-requests'); fetchBotRequests(); }} 
-                  className={`dev-btn-${activeTab === 'bot-requests' ? 'primary' : 'secondary'}`}
+                  onClick={() => { setActiveTab('live-random'); openLiveRandomPage(); }} 
+                  className={`dev-btn-${activeTab === 'live-random' ? 'primary' : 'secondary'}`}
+                  style={{ position: 'relative', background: activeTab === 'live-random' ? '#ef4444' : '' }}
                 >
-                  <Users size={16} style={{ marginRight: '8px' }} />
-                  Bot Inbox
-                </button>
-                <button 
-                  onClick={() => { setActiveTab('bot-chats'); fetchBotChats(); }} 
-                  className={`dev-btn-${activeTab === 'bot-chats' ? 'primary' : 'secondary'}`}
-                  style={{ position: 'relative' }}
-                >
-                  <MessageSquare size={16} style={{ marginRight: '8px' }} />
-                  Bot Chats
-                  {unreadBotChats.size > 0 && <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ff4b4b', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{unreadBotChats.size}</span>}
+                  <Radio size={16} style={{ marginRight: '8px' }} />
+                  Live Random
+                  {liveQueue.length > 0 && <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#10b981', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{liveQueue.length}</span>}
                 </button>
                 <button 
                   onClick={() => { setActiveTab('analytics'); }} 
@@ -1343,119 +1382,181 @@ export default function DeveloperAdmin() {
                     ))
                   )}
                 </div>
-              ) : activeTab === 'bot-requests' ? (
-                <div className="chat-container" style={{ border: '1px solid #333', borderRadius: '12px', overflow: 'hidden' }}>
-                  <div className="chat-list" style={{ width: '100%', maxWidth: '100%', borderRight: 'none' }}>
-                    <div className="chat-list-header" style={{ background: '#111' }}>
-                      <h2>Pending Requests ({botRequests.length})</h2>
-                    </div>
-                    <div className="chat-users-scroll" style={{ background: '#050505' }}>
-                      {botRequests.length === 0 ? (
-                        <div style={{ textAlign: 'center', color: '#a8a8a8', padding: '20px' }}>No pending requests for bots.</div>
-                      ) : (
-                        botRequests.map((req, i) => (
-                          <div key={i} className="chat-user-item" style={{ cursor: 'default', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                              <div className="user-avatar-small">
-                                <img src={req.requester.avatarUrl || `https://ui-avatars.com/api/?name=${req.requester.username}`} alt='avatar' />
-                              </div>
-                              <div className="user-names">
-                                <span className="user-username">@{req.requester.username}</span>
-                                <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>
-                                  wants to be friends with bot <strong>@{req.bot.username}</strong>
-                                </span>
-                              </div>
-                            </div>
-                            <button 
-                              onClick={() => handleAcceptBotRequest(req.bot._id, req.requester._id)}
-                              className="dev-btn-primary" style={{ background: '#10b981', padding: '8px 15px', borderRadius: '20px', fontSize: '0.85rem' }}
-                            >
-                              Accept
-                            </button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="chat-container" style={{ border: '1px solid #333', borderRadius: '12px', overflow: 'hidden' }}>
-                  {!selectedBotChat ? (
-                    <div className="chat-list" style={{ width: '100%', maxWidth: '100%', borderRight: 'none' }}>
-                      <div className="chat-list-header" style={{ background: '#111' }}>
-                        <h2>Bot Chats</h2>
+              ) : activeTab === 'live-random' ? (
+                <>
+                  <div className="live-random-wrap">
+                    {/* LEFT: live waiting board */}
+                    <aside className="live-random-left">
+                      <div className="lr-left-head">
+                        <span className="lr-live-dot" />
+                        <h3>Waiting Now</h3>
+                        <span className="lr-count">{liveQueue.length}</span>
                       </div>
-                      <div className="chat-users-scroll" style={{ background: '#050505' }}>
-                        {botChats.length === 0 ? (
-                          <div style={{ textAlign: 'center', color: '#a8a8a8', padding: '20px' }}>No bot chats found.</div>
-                        ) : (
-                          botChats.map((chat, i) => (
-                            <div key={i} className="chat-user-item" onClick={() => openBotChat(chat)}>
-                              <div className="user-avatar-small">
-                                <img src={chat.user.avatarUrl || `https://ui-avatars.com/api/?name=${chat.user.username}`} alt='avatar' />
-                              </div>
-                              <div className="user-names">
-                                <span className="user-username">@{chat.user.username}</span>
-                                <span style={{ fontSize: '0.75rem', color: '#10b981' }}>
-                                  Chatting with your bot <strong>@{chat.bot.username}</strong>
-                                </span>
-                              </div>
-                              {unreadBotChats.has(chat.user._id) && (
-                                <div style={{ width: '10px', height: '10px', background: '#ff4b4b', borderRadius: '50%', marginLeft: 'auto' }}></div>
-                              )}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="chat-area" style={{ flex: 1 }}>
-                      <div className="chat-room-header" style={{ background: '#111' }}>
-                        <div className="chat-header-info">
-                          <button className="back-btn" onClick={() => setSelectedBotChat(null)} style={{ border: 'none', background: 'transparent', fontSize: '1.2rem', cursor: 'pointer', marginRight: '8px', color: '#fff' }}>
-                            <X size={24} />
-                          </button>
-                          <div className="user-names">
-                            <span className="user-username" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div className='user-avatar-small' style={{ width: '28px', height: '28px' }}>
-                                <img src={`https://ui-avatars.com/api/?name=${selectedBotChat.bot.username}`} alt='avatar' />
-                              </div>
-                              Disguised as @{selectedBotChat.bot.username}
-                            </span>
-                            <span style={{ fontSize: '0.75rem', color: '#10b981' }}>Chatting with @{selectedBotChat.user.username}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="chat-messages-area" style={{ background: '#0a0a0a', flex: 1, padding: '20px', overflowY: 'auto' }}>
-                        {botChatMessages.map((msg, i) => {
-                          const isBot = msg.sender === selectedBotChat.bot._id;
+                      <div className="lr-left-sub">Users who pressed Match with no partner. Tap to intercept &amp; chat. Newest first (max 10).</div>
+                      <div className="lr-list">
+                        {liveQueue.length === 0 ? (
+                          <div className="lr-empty">No one waiting right now. 🎉</div>
+                        ) : liveQueue.map((u) => {
+                          const secs = Math.max(0, Math.floor((liveTick - (u.waitingSince || liveTick)) / 1000));
                           return (
-                            <div key={i} className={`msg-wrapper ${isBot ? 'sent' : 'received'}`}>
-                              <div className="msg-bubble">
-                                <div>{msg.message}</div>
+                            <button key={u.userId} className="lr-user-row" onClick={() => interceptUser(u.userId)}>
+                              <div className="lr-avatar">
+                                <img src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username || '?')}&background=random`} alt='' />
                               </div>
-                            </div>
+                              <div className="lr-user-meta">
+                                <span className="lr-user-name">@{u.username}</span>
+                                <span className="lr-user-sub">{u.country && u.country !== 'Earth' ? `📍 ${u.country}` : '🌍 Earth'} · {u.gender || '—'} · waiting {secs}s</span>
+                              </div>
+                              <span className="lr-intercept">Intercept ›</span>
+                            </button>
                           );
                         })}
-                        <div ref={botMessagesEndRef} />
                       </div>
-                      
-                      <form className="chat-input-area" onSubmit={handleSendBotMessage} style={{ background: '#111' }}>
-                        <div className="chat-input-wrapper">
-                          <input
-                            type="text"
-                            value={botChatMessageInput}
-                            onChange={(e) => setBotChatMessageInput(e.target.value)}
-                            placeholder="Reply as bot..."
-                          />
-                          <button type="submit" className="action-icon-btn send-btn"><Send size={22} /></button>
+                    </aside>
+
+                    {/* RIGHT: chat + top row */}
+                    <section className="live-random-right">
+                      <div className="lr-row">
+                        <button className={`lr-row-btn ${adminRightTab === 'requests' && showRightList ? 'active' : ''}`} onClick={() => { setAdminRightTab('requests'); setShowRightList(true); }}>
+                          <UserPlus size={16} /> Requests {botRequests.length > 0 && <span className="lr-badge">{botRequests.length}</span>}
+                        </button>
+                        <button className={`lr-row-btn ${adminRightTab === 'friends' && showRightList ? 'active' : ''}`} onClick={() => { setAdminRightTab('friends'); setShowRightList(true); }}>
+                          <UserCheck size={16} /> Friends {botChats.length > 0 && <span className="lr-badge">{botChats.length}</span>}
+                        </button>
+                        <button className={`lr-row-btn ${adminRightTab === 'chats' && showRightList ? 'active' : ''}`} onClick={() => { setAdminRightTab('chats'); setShowRightList(true); fetchConversations(); }}>
+                          <MessageSquare size={16} /> Chats
+                        </button>
+                      </div>
+
+                      <div className="lr-chat">
+                        {activeRandomChat ? (
+                          <>
+                            <div className="lr-chat-head live">
+                              <div>
+                                <div className="lr-chat-title">🔴 Live intercept — @{activeRandomChat.targetUser?.username}</div>
+                                <div className="lr-chat-sub">Disguised as @{activeRandomChat.botAccount?.username}</div>
+                              </div>
+                              <button className="lr-leave" onClick={() => { if (adminSocket) { adminSocket.emit('send_anonymous_message', { roomId: activeRandomChat.roomId, messageText: 'bye' }); adminSocket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId }); } setActiveRandomChat(null); }}>Leave</button>
+                            </div>
+                            <div className="lr-chat-body">
+                              {randomMessages.map((msg, i) => (
+                                <div key={i} className={`msg-wrapper ${msg.isMine ? 'sent' : 'received'}`}><div className="msg-bubble"><div>{msg.message}</div></div></div>
+                              ))}
+                            </div>
+                            <form className="lr-chat-input" onSubmit={handleSendRandomMessage}>
+                              <input type="text" value={randomMessageInput} onChange={(e) => setRandomMessageInput(e.target.value)} placeholder="Type as stranger..." />
+                              <button type="submit" className="action-icon-btn send-btn"><Send size={20} /></button>
+                            </form>
+                          </>
+                        ) : selectedBotChat ? (
+                          <>
+                            <div className="lr-chat-head">
+                              <div>
+                                <div className="lr-chat-title">@{selectedBotChat.user.username}</div>
+                                <div className="lr-chat-sub">You are @{selectedBotChat.bot.username}</div>
+                              </div>
+                              <button className="lr-leave" onClick={() => setSelectedBotChat(null)}>Close</button>
+                            </div>
+                            <div className="lr-chat-body">
+                              {botChatMessages.map((msg, i) => {
+                                const isBot = String(msg.sender) === String(selectedBotChat.bot._id);
+                                return (<div key={i} className={`msg-wrapper ${isBot ? 'sent' : 'received'}`}><div className="msg-bubble"><div>{msg.message}</div></div></div>);
+                              })}
+                              <div ref={botMessagesEndRef} />
+                            </div>
+                            <form className="lr-chat-input" onSubmit={handleSendBotMessage}>
+                              <input type="text" value={botChatMessageInput} onChange={(e) => setBotChatMessageInput(e.target.value)} placeholder="Reply..." />
+                              <button type="submit" className="action-icon-btn send-btn"><Send size={20} /></button>
+                            </form>
+                          </>
+                        ) : (
+                          <div className="lr-chat-placeholder">
+                            <Radio size={40} color="#333" />
+                            <p>Select a waiting user to intercept, or open Requests / Friends / Chats.</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Drawer for Requests / Friends / Chats */}
+                      {showRightList && (
+                        <div className="lr-drawer">
+                          <div className="lr-drawer-head">
+                            <h4>{adminRightTab === 'requests' ? 'Requests' : adminRightTab === 'friends' ? 'Friends' : 'Chats'}</h4>
+                            <button onClick={() => setShowRightList(false)}><X size={18} /></button>
+                          </div>
+                          <div className="lr-drawer-body">
+                            {adminRightTab === 'requests' && (
+                              botRequests.length === 0 ? <div className="lr-empty">No pending requests.</div> :
+                              botRequests.map((req, i) => (
+                                <div key={i} className="lr-drawer-item">
+                                  <img className="lr-avatar-sm" src={req.requester.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.requester.username)}`} alt='' />
+                                  <div className="lr-drawer-meta">
+                                    <span className="lr-drawer-title">@{req.requester.username}</span>
+                                    <span className="lr-drawer-sub">wants to chat (via @{req.bot.username})</span>
+                                  </div>
+                                  <button className="lr-accept" onClick={() => openIdentityForm(req)}>Accept</button>
+                                </div>
+                              ))
+                            )}
+                            {adminRightTab === 'friends' && (
+                              botChats.length === 0 ? <div className="lr-empty">No friends yet. Accept a request first.</div> :
+                              botChats.map((chat, i) => (
+                                <div key={i} className="lr-drawer-item clickable" onClick={() => openBotChat(chat)}>
+                                  <img className="lr-avatar-sm" src={chat.user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(chat.user.username)}`} alt='' />
+                                  <div className="lr-drawer-meta">
+                                    <span className="lr-drawer-title">@{chat.user.username}</span>
+                                    <span className="lr-drawer-sub">as @{chat.bot.username}</span>
+                                  </div>
+                                  {unreadBotChats.has(chat.user._id) && <span className="lr-unread" />}
+                                  <MessageSquare size={16} color="#10b981" />
+                                </div>
+                              ))
+                            )}
+                            {adminRightTab === 'chats' && (
+                              conversations.length === 0 ? <div className="lr-empty">No conversations yet.</div> :
+                              conversations.map((c, i) => (
+                                <div key={i} className="lr-drawer-item clickable" onClick={() => openBotChat({ bot: c.bot, user: c.user })}>
+                                  <img className="lr-avatar-sm" src={c.user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.user.username)}`} alt='' />
+                                  <div className="lr-drawer-meta">
+                                    <span className="lr-drawer-title">@{c.user.username}</span>
+                                    <span className="lr-drawer-sub">{c.mine ? 'You: ' : ''}{c.lastMessage || '—'}</span>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </section>
+                  </div>
+
+                  {/* Identity form modal shown when accepting a request */}
+                  {identityForm && (
+                    <div className="lr-modal-overlay" onClick={() => !identitySaving && setIdentityForm(null)}>
+                      <form className="lr-modal" onClick={(e) => e.stopPropagation()} onSubmit={submitIdentityForm}>
+                        <h3>Set your identity for @{identityForm.requesterName}</h3>
+                        <p className="lr-modal-sub">This is how you'll appear to them (you were a stranger when they requested).</p>
+                        <label>Name<input className="dev-input" type="text" value={identityForm.name} onChange={(e) => setIdentityForm({ ...identityForm, name: e.target.value })} required maxLength={60} /></label>
+                        <label>Username<input className="dev-input" type="text" value={identityForm.username} onChange={(e) => setIdentityForm({ ...identityForm, username: e.target.value })} required maxLength={30} /></label>
+                        <div className="lr-modal-row">
+                          <label>Age<input className="dev-input" type="number" min="1" max="120" value={identityForm.age} onChange={(e) => setIdentityForm({ ...identityForm, age: e.target.value })} /></label>
+                          <label>Gender
+                            <select className="dev-input" value={identityForm.gender} onChange={(e) => setIdentityForm({ ...identityForm, gender: e.target.value })}>
+                              <option value="male">Male</option><option value="female">Female</option>
+                            </select>
+                          </label>
+                        </div>
+                        <label>Country<input className="dev-input" type="text" value={identityForm.country} onChange={(e) => setIdentityForm({ ...identityForm, country: e.target.value })} maxLength={60} /></label>
+                        <label>Bio<textarea className="dev-input" value={identityForm.bio} onChange={(e) => setIdentityForm({ ...identityForm, bio: e.target.value })} maxLength={150} rows={2} /></label>
+                        <div className="lr-modal-actions">
+                          <button type="button" className="dev-btn-secondary" onClick={() => setIdentityForm(null)} disabled={identitySaving}>Cancel</button>
+                          <button type="submit" className="dev-btn-primary" style={{ background: '#10b981' }} disabled={identitySaving}>{identitySaving ? 'Saving…' : 'Accept & Save'}</button>
                         </div>
                       </form>
                     </div>
                   )}
-                </div>
-              )}
+                </>
+              ) : null}
             </div>
           </div>
         </div>
@@ -1597,74 +1698,7 @@ export default function DeveloperAdmin() {
         </div>
       )}
 
-      {/* Incoming Random User Alert Toast */}
-      {incomingRandom && (
-        <div style={{
-          position: 'fixed', bottom: '20px', right: '20px', background: '#10b981', color: '#fff', 
-          padding: '20px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', zIndex: 9999,
-          animation: 'slideUp 0.3s ease-out'
-        }}>
-          <h3 style={{ margin: '0 0 10px 0' }}>🔔 New Random Chat Waiting!</h3>
-          <p style={{ margin: '0 0 15px 0' }}><strong>@{incomingRandom.username}</strong> is searching for a partner...</p>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={handleIntercept} className="dev-btn-primary" style={{ background: '#fff', color: '#10b981' }}>{activeRandomChat ? 'Say Bye & Switch' : 'Intercept Now'}</button>
-            <button onClick={() => setIncomingRandom(null)} className="dev-btn-secondary" style={{ background: 'transparent', border: '1px solid #fff', color: '#fff' }}>Ignore</button>
-          </div>
-        </div>
-      )}
-
-      {/* Active Random Chat Modal */}
-      {activeRandomChat && (
-        <div className="modal-overlay dev-chat-override">
-          <div className="chat-container" style={{ width: '100%', maxWidth: '800px', height: '80vh', position: 'relative', zIndex: 1001 }}>
-            <div className="chat-area">
-              <div className="chat-room-header" style={{ background: '#111' }}>
-                <div className="chat-header-info">
-                  <button className="back-btn" onClick={() => {
-                    if(window.confirm('Leave chat?')) {
-                      socket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId });
-                      setActiveRandomChat(null);
-                    }
-                  }} style={{ border: 'none', background: 'transparent', fontSize: '1.2rem', cursor: 'pointer', marginRight: '8px', color: '#fff' }}>
-                    <X size={24} />
-                  </button>
-                  <div className="user-names">
-                    <span className="user-username" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div className='user-avatar-small' style={{ width: '28px', height: '28px' }}>
-                        <img src={activeRandomChat.botAccount.avatarUrl || `https://ui-avatars.com/api/?name=${activeRandomChat.botAccount.username}`} alt='avatar' />
-                      </div>
-                      Disguised as @{activeRandomChat.botAccount.username}
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: '#10b981' }}>Chatting with @{activeRandomChat.targetUser.username}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="chat-messages-area" style={{ background: '#0a0a0a', flex: 1, padding: '20px' }}>
-                {randomMessages.map((msg, i) => (
-                  <div key={i} className={`msg-wrapper ${msg.isMine ? 'sent' : 'received'}`}>
-                    <div className="msg-bubble">
-                      <div>{msg.message}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <form className="chat-input-area" onSubmit={handleSendRandomMessage} style={{ background: '#111' }}>
-                <div className="chat-input-wrapper">
-                  <input
-                    type="text"
-                    value={randomMessageInput}
-                    onChange={(e) => setRandomMessageInput(e.target.value)}
-                    placeholder="Type a message as bot..."
-                  />
-                  <button type="submit" className="action-icon-btn send-btn"><Send size={22} /></button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Active Random Chat Modal removed — the intercept chat now lives in the right pane of the Live Random page. */}
       {/* Broadcast Hub Modal */}
       {showBroadcastModal && (
         <div className="modal-overlay">
