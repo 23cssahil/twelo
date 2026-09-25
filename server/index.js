@@ -1363,7 +1363,7 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
 // Get Public Profile
 app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => {
   try {
-    let user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests avatarUrl country countryCode age gender lastActive bio').lean();
+    let user = await User.findById(req.params.id).select('username uniqueId followers following friendRequests avatarUrl country countryCode age gender lastActive bio blockedUsers').lean();
     if (!user) {
       return res.json({
         _id: req.params.id,
@@ -1376,6 +1376,14 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
         isDeleted: true
       });
     }
+    // Blocked -> locked: if this profile's owner has blocked the viewer, hide everything
+    // behind a minimal "locked" payload (applies to admin bots and normal users alike).
+    if (req.user && req.user.userId && req.user.userId !== user._id.toString()) {
+      if ((user.blockedUsers || []).some(id => id.toString() === req.user.userId)) {
+        return res.json({ _id: user._id, username: user.username, uniqueId: user.uniqueId, avatarUrl: user.avatarUrl, locked: true });
+      }
+    }
+    delete user.blockedUsers;
     if (!user.avatarUrl || user.avatarUrl.includes('randomuser.me') || user.avatarUrl.includes('iran.liara.run') || user.avatarUrl.includes('top=')) {
       user.avatarUrl = generateAvatarUrl(user.gender);
       User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } }).catch(console.error);
@@ -1465,8 +1473,14 @@ app.get('/api/users/public_profile/:id', authenticateToken, async (req, res) => 
 // Get Public Profile by Unique ID
 app.get('/api/users/public_profile_by_uid/:uniqueId', authenticateToken, async (req, res) => {
   try {
-    let user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests avatarUrl country countryCode age gender lastActive bio').lean();
+    let user = await User.findOne({ uniqueId: req.params.uniqueId }).select('username uniqueId followers following friendRequests avatarUrl country countryCode age gender lastActive bio blockedUsers').lean();
     if (!user) return res.status(404).json({ message: "User not found" });
+    if (req.user && req.user.userId && req.user.userId !== user._id.toString()) {
+      if ((user.blockedUsers || []).some(id => id.toString() === req.user.userId)) {
+        return res.json({ _id: user._id, username: user.username, uniqueId: user.uniqueId, avatarUrl: user.avatarUrl, locked: true });
+      }
+    }
+    delete user.blockedUsers;
     if (!user.avatarUrl || user.avatarUrl.includes('randomuser.me') || user.avatarUrl.includes('iran.liara.run') || user.avatarUrl.includes('top=')) {
       user.avatarUrl = generateAvatarUrl(user.gender);
       await User.updateOne({ _id: user._id }, { $set: { avatarUrl: user.avatarUrl } });
@@ -1822,6 +1836,11 @@ app.post('/api/users/accept/:id', authenticateToken, async (req, res) => {
     const reqSocketId = onlineUsers.get(requesterId?.toString());
     if (reqSocketId) {
       io.to(reqSocketId).emit('new_notification');
+    }
+    // If the requester was an admin bot (no socket), tell the admin panel to refresh so
+    // the newly-accepted friend shows up without a manual reload.
+    if (requester && requester.ownedByAdmin) {
+      try { io.to('admin_room').emit('admin_bots_updated', { userId: req.user.userId }); } catch (e) {}
     }
     if (requester) {
       pushToOfflineUser(requester, {
@@ -3977,34 +3996,50 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
   }
 });
 
-// Follow-back: make an admin bot follow a real user so they become mutual friends
-// (the user can then call/chat with the admin like with any real friend).
+// Follow-back: an admin bot reaches out to a real user. If the user already follows
+// the bot we connect immediately; otherwise we send a REAL follow request that the
+// user can Accept/Reject from their notifications — exactly like normal users do
+// (previously it silently auto-followed and only fired a "started following you" ping).
 app.post('/api/admin/bots/follow/:botId/:userId', adminAuth, async (req, res) => {
   try {
     const bot = await User.findById(req.params.botId);
     const user = await User.findById(req.params.userId);
     if (!bot || !user || !bot.ownedByAdmin) return res.status(404).json({ message: "Invalid request" });
 
-    if (!bot.following.some(id => id.toString() === user._id.toString())) bot.following.push(user._id);
-    if (!user.followers.some(id => id.toString() === bot._id.toString())) user.followers.push(bot._id);
-    // Make sure the bot also shows as followed-by for the user's own connection state.
-    if (!bot.followers.some(id => id.toString() === user._id.toString())) bot.followers.push(user._id);
-    if (!user.following.some(id => id.toString() === bot._id.toString())) user.following.push(bot._id);
-    user.notifications = (user.notifications || []).filter(n => !(n.type === 'follow_back_request' && n.user && n.user.toString() === bot._id.toString()));
-    user.notifications.push({ type: 'started_following_you', user: bot._id });
+    const botId = bot._id.toString();
+    const userId = user._id.toString();
+    const userFollowsBot = (user.following || []).some(id => id.toString() === botId);
 
-    await bot.save();
+    const botOut = { _id: bot._id, name: bot.name, username: bot.username, avatarUrl: bot.avatarUrl };
+
+    if (userFollowsBot) {
+      // User already follows the bot -> complete the mutual friendship right away.
+      if (!bot.following.some(id => id.toString() === userId)) bot.following.push(user._id);
+      if (!bot.followers.some(id => id.toString() === userId)) bot.followers.push(user._id);
+      if (!user.followers.some(id => id.toString() === botId)) user.followers.push(bot._id);
+      if (!user.following.some(id => id.toString() === botId)) user.following.push(bot._id);
+      user.notifications = (user.notifications || []).filter(n => !(n.type === 'follow_request' && n.user && n.user.toString() === botId));
+      user.notifications.push({ type: 'started_following_you', user: bot._id });
+      await bot.save();
+      await user.save();
+      const us = onlineUsers.get(userId);
+      if (us) io.to(us).emit('new_notification');
+      return res.json({ connected: true, message: "Connected", bot: botOut });
+    }
+
+    // Otherwise send a pending follow REQUEST the user can accept.
+    if (!user.friendRequests.some(id => id.toString() === botId)) user.friendRequests.push(bot._id);
+    user.notifications = (user.notifications || []).filter(n => !(n.type === 'follow_request' && n.user && n.user.toString() === botId));
+    user.notifications.push({ type: 'follow_request', user: bot._id });
     await user.save();
 
-    const userSocketId = onlineUsers.get(user._id?.toString());
-    if (userSocketId) {
-      io.to(userSocketId).emit('new_notification');
-      io.to(userSocketId).emit('started_following', { userId: bot._id, username: bot.username });
-    }
-    res.json({ message: "Following back", bot: { _id: bot._id, name: bot.name, username: bot.username, avatarUrl: bot.avatarUrl } });
+    const userSocketId = onlineUsers.get(userId);
+    if (userSocketId) io.to(userSocketId).emit('new_notification');
+    try { pushToOfflineUser(user, { title: 'New request', body: `@${bot.username} wants to follow you` }); } catch (e) {}
+    res.json({ sent: true, message: "Request sent", bot: botOut });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Error following back' });
+    res.status(500).json({ message: 'Error sending request' });
   }
 });
 
@@ -4030,16 +4065,22 @@ app.post('/api/admin/bots/block', adminAuth, async (req, res) => {
 
 app.get('/api/admin/bots/chats', adminAuth, async (req, res) => {
   try {
-    const bots = await User.find({ ownedByAdmin: true }).populate('followers', 'username avatarUrl').lean();
+    const bots = await User.find({ ownedByAdmin: true }).populate('followers', 'username avatarUrl').populate('following', 'username avatarUrl').lean();
     let result = [];
-    
+    const seen = new Set();
+
     bots.forEach(bot => {
-      bot.followers.forEach(user => {
+      // A bot is "friends" with both the users who follow it and the users it follows
+      // (the follow-back flow makes the bot follow a real user who then accepts).
+      const contacts = [...(bot.followers || []), ...(bot.following || [])];
+      contacts.forEach(user => {
+        if (!user || !user._id) return;
+        const key = `${bot._id}_${user._id}`;
+        if (seen.has(key)) return; seen.add(key);
         result.push({ bot: bot, user: user });
       });
     });
-    
-    // Optional: filter out duplicates if needed, but since it's 1-to-1 bot-user friend relationship, it should be fine.
+
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching bot chats' });

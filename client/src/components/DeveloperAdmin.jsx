@@ -3,7 +3,7 @@ import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
 import io from 'socket.io-client';
 import Peer from 'simple-peer';
-import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck, Phone, Video, VideoOff, Mic, MicOff, PhoneOff } from 'lucide-react';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck, Phone, Video, VideoOff, Mic, MicOff, PhoneOff, Clock } from 'lucide-react';
 import './DeveloperAdmin.css';
 import {
   Chart as ChartJS,
@@ -154,7 +154,8 @@ export default function DeveloperAdmin() {
   const callerSignalRef = useRef(null);
   const callAcceptedRef = useRef(false);
   const callTimeoutRef = useRef(null);
-  const [followedIds, setFollowedIds] = useState(new Set()); // user ids the admin bot has followed back
+  const [followedIds, setFollowedIds] = useState(new Set()); // user ids the admin bot is already connected to
+  const [requestedUserIds, setRequestedUserIds] = useState(new Set()); // user ids the bot has a pending follow request to
   const [blockedIds, setBlockedIds] = useState(new Set());   // user ids blocked by the admin bot
 
 
@@ -246,6 +247,12 @@ export default function DeveloperAdmin() {
         setRequestToast({ text: `🔔 @${rn} ne @${bn} ko request bheji`, ts: Date.now() });
       });
 
+      // Real-time: a user accepted one of the bot's follow requests -> refresh contacts.
+      newSocket.on('admin_bots_updated', () => {
+        fetchBotChats();
+        fetchConversations();
+      });
+
       // ── Admin call signaling (a real user is calling one of the admin's bots) ──
       newSocket.on('admin_incoming_call', ({ signal, from, fromSocketId, fromUsername, fromAvatar, isVideo, botId, botUsername }) => {
         if (signal && signal.type === 'offer') {
@@ -309,6 +316,7 @@ export default function DeveloperAdmin() {
         newSocket.off('connect');
         newSocket.off('admin_random_queue');
         newSocket.off('admin_new_bot_request');
+        newSocket.off('admin_bots_updated');
         newSocket.off('admin_intercept_started');
         newSocket.off('receive_anonymous_message');
         newSocket.off('receive_message');
@@ -785,20 +793,29 @@ export default function DeveloperAdmin() {
     setBotChatMessageInput('');
   };
 
-  // ── Follow-back / Block for the open bot chat ──
+  // ── Request-to-follow / Block for the open bot chat ──
+  // The bot no longer auto-follows: it sends a real follow request the user can accept,
+  // matching how normal users connect. Only if the user already follows the bot does the
+  // server connect them instantly (mutual).
   const followBackUser = async () => {
     if (!selectedBotChat) return;
+    const uid = String(selectedBotChat.user._id);
     try {
-      const res = await fetch(`${API_URL}/api/admin/bots/follow/${selectedBotChat.bot._id}/${selectedBotChat.user._id}`, {
+      const res = await fetch(`${API_URL}/api/admin/bots/follow/${selectedBotChat.bot._id}/${uid}`, {
         method: 'POST', headers: { 'x-admin-pass': password }
       });
       if (res.ok) {
-        setFollowedIds(prev => new Set(prev).add(String(selectedBotChat.user._id)));
+        const data = await res.json().catch(() => ({}));
+        if (data.connected) {
+          setFollowedIds(prev => new Set(prev).add(uid));
+        } else {
+          setRequestedUserIds(prev => new Set(prev).add(uid));
+        }
         fetchBotChats();
       } else {
-        alert('Could not follow back.');
+        alert('Could not send request.');
       }
-    } catch (err) { console.error(err); alert('Could not follow back.'); }
+    } catch (err) { console.error(err); alert('Could not send request.'); }
   };
 
   const blockUserInChat = async () => {
@@ -1684,7 +1701,7 @@ export default function DeveloperAdmin() {
                           <UserCheck size={16} /> Friends {botChats.length > 0 && <span className="lr-badge">{botChats.length}</span>}
                         </button>
                         <button className={`lr-row-btn ${adminRightTab === 'chats' && showRightList ? 'active' : ''}`} onClick={() => { setAdminRightTab('chats'); setShowRightList(true); fetchConversations(); }}>
-                          <MessageSquare size={16} /> Chats
+                          <MessageSquare size={16} /> Chats {unreadBotChats.size > 0 && <span className="lr-badge" style={{ background: '#f59e0b' }}>{unreadBotChats.size}</span>}
                         </button>
                       </div>
 
@@ -1719,8 +1736,10 @@ export default function DeveloperAdmin() {
                                 <button className="lr-act" title="Voice call" onClick={() => startAdminCall(false)}><Phone size={18} /></button>
                                 <button className="lr-act" title="Video call" onClick={() => startAdminCall(true)}><Video size={18} /></button>
                                 {followedIds.has(String(selectedBotChat.user._id))
-                                  ? <span className="lr-act lr-act-static" title="Following back"><UserCheck size={18} /></span>
-                                  : <button className="lr-act" title="Follow back" onClick={followBackUser}><UserPlus size={18} /></button>}
+                                  ? <span className="lr-act lr-act-static" title="Connected"><UserCheck size={18} /></span>
+                                  : requestedUserIds.has(String(selectedBotChat.user._id))
+                                  ? <span className="lr-act lr-act-static" title="Request sent — waiting for them to accept"><Clock size={18} /></span>
+                                  : <button className="lr-act" title="Send follow request" onClick={followBackUser}><UserPlus size={18} /></button>}
                                 {blockedIds.has(String(selectedBotChat.user._id))
                                   ? <button className="lr-act lr-act-danger" title="Unblock user" onClick={blockUserInChat}><Ban size={18} /></button>
                                   : <button className="lr-act" title="Block user" onClick={blockUserInChat}><Ban size={18} /></button>}
@@ -1777,7 +1796,6 @@ export default function DeveloperAdmin() {
                                     <span className="lr-drawer-title">@{chat.user.username}</span>
                                     <span className="lr-drawer-sub">as @{chat.bot.username}</span>
                                   </div>
-                                  {unreadBotChats.has(chat.user._id) && <span className="lr-unread" />}
                                   <MessageSquare size={16} color="#10b981" />
                                 </div>
                               ))
@@ -1791,6 +1809,7 @@ export default function DeveloperAdmin() {
                                     <span className="lr-drawer-title">@{c.user.username}</span>
                                     <span className="lr-drawer-sub">{c.mine ? 'You: ' : ''}{c.lastMessage || '—'}</span>
                                   </div>
+                                  {(unreadBotChats.has(String(c.userId || c.user._id))) && <span className="lr-unread" />}
                                 </div>
                               ))
                             )}

@@ -6047,9 +6047,30 @@ const handleStoryUpload = async () => {
             </div>
           );
         }
+        // Locked view: this account's owner blocked the current user. Show a minimal,
+        // restricted profile (no stats, stories, follow or message actions).
+        if (publicProfileData.locked) {
+          return (
+            <div className="profile-container">
+              <div className="profile-card" style={{ padding: '40px 24px', textAlign: 'center' }}>
+                <div className="profile-avatar-large" style={{ margin: '0 auto' }}>
+                  <div className="profile-avatar-inner">{publicProfileData.avatarUrl ? <img src={publicProfileData.avatarUrl} alt='avatar' /> : (publicProfileData.username || '?').charAt(0).toUpperCase()}</div>
+                </div>
+                <div className="profile-info" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                  <span className="profile-username" style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>@{publicProfileData.username}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '10px', padding: '14px 16px', borderRadius: '14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', fontWeight: 600 }}>
+                    <Lock size={20} /> This profile is locked
+                  </div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '6px 0 0', lineHeight: '1.5' }}>
+                    You can't view this account or send it messages.
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
         const isFollowing = followingSet.has(publicProfileData._id);
         const hasRequested = publicProfileData.friendRequests?.includes(user.id);
-        
         return (
           <div className="profile-container">
             <div className="profile-card">
