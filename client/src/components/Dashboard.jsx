@@ -244,6 +244,10 @@ const StorySlide = ({
   viewPublicProfile, setActiveTab, setShowCommentsModal,
   handleNextUser, handlePrevUser
 }) => {
+  // Horizontal-swipe tracking: a swipe jumps straight to the next/previous USER,
+  // while a plain tap navigates within the current user's stories.
+  const swipeStart = React.useRef(null);
+  const swipedRef = React.useRef(false);
   const story = group.stories[isActiveSlide ? currentStoryIndex : 0];
   if (!story) return null;
 
@@ -287,16 +291,31 @@ const StorySlide = ({
     }
   }, [storyPaused, isActiveSlide, storyAudioRef, story]);
 
-  const handlePointerDown = () => {
+  const handlePointerDown = (e) => {
+    swipeStart.current = { x: e.clientX, y: e.clientY };
+    swipedRef.current = false;
     storyPausedRef.current = true;
     setStoryPaused(true);
     if (storyVideoRef.current) storyVideoRef.current.pause();
     if (localAudioRef.current) localAudioRef.current.pause();
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e) => {
     storyPausedRef.current = false;
     setStoryPaused(false);
+    // Detect a deliberate horizontal swipe (dominates vertical, > 60px) and use it to
+    // jump straight to the next / previous user's stories, skipping the rest of the
+    // current user's. Mark swipedRef so the tap overlay below does not also fire.
+    if (swipeStart.current && e && typeof e.clientX === 'number') {
+      const dx = e.clientX - swipeStart.current.x;
+      const dy = e.clientY - swipeStart.current.y;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        swipedRef.current = true;
+        if (dx < 0) { if (handleNextUser) handleNextUser(); }
+        else { if (handlePrevUser) handlePrevUser(); }
+      }
+    }
+    swipeStart.current = null;
     if (storyVideoRef.current) storyVideoRef.current.play()?.catch(() => {});
     if (localAudioRef.current) {
       localAudioRef.current.play()?.then(() => {
@@ -522,15 +541,21 @@ const StorySlide = ({
           />
         )}
 
-        {/* Click Navigation Areas */}
+        {/* Click Navigation Areas. Tap = move within this user's stories; at the
+            boundary it rolls over to the previous / next user. A horizontal swipe is
+            handled on the container and is suppressed here so it doesn't double-fire. */}
         <div 
           style={{ position: 'absolute', top: 0, left: 0, width: '30%', height: '100%', zIndex: 5, cursor: 'w-resize' }} 
           onDoubleClick={handleDoubleClick}
           onClick={(e) => {
             e.stopPropagation();
-            if ((isActiveSlide ? currentStoryIndex : 0) > 0) {
-              setCurrentStoryIndex(prev => prev - 1);
+            if (swipedRef.current) { swipedRef.current = false; return; }
+            const idx = isActiveSlide ? currentStoryIndex : 0;
+            if (idx > 0) {
+              setCurrentStoryIndex(idx - 1);
               setStoryProgress(0);
+            } else if (handlePrevUser) {
+              handlePrevUser();
             }
           }}
         />
@@ -539,9 +564,13 @@ const StorySlide = ({
           onDoubleClick={handleDoubleClick}
           onClick={(e) => {
             e.stopPropagation();
-            if ((isActiveSlide ? currentStoryIndex : 0) < group.stories.length - 1) {
-              setCurrentStoryIndex(prev => prev + 1);
+            if (swipedRef.current) { swipedRef.current = false; return; }
+            const idx = isActiveSlide ? currentStoryIndex : 0;
+            if (idx < group.stories.length - 1) {
+              setCurrentStoryIndex(idx + 1);
               setStoryProgress(0);
+            } else if (handleNextUser) {
+              handleNextUser();
             }
           }}
         />
@@ -1615,8 +1644,11 @@ export default function Dashboard() {
     if (currentStoryUserIndex > 0) {
       lastScrollTime.current = Date.now();
       const prevIndex = currentStoryUserIndex - 1;
+      const prevGroup = viewerStories[prevIndex];
+      // Landing on the previous user's LAST story makes backward navigation feel continuous.
+      const lastIndex = prevGroup && prevGroup.stories ? Math.max(0, prevGroup.stories.length - 1) : 0;
       setCurrentStoryUserIndex(prevIndex);
-      setCurrentStoryIndex(0);
+      setCurrentStoryIndex(lastIndex);
       setStoryProgress(0);
       const container = document.getElementById('story-swiper-container');
       if (container) {
