@@ -1014,7 +1014,7 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
     const filter = {};
 
     // Never surface the searcher's own account in search/discover results.
-    filter._id = { $ne: mongoose.Types.ObjectId(req.user.userId) };
+    filter._id = { $ne: new mongoose.Types.ObjectId(req.user.userId) };
 
     if (query) {
       const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1036,7 +1036,7 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
 
     if (cursor) {
       // Keep the cursor condition separate from the self-exclusion above.
-      filter._id = { $lt: cursor, $ne: mongoose.Types.ObjectId(req.user.userId) };
+      filter._id = { $lt: cursor, $ne: new mongoose.Types.ObjectId(req.user.userId) };
     }
 
     const users = await User.find(filter)
