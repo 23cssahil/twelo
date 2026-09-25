@@ -4176,6 +4176,7 @@ const handleStoryUpload = async () => {
           }]);
           
           setReplyingTo(null);
+          bumpChatToTop(activeChatUser);
           fetchRecentChats();
         }
       } catch (error) {
@@ -4228,6 +4229,7 @@ const handleStoryUpload = async () => {
             isDelivered: false,
             createdAt: new Date().toISOString() 
           }]);
+          bumpChatToTop(activeChatUser);
           fetchRecentChats();
         }
       };
@@ -4318,6 +4320,26 @@ const handleStoryUpload = async () => {
     }
   };
 
+  // Float a conversation to the top of the chats list immediately (optimistic). The list
+  // order is server-driven and only re-fetched after the server ack (~1s later), so without
+  // this, going straight back to Chats shows a stale order with an older chat on top.
+  const bumpChatToTop = (chat) => {
+    if (!chat || !chat._id) return;
+    setRecentChats(prev => {
+      const id = String(chat._id);
+      const idx = prev.findIndex(c => String(c._id) === id);
+      if (idx === 0) return prev; // already at the top
+      if (idx > 0) {
+        const copy = prev.slice();
+        const [item] = copy.splice(idx, 1);
+        copy.unshift(item);
+        return copy;
+      }
+      // Brand-new conversation not in the list yet -> add it at the top.
+      return [{ _id: chat._id, username: chat.username, avatarUrl: chat.avatarUrl }, ...prev];
+    });
+  };
+
   const handleSendMessage = (e, textOverride = null) => {
     e.preventDefault();
     const textToSend = textOverride !== null ? textOverride : newMessage;
@@ -4348,6 +4370,10 @@ const handleStoryUpload = async () => {
       isDelivered: false,
       createdAt: new Date().toISOString()
     }]);
+
+    // Optimistically float this conversation to the TOP of the chats list the instant the
+    // send is tapped (see bumpChatToTop).
+    bumpChatToTop(activeChatUser);
     
     // Optional: Only clear state if it's being used
     if (textOverride === null) setNewMessage('');
