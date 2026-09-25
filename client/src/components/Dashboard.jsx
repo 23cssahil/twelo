@@ -250,18 +250,51 @@ const AdsterraBanner = () => {
   );
 };
 
+// Adsterra ad key (native banner). Used by the story ad, feed banners and the interstitial.
+// If you later create a dedicated Adsterra "Interstitial" zone, put its key + network host
+// here (and the matching invoke.js URL below) to get a higher eCPM full-screen format.
+const ADSTERRA_AD_KEY = '68a0807fea81fdc49bc8a49017e7e443';
+const ADSTERRA_AD_NETWORK = 'pl30895199.effectivecpmnetwork.com';
+
 // Adsterra interstitial overlay shown between stranger chats (skip / end).
-// It reuses the existing Adsterra native-banner placement (AdBanner) so it works today.
-// When you create a dedicated Adsterra "Interstitial" zone in the dashboard, drop its
-// key into INTERSTITIAL_ADSTERRA_KEY and swap <AdBanner /> for that format for a higher eCPM.
-const INTERSTITIAL_ADSTERRA_KEY = '';
+// It injects the Adsterra ad DIRECTLY into a container (single-level invoke) instead of
+// nesting the /ad.html iframe, because ad networks refuse to fill double-nested iframes
+// (that was why the box appeared empty). A fresh container + script is mounted on every
+// open, so the ad re-runs each time the overlay is shown.
 const InterstitialAd = ({ onClose }) => {
   const [secs, setSecs] = useState(5);
+  const [adLoading, setAdLoading] = useState(true);
+  const adHostRef = useRef(null);
+
   useEffect(() => {
     if (secs <= 0) return;
     const t = setTimeout(() => setSecs(s => s - 1), 1000);
     return () => clearTimeout(t);
   }, [secs]);
+
+  // Inject the Adsterra loader into a container that exists only while this overlay is
+  // open. Removed on unmount so the next open re-runs the loader and shows a fresh ad.
+  useEffect(() => {
+    const host = adHostRef.current;
+    if (!host) return;
+    host.innerHTML = '';
+    const container = document.createElement('div');
+    container.id = `container-${ADSTERRA_AD_KEY}`;
+    container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:100%;min-height:250px;';
+    const script = document.createElement('script');
+    script.src = `//${ADSTERRA_AD_NETWORK}/${ADSTERRA_AD_KEY}/invoke.js`;
+    script.async = true;
+    script.dataset.cfasync = 'false';
+    host.appendChild(container);
+    host.appendChild(script);
+    const done = setTimeout(() => setAdLoading(false), 3000);
+    return () => {
+      clearTimeout(done);
+      script.remove();
+      container.remove();
+    };
+  }, []);
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10006, background: 'rgba(0,0,0,0.93)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       <div style={{ width: '100%', maxWidth: '340px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -270,8 +303,9 @@ const InterstitialAd = ({ onClose }) => {
           ? <span style={{ color: '#888', fontSize: '0.8rem' }}>Close in {secs}s</span>
           : <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', borderRadius: '20px', padding: '5px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>✕</button>}
       </div>
-      <div style={{ width: '100%', maxWidth: '340px' }}>
-        <AdBanner />
+      <div style={{ width: '100%', maxWidth: '340px', minHeight: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+        <div ref={adHostRef} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}></div>
+        {adLoading && <span style={{ color: '#888', fontSize: '0.9rem' }}>Loading Ad…</span>}
       </div>
       {secs <= 0 && (
         <button onClick={onClose} style={{ marginTop: '18px', background: 'var(--brand-blue)', border: 'none', color: '#fff', borderRadius: '24px', padding: '10px 30px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 600 }}>Continue</button>
