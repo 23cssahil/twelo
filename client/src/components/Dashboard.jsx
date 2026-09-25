@@ -1094,10 +1094,13 @@ export default function Dashboard() {
   const [searchHistoryCache, setSearchHistoryCache] = useState(null);
   const [longPressTarget, setLongPressTarget] = useState(null);
   const pressTimer = useRef(null);
+  const searchHistoryCacheRef = useRef(null);
   const [coinPopup, setCoinPopup] = useState({ show: false, amount: 0 });
 
   const handleSearchHistoryTouchStart = (user) => {
     if (searchQuery) return; // Only on history
+    // Long-press delete must apply to real history entries, not discover results.
+    if (!(searchHistoryCacheRef.current || []).some(h => String(h._id) === String(user._id))) return;
     pressTimer.current = setTimeout(() => {
       setLongPressTarget(user);
     }, 800);
@@ -1114,8 +1117,7 @@ export default function Dashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        setSearchHistoryCache(prev => prev.filter(u => u._id !== userId));
-        setSearchResults(prev => prev.filter(u => u._id !== userId));
+        setSearchHistoryCache(prev => (prev || []).filter(u => String(u._id) !== String(userId)));
         setLongPressTarget(null);
         showToastMsg("Removed from history", 'info');
       }
@@ -1156,7 +1158,6 @@ export default function Dashboard() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchCursor, setSearchCursor] = useState(null);
   const [hasMoreSearch, setHasMoreSearch] = useState(true);
-  const [isFetchingSearchHistory, setIsFetchingSearchHistory] = useState(true);
   const [isFetchingMessages, setIsFetchingMessages] = useState(false);
   const [messageCursor, setMessageCursor] = useState(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
@@ -1692,14 +1693,16 @@ export default function Dashboard() {
   const activeChatUserRef = useRef(activeChatUser);
   const activeTabRef = useRef(activeTab);
   const searchQueryRef = useRef(searchQuery);
+  const searchHistoryCacheRefSync = searchHistoryCacheRef;
   const publicProfileDataRef = useRef(publicProfileData);
 
   useEffect(() => {
     activeChatUserRef.current = activeChatUser;
     activeTabRef.current = activeTab;
     searchQueryRef.current = searchQuery;
+    searchHistoryCacheRefSync.current = searchHistoryCache;
     publicProfileDataRef.current = publicProfileData;
-  }, [activeChatUser, activeTab, searchQuery, publicProfileData]);
+  }, [activeChatUser, activeTab, searchQuery, publicProfileData, searchHistoryCache]);
 
 
   // Media & Context Menu State
@@ -3427,24 +3430,36 @@ export default function Dashboard() {
     setShowBlockedModal(false);
   };
 
+  // Drop duplicate accounts (the same username or the same unique ID can exist
+  // under more than one account), keeping the first occurrence.
+  const dedupeUsersByIdentity = (list) => {
+    const seenIds = new Set();
+    const seenUsernames = new Set();
+    const seenUniqueIds = new Set();
+    return (list || []).filter(u => {
+      const uname = (u.username || '').toLowerCase();
+      if (seenIds.has(String(u._id)) || (uname && seenUsernames.has(uname)) || (u.uniqueId && seenUniqueIds.has(u.uniqueId))) return false;
+      seenIds.add(String(u._id));
+      if (uname) seenUsernames.add(uname);
+      if (u.uniqueId) seenUniqueIds.add(u.uniqueId);
+      return true;
+    });
+  };
+
   const fetchSearchHistory = async () => {
-    if (searchHistoryCache) setSearchResults(searchHistoryCache);
-    else setIsFetchingSearchHistory(true);
     try {
       const res = await fetch(`${API_URL}/api/users/search-history`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
-        setSearchResults(data);
-        setSearchHistoryCache(data);
+        setSearchHistoryCache(dedupeUsersByIdentity(data));
       }
-    } catch (e) { console.error("Search history error", e); } finally {
-      setIsFetchingSearchHistory(false);
-    }
+    } catch (e) { console.error("Search history error", e); }
   };
 
   useEffect(() => {
     if (activeTab === 'search' && !searchQuery.trim()) {
       handleSearch('', null);
+      fetchSearchHistory(); // "Recent" list is shown above the discover feed
     }
   }, [activeTab, searchQuery]);
 
@@ -3466,14 +3481,11 @@ export default function Dashboard() {
       
       if (res.ok) {
         if (!cursor) {
-          setSearchResults(data.users);
+          setSearchResults(dedupeUsersByIdentity(data.users));
         } else {
           // Append the next page but never allow duplicates (a user can straddle
           // two pages if new accounts are created while the list is being scrolled).
-          setSearchResults(prev => {
-            const seen = new Set(prev.map(u => String(u._id)));
-            return [...prev, ...data.users.filter(u => !seen.has(String(u._id)))];
-          });
+          setSearchResults(prev => dedupeUsersByIdentity([...prev, ...data.users]));
         }
         setSearchCursor(data.nextCursor);
         setHasMoreSearch(!!data.nextCursor);
@@ -3533,6 +3545,13 @@ export default function Dashboard() {
             method: 'POST', 
             headers: { Authorization: `Bearer ${token}` } 
           }).catch(e => console.error("History error", e));
+          // Optimistically move the tapped user to the top of the Recent list so
+          // it shows immediately when the user taps back into Search.
+          setSearchHistoryCache(prev => {
+            const entry = { _id: data._id, username: data.username, uniqueId: data.uniqueId, avatarUrl: data.avatarUrl };
+            const rest = (prev || []).filter(h => String(h._id) !== String(data._id));
+            return [entry, ...rest].slice(0, 20);
+          });
         }
       } else {
         alert(data.message || "Failed to load profile");
@@ -5938,10 +5957,46 @@ const handleStoryUpload = async () => {
               </div>
             ) : (
             <div className="search-results">
+              {!searchQuery.trim() && (searchHistoryCache?.length > 0) && (
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-secondary)', margin: '14px 4px 4px' }}>Recent</div>
+              )}
+              {!searchQuery.trim() && (searchHistoryCache || []).map((hUser) => {
+                const isOnline = onlineUsersSet.has(hUser._id);
+                return (
+                  <div
+                    className="user-card"
+                    key={`hist-${hUser._id}`}
+                    onTouchStart={() => handleSearchHistoryTouchStart(hUser)}
+                    onTouchEnd={handleSearchHistoryTouchEnd}
+                    onTouchMove={handleSearchHistoryTouchEnd}
+                    onMouseDown={() => handleSearchHistoryTouchStart(hUser)}
+                    onMouseUp={handleSearchHistoryTouchEnd}
+                    onMouseLeave={handleSearchHistoryTouchEnd}
+                    onContextMenu={(e) => { e.preventDefault(); return false; }}
+                    style={{ position: 'relative', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', msUserSelect: 'none', MozUserSelect: 'none' }}
+                  >
+                    <div className="user-card-info" onClick={() => viewPublicProfile(hUser._id)} style={{ cursor: 'pointer' }}>
+                      <div className="search-avatar-wrap">
+                        <div className="user-avatar-small">
+                          {hUser.avatarUrl ? <img src={hUser.avatarUrl} alt='avatar' /> : (hUser.username || '?').charAt(0).toUpperCase()}
+                        </div>
+                        {isOnline && <span className="search-online-dot" />}
+                      </div>
+                      <div className="user-names">
+                        <span className="user-username">@{hUser.username}</span>
+                        <span className="user-id">ID: {hUser.uniqueId}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
               {!searchQuery.trim() && searchResults.length > 0 && (
                 <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-secondary)', margin: '14px 4px 4px' }}>Discover people</div>
               )}
-              {searchResults.map((searchUser) => {
+              {(() => {
+                // Don't repeat a user in Discover who is already shown under Recent.
+                const historyIds = new Set((searchHistoryCache || []).map(h => String(h._id)));
+                return searchResults.filter(su => !historyIds.has(String(su._id))).map((searchUser) => {
                 const isFollowing = followingSet.has(searchUser._id);
                 const hasRequested = searchUser.friendRequests?.includes(user.id);
                 const isOnline = onlineUsersSet.has(searchUser._id);
@@ -5981,13 +6036,14 @@ const handleStoryUpload = async () => {
                     )}
                   </div>
                 );
-              })}
+              });
+              })()}
               
               {searchLoading && searchCursor && (
                 <div style={{ textAlign: 'center', padding: '15px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading more...</div>
               )}
               
-              {!searchLoading && searchResults.length === 0 && (
+              {!searchLoading && searchResults.length === 0 && !(searchHistoryCache?.length > 0) && (
                 <div style={{ textAlign: 'center', padding: '50px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                   <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(128,128,128,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {searchQuery.trim() ? <SearchIcon size={28} color="var(--text-secondary)" /> : <Users size={28} color="var(--text-secondary)" />}

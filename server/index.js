@@ -1086,7 +1086,8 @@ app.get('/api/users/search-history', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json((user.searchHistory || []).filter(u => u != null));
+    // Drop nulls (deleted accounts) and, defensively, the searcher themself.
+    res.json((user.searchHistory || []).filter(u => u != null && String(u._id) !== String(req.user.userId)));
   } catch (error) {
     console.error('Error fetching search history:', error);
     res.status(500).json({ message: 'Error fetching search history' });
