@@ -1095,8 +1095,12 @@ export default function Dashboard() {
   const [searchResults, setSearchResults] = useState([]);
   const [searchHistoryCache, setSearchHistoryCache] = useState(null);
   const [searchMode, setSearchMode] = useState('recent'); // 'recent' | 'discover' (empty-query view)
+  const [historyCursor, setHistoryCursor] = useState(null); // index cursor for Recent pagination
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const searchDiscoverLoadedRef = useRef(false); // discover feed fetched at least once
   const searchLocalDirRef = useRef(new Map()); // id -> user, for instant local matching
+  const historyLoadingRef = useRef(false); // guards overlapping "load more" requests
   const [longPressTarget, setLongPressTarget] = useState(null);
   const pressTimer = useRef(null);
   const searchHistoryCacheRef = useRef(null);
@@ -3448,14 +3452,37 @@ export default function Dashboard() {
     });
   };
 
-  const fetchSearchHistory = async () => {
+  const fetchSearchHistory = async (cursor = null) => {
+    if (cursor) {
+      if (historyLoadingRef.current) return; // one page at a time
+      historyLoadingRef.current = true;
+      setHistoryLoading(true);
+    }
     try {
-      const res = await fetch(`${API_URL}/api/users/search-history`, { headers: { Authorization: `Bearer ${token}` } });
+      const url = new URL(`${API_URL}/api/users/search-history`);
+      url.searchParams.append('limit', '10');
+      if (cursor) url.searchParams.append('cursor', cursor);
+      const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) {
-        setSearchHistoryCache(dedupeUsersByIdentity(data));
+        if (!cursor) {
+          // Initial page (also runs after a profile tap to sync the server-side
+          // re-order); replace the list, but keep it instant by not toggling loading.
+          setSearchHistoryCache(dedupeUsersByIdentity(data.users));
+        } else {
+          // Append the next page; dedupe by _id guards against entries that
+          // shifted pages because a new item was added on top meanwhile.
+          setSearchHistoryCache(prev => dedupeUsersByIdentity([...(prev || []), ...(data.users || [])]));
+        }
+        setHistoryCursor(data.nextCursor);
+        setHasMoreHistory(!!data.nextCursor);
       }
-    } catch (e) { console.error("Search history error", e); }
+    } catch (e) { console.error("Search history error", e); } finally {
+      if (cursor) {
+        historyLoadingRef.current = false;
+        setHistoryLoading(false);
+      }
+    }
   };
 
   useEffect(() => {
@@ -3574,8 +3601,13 @@ export default function Dashboard() {
   const handleSearchResultsScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
     // When scrolled to near bottom
-    if (scrollHeight - scrollTop - clientHeight < 50 && searchCursor && !searchLoading) {
-      handleSearch(searchQuery, searchCursor);
+    if (scrollHeight - scrollTop - clientHeight < 50) {
+      if (!searchQuery.trim() && searchMode === 'recent') {
+        // Recent list paginates just like Discover.
+        if (hasMoreHistory && historyCursor && !historyLoadingRef.current) fetchSearchHistory(historyCursor);
+      } else if (searchCursor && !searchLoading) {
+        handleSearch(searchQuery, searchCursor);
+      }
     }
   };
 
@@ -3598,12 +3630,15 @@ export default function Dashboard() {
             headers: { Authorization: `Bearer ${token}` } 
           }).catch(e => console.error("History error", e));
           // Optimistically move the tapped user to the top of the Recent list so
-          // it shows immediately when the user taps back into Search.
+          // it shows immediately when the user taps back into Search. Pagination
+          // restarts from page one because the server-side order just changed.
           setSearchHistoryCache(prev => {
             const entry = { _id: data._id, username: data.username, uniqueId: data.uniqueId, avatarUrl: data.avatarUrl };
             const rest = (prev || []).filter(h => String(h._id) !== String(data._id));
-            return [entry, ...rest].slice(0, 20);
+            return [entry, ...rest].slice(0, 100);
           });
+          setHistoryCursor('10');
+          setHasMoreHistory(true);
         }
       } else {
         alert(data.message || "Failed to load profile");
@@ -6038,6 +6073,7 @@ const handleStoryUpload = async () => {
               {(hasQuery || (searchMode === 'discover' && searchResults.length > 0)) && (
                 <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-secondary)', margin: '14px 4px 4px' }}>{hasQuery ? 'Search results' : 'Discover people'}</div>
               )}
+
               {!hasQuery && searchMode === 'recent' && (
                 <>
               {(searchHistoryCache || []).map((hUser) => {
@@ -6070,6 +6106,9 @@ const handleStoryUpload = async () => {
                   </div>
                 );
               })}
+              {historyLoading && (
+                <div style={{ textAlign: 'center', padding: '15px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading more...</div>
+              )}
               {(searchHistoryCache || []).length === 0 && (
                 <div style={{ textAlign: 'center', padding: '50px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                   <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(128,128,128,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

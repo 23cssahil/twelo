@@ -1092,8 +1092,8 @@ app.post('/api/users/search-history/:id', authenticateToken, async (req, res) =>
     // Remove if already exists so we can move it to top
     user.searchHistory = user.searchHistory.filter(id => id.toString() !== targetId);
     user.searchHistory.unshift(targetId); // Add to beginning
-    // Keep only last 20
-    if (user.searchHistory.length > 20) user.searchHistory = user.searchHistory.slice(0, 20);
+    // Keep only last 100 (the client paginates through them 10 at a time)
+    if (user.searchHistory.length > 100) user.searchHistory = user.searchHistory.slice(0, 100);
     
     await user.save();
     res.json({ message: 'Added to search history' });
@@ -1104,6 +1104,11 @@ app.post('/api/users/search-history/:id', authenticateToken, async (req, res) =>
 
 app.get('/api/users/search-history', authenticateToken, async (req, res) => {
   try {
+    // Index-cursor pagination: searchHistory is stored newest-first (unshift),
+    // so skip/limit walks it top-down without needing an _id sort.
+    const skip = Math.max(0, parseInt(req.query.cursor) || 0);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+
     const user = await User.findById(req.user.userId)
       .select('searchHistory')
       .populate('searchHistory', 'username uniqueId avatarUrl gender friendRequests followers')
@@ -1114,7 +1119,11 @@ app.get('/api/users/search-history', authenticateToken, async (req, res) => {
     }
 
     // Drop nulls (deleted accounts) and, defensively, the searcher themself.
-    res.json((user.searchHistory || []).filter(u => u != null && String(u._id) !== String(req.user.userId)));
+    const history = (user.searchHistory || []).filter(u => u != null && String(u._id) !== String(req.user.userId));
+    const page = history.slice(skip, skip + limit);
+    const hasMore = skip + limit < history.length;
+
+    res.json({ users: page, nextCursor: hasMore ? String(skip + limit) : null });
   } catch (error) {
     console.error('Error fetching search history:', error);
     res.status(500).json({ message: 'Error fetching search history' });
