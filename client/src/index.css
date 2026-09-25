@@ -1206,15 +1206,20 @@ input, button, textarea {
 
   /* A full-width 9/16 tile is ~380px tall on desktop, so the media inside it spills
      over the neighbouring tiles and the row reads as a stack of overlapping posters.
+     align-items:start guarantees a tall tile can never stretch its row-mates, and the
+     >=900px cap pins every tile to a definite 170x302 box so content can't resize it.
      Below 900px we keep the plain stretch grid (a centred auto-width tile would have
      no definite size there, since all of its content is absolutely positioned). */
+  .profile-stories-grid {
+    align-items: start;
+  }
   @media (min-width: 900px) {
     .profile-stories-grid {
       justify-items: center;
     }
     .profile-story-tile {
       width: min(100%, 170px);
-      height: auto;
+      height: 302px;
     }
   }
   
