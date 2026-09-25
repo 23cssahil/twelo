@@ -2,7 +2,8 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
 import io from 'socket.io-client';
-import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck } from 'lucide-react';
+import Peer from 'simple-peer';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck, Phone, Video, VideoOff, Mic, MicOff, PhoneOff } from 'lucide-react';
 import './DeveloperAdmin.css';
 import {
   Chart as ChartJS,
@@ -37,6 +38,27 @@ function formatCountdown(ms) {
   const total = Math.max(0, Math.floor((ms || 0) / 1000));
   const p = (n) => String(n).padStart(2, '0');
   return `${p(Math.floor(total / 3600))}:${p(Math.floor((total % 3600) / 60))}:${p(total % 60)}`;
+}
+
+// Same STUN/TURN set the user app uses, so admin calls traverse NAT reliably.
+const CALL_ICE = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
+    { urls: 'turn:a.relay.metered.ca:80', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' },
+    { urls: 'turn:a.relay.metered.ca:80?transport=tcp', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' },
+    { urls: 'turn:a.relay.metered.ca:443', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' },
+    { urls: 'turns:a.relay.metered.ca:443?transport=tcp', username: 'e8dd65b92f6daa8a0f279a8c', credential: '2VnE1hXNPHqOIUkd' }
+  ]
+};
+
+function formatCallDuration(sec) {
+  const s = Math.max(0, sec | 0);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(Math.floor(s / 60))}:${p(s % 60)}`;
 }
 
 export default function DeveloperAdmin() {
@@ -117,6 +139,23 @@ export default function DeveloperAdmin() {
   const [identitySaving, setIdentitySaving] = useState(false);
   const [liveTick, setLiveTick] = useState(Date.now());      // re-renders the "waiting Xs" labels every second
   const [requestToast, setRequestToast] = useState(null);    // transient toast when a new bot request arrives
+
+  // ── Admin WebRTC call state ──
+  const [adminCall, setAdminCall] = useState(null);   // { active, incoming, isVideo, peerUserId, peerSocketId, peerUsername, peerAvatar, botId, botUsername }
+  const [callAccepted, setCallAccepted] = useState(false);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [callSeconds, setCallSeconds] = useState(0);
+  const peerRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const adminMyVideoRef = useRef(null);
+  const adminRemoteVideoRef = useRef(null);
+  const pendingCandidatesRef = useRef([]);
+  const callerSignalRef = useRef(null);
+  const callAcceptedRef = useRef(false);
+  const callTimeoutRef = useRef(null);
+  const [followedIds, setFollowedIds] = useState(new Set()); // user ids the admin bot has followed back
+  const [blockedIds, setBlockedIds] = useState(new Set());   // user ids blocked by the admin bot
 
 
 
@@ -207,6 +246,30 @@ export default function DeveloperAdmin() {
         setRequestToast({ text: `🔔 @${rn} ne @${bn} ko request bheji`, ts: Date.now() });
       });
 
+      // ── Admin call signaling (a real user is calling one of the admin's bots) ──
+      newSocket.on('admin_incoming_call', ({ signal, from, fromSocketId, fromUsername, fromAvatar, isVideo, botId, botUsername }) => {
+        if (signal && signal.type === 'offer') {
+          callerSignalRef.current = signal;
+          pendingCandidatesRef.current = [];
+          callAcceptedRef.current = false;
+          setCallAccepted(false);
+          setAdminCall({ active: true, incoming: true, isVideo, peerUserId: String(from), peerSocketId: fromSocketId, peerUsername: fromUsername, peerAvatar: fromAvatar, botId, botUsername });
+        } else if (signal && signal.candidate) {
+          if (peerRef.current) peerRef.current.signal(signal);
+          else pendingCandidatesRef.current.push(signal);
+        }
+      });
+
+      newSocket.on('call_accepted', (signal) => {
+        callAcceptedRef.current = true;
+        setCallAccepted(true);
+        if (callTimeoutRef.current) { clearTimeout(callTimeoutRef.current); callTimeoutRef.current = null; }
+        if (peerRef.current && signal) peerRef.current.signal(signal);
+      });
+
+      newSocket.on('call_ended', () => { resetAdminCall(); });
+      newSocket.on('call_failed', () => { alert('User is unavailable right now.'); resetAdminCall(); });
+
       newSocket.on('admin_intercept_started', (data) => {
         setActiveRandomChat(data);
         setRandomMessages([]);
@@ -251,6 +314,11 @@ export default function DeveloperAdmin() {
         newSocket.off('receive_message');
         newSocket.off('anonymous_chat_ended');
         newSocket.off('globe_status_update');
+        newSocket.off('admin_incoming_call');
+        newSocket.off('call_accepted');
+        newSocket.off('call_ended');
+        newSocket.off('call_failed');
+        stopAdminCallMedia();
         newSocket.disconnect();
       };
     }
@@ -587,6 +655,13 @@ export default function DeveloperAdmin() {
     return () => clearTimeout(id);
   }, [requestToast]);
 
+  // Tick the connected-call duration once a second.
+  useEffect(() => {
+    if (!adminCall || !callAccepted) return;
+    const id = setInterval(() => setCallSeconds(s => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [adminCall, callAccepted]);
+
   const handleSendRandomMessage = (e) => {
     e.preventDefault();
     if (!randomMessageInput.trim() || !activeRandomChat || !adminSocket) return;
@@ -704,9 +779,166 @@ export default function DeveloperAdmin() {
       ...msgData,
       _id: Date.now(),
       sender: selectedBotChat.bot._id,
+      message: botChatMessageInput,
       createdAt: new Date().toISOString()
     }]);
     setBotChatMessageInput('');
+  };
+
+  // ── Follow-back / Block for the open bot chat ──
+  const followBackUser = async () => {
+    if (!selectedBotChat) return;
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bots/follow/${selectedBotChat.bot._id}/${selectedBotChat.user._id}`, {
+        method: 'POST', headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) {
+        setFollowedIds(prev => new Set(prev).add(String(selectedBotChat.user._id)));
+        fetchBotChats();
+      } else {
+        alert('Could not follow back.');
+      }
+    } catch (err) { console.error(err); alert('Could not follow back.'); }
+  };
+
+  const blockUserInChat = async () => {
+    if (!selectedBotChat) return;
+    const userId = String(selectedBotChat.user._id);
+    const willBlock = !blockedIds.has(userId);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bots/block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
+        body: JSON.stringify({ botId: selectedBotChat.bot._id, userId, blocked: willBlock })
+      });
+      if (res.ok) {
+        setBlockedIds(prev => {
+          const s = new Set(prev);
+          if (willBlock) s.add(userId); else s.delete(userId);
+          return s;
+        });
+      } else {
+        alert('Could not update block.');
+      }
+    } catch (err) { console.error(err); alert('Could not update block.'); }
+  };
+
+  // ── Admin WebRTC call helpers ──
+  const stopAdminCallMedia = () => {
+    if (callTimeoutRef.current) { clearTimeout(callTimeoutRef.current); callTimeoutRef.current = null; }
+    if (peerRef.current) { try { peerRef.current.destroy(); } catch (e) {} peerRef.current = null; }
+    if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
+    pendingCandidatesRef.current = [];
+    callerSignalRef.current = null;
+    callAcceptedRef.current = false;
+  };
+
+  const resetAdminCall = () => {
+    stopAdminCallMedia();
+    setAdminCall(null);
+    setCallAccepted(false);
+    setIsAudioMuted(false);
+    setIsVideoOff(false);
+    setCallSeconds(0);
+  };
+
+  const getAdminMedia = (isVideo) =>
+    navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo ? { facingMode: 'user' } : false });
+
+  const attachLocalStream = (stream) => {
+    setTimeout(() => {
+      if (adminMyVideoRef.current) {
+        adminMyVideoRef.current.srcObject = stream;
+        adminMyVideoRef.current.play()?.catch(() => {});
+      }
+    }, 60);
+  };
+
+  const startAdminCall = async (isVideo) => {
+    if (!selectedBotChat || !adminSocket) return;
+    const user = selectedBotChat.user, bot = selectedBotChat.bot;
+    try {
+      const stream = await getAdminMedia(isVideo);
+      localStreamRef.current = stream;
+      setAdminCall({ active: true, incoming: false, isVideo, peerUserId: String(user._id), peerSocketId: null, peerUsername: user.username, peerAvatar: user.avatarUrl, botId: bot._id, botUsername: bot.username });
+      setCallAccepted(false);
+      attachLocalStream(stream);
+      const peer = new Peer({ initiator: true, trickle: true, stream, config: CALL_ICE });
+      peer.on('signal', (data) => {
+        adminSocket.emit('call_user', { userToCall: String(user._id), signalData: data, from: bot._id, fromUsername: bot.username, fromAvatar: bot.avatarUrl, isVideo });
+      });
+      peer.on('stream', (remote) => {
+        if (adminRemoteVideoRef.current) { adminRemoteVideoRef.current.srcObject = remote; adminRemoteVideoRef.current.play()?.catch(() => {}); }
+      });
+      peer.on('close', () => resetAdminCall());
+      peer.on('error', () => resetAdminCall());
+      peerRef.current = peer;
+      callTimeoutRef.current = setTimeout(() => { if (!callAcceptedRef.current) endAdminCall(); }, 60000);
+    } catch (err) {
+      console.error(err);
+      alert('Call setup failed: ' + (err.message || err));
+      resetAdminCall();
+    }
+  };
+
+  const acceptAdminCall = async () => {
+    const c = adminCall;
+    if (!c || !c.incoming || !adminSocket) return;
+    try {
+      const stream = await getAdminMedia(c.isVideo);
+      localStreamRef.current = stream;
+      attachLocalStream(stream);
+      const peer = new Peer({ initiator: false, trickle: true, stream, config: CALL_ICE });
+      peer.on('signal', (data) => {
+        adminSocket.emit('answer_call', { to: c.peerUserId, toSocketId: c.peerSocketId, signal: data });
+      });
+      peer.on('stream', (remote) => {
+        if (adminRemoteVideoRef.current) { adminRemoteVideoRef.current.srcObject = remote; adminRemoteVideoRef.current.play()?.catch(() => {}); }
+      });
+      peer.on('close', () => resetAdminCall());
+      peer.on('error', () => resetAdminCall());
+      if (callerSignalRef.current) peer.signal(callerSignalRef.current);
+      pendingCandidatesRef.current.forEach(cd => peer.signal(cd));
+      pendingCandidatesRef.current = [];
+      peerRef.current = peer;
+      setAdminCall({ ...c, incoming: false });
+      setCallAccepted(true);
+      callAcceptedRef.current = true;
+    } catch (err) {
+      console.error(err);
+      alert('Could not access mic/camera: ' + (err.message || err));
+      declineAdminCall();
+    }
+  };
+
+  const endAdminCall = () => {
+    const c = adminCall;
+    if (c && adminSocket && c.peerUserId) {
+      adminSocket.emit('end_call', { to: c.peerUserId, toSocketId: c.peerSocketId || undefined });
+    }
+    resetAdminCall();
+  };
+
+  const declineAdminCall = () => {
+    const c = adminCall;
+    if (c && adminSocket && c.peerUserId) {
+      adminSocket.emit('end_call', { to: c.peerUserId, toSocketId: c.peerSocketId || undefined });
+    }
+    resetAdminCall();
+  };
+
+  const toggleMute = () => {
+    const s = localStreamRef.current; if (!s) return;
+    const next = !isAudioMuted;
+    s.getAudioTracks().forEach(t => { t.enabled = !next; });
+    setIsAudioMuted(next);
+  };
+
+  const toggleCamera = () => {
+    const s = localStreamRef.current; if (!s) return;
+    const next = !isVideoOff;
+    s.getVideoTracks().forEach(t => { t.enabled = !next; });
+    setIsVideoOff(next);
   };
 
   if (!isAuthenticated) {
@@ -1483,7 +1715,17 @@ export default function DeveloperAdmin() {
                                 <div className="lr-chat-title">@{selectedBotChat.user.username}</div>
                                 <div className="lr-chat-sub">You are @{selectedBotChat.bot.username}</div>
                               </div>
-                              <button className="lr-leave" onClick={() => setSelectedBotChat(null)}>Close</button>
+                              <div className="lr-chat-actions">
+                                <button className="lr-act" title="Voice call" onClick={() => startAdminCall(false)}><Phone size={18} /></button>
+                                <button className="lr-act" title="Video call" onClick={() => startAdminCall(true)}><Video size={18} /></button>
+                                {followedIds.has(String(selectedBotChat.user._id))
+                                  ? <span className="lr-act lr-act-static" title="Following back"><UserCheck size={18} /></span>
+                                  : <button className="lr-act" title="Follow back" onClick={followBackUser}><UserPlus size={18} /></button>}
+                                {blockedIds.has(String(selectedBotChat.user._id))
+                                  ? <button className="lr-act lr-act-danger" title="Unblock user" onClick={blockUserInChat}><Ban size={18} /></button>
+                                  : <button className="lr-act" title="Block user" onClick={blockUserInChat}><Ban size={18} /></button>}
+                                <button className="lr-leave" onClick={() => setSelectedBotChat(null)}>Close</button>
+                              </div>
                             </div>
                             <div className="lr-chat-body">
                               {botChatMessages.map((msg, i) => {
@@ -1589,6 +1831,53 @@ export default function DeveloperAdmin() {
           </div>
         </div>
       </div>
+
+      {adminCall && (
+        <div className="admin-call-overlay">
+          <div className="admin-call-stage">
+            {adminCall.isVideo ? (
+              <>
+                <video ref={adminRemoteVideoRef} autoPlay playsInline className="admin-call-remote" />
+                <video ref={adminMyVideoRef} autoPlay playsInline muted className="admin-call-pip" style={{ transform: 'scaleX(-1)' }} />
+              </>
+            ) : (
+              <>
+                <video ref={adminRemoteVideoRef} autoPlay playsInline className="admin-call-audio-el" />
+                <video ref={adminMyVideoRef} autoPlay playsInline muted className="admin-call-audio-el" />
+                <div className="admin-call-avatar">
+                  {adminCall.peerAvatar ? <img src={adminCall.peerAvatar} alt="" /> : <span>{(adminCall.peerUsername || '?').charAt(0).toUpperCase()}</span>}
+                </div>
+              </>
+            )}
+
+            <div className="admin-call-top">
+              <div className="admin-call-who">@{adminCall.peerUsername}</div>
+              <div className="admin-call-sub">
+                {adminCall.incoming
+                  ? `Incoming ${adminCall.isVideo ? 'video' : 'voice'} call · as @${adminCall.botUsername}`
+                  : (!callAccepted ? 'Ringing…' : `${adminCall.isVideo ? 'Video' : 'Voice'} connected · ${formatCallDuration(callSeconds)} · as @${adminCall.botUsername}`)}
+              </div>
+            </div>
+
+            <div className="admin-call-controls">
+              {adminCall.incoming && !callAccepted ? (
+                <>
+                  <button className="admin-call-btn decline" onClick={declineAdminCall} title="Decline"><PhoneOff size={24} /></button>
+                  <button className="admin-call-btn accept" onClick={acceptAdminCall} title="Accept">{adminCall.isVideo ? <Video size={24} /> : <Phone size={24} />}</button>
+                </>
+              ) : (
+                <>
+                  <button className={`admin-call-btn ${isAudioMuted ? 'off' : ''}`} onClick={toggleMute} title="Mute"><Mic size={22} /></button>
+                  {adminCall.isVideo && (
+                    <button className={`admin-call-btn ${isVideoOff ? 'off' : ''}`} onClick={toggleCamera} title="Camera"><VideoOff size={22} /></button>
+                  )}
+                  <button className="admin-call-btn decline" onClick={endAdminCall} title="End call"><PhoneOff size={24} /></button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedReport && (
         <div className="modal-overlay" onClick={() => setSelectedReport(null)}>

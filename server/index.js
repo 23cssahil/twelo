@@ -3977,6 +3977,57 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
   }
 });
 
+// Follow-back: make an admin bot follow a real user so they become mutual friends
+// (the user can then call/chat with the admin like with any real friend).
+app.post('/api/admin/bots/follow/:botId/:userId', adminAuth, async (req, res) => {
+  try {
+    const bot = await User.findById(req.params.botId);
+    const user = await User.findById(req.params.userId);
+    if (!bot || !user || !bot.ownedByAdmin) return res.status(404).json({ message: "Invalid request" });
+
+    if (!bot.following.some(id => id.toString() === user._id.toString())) bot.following.push(user._id);
+    if (!user.followers.some(id => id.toString() === bot._id.toString())) user.followers.push(bot._id);
+    // Make sure the bot also shows as followed-by for the user's own connection state.
+    if (!bot.followers.some(id => id.toString() === user._id.toString())) bot.followers.push(user._id);
+    if (!user.following.some(id => id.toString() === bot._id.toString())) user.following.push(bot._id);
+    user.notifications = (user.notifications || []).filter(n => !(n.type === 'follow_back_request' && n.user && n.user.toString() === bot._id.toString()));
+    user.notifications.push({ type: 'started_following_you', user: bot._id });
+
+    await bot.save();
+    await user.save();
+
+    const userSocketId = onlineUsers.get(user._id?.toString());
+    if (userSocketId) {
+      io.to(userSocketId).emit('new_notification');
+      io.to(userSocketId).emit('started_following', { userId: bot._id, username: bot.username });
+    }
+    res.json({ message: "Following back", bot: { _id: bot._id, name: bot.name, username: bot.username, avatarUrl: bot.avatarUrl } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error following back' });
+  }
+});
+
+// Block/unblock a user from an admin bot's perspective (peer block via blockedUsers).
+app.post('/api/admin/bots/block', adminAuth, async (req, res) => {
+  try {
+    const { botId, userId, blocked } = req.body || {};
+    const bot = await User.findById(botId);
+    if (!bot || !userId || !bot.ownedByAdmin) return res.status(404).json({ message: "Invalid request" });
+    bot.blockedUsers = bot.blockedUsers || [];
+    if (blocked) {
+      if (!bot.blockedUsers.some(id => id.toString() === String(userId))) bot.blockedUsers.push(userId);
+    } else {
+      bot.blockedUsers = bot.blockedUsers.filter(id => id.toString() !== String(userId));
+    }
+    await bot.save();
+    res.json({ success: true, blocked: !!blocked });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error updating block' });
+  }
+});
+
 app.get('/api/admin/bots/chats', adminAuth, async (req, res) => {
   try {
     const bots = await User.find({ ownedByAdmin: true }).populate('followers', 'username avatarUrl').lean();
@@ -4013,7 +4064,8 @@ app.get('/api/admin/bots/conversations', adminAuth, async (req, res) => {
       const userId = botId === s ? r : s;
       const key = `${botId}_${userId}`;
       if (seen.has(key)) continue; seen.add(key);
-      result.push({ bot: botMap[botId], userId, lastMessage: m.message || (m.fileUrl ? '📎 Attachment' : ''), lastAt: m.createdAt, mine: botId === s });
+      const preview = m.messageType === 'text' ? decryptMsg(m.message) : (m.message || '');
+      result.push({ bot: botMap[botId], userId, lastMessage: preview || (m.fileUrl ? '📎 Attachment' : ''), lastAt: m.createdAt, mine: botId === s });
       if (result.length >= 50) break;
     }
     const userIds = result.map(x => x.userId);
@@ -4034,7 +4086,16 @@ app.get('/api/admin/bots/messages/:botId/:userId', adminAuth, async (req, res) =
         { sender: req.params.userId, receiver: req.params.botId }
       ]
     }).sort({ createdAt: 1 }).lean();
-    res.json(messages);
+    // Messages are stored AES-encrypted; decrypt so the admin sees real text, not ciphertext.
+    const decrypted = messages.map(m => {
+      const obj = m.toObject ? m.toObject() : Object.assign({}, m);
+      if (obj.messageType === 'text') obj.message = decryptMsg(obj.message);
+      if (obj.replyTo && obj.replyTo.messageText) {
+        obj.replyTo = Object.assign({}, obj.replyTo, { messageText: decryptMsg(obj.replyTo.messageText) });
+      }
+      return obj;
+    });
+    res.json(decrypted);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching bot messages' });
   }
@@ -4487,6 +4548,12 @@ io.on('connection', (socket) => {
       if (receiverSocketId) {
         io.to(receiverSocketId).emit('receive_message', payload);
       }
+
+      // Receiver is an admin-owned bot: it has no socket of its own, so push the live
+      // message to every watching admin so the open bot-chat updates without a refresh.
+      if (receiverObj && receiverObj.ownedByAdmin) {
+        io.to('admin_room').emit('receive_message', payload);
+      }
       
       if (senderObj && receiverObj) {
         // Only push when the receiver is OFFLINE (online -> in-app toast).
@@ -4601,7 +4668,7 @@ io.on('connection', (socket) => {
   // --- WebRTC Audio/Video Call Events ---
   
   // Call User (Initiate call)
-  socket.on('call_user', ({ userToCall, signalData, from, fromUsername, fromAvatar, isVideo }) => {
+  socket.on('call_user', async ({ userToCall, signalData, from, fromUsername, fromAvatar, isVideo }) => {
     const receiverSocketId = onlineUsers.get(userToCall?.toString());
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('incoming_call', {
@@ -4612,11 +4679,33 @@ io.on('connection', (socket) => {
         fromAvatar,
         isVideo
       });
-    } else {
-      // Receiver is not online — notify caller immediately ONLY on the initial offer
-      if (signalData && signalData.type === 'offer') {
-        socket.emit('call_failed', { reason: 'User is offline or unavailable' });
+      return;
+    }
+    // Target may be an admin-owned bot (a fake account with no socket of its own). Route
+    // the WebRTC signaling to the watching admin so they can answer like a real user.
+    try {
+      const target = await User.findById(userToCall).select('ownedByAdmin username avatarUrl').lean();
+      if (target && target.ownedByAdmin) {
+        const adminRoom = io.sockets.adapter.rooms.get('admin_room');
+        if (adminRoom && adminRoom.size > 0) {
+          io.to('admin_room').emit('admin_incoming_call', {
+            signal: signalData,
+            from,
+            fromSocketId: socket.id,
+            fromUsername,
+            fromAvatar,
+            isVideo,
+            botId: String(userToCall),
+            botUsername: target.username,
+            botAvatar: target.avatarUrl
+          });
+          return;
+        }
       }
+    } catch (e) { console.error('[call_user] admin-bot routing failed:', e.message); }
+    // Receiver is not online — notify caller immediately ONLY on the initial offer
+    if (signalData && signalData.type === 'offer') {
+      socket.emit('call_failed', { reason: 'User is offline or unavailable' });
     }
   });
 

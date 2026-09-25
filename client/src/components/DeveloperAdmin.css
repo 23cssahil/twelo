@@ -436,3 +436,32 @@
   .live-random-right { min-height: 60vh; }
 }
 
+/* ── Bot chat header action buttons (call / video / follow-back / block) ── */
+.lr-chat-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lr-act { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; border: 1px solid #2c2c2c; background: rgba(255,255,255,0.06); color: #e6e6e6; cursor: pointer; transition: background .15s, transform .1s; }
+.lr-act:hover { background: rgba(255,255,255,0.14); }
+.lr-act:active { transform: scale(0.94); }
+.lr-act-static { cursor: default; color: #10b981; border-color: rgba(16,185,129,0.4); }
+.lr-act-danger { color: #ef4444; border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.12); }
+
+/* ── Admin WebRTC call overlay ── */
+.admin-call-overlay { position: fixed; inset: 0; z-index: 10000; background: #000; display: flex; align-items: center; justify-content: center; }
+.admin-call-stage { position: relative; width: 100%; height: 100%; max-width: 900px; background: linear-gradient(160deg, #0b0f1a, #05070d); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.admin-call-remote { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
+.admin-call-pip { position: absolute; right: 16px; bottom: 110px; width: 120px; height: 170px; object-fit: cover; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 8px 24px rgba(0,0,0,0.5); background: #111; z-index: 3; }
+.admin-call-audio-el { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.admin-call-avatar { width: 140px; height: 140px; border-radius: 50%; overflow: hidden; background: #1b2536; display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: 700; color: #7fb2ff; box-shadow: 0 0 0 6px rgba(127,178,255,0.12); animation: globePulse 1.8s ease-in-out infinite; z-index: 2; }
+.admin-call-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.admin-call-top { position: absolute; top: 0; left: 0; right: 0; padding: 26px 20px; text-align: center; background: linear-gradient(180deg, rgba(0,0,0,0.6), transparent); z-index: 4; }
+.admin-call-who { font-size: 1.5rem; font-weight: 800; color: #fff; }
+.admin-call-sub { margin-top: 6px; font-size: 0.9rem; color: #c7d2e5; }
+.admin-call-controls { position: absolute; bottom: 0; left: 0; right: 0; padding: 28px 20px; display: flex; align-items: center; justify-content: center; gap: 22px; background: linear-gradient(0deg, rgba(0,0,0,0.7), transparent); z-index: 4; }
+.admin-call-btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: rgba(255,255,255,0.12); color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background .15s, transform .1s; }
+.admin-call-btn:hover { background: rgba(255,255,255,0.22); }
+.admin-call-btn:active { transform: scale(0.94); }
+.admin-call-btn.accept { background: #10b981; width: 68px; height: 68px; }
+.admin-call-btn.accept:hover { background: #0ea371; }
+.admin-call-btn.decline { background: #ef4444; width: 68px; height: 68px; }
+.admin-call-btn.decline:hover { background: #dc2626; }
+.admin-call-btn.off { background: rgba(239,68,68,0.85); }
+
