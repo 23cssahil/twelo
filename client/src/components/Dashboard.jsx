@@ -250,17 +250,17 @@ const AdsterraBanner = () => {
   );
 };
 
-// Adsterra ad key (native banner). Used by the story ad, feed banners and the interstitial.
-// If you later create a dedicated Adsterra "Interstitial" zone, put its key + network host
-// here (and the matching invoke.js URL below) to get a higher eCPM full-screen format.
-const ADSTERRA_AD_KEY = '68a0807fea81fdc49bc8a49017e7e443';
-const ADSTERRA_AD_NETWORK = 'pl30895199.effectivecpmnetwork.com';
+// Adsterra display Banner zone (300x250) used by the random-chat interstitial.
+// A fixed-size display banner stays inside its box — unlike the fluid Native Banner,
+// which expanded to full screen and stacked multiple creatives. Recreate/replace via the
+// Adsterra dashboard and update these two constants.
+const INTERSTITIAL_BANNER_KEY = 'b0dd4840ad154ef80f375422ad27c946';
+const INTERSTITIAL_BANNER_NETWORK = 'www.highrevenueformat.com';
 
 // Adsterra interstitial overlay shown between stranger chats (skip / end).
-// It injects the Adsterra ad DIRECTLY into a container (single-level invoke) instead of
-// nesting the /ad.html iframe, because ad networks refuse to fill double-nested iframes
-// (that was why the box appeared empty). A fresh container + script is mounted on every
-// open, so the ad re-runs each time the overlay is shown.
+// It injects the Adsterra loader DIRECTLY into a container (single-level invoke) instead of
+// nesting the /ad.html iframe, because ad networks refuse to fill double-nested iframes.
+// A fresh container + script is mounted on every open, so the ad re-runs each time.
 const InterstitialAd = ({ onClose }) => {
   const [secs, setSecs] = useState(5);
   const [adLoading, setAdLoading] = useState(true);
@@ -272,17 +272,25 @@ const InterstitialAd = ({ onClose }) => {
     return () => clearTimeout(t);
   }, [secs]);
 
-  // Inject the Adsterra loader into a container that exists only while this overlay is
-  // open. Removed on unmount so the next open re-runs the loader and shows a fresh ad.
+  // Inject the Adsterra display-banner loader into a container that exists only while this
+  // overlay is open. Removed on unmount so the next open re-runs the loader with a fresh ad.
   useEffect(() => {
     const host = adHostRef.current;
     if (!host) return;
     host.innerHTML = '';
+    // Adsterra's display banner reads window.atOptions and renders a fixed 300x250 iframe.
+    window.atOptions = {
+      key: INTERSTITIAL_BANNER_KEY,
+      format: 'iframe',
+      height: 250,
+      width: 300,
+      params: {},
+    };
     const container = document.createElement('div');
-    container.id = `container-${ADSTERRA_AD_KEY}`;
-    container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:100%;max-width:320px;min-height:250px;max-height:100%;overflow:hidden;margin:0 auto;';
+    container.id = `container-${INTERSTITIAL_BANNER_KEY}`;
+    container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:300px;max-width:100%;min-height:250px;overflow:hidden;margin:0 auto;';
     const script = document.createElement('script');
-    script.src = `//${ADSTERRA_AD_NETWORK}/${ADSTERRA_AD_KEY}/invoke.js`;
+    script.src = `https://${INTERSTITIAL_BANNER_NETWORK}/${INTERSTITIAL_BANNER_KEY}/invoke.js`;
     script.async = true;
     script.dataset.cfasync = 'false';
     host.appendChild(container);
