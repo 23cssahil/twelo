@@ -6289,10 +6289,10 @@ const handleStoryUpload = async () => {
                   
                   <div style={{ marginTop: '20px', width: '100%' }}>
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
-                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
-                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
+                    <div className="profile-stories-grid">
+                      <div className="shimmer profile-story-tile"></div>
+                      <div className="shimmer profile-story-tile"></div>
+                      <div className="shimmer profile-story-tile"></div>
                     </div>
                   </div>
                 </div>
@@ -6503,11 +6503,11 @@ const handleStoryUpload = async () => {
                 {publicProfileData.globalStories && publicProfileData.globalStories.length > 0 && (
                   <div style={{ marginTop: '20px', width: '100%' }}>
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                    <div className="profile-stories-grid">
                       {groupStoriesByDay(showAllGlobalStoriesPublic ? publicProfileData.globalStories : publicProfileData.globalStories).slice(0, showAllGlobalStoriesPublic ? 999 : 3).map((group, index, allGroups) => {
                         const firstStory = group.stories[0];
                         return (
-                        <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: 'var(--insta-gradient)', cursor: 'pointer', position: 'relative' }} onClick={() => { 
+                        <div key={group.date} className="profile-story-tile" onClick={() => { 
                           const viewerGroups = allGroups.map(g => ({
                             user: { _id: publicProfileData._id, username: publicProfileData.username, avatarUrl: publicProfileData.avatarUrl },
                             stories: g.stories
@@ -6518,9 +6518,9 @@ const handleStoryUpload = async () => {
                           setStoryViewerActive(true); 
                         }}>
                           {firstStory.mediaType === 'video' ? (
-                            <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline />
+                            <video src={firstStory.mediaUrl} className="profile-story-media" style={{ objectFit: 'cover' }} autoPlay loop muted playsInline />
                           ) : (
-                            <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
+                            <img src={firstStory.mediaUrl} className="profile-story-media" style={{ objectFit: 'cover' }} alt="global story" />
                           )}
                           <div style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '6px' }}>
                             <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{group.date}</span>
@@ -7423,10 +7423,10 @@ const handleStoryUpload = async () => {
 
                   <div style={{ marginTop: '20px', width: '100%' }}>
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
-                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
-                      <div className="shimmer" style={{ aspectRatio: '9/16', borderRadius: '10px', width: '100%' }}></div>
+                    <div className="profile-stories-grid">
+                      <div className="shimmer profile-story-tile"></div>
+                      <div className="shimmer profile-story-tile"></div>
+                      <div className="shimmer profile-story-tile"></div>
                     </div>
                   </div>
                 </div>
@@ -7554,11 +7554,11 @@ const handleStoryUpload = async () => {
                 {profileStats?.globalStories && profileStats.globalStories.length > 0 && (
                   <div style={{ marginTop: '20px', width: '100%' }}>
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Global Stories</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                    <div className="profile-stories-grid">
                       {groupStoriesByDay(showAllGlobalStoriesMy ? profileStats.globalStories : profileStats.globalStories).slice(0, showAllGlobalStoriesMy ? 999 : 3).map((group, index, allGroups) => {
                         const firstStory = group.stories[0];
                         return (
-                        <div key={group.date} style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', background: 'var(--insta-gradient)', cursor: 'pointer', position: 'relative' }} onClick={() => { 
+                        <div key={group.date} className="profile-story-tile" onClick={() => { 
                           const viewerGroups = allGroups.map(g => ({
                             user: { _id: user.id || user._id, username: user.username, avatarUrl: profileStats?.avatarUrl || user.avatarUrl },
                             stories: g.stories
@@ -7569,9 +7569,9 @@ const handleStoryUpload = async () => {
                           setStoryViewerActive(true); 
                         }}>
                           {firstStory.mediaType === 'video' ? (
-                            <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline />
+                            <video src={firstStory.mediaUrl} className="profile-story-media" style={{ objectFit: 'cover' }} autoPlay loop muted playsInline />
                           ) : (
-                            <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
+                            <img src={firstStory.mediaUrl} className="profile-story-media" style={{ objectFit: 'cover' }} alt="global story" />
                           )}
                           <div style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '6px' }}>
                             <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{group.date}</span>
