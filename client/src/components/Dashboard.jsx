@@ -7021,8 +7021,8 @@ const handleStoryUpload = async () => {
                     title="Latest messages"
                     style={{
                       position: 'absolute',
-                      right: '16px',
-                      bottom: '84px',
+                      left: '50%',
+                      bottom: '96px',
                       width: '44px',
                       height: '44px',
                       borderRadius: '50%',
@@ -7035,7 +7035,7 @@ const handleStoryUpload = async () => {
                       cursor: 'pointer',
                       boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
                       opacity: showScrollToLatest ? 1 : 0,
-                      transform: showScrollToLatest ? 'translateY(0)' : 'translateY(12px)',
+                      transform: showScrollToLatest ? 'translate(-50%, 0)' : 'translate(-50%, 12px)',
                       pointerEvents: showScrollToLatest ? 'auto' : 'none',
                       transition: 'opacity 0.2s ease, transform 0.2s ease',
                       zIndex: 20
