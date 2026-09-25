@@ -280,7 +280,7 @@ const InterstitialAd = ({ onClose }) => {
     host.innerHTML = '';
     const container = document.createElement('div');
     container.id = `container-${ADSTERRA_AD_KEY}`;
-    container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:100%;min-height:250px;';
+    container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:100%;max-width:320px;min-height:250px;max-height:100%;overflow:hidden;margin:0 auto;';
     const script = document.createElement('script');
     script.src = `//${ADSTERRA_AD_NETWORK}/${ADSTERRA_AD_KEY}/invoke.js`;
     script.async = true;
@@ -296,20 +296,25 @@ const InterstitialAd = ({ onClose }) => {
   }, []);
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10006, background: 'rgba(0,0,0,0.93)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div style={{ width: '100%', maxWidth: '340px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10006, background: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column' }}>
+      {/* Fixed header — always sits above the ad so the close control is never covered */}
+      <div style={{ flexShrink: 0, position: 'relative', zIndex: 2, width: '100%', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'rgba(0,0,0,0.6)' }}>
         <span style={{ color: '#888', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sponsored</span>
         {secs > 0
           ? <span style={{ color: '#888', fontSize: '0.8rem' }}>Close in {secs}s</span>
-          : <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', borderRadius: '20px', padding: '5px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>✕</button>}
+          : <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: '20px', padding: '6px 16px', cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1 }}>✕</button>}
       </div>
-      <div style={{ width: '100%', maxWidth: '340px', minHeight: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-        <div ref={adHostRef} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}></div>
-        {adLoading && <span style={{ color: '#888', fontSize: '0.9rem' }}>Loading Ad…</span>}
+      {/* Bounded ad area — clipped so a tall/wide native banner can't push the buttons off-screen */}
+      <div style={{ flex: 1, minHeight: 0, position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '12px' }}>
+        <div ref={adHostRef} style={{ width: '100%', maxWidth: '320px', maxHeight: '100%', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}></div>
+        {adLoading && <span style={{ position: 'absolute', color: '#888', fontSize: '0.9rem' }}>Loading Ad…</span>}
       </div>
-      {secs <= 0 && (
-        <button onClick={onClose} style={{ marginTop: '18px', background: 'var(--brand-blue)', border: 'none', color: '#fff', borderRadius: '24px', padding: '10px 30px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 600 }}>Continue</button>
-      )}
+      {/* Fixed footer — Continue button always visible once the countdown ends */}
+      <div style={{ flexShrink: 0, position: 'relative', zIndex: 2, width: '100%', boxSizing: 'border-box', display: 'flex', justifyContent: 'center', padding: '16px', background: 'rgba(0,0,0,0.6)' }}>
+        {secs <= 0 && (
+          <button onClick={onClose} style={{ background: 'var(--brand-blue)', border: 'none', color: '#fff', borderRadius: '24px', padding: '10px 34px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 600 }}>Continue</button>
+        )}
+      </div>
     </div>
   );
 };
