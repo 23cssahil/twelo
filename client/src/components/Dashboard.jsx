@@ -1671,6 +1671,8 @@ export default function Dashboard() {
   const messagesEndRef = useRef(null);
   const chatMessagesRef = useRef(null);        // the scrollable messages container (normal chat)
   const [showScrollToLatest, setShowScrollToLatest] = useState(false); // "jump to latest" button visibility
+  const chatAtBottomRef = useRef(true);        // is the normal chat currently scrolled to the bottom?
+  const [newMsgsWhileUp, setNewMsgsWhileUp] = useState(0); // incoming messages that arrived while scrolled up
   const globeEl = useRef(null);
 
   // Swipe to reply state
@@ -3103,12 +3105,31 @@ export default function Dashboard() {
           const isTyping = partnerTyping || anonymousPartnerTyping;
           const isNewChat = prevActiveChatId.current !== (activeChatUser?._id || null);
 
-          if (isNewChat || isNewMessageAtBottom || isNewAnonAtBottom || isTyping) {
-            parent.scrollTop = parent.scrollHeight;
-            // Add a small delay to ensure DOM is painted, especially on mobile
-            setTimeout(() => {
-              if (parent) parent.scrollTop = parent.scrollHeight;
-            }, 100);
+          const hasNewMessage = isNewMessageAtBottom || isNewAnonAtBottom;
+          // Only auto-follow to the bottom for the normal friend chat when the user is
+          // already at the bottom (or it's their own outgoing message / a freshly opened
+          // chat). If they scrolled up to read history, an incoming message must NOT yank
+          // them down — instead we surface the jump-to-latest button with a count.
+          const myId = user?.id || user?._id;
+          const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+          const lastIsMine = !!lastMsg && String(lastMsg.sender) === String(myId);
+          const atBottom = chatAtBottomRef.current;
+          const shouldFollow = isNewChat || !activeChatUser || atBottom || lastIsMine;
+
+          if (hasNewMessage || isTyping) {
+            if (shouldFollow) {
+              parent.scrollTop = parent.scrollHeight;
+              // Add a small delay to ensure DOM is painted, especially on mobile
+              setTimeout(() => {
+                if (parent) parent.scrollTop = parent.scrollHeight;
+              }, 100);
+              if (isNewChat) setNewMsgsWhileUp(0);
+            } else if (hasNewMessage && !lastIsMine) {
+              // Scrolled up reading history and a new incoming message arrived: keep the
+              // user's position, reveal the button, and increment its unread counter.
+              setNewMsgsWhileUp(c => c + 1);
+              setShowScrollToLatest(true);
+            }
           }
           
           prevLastMessageId.current = currentLastMessage;
@@ -3148,6 +3169,8 @@ export default function Dashboard() {
       setMessageCursor(null);
       setHasMoreMessages(true);
       setShowScrollToLatest(false); // reset the jump-to-latest button when opening a chat
+      setNewMsgsWhileUp(0);
+      chatAtBottomRef.current = true;
       fetchMessages(activeChatUser._id, null);
     }
   }, [activeChatUser]);
@@ -3226,7 +3249,10 @@ export default function Dashboard() {
     // Show the "jump to latest" button once the user has scrolled up away from the bottom.
     const el = e.target;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const atBottom = distanceFromBottom <= 120;
+    chatAtBottomRef.current = atBottom;
     setShowScrollToLatest(distanceFromBottom > 300);
+    if (atBottom) setNewMsgsWhileUp(0); // reached the newest message -> clear the pending count
     if (el.scrollTop === 0 && hasMoreMessages && !isFetchingMessages && messageCursor) {
       scrollHeightBeforeUpdate.current = el.scrollHeight;
       await fetchMessages(activeChatUser._id, messageCursor);
@@ -3237,6 +3263,8 @@ export default function Dashboard() {
   const scrollToLatest = () => {
     const el = chatMessagesRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    chatAtBottomRef.current = true;
+    setNewMsgsWhileUp(0);
     setShowScrollToLatest(false);
   };
 
@@ -7014,14 +7042,14 @@ const handleStoryUpload = async () => {
                     }}
                   >
                     <ChevronDown size={22} />
-                    {(unreadMessages[activeChatUser._id] || 0) > 0 && (
+                    {newMsgsWhileUp > 0 && (
                       <span style={{
                         position: 'absolute', top: '-4px', right: '-4px',
                         minWidth: '18px', height: '18px', padding: '0 4px',
                         borderRadius: '9px', background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)',
                         color: '#fff', fontSize: '0.68rem', fontWeight: '800',
                         display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}>{unreadMessages[activeChatUser._id]}</span>
+                      }}>{newMsgsWhileUp}</span>
                     )}
                   </button>
 
