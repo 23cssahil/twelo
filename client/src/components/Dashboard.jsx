@@ -8531,35 +8531,35 @@ const handleStoryUpload = async () => {
       )}
       
       {showMoreInfoModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10002, background: '#111', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #333', background: '#000' }}>
-            <button onClick={() => setShowMoreInfoModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ArrowLeft size={24} /></button>
-            <h2 style={{ marginLeft: '20px', fontSize: '1.2rem', margin: '0 0 0 20px' }}>More Info</h2>
+        <div className="more-info-screen">
+          <div className="more-info-header">
+            <button onClick={() => setShowMoreInfoModal(false)} className="more-info-back"><ArrowLeft size={24} /></button>
+            <h2 className="more-info-title">More Info</h2>
           </div>
-          <div style={{ padding: '20px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+          <div className="more-info-body">
 
             {/* App identity */}
-            <div style={{ textAlign: 'center', padding: '24px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid #222' }}>
+            <div className="more-info-card">
               <img src="/icon-192.png" alt="Twelo" style={{ width: 72, height: 72, borderRadius: 18, marginBottom: 12 }} />
               <h3 style={{ margin: '0 0 4px', fontSize: '1.3rem' }}>Twelo</h3>
-              <p style={{ margin: '0 0 12px', color: '#888', fontSize: '0.88rem', lineHeight: '1.5' }}>Anonymous chat platform — meet people from around the world, share stories, and earn rewards.</p>
-              <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', color: '#bbb', fontSize: '0.78rem' }}>Version {APP_VERSION}</span>
+              <p style={{ margin: '0 0 12px', fontSize: '0.88rem', lineHeight: '1.5' }}>Anonymous chat platform — meet people from around the world, share stories, and earn rewards.</p>
+              <span className="more-info-badge">Version {APP_VERSION}</span>
             </div>
 
             {/* About & Help */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <h3 style={{ fontSize: '0.8rem', color: '#888', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>About &amp; Help</h3>
+            <div className="more-info-rows">
+              <h3 className="more-info-section-title">About &amp; Help</h3>
               {[
                 { icon: <Info size={20} />, label: 'About Twelo', desc: 'Our story and mission', to: '/about-us' },
                 { icon: <Mail size={20} />, label: 'Contact Us', desc: 'Reach our support team', to: '/contact-us' },
                 { icon: <FileText size={20} />, label: 'Terms of Service', desc: 'Rules for using Twelo', to: '/terms' },
                 { icon: <Shield size={20} />, label: 'Privacy Policy', desc: 'How we handle your data', to: '/privacy-policy' },
               ].map((row, i) => (
-                <button key={i} onClick={() => { setShowMoreInfoModal(false); navigate(row.to); }} style={{ display: 'flex', alignItems: 'center', gap: '14px', width: '100%', textAlign: 'left', padding: '14px 16px', background: 'rgba(255,255,255,0.06)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', cursor: 'pointer' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }}>{row.icon}</span>
+                <button key={i} className="more-info-row" onClick={() => { setShowMoreInfoModal(false); navigate(row.to); }}>
+                  <span className="more-info-row-icon">{row.icon}</span>
                   <span style={{ flex: 1 }}>
-                    <span style={{ display: 'block', fontSize: '1rem', fontWeight: 600 }}>{row.label}</span>
-                    <span style={{ display: 'block', fontSize: '0.82rem', color: '#888', marginTop: 2 }}>{row.desc}</span>
+                    <span className="more-info-row-label">{row.label}</span>
+                    <span className="more-info-row-desc">{row.desc}</span>
                   </span>
                   <ChevronRight size={20} color="#666" />
                 </button>
@@ -8567,25 +8567,25 @@ const handleStoryUpload = async () => {
             </div>
 
             {/* Spread the word */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <h3 style={{ fontSize: '0.8rem', color: '#888', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Spread the word</h3>
-              <button onClick={async () => {
+            <div className="more-info-rows">
+              <h3 className="more-info-section-title">Spread the word</h3>
+              <button className="more-info-row" onClick={async () => {
                 const shareData = { title: 'Twelo', text: 'Join me on Twelo — chat with people from around the world anonymously!', url: window.location.origin };
                 try {
                   if (navigator.share) { await navigator.share(shareData); }
                   else { await navigator.clipboard.writeText(shareData.url); showToastMsg('Link copied!'); }
                 } catch (err) { /* user dismissed the share sheet */ }
-              }} style={{ display: 'flex', alignItems: 'center', gap: '14px', width: '100%', textAlign: 'left', padding: '14px 16px', background: 'rgba(255,255,255,0.06)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', cursor: 'pointer' }}>
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }}><Share2 size={20} /></span>
+              }}>
+                <span className="more-info-row-icon"><Share2 size={20} /></span>
                 <span style={{ flex: 1 }}>
-                  <span style={{ display: 'block', fontSize: '1rem', fontWeight: 600 }}>Share Twelo</span>
-                  <span style={{ display: 'block', fontSize: '0.82rem', color: '#888', marginTop: 2 }}>Invite friends to join</span>
+                  <span className="more-info-row-label">Share Twelo</span>
+                  <span className="more-info-row-desc">Invite friends to join</span>
                 </span>
                 <ChevronRight size={20} color="#666" />
               </button>
             </div>
 
-            <p style={{ textAlign: 'center', color: '#555', fontSize: '0.78rem', margin: '4px 0 20px' }}>© {new Date().getFullYear()} Twelo. All rights reserved.</p>
+            <p className="more-info-footer">© {new Date().getFullYear()} Twelo. All rights reserved.</p>
           </div>
         </div>
       )}
