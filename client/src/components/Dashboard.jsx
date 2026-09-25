@@ -206,6 +206,19 @@ const DEFAULT_REACTION = '❤️';
   return flags[countryName] || '🌍';
 };
 
+// Read-only date formatter for the Account Info panel (e.g. "21 Sep 2026").
+const formatAccountDate = (value, withTime = false) => {
+  if (!value) return 'N/A';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return 'N/A';
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {})
+  });
+};
+
 const AdsterraBanner = () => {
   const [loading, setLoading] = useState(true);
 
@@ -8451,21 +8464,34 @@ const handleStoryUpload = async () => {
             {/* Read Only Account Details */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '15px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid #222' }}>
               <h3 style={{ fontSize: '1rem', color: '#ccc', margin: 0, borderBottom: '1px solid #333', paddingBottom: '10px' }}>Account Info</h3>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#888', fontSize: '0.9rem' }}>Email</span>
-                <span style={{ color: '#fff', fontSize: '0.9rem' }}>{user?.email || 'N/A'}</span>
-              </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#888', fontSize: '0.9rem' }}>Twelo Coins</span>
-                <span style={{ color: '#ffd700', fontSize: '0.9rem', fontWeight: 'bold' }}>🟡 {user?.coins || 0}</span>
-              </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#888', fontSize: '0.9rem' }}>Twelo ID</span>
-                <span style={{ color: '#fff', fontSize: '0.9rem', fontFamily: 'monospace' }}>{user?.uniqueId || 'N/A'}</span>
-              </div>
+              {(() => {
+                // profileStats holds the full owner record (createdAt, email, counts, etc.);
+                // fall back to the lighter auth `user` object until the profile has loaded.
+                const src = profileStats || user || {};
+                const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : 'N/A');
+                const rows = [
+                  { label: 'Username', value: src.username ? `@${src.username}` : 'N/A' },
+                  { label: 'Name', value: src.name || 'N/A' },
+                  { label: 'Email', value: src.email || 'N/A' },
+                  { label: 'Twelo ID', value: src.uniqueId || 'N/A', mono: true },
+                  { label: 'Twelo Coins', value: `🟡 ${src.coins ?? 0}`, color: '#ffd700', bold: true },
+                  { label: 'Country', value: src.country ? `${getFlagEmoji(src.country, src.countryCode)} ${src.country}` : 'N/A' },
+                  { label: 'Age', value: src.age ? `${src.age} Yrs` : 'N/A' },
+                  { label: 'Gender', value: cap(src.gender) },
+                  { label: 'Account Type', value: src.isGuest ? 'Guest' : 'Twelo Member' },
+                  { label: 'Privacy', value: src.isPrivate ? 'Private' : 'Public' },
+                  { label: 'Joined On', value: formatAccountDate(src.createdAt) },
+                  { label: 'Last Active', value: formatAccountDate(src.lastActive, true) },
+                  { label: 'Followers', value: formatCount((src.followers || []).length) },
+                  { label: 'Following', value: formatCount((src.following || []).length) },
+                ];
+                return rows.map((r, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                    <span style={{ color: '#888', fontSize: '0.9rem', flexShrink: 0 }}>{r.label}</span>
+                    <span style={{ color: r.color || '#fff', fontSize: '0.9rem', fontWeight: r.bold ? 'bold' : 'normal', fontFamily: r.mono ? 'monospace' : 'inherit', textAlign: 'right', wordBreak: 'break-word' }}>{r.value}</span>
+                  </div>
+                ));
+              })()}
             </div>
 
             {/* Account Deletion */}

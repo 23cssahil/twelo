@@ -1259,6 +1259,10 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
       }
     }
 
+    // This is the owner's own profile (authenticateToken + userId), so it is safe to
+    // return the decrypted email; the Account Info panel shows it read-only.
+    user.email = decryptEmail(user.email);
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching profile' });
