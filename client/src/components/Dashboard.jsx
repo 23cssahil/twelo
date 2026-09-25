@@ -8108,7 +8108,7 @@ const handleStoryUpload = async () => {
       
       {/* Change Username Modal */}
       {showChangeUsernameModal && (
-        <div className="settings-drawer-overlay" onClick={() => setShowChangeUsernameModal(false)} style={{ zIndex: 10002 }}>
+        <div className="settings-drawer-overlay" onClick={() => setShowChangeUsernameModal(false)} style={{ zIndex: 10005 }}>
           <div className="settings-drawer" onClick={e => e.stopPropagation()} style={{ height: '100%', maxHeight: '100%', width: '100%', maxWidth: '100%', top: '0', bottom: '0', left: '0', right: '0', borderRadius: '0', position: 'fixed', transform: 'none', transition: 'none' }}>
             <div className="modal-header">
               <h2>Change Username</h2>
