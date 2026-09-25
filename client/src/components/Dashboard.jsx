@@ -6142,15 +6142,15 @@ const handleStoryUpload = async () => {
               {(hasQuery || searchMode === 'discover') && (() => {
                 const historyIds = new Set((searchHistoryCache || []).map(h => String(h._id)));
                 const filtered = hasQuery ? searchResults : searchResults.filter(su => !historyIds.has(String(su._id)));
-                return filtered.map((searchUser) => {
+                return filtered.map((searchUser, idx) => {
                 const isFollowing = followingSet.has(searchUser._id);
                 const hasRequested = searchUser.friendRequests?.includes(user.id);
                 const isOnline = onlineUsersSet.has(searchUser._id);
                 const followerCount = searchUser.followers?.length || 0;
                 return (
+                  <React.Fragment key={searchUser._id}>
                   <div 
                     className="user-card" 
-                    key={searchUser._id}
                     onTouchStart={() => handleSearchHistoryTouchStart(searchUser)}
                     onTouchEnd={handleSearchHistoryTouchEnd}
                     onTouchMove={handleSearchHistoryTouchEnd}
@@ -6181,6 +6181,13 @@ const handleStoryUpload = async () => {
                       <button className="chat-now-btn" onClick={() => sendFollowRequest(searchUser._id)}>Follow</button>
                     )}
                   </div>
+                  {(idx + 1) % 5 === 0 && (
+                    <div style={{ margin: '4px 0 12px' }}>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '4px', paddingLeft: '4px' }}>Sponsored</span>
+                      <AdBanner />
+                    </div>
+                  )}
+                  </React.Fragment>
                 );
               });
               })()}
