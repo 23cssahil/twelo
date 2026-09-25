@@ -6263,12 +6263,6 @@ const handleStoryUpload = async () => {
                       <button className="chat-now-btn" onClick={() => sendFollowRequest(searchUser._id)}>Follow</button>
                     )}
                   </div>
-                  {(idx + 1) % 5 === 0 && (
-                    <div style={{ margin: '4px 0 12px' }}>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '4px', paddingLeft: '4px' }}>Sponsored</span>
-                      <AdBanner />
-                    </div>
-                  )}
                   </React.Fragment>
                 );
               });
