@@ -650,6 +650,16 @@ const generateUniqueId = () => {
   return result;
 };
 
+// Collision-checked display-ID generator. Real accounts use a 10-digit numeric
+// ID; admin bot personas previously used a raw random number WITHOUT checking
+// for collisions, and a bot sharing a real user's ID made search hide the real
+// account. Always verify uniqueness before assigning.
+const generateUniqueUniqueId = async () => {
+  let uniqueId = Math.floor(Math.random() * 1000000000).toString();
+  while (await User.findOne({ uniqueId })) uniqueId = Math.floor(Math.random() * 1000000000).toString();
+  return uniqueId;
+};
+
 // ── Guest account helpers ─────────────────────────────────────────
 // A guest's recovery/claim code is high-entropy and random, so a fast SHA-256
 // (not a password hash) is appropriate and lets us look the code up directly.
@@ -4003,7 +4013,7 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
         username: uname,
         email: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}@twelo.com`,
         googleId: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-        uniqueId: Math.floor(Math.random() * 1000000000).toString(),
+        uniqueId: await generateUniqueUniqueId(),
         avatarUrl: (idn.avatarUrl && String(idn.avatarUrl).trim()) || bot.avatarUrl || generateAvatarUrl(bot.gender),
         ownedByAdmin: true,
         dedicatedTo: user._id
@@ -4963,7 +4973,7 @@ io.on('connection', (socket) => {
               username: `${randomName.toLowerCase()}${randomSuffix}`,
               email: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}@twelo.com`,
               googleId: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-              uniqueId: Math.floor(Math.random() * 1000000000).toString(),
+              uniqueId: await generateUniqueUniqueId(),
               avatarUrl: generateAvatarUrl(['male', 'female'][Math.floor(Math.random() * 2)]),
               ownedByAdmin: true,
               dedicatedTo: targetUserId
@@ -5597,6 +5607,33 @@ setTimeout(async () => {
     }
   } catch(e) {}
 }, 5000);
+
+// One-time repair: admin bot personas used to get a random uniqueId with no
+// collision check. If a bot shares a real user's display ID, the shared ID is
+// ambiguous in search; give the bot a fresh unique one (real accounts keep
+// theirs). Runs once per boot, a few seconds after startup.
+let botIdCollisionRepaired = false;
+setTimeout(async () => {
+  if (botIdCollisionRepaired) return;
+  try {
+    const dupes = await User.aggregate([
+      { $group: { _id: '$uniqueId', count: { $sum: 1 }, ids: { $push: '$_id' }, botFlag: { $push: '$ownedByAdmin' } } },
+      { $match: { count: { $gt: 1 }, _id: { $ne: null } } }
+    ]);
+    for (const d of dupes) {
+      for (let i = 0; i < d.ids.length; i++) {
+        // Re-id only the bot members of the collision group.
+        if (!d.botFlag[i]) continue;
+        const fresh = await generateUniqueUniqueId();
+        await User.updateOne({ _id: d.ids[i] }, { uniqueId: fresh });
+        console.log(`Repaired colliding bot uniqueId -> ${fresh}`);
+      }
+    }
+    botIdCollisionRepaired = true;
+  } catch (e) {
+    console.error('Bot uniqueId repair failed:', e.message);
+  }
+}, 8000);
 
 
 

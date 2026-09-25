@@ -3435,18 +3435,15 @@ export default function Dashboard() {
     setShowBlockedModal(false);
   };
 
-  // Drop duplicate accounts (the same username or the same unique ID can exist
-  // under more than one account), keeping the first occurrence.
+  // Drop duplicate ROWS of the same account (a user can straddle two pages).
+  // Only _id is used: distinct accounts can legitimately share a username or a
+  // display ID (admin bot personas generated colliding random IDs), and hiding
+  // by those fields made followed users unsearchable in the discover feed.
   const dedupeUsersByIdentity = (list) => {
     const seenIds = new Set();
-    const seenUsernames = new Set();
-    const seenUniqueIds = new Set();
     return (list || []).filter(u => {
-      const uname = (u.username || '').toLowerCase();
-      if (seenIds.has(String(u._id)) || (uname && seenUsernames.has(uname)) || (u.uniqueId && seenUniqueIds.has(u.uniqueId))) return false;
+      if (seenIds.has(String(u._id))) return false;
       seenIds.add(String(u._id));
-      if (uname) seenUsernames.add(uname);
-      if (u.uniqueId) seenUniqueIds.add(u.uniqueId);
       return true;
     });
   };
