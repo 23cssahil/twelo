@@ -130,6 +130,8 @@ export default function DeveloperAdmin() {
   const LIVE_PAGE_SIZE = 10;
 
   const [activeTab, setActiveTab] = useState('overview');
+  // Which Overview sub-panel is revealed under the top button row (health | broadcast | globe).
+  const [overviewView, setOverviewView] = useState('health');
   // Sidebar starts open on desktop, collapsed (off-canvas) on small screens.
   const [sidebarOpen, setSidebarOpen] = useState(() => (typeof window !== 'undefined' ? window.innerWidth > 900 : true));
   // Rolling server-health samples (last ~30) that drive the overview sparkline.
@@ -1267,7 +1269,15 @@ export default function DeveloperAdmin() {
           <div className="dev-content">
             {/* ── OVERVIEW ── live health row + quick-control panels ── */}
             {activeTab === 'overview' && (
-              <>
+              <div className="dev-fit-content">
+                {/* ── Top button row: each reveals its panel below ── */}
+                <div className="dev-analytics-tabs">
+                  <button className={`dev-analytics-tab${overviewView === 'health' ? ' active' : ''}`} onClick={() => setOverviewView('health')}><Activity size={16} /> Server Health</button>
+                  <button className={`dev-analytics-tab${overviewView === 'broadcast' ? ' active' : ''}`} onClick={() => setOverviewView('broadcast')}><Send size={16} /> Broadcasts &amp; Stories</button>
+                  <button className={`dev-analytics-tab${overviewView === 'globe' ? ' active' : ''}`} onClick={() => setOverviewView('globe')}><Globe size={16} /> Globe Control System</button>
+                </div>
+
+                {overviewView === 'health' && (
                 <div className="dev-overview-hero">
                   <div className="dev-health-card">
                     <div className="dev-health-head">
@@ -1304,9 +1314,10 @@ export default function DeveloperAdmin() {
                     </div>
                   </div>
                 </div>
+                )}
 
-
-        {/* Action Grid */}
+        {/* Broadcasts & Stories (revealed by the top button) */}
+        {overviewView === 'broadcast' && (
         <div className="dev-action-grid">
           {/* Global Broadcast & Stories */}
           <div className="dev-panel">
@@ -1336,8 +1347,12 @@ export default function DeveloperAdmin() {
               </button>
             </div>
           </div>
+        </div>
+        )}
 
-          {/* Globe Control System */}
+        {/* Globe Control System (revealed by the top button) */}
+        {overviewView === 'globe' && (
+        <div className="dev-action-grid">
           {(() => {
             const online = globeStatus.isEnabled;
             const remainingMs = (!online && globeStatus.enableAt) ? (new Date(globeStatus.enableAt).getTime() - globeTick) : 0;
@@ -1422,7 +1437,9 @@ export default function DeveloperAdmin() {
           })()}
 
           </div>
-              </>
+        )}
+
+              </div>
             )}
 
             {/* ── DATA SECTIONS (open on the right when a sidebar item is active) ── */}
@@ -1466,6 +1483,8 @@ export default function DeveloperAdmin() {
                         {analyticsData && <MiniStat icon={CheckCircle} label="Retention (Est.)" value={`${analyticsData.day1Retention}%`} />}
                         {analyticsData && <MiniStat icon={Clock} label="Avg Session" value={`${analyticsData.avgSessionMinutes}m`} />}
                         {analyticsData && <MiniStat icon={UserPlus} label="New Today" value={`+${analyticsData.todaySignups || 0}`} />}
+                        <MiniStat icon={MessageSquare} label="Total Chats" value={totalChats} />
+                        <MiniStat icon={Radio} label="Stories" value={totalStories} />
                       </div>
                       {(() => {
                         const all = liveUsers ? liveUsers.users : [];

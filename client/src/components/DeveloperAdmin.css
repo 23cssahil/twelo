@@ -669,6 +669,18 @@
 }
 
 /* ── Analytics: top button row + reveal panels ──────────────────── */
+/* Overview: everything fits on one page — no wrapping scroll container. */
+.dev-fit-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.dev-fit-content .dev-analytics-tabs { flex-shrink: 0; }
+.dev-fit-content .dev-overview-hero { min-height: 0; }
+.dev-fit-content .dev-tile-row { min-height: 0; }
+.dev-fit-content .dev-tile { padding: 12px 14px; }
+.dev-fit-content .dev-action-grid { grid-template-columns: 1fr; min-height: 0; }
+.dev-fit-content .dev-panel { padding: 16px 18px; }
 .dev-analytics-tabs {
   display: flex;
   flex-wrap: wrap;
