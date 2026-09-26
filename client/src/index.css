@@ -270,6 +270,20 @@ input, button, textarea {
   }
 }
 
+/* Match launcher overlay (MATCH circle + hint). It is position:fixed, so on desktop it must
+   be offset past the 250px sidebar to share the same horizontal center as the gender-filter
+   layer (.space-container lives inside .main-content, which already starts after the sidebar). */
+.match-launcher {
+  left: 0;
+  width: 100%;
+}
+@media (min-width: 768px) {
+  .match-launcher {
+    left: 250px;
+    width: calc(100% - 250px);
+  }
+}
+
 /* Mobile Bottom Navigation */
 .mobile-nav {
   display: flex;

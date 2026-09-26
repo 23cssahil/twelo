@@ -7947,8 +7947,8 @@ const handleStoryUpload = async () => {
 
       {/* Match Button — replaces Globe */}
       {activeTab === 'home' && chatMode === 'text' && !activeChatUser && !isAnonymousChatActive && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100%', height: '100dvh',
+        <div className="match-launcher" style={{
+          position: 'fixed', top: 0, height: '100dvh',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           zIndex: 5, pointerEvents: 'none'
         }}>
