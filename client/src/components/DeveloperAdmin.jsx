@@ -3,7 +3,7 @@ import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
 import io from 'socket.io-client';
 import Peer from 'simple-peer';
-import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck, Phone, Video, VideoOff, Mic, MicOff, PhoneOff, Clock } from 'lucide-react';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck, Phone, Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Menu, LayoutDashboard } from 'lucide-react';
 import './DeveloperAdmin.css';
 import {
   Chart as ChartJS,
@@ -61,6 +61,27 @@ function formatCallDuration(sec) {
   return `${p(Math.floor(s / 60))}:${p(s % 60)}`;
 }
 
+// Lightweight SVG sparkline for the live server-health strip. `history` is an
+// array of { ram, cpu } samples (newest last); we draw two normalized lines.
+function HealthSparkline({ history }) {
+  const data = Array.isArray(history) ? history : [];
+  if (data.length < 2) {
+    return <div className="dev-spark-empty">Collecting live health data…</div>;
+  }
+  const W = 100;
+  const H = 36;
+  const step = W / (data.length - 1);
+  const toPts = (key) => data
+    .map((v, i) => `${(i * step).toFixed(1)},${(H - (Math.max(0, Math.min(100, v[key] || 0)) / 100) * H).toFixed(1)}`)
+    .join(' ');
+  return (
+    <svg className="dev-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+      <polyline fill="none" stroke="#10b981" strokeWidth="1.6" points={toPts('ram')} />
+      <polyline fill="none" stroke="#0095f6" strokeWidth="1.6" strokeDasharray="3 2" points={toPts('cpu')} />
+    </svg>
+  );
+}
+
 export default function DeveloperAdmin() {
   const { API_URL } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -88,7 +109,11 @@ export default function DeveloperAdmin() {
   const [showBlockedOnly, setShowBlockedOnly] = useState(false);
   const [showAdminStoryUI, setShowAdminStoryUI] = useState(false);
 
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState('overview');
+  // Sidebar starts open on desktop, collapsed (off-canvas) on small screens.
+  const [sidebarOpen, setSidebarOpen] = useState(() => (typeof window !== 'undefined' ? window.innerWidth > 900 : true));
+  // Rolling server-health samples (last ~30) that drive the overview sparkline.
+  const [healthHistory, setHealthHistory] = useState([]);
   const [growthTimeframe, setGrowthTimeframe] = useState('monthly');
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -386,6 +411,10 @@ export default function DeveloperAdmin() {
       if (res.ok) {
         const data = await res.json();
         setStats(data);
+        if (data && data.serverHealth) {
+          const sh = data.serverHealth;
+          setHealthHistory(prev => [...prev, { ram: sh.ramUsage ?? 0, cpu: sh.cpuLoad ?? 0 }].slice(-30));
+        }
       }
       
       if (activeTab === 'analytics') {
@@ -1114,78 +1143,103 @@ export default function DeveloperAdmin() {
     return <AdminStoryManager onClose={() => setShowStoryManager(false)} API_URL={API_URL} adminPass={password} />;
   }
 
+  // Navigate to a section; on small screens a nav tap also closes the drawer.
+  const goTab = (tab, after) => {
+    setActiveTab(tab);
+    if (typeof after === 'function') after();
+    if (typeof window !== 'undefined' && window.innerWidth <= 900) setSidebarOpen(false);
+  };
+
+  // Shared sidebar navigation model (icon + label + optional live badge).
+  const navItems = [
+    { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { key: 'users', label: 'User Database', icon: Users },
+    { key: 'reports', label: 'User Reports', icon: Flag, badge: reports.length, run: fetchReports },
+    { key: 'live-random', label: 'Live Random', icon: Radio, badge: botRequests.length + liveQueue.length, run: openLiveRandomPage },
+    { key: 'analytics', label: 'Analytics & Growth', icon: BarChart2 },
+  ];
+
   return (
     <div className="dev-dashboard">
       <div className="dev-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button className="dev-hamburger" onClick={() => setSidebarOpen(o => !o)} title="Toggle menu" aria-label="Toggle menu">
+            <Menu size={22} />
+          </button>
           <AlertTriangle color="#ff4b4b" />
-          <h2 style={{ color: '#fff' }}>Twelo Developer Admin</h2>
+          <h2 style={{ color: '#fff', margin: 0 }}>Twelo Developer Admin</h2>
         </div>
         <button onClick={() => navigate('/')} className="dev-btn-secondary">Exit Admin</button>
       </div>
 
-      <div className="dev-content">
-        {/* Server Health Section */}
-        {stats.serverHealth && (
-          <div className="dev-server-health-panel" style={{ marginBottom: '30px', padding: '15px', backgroundColor: '#111', borderRadius: '12px', border: '1px solid #333' }}>
-            <h3 style={{ margin: '0 0 15px 0', fontSize: '1.1rem', color: '#a8a8a8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Activity size={18} color="#10b981" /> Live Server Health
-            </h3>
-            <div className="dev-stats-grid">
-              <div className="dev-stat-card">
-                <div style={{ color: stats.serverHealth.ramUsage > 90 ? '#ef4444' : '#10b981', fontSize: '1.8rem', fontWeight: 'bold' }}>
-                  {stats.serverHealth.ramUsage}%
-                </div>
-                <p>RAM Usage</p>
-              </div>
-              <div className="dev-stat-card">
-                <div style={{ color: '#0095f6', fontSize: '1.8rem', fontWeight: 'bold' }}>
-                  {stats.serverHealth.cpuLoad}%
-                </div>
-                <p>CPU Load</p>
-              </div>
-              <div className="dev-stat-card">
-                <div style={{ color: '#8b5cf6', fontSize: '1.8rem', fontWeight: 'bold' }}>
-                  {stats.serverHealth.dbStorageMB} MB
-                </div>
-                <p>DB Size</p>
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="dev-shell">
+        {sidebarOpen && <div className="dev-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+        <aside className={`dev-sidebar${sidebarOpen ? '' : ' dev-sidebar-collapsed'}`}>
+          <nav className="dev-nav">
+            {navItems.map((it) => {
+              const Icon = it.icon;
+              return (
+                <button
+                  key={it.key}
+                  className={`dev-nav-item${activeTab === it.key ? ' active' : ''}`}
+                  onClick={() => goTab(it.key, it.run)}
+                  title={it.label}
+                >
+                  <Icon size={18} />
+                  <span className="dev-nav-label">{it.label}</span>
+                  {it.badge > 0 && <span className="dev-nav-badge">{it.badge}</span>}
+                </button>
+              );
+            })}
+            <Link to="/admin/bot-training" className="dev-nav-item" style={{ textDecoration: 'none' }} title="Bot Training">
+              <MessageSquare size={18} />
+              <span className="dev-nav-label">Bot Training</span>
+            </Link>
+          </nav>
+        </aside>
 
-        {/* Stats Section */}
-        <div className="dev-stats-grid">
-          <div className="dev-stat-card">
-            <Users size={32} color="#0095f6" />
-            <div className="stat-info">
-              <h3>{stats.activeUsers}</h3>
-              <p>Active Users Online</p>
-            </div>
-          </div>
-          <div className="dev-stat-card">
-            <Globe size={32} color="#10b981" />
-            <div className="stat-info">
-              <h3>{stats.randomRooms}</h3>
-              <p>Active Random Rooms</p>
-            </div>
-          </div>
-          <div className="dev-stat-card">
-            <MessageSquare size={32} color="#f59e0b" />
-            <div className="stat-info">
-              <h3>{stats.queuedRandom}</h3>
-              <p>Users in Queue</p>
-            </div>
-            <button 
-              onClick={handleFlushQueue} 
-              className="dev-btn-secondary" 
-              style={{ marginLeft: 'auto', padding: '5px 10px', fontSize: '0.8rem' }}
-              title="Clear entire queue"
-            >
-              <RefreshCcw size={14} />
-            </button>
-          </div>
-        </div>
+        <div className="dev-main-col">
+          <div className="dev-content">
+            {/* ── OVERVIEW ── live health row + quick-control panels ── */}
+            {activeTab === 'overview' && (
+              <>
+                <div className="dev-overview-hero">
+                  <div className="dev-health-card">
+                    <div className="dev-health-head">
+                      <span className="dev-health-title"><Activity size={18} color="#10b981" /> Live Server Health</span>
+                      {stats.serverHealth && (
+                        <div className="dev-health-metrics">
+                          <span style={{ color: stats.serverHealth.ramUsage > 90 ? '#ef4444' : '#10b981' }}>{stats.serverHealth.ramUsage}% RAM</span>
+                          <span style={{ color: '#0095f6' }}>{stats.serverHealth.cpuLoad}% CPU</span>
+                          <span style={{ color: '#8b5cf6' }}>{stats.serverHealth.dbStorageMB} MB DB</span>
+                        </div>
+                      )}
+                    </div>
+                    <HealthSparkline history={healthHistory} />
+                    <div className="dev-spark-legend">
+                      <span><i style={{ background: '#10b981' }} /> RAM</span>
+                      <span><i style={{ background: '#0095f6' }} /> CPU</span>
+                    </div>
+                  </div>
+                  <div className="dev-tile-row">
+                    <div className="dev-tile">
+                      <Users size={26} color="#0095f6" />
+                      <div className="dev-tile-info"><h3>{stats.activeUsers}</h3><p>Active Users Online</p></div>
+                    </div>
+                    <div className="dev-tile">
+                      <Globe size={26} color="#10b981" />
+                      <div className="dev-tile-info"><h3>{stats.randomRooms}</h3><p>Active Random Rooms</p></div>
+                    </div>
+                    <div className="dev-tile">
+                      <MessageSquare size={26} color="#f59e0b" />
+                      <div className="dev-tile-info"><h3>{stats.queuedRandom}</h3><p>Users in Queue</p></div>
+                      <button onClick={handleFlushQueue} className="dev-tile-action" title="Clear entire queue">
+                        <RefreshCcw size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
 
         {/* Action Grid */}
         <div className="dev-action-grid">
@@ -1302,55 +1356,14 @@ export default function DeveloperAdmin() {
             );
           })()}
 
-          {/* User Management */}
-          <div className="dev-panel" style={{ gridColumn: '1 / -1' }}>
-            <h3><Search size={18} style={{ marginRight: '8px' }}/> User Database Management</h3>
-            <p className="panel-desc">Search by name, username, email, or Google ID</p>
-            <div className="dev-main">
-              <div className="dev-tabs" style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
-                <button 
-                  onClick={() => setActiveTab('users')} 
-                  className={`dev-btn-${activeTab === 'users' ? 'primary' : 'secondary'}`}
-                >
-                  <Users size={16} style={{ marginRight: '8px' }} />
-                  User Database
-                </button>
-                <button 
-                  onClick={() => { setActiveTab('reports'); fetchReports(); }} 
-                  className={`dev-btn-${activeTab === 'reports' ? 'primary' : 'secondary'}`}
-                  style={{ position: 'relative' }}
-                >
-                  <Flag size={16} style={{ marginRight: '8px' }} />
-                  User Reports
-                  {reports.length > 0 && <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ff4b4b', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{reports.length}</span>}
-                </button>
-                <button 
-                  onClick={() => { setActiveTab('live-random'); openLiveRandomPage(); }} 
-                  className={`dev-btn-${activeTab === 'live-random' ? 'primary' : 'secondary'}`}
-                  style={{ position: 'relative', background: activeTab === 'live-random' ? '#ef4444' : '' }}
-                >
-                  <Radio size={16} style={{ marginRight: '8px' }} />
-                  Live Random
-                  {botRequests.length > 0 && <span style={{ position: 'absolute', top: '-5px', left: '-5px', background: '#f59e0b', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{botRequests.length}</span>}
-                  {liveQueue.length > 0 && <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#10b981', color: 'white', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>{liveQueue.length}</span>}
-                </button>
-                <button 
-                  onClick={() => { setActiveTab('analytics'); }} 
-                  className={`dev-btn-${activeTab === 'analytics' ? 'primary' : 'secondary'}`}
-                  style={{ background: activeTab === 'analytics' ? '#8b5cf6' : '' }}
-                >
-                  <BarChart2 size={16} style={{ marginRight: '8px' }} />
-                  Analytics & Growth
-                </button>
-                <Link 
-                  to="/admin/bot-training"
-                  className="dev-btn-secondary"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <MessageSquare size={16} style={{ marginRight: '8px' }} />
-                  🤖 Bot Training
-                </Link>
-              </div>
+          </div>
+              </>
+            )}
+
+            {/* ── DATA SECTIONS (open on the right when a sidebar item is active) ── */}
+            {(activeTab === 'users' || activeTab === 'reports' || activeTab === 'live-random' || activeTab === 'analytics') && (
+              <div className="dev-main">
+                <h3 className="dev-section-title">{navItems.find(n => n.key === activeTab)?.label || 'Section'}</h3>
 
               {requestToast && (
                 <div
@@ -1917,7 +1930,8 @@ export default function DeveloperAdmin() {
                   )}
                 </>
               ) : null}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
