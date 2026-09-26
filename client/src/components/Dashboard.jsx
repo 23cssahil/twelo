@@ -946,6 +946,8 @@ export default function Dashboard() {
   const remoteVideoRef = useRef(null);
   const videoPeerRef = useRef(null);
   const videoSearchTimerRef = useRef(null);
+  const localVideoStreamRef = useRef(null);
+  const videoRoomIdRef = useRef(null);
 
   
   useEffect(() => {
@@ -1071,6 +1073,30 @@ export default function Dashboard() {
       videoPeerRef.current.destroy();
       videoPeerRef.current = null;
     }
+  };
+
+  // Keep refs in sync so teardown (toggle / Android back) always sees the live stream +
+  // room, even when the popstate handler's closure is stale.
+  useEffect(() => { localVideoStreamRef.current = localVideoStream; }, [localVideoStream]);
+  useEffect(() => { videoRoomIdRef.current = videoRoomId; }, [videoRoomId]);
+
+  // Leaving video mode entirely: release the camera/mic (kills the green recording dot),
+  // close the peer connection, and tell the server so the partner is dropped too — instead
+  // of silently leaving the call running underneath the text UI.
+  const exitVideoMode = () => {
+    socket.emit('cancel_video_match', { userId: user?.id || user?._id });
+    if (videoRoomIdRef.current) socket.emit('video_skip', { roomId: videoRoomIdRef.current });
+    if (videoSearchTimerRef.current) { clearTimeout(videoSearchTimerRef.current); videoSearchTimerRef.current = null; }
+    if (videoPeerRef.current) { videoPeerRef.current.destroy(); videoPeerRef.current = null; }
+    if (localVideoStreamRef.current) localVideoStreamRef.current.getTracks().forEach(t => t.stop());
+    setLocalVideoStream(null);
+    setRemoteVideoStream(null);
+    setVideoMatchingStatus('idle');
+    setVideoPartnerId(null);
+    setVideoRoomId(null);
+    setMicOn(true);
+    setCamOn(true);
+    setChatMode('text');
   };
 
   useEffect(() => {
@@ -3090,7 +3116,7 @@ export default function Dashboard() {
       } else if (showLogoutConfirm) {
         setShowLogoutConfirm(false);
       } else if (chatMode === 'video') {
-        setChatMode('text');
+        exitVideoMode();
       } else if (isAnonymousChatActive) {
         if (socket) {
            socket.emit('leave_anonymous_chat', { roomId: anonymousRoomId });
@@ -8185,7 +8211,7 @@ const handleStoryUpload = async () => {
       </button>
       <div style={{ width: '2px', height: '15px', background: 'rgba(255,255,255,0.2)' }}></div>
       <button 
-        onClick={() => setChatMode('text')}
+        onClick={exitVideoMode}
         style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: chatMode === 'text' ? 'linear-gradient(135deg, #00c6ff, #0072ff)' : 'transparent', color: chatMode === 'text' ? '#fff' : '#aaa', cursor: 'pointer', transition: '0.3s', display: 'grid', placeItems: 'center', marginTop: '5px' }}
       >
         <MessageSquare size={20} />

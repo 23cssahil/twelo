@@ -5163,6 +5163,48 @@ io.on('connection', (socket) => {
   // --- Video Match Logic (Redis Distributed) ---
   let fallbackVideoQueue = [];
   const fallbackVideoChats = new Map();
+
+  // Pair up waiting users from the shared Redis queue. Runs under a short lock so two
+  // near-simultaneous Match taps can't grab the same partner. Returns false if the lock
+  // was busy (caller should retry), true otherwise.
+  async function reconcileVideoQueue() {
+    if (!pubClient) return true;
+    const locked = await pubClient.set('video_match_lock', '1', 'NX', 'EX', 5);
+    if (!locked) return false;
+    try {
+      const pending = [];
+      while (pending.length < 2) {
+        const popped = await pubClient.lpop('video_match_queue');
+        if (!popped) break;
+        try {
+          const parsed = JSON.parse(popped);
+          const alive = await io.in(parsed.socketId).fetchSockets();
+          if (alive.length === 0) { console.log(`[VIDEO MATCH] Discarding dead socket: ${parsed.socketId}`); continue; }
+          if (await pubClient.get(`vid_matched:${parsed.socketId}`)) continue; // already paired this round
+          pending.push(parsed);
+        } catch (e) { console.error('[VIDEO MATCH] Garbage in queue:', e.message); }
+      }
+      if (pending.length === 2) {
+        const [user1, user2] = pending;
+        await pubClient.set(`vid_matched:${user1.socketId}`, '1', 'EX', 60);
+        await pubClient.set(`vid_matched:${user2.socketId}`, '1', 'EX', 60);
+        const roomId = `video_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        await pubClient.hset('active_video_chats', roomId, JSON.stringify({ user1, user2 }));
+        await pubClient.set(`vid_usr:${user1.socketId}`, roomId, 'EX', 3600);
+        await pubClient.set(`vid_usr:${user2.socketId}`, roomId, 'EX', 3600);
+        console.log(`[VIDEO MATCH] SUCCESS! Matching ${user1.socketId} with ${user2.socketId}`);
+        io.to(user1.socketId).emit('video_match_found', { roomId, partnerId: user2.userId, initiator: true });
+        io.to(user2.socketId).emit('video_match_found', { roomId, partnerId: user1.userId, initiator: false });
+      } else {
+        // Not enough live users — put back whoever we drained but didn't match.
+        for (const p of pending) await pubClient.rpush('video_match_queue', JSON.stringify(p));
+      }
+      return true;
+    } finally {
+      await pubClient.del('video_match_lock');
+    }
+  }
+
   socket.on('start_video_match', async ({ userId }) => {
     console.log(`[VIDEO MATCH] Received start_video_match from ${userId} (Socket: ${socket.id})`);
     if (!pubClient) {
@@ -5191,65 +5233,28 @@ io.on('connection', (socket) => {
     }
     
     try {
-      // Check if we are already in the queue, remove us to prevent dupes
-      await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
-      console.log(`[VIDEO MATCH] Cleaned up existing entries in Redis queue for ${socket.id}`);
-      
-      // Try to pop someone from the queue
-      let user2 = null;
-      while (true) {
-        const popped = await pubClient.lpop('video_match_queue');
-        if (!popped) break;
-        try {
-          const parsed = JSON.parse(popped);
-          if (parsed.socketId === socket.id) continue;
-          
-          const sockets = await io.in(parsed.socketId).fetchSockets();
-          if (sockets.length === 0) {
-            console.log(`[VIDEO MATCH] Discarding dead socket from queue: ${parsed.socketId}`);
-            continue;
-          }
-          user2 = parsed;
-          break;
-        } catch (e) {
-          console.error('[VIDEO MATCH] Garbage in queue:', e.message);
-        }
-      }
-      
-      if (!user2) {
-        console.log(`[VIDEO MATCH] Queue is empty. Adding ${socket.id} to queue...`);
-        // Queue empty, wait in line
-        await pubClient.rpush('video_match_queue', JSON.stringify({ userId, socketId: socket.id }));
-        
-        // Set UI timeout fallback
-        setTimeout(async () => {
-          try {
-            // Check if we are STILL in the queue after 15 seconds
-            const removed = await pubClient.lrem('video_match_queue', 0, JSON.stringify({ userId, socketId: socket.id }));
-            if (removed > 0) {
-              console.log(`[VIDEO MATCH] 15-second timeout hit for ${socket.id}. Match failed.`);
-              io.to(socket.id).emit('video_match_failed');
-            }
-          } catch (e) {
-             console.error('[VIDEO MATCH] Error in timeout cleanup:', e.message);
-          }
-        }, 15000);
-        
-      } else {
-        console.log(`[VIDEO MATCH] Found match in queue: ${user2.socketId}`);
-        
-        // We have a match!
-        console.log(`[VIDEO MATCH] SUCCESS! Matching ${socket.id} with ${user2.socketId}`);
-        const roomId = `video_room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-        const user1 = { userId, socketId: socket.id };
-        
-        await pubClient.hset('active_video_chats', roomId, JSON.stringify({ user1, user2 }));
-        await pubClient.set(`vid_usr:${socket.id}`, roomId, 'EX', 3600); // 1 hr expiry
-        await pubClient.set(`vid_usr:${user2.socketId}`, roomId, 'EX', 3600);
+      // Join the queue FIRST, then reconcile. (The old code tried to pop a partner
+      // BEFORE enqueuing, so two users who tapped Match together both saw an empty
+      // queue, both enqueued, and neither paired -> both timed out after 15s.)
+      const self = JSON.stringify({ userId, socketId: socket.id });
+      await pubClient.lrem('video_match_queue', 0, self);
+      await pubClient.del(`vid_matched:${socket.id}`); // clear stale flag from a previous search
+      await pubClient.rpush('video_match_queue', self);
+      console.log(`[VIDEO MATCH] ${socket.id} joined queue, reconciling...`);
 
-        io.to(user1.socketId).emit('video_match_found', { roomId, partnerId: user2.userId, initiator: true });
-        io.to(user2.socketId).emit('video_match_found', { roomId, partnerId: user1.userId, initiator: false });
-      }
+      const paired = await reconcileVideoQueue();
+      if (paired === false) setTimeout(() => { reconcileVideoQueue().catch(() => {}); }, 250);
+
+      // UI timeout fallback: if after 15s we are STILL sitting in the queue, we never matched.
+      setTimeout(async () => {
+        try {
+          const removed = await pubClient.lrem('video_match_queue', 0, self);
+          if (removed > 0) {
+            console.log(`[VIDEO MATCH] 15-second timeout hit for ${socket.id}. Match failed.`);
+            io.to(socket.id).emit('video_match_failed');
+          }
+        } catch (e) { console.error('[VIDEO MATCH] Error in timeout cleanup:', e.message); }
+      }, 15000);
     } catch (err) {
       console.error('[VIDEO MATCH] Redis error during match:', err.message);
       // Fallback in case Redis fails
