@@ -1697,6 +1697,25 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
   const [onlineUsers, setOnlineUsers] = useState([]);
+
+  // "People online" counter shown near the moon on Home. While no OTHER real user is
+  // connected it shows a fake, gently-fluctuating number (2000–4999) so the room feels
+  // alive; the moment at least one real user is online it switches to a real count based
+  // at 5891 (1 user → 5891, 2 → 5892, 3 → 5893 …).
+  const [fakeOnline, setFakeOnline] = useState(() => 2600 + Math.floor(Math.random() * 1600));
+  useEffect(() => {
+    const id = setInterval(() => {
+      setFakeOnline(prev => {
+        let next = prev + (Math.floor(Math.random() * 41) - 18); // -18..+22, slight upward bias
+        if (next < 2000) next = 2000 + Math.floor(Math.random() * 40);
+        if (next > 4999) next = 4999 - Math.floor(Math.random() * 40);
+        return next;
+      });
+    }, 2500);
+    return () => clearInterval(id);
+  }, []);
+  const realOthersOnline = Math.max(0, onlineUsers.length - 1);
+  const liveUserCount = realOthersOnline >= 1 ? 5890 + realOthersOnline : fakeOnline;
   // O(1) membership lookups (industry-standard pattern): replace O(n) Array.includes()
   // scans in list-render hot paths (search rows, chat list, profiles). Set.has() is
   // exactly equivalent to includes() for primitive ids, so results are unchanged — only faster.
@@ -7961,6 +7980,30 @@ const handleStoryUpload = async () => {
               filter: 'drop-shadow(0 0 15px rgba(255,253,231,0.4))',
               animation: 'moonGlow 4s ease-in-out infinite alternate'
             }} />
+            {/* Live "people online" pill — sits just above the moon */}
+            <div style={{
+              position: 'absolute',
+              top: '10%',
+              right: '9%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '20px',
+              background: 'rgba(0,0,0,0.35)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(6px)',
+              color: '#fff',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              letterSpacing: '0.3px',
+              whiteSpace: 'nowrap',
+              zIndex: 6,
+              pointerEvents: 'none'
+            }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#2bd856', boxShadow: '0 0 8px #2bd856', display: 'inline-block', animation: 'liveDotPulse 1.4s ease-in-out infinite' }} />
+              {liveUserCount.toLocaleString()} online
+            </div>
             <style>{`
               .night-sky-stars {
                 position: absolute;
@@ -8008,6 +8051,10 @@ const handleStoryUpload = async () => {
               @keyframes moonGlow {
                 0% { filter: drop-shadow(0 0 12px rgba(255,253,231,0.3)); }
                 100% { filter: drop-shadow(0 0 25px rgba(255,253,231,0.6)); }
+              }
+              @keyframes liveDotPulse {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.5; transform: scale(1.35); }
               }
             `}</style>
           </>
