@@ -7946,13 +7946,13 @@ const handleStoryUpload = async () => {
         )}
 
       {/* Match Button — replaces Globe */}
-      {activeTab === 'home' && chatMode === 'text' && !activeChatUser && !isAnonymousChatActive && (
+      {activeTab === 'home' && chatMode === 'text' && !activeChatUser && !isAnonymousChatActive && !isSearchingRandom && !matchFailed && (
         <div className="match-launcher" style={{
           position: 'fixed', top: 0, height: '100dvh',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           zIndex: 5, pointerEvents: 'none'
         }}>
-          <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+          <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', transform: 'translateY(-6vh)' }}>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {/* Animated pulse rings */}
               <div style={{ position: 'absolute', width: '170px', height: '170px', borderRadius: '50%', border: '2px solid rgba(139,92,246,0.45)', animation: 'matchPulse 2.2s ease-out infinite' }} />
