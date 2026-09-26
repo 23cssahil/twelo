@@ -164,6 +164,28 @@ function decryptEmail(text) {
   }
 }
 
+// Deterministic, non-reversible search key for an email. HMAC-SHA256 (not plain SHA)
+// so a leaked DB dump can't be brute-forced/rainbow-tabled back to emails. Same email
+// always hashes to the same value → enables exact-match admin search on encrypted data.
+function hashEmail(text) {
+  if (!text || typeof text !== 'string') return undefined;
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) return undefined;
+  return crypto.createHmac('sha256', ENCRYPTION_KEY).update('email-search:' + normalized).digest('hex');
+}
+
+// Redact an email for display (e.g. s*****@gmail.com) so plaintext never leaves the
+// server to the admin frontend, while still being recognizable to an operator.
+function maskEmail(email) {
+  if (!email || typeof email !== 'string') return email;
+  const at = email.indexOf('@');
+  if (at <= 0) return '•••';
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const stars = '*'.repeat(Math.min(Math.max(local.length - 1, 3), 12));
+  return `${local.charAt(0)}${stars}@${domain}`;
+}
+
 
 function generateAvatarUrl(gender) {
   const g = (gender || 'male').toLowerCase();
@@ -354,22 +376,28 @@ async function getRandomCountryFact(countryCode) {
 const server = http.createServer(app);
 setupOptimizations(app, server);
 
-// One-time backfill of plaintext emails to encrypted form. Off by default so it
-// does not iterate the whole user collection on every boot; run it explicitly with
-// RUN_EMAIL_MIGRATION=true after ENCRYPTION/EMAIL key setup.
+// One-time backfill: (1) any legacy plaintext email → encrypted, and (2) populate the
+// deterministic emailHash for every user so admin exact-match email search works on
+// already-existing accounts. Off by default so it doesn't iterate the whole collection
+// on every boot; run it explicitly with RUN_EMAIL_MIGRATION=true after key setup.
 mongoose.connection.once('open', async () => {
   if (process.env.RUN_EMAIL_MIGRATION === 'true') {
     try {
-      const users = await User.find({ email: { $not: /^(hash_|enc_)/ } });
+      const users = await User.find({ email: { $exists: true, $nin: [null, ''] } });
+      let updated = 0;
       for (let u of users) {
-        if (u.email && !u.email.startsWith('hash_') && !u.email.startsWith('enc_')) {
-          u.email = encryptEmail(u.email);
-          await u.save();
-        }
+        let changed = false;
+        const alreadyEncrypted = u.email.startsWith('enc_') || u.email.startsWith('hash_');
+        // Recover the plaintext once: decrypt stored ciphertext, or use legacy plaintext.
+        const plain = alreadyEncrypted ? decryptEmail(u.email) : u.email;
+        if (!alreadyEncrypted) { u.email = encryptEmail(u.email); changed = true; }
+        const desiredHash = hashEmail(plain);
+        if (desiredHash && u.emailHash !== desiredHash) { u.emailHash = desiredHash; changed = true; }
+        if (changed) { await u.save(); updated++; }
       }
-      console.log(`Email migration completed for ${users.length} users.`);
+      console.log(`Email migration completed: ${users.length} scanned, ${updated} updated.`);
     } catch(e) {
-      console.error('Error encrypting old emails:', e);
+      console.error('Error in email migration:', e);
     }
   }
 
@@ -745,6 +773,7 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
         // Upgrade the guest in place — link the Google identity onto the SAME account.
         guestDoc.googleId = googleId;
         guestDoc.email = encryptEmail(email);
+        guestDoc.emailHash = hashEmail(email);
         guestDoc.isGuest = false;
         guestDoc.guestClaimCodeHash = undefined; // claim code no longer needed
         try {
@@ -823,6 +852,7 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
     if (existingUser) return res.status(400).json({ message: 'User already exists' });
 
     const finalEmail = encryptEmail(email);
+    const finalEmailHash = hashEmail(email);
 
     let uniqueId = generateUniqueId();
     let idExists = await User.findOne({ uniqueId });
@@ -864,6 +894,7 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
       username, 
       name, 
       email: finalEmail, 
+      emailHash: finalEmailHash, 
       googleId, 
       uniqueId, 
       age: Number(age), 
@@ -3675,22 +3706,28 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
     const query = req.query.q;
     let filter = {};
     if (query) {
-      filter = {
-        $or: [
-          { name: { $regex: query, $options: 'i' } },
-          { username: { $regex: query, $options: 'i' } },
-          { email: { $regex: query, $options: 'i' } },
-          { googleId: { $regex: query, $options: 'i' } }
-        ]
-      };
+      const or = [
+        { name: { $regex: query, $options: 'i' } },
+        { username: { $regex: query, $options: 'i' } },
+        { googleId: { $regex: query, $options: 'i' } }
+      ];
+      // Emails are stored as randomized AES ciphertext, so a $regex on `email` can never
+      // match. Search by the deterministic HMAC instead (exact, case-insensitive match).
+      if (query.includes('@')) {
+        const h = hashEmail(query);
+        if (h) or.push({ emailHash: h });
+      }
+      filter = { $or: or };
     }
     const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).limit(query ? 50 : 5000);
-    const decryptedUsers = users.map(user => {
+    const maskedUsers = users.map(user => {
       const userObj = user.toObject();
-      userObj.email = decryptEmail(userObj.email);
+      // Never ship plaintext emails to the admin frontend — decrypt only to mask in-place.
+      userObj.email = maskEmail(decryptEmail(userObj.email));
+      delete userObj.emailHash; // search key is internal; no need to expose it
       return userObj;
     });
-    res.json(decryptedUsers);
+    res.json(maskedUsers);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching users' });
   }

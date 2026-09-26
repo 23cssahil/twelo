@@ -24,6 +24,15 @@ const UserSchema = new mongoose.Schema({
     trim: true,
     unique: true,
   },
+  // Deterministic HMAC-SHA256 of the normalized (trimmed+lowercased) email. The `email`
+  // field itself is stored as randomized AES ciphertext (fresh IV every save), so it can
+  // never be searched or uniqueness-enforced directly. This hash gives us an exact-match
+  // search key for the admin dashboard without ever storing a reversible plaintext email.
+  emailHash: {
+    type: String,
+    index: true,
+    sparse: true,
+  },
   googleId: {
     type: String,
     trim: true,
