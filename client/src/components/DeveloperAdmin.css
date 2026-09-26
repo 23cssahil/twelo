@@ -172,8 +172,7 @@
   display: flex;
   flex-direction: column;
   gap: 15px;
-  max-height: 600px;
-  overflow-y: auto;
+  /* No inner max-height/scroll box: the list now flows in the page itself. */
   padding-right: 10px;
 }
 
@@ -761,6 +760,19 @@
 .dev-live-pager-btn { padding: 7px 16px; font-size: 0.85rem; }
 .dev-live-pager-btn:disabled { opacity: .35; cursor: not-allowed; }
 .dev-live-pager-info { color: #9a9a9a; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+
+/* ── Analytics: make reveal panels fit the viewport (sticky, no page scroll) ── */
+.dev-analytics-container { flex: 1; min-height: 0; }
+/* Tighten chart cards so titles + graphs + data all fit within the visible area. */
+.dev-analytics-container .dev-panel { padding: 16px 18px; }
+.dev-analytics-container .dev-panel h4 { font-size: 1rem; margin-bottom: 10px; }
+/* Compact growth tiles (New Users Today / Last 30 Days) so the graph gets room. */
+.dev-analytics-container .dev-stats-grid { margin-bottom: 0; gap: 12px; }
+.dev-analytics-container .dev-stat-card { padding: 12px 14px; gap: 12px; }
+.dev-analytics-container .dev-stat-card h3 { font-size: 1.35rem; }
+.dev-analytics-container .dev-stat-card p { font-size: 0.78rem; margin: 2px 0 0; }
+/* Locations list fills the panel height instead of a fixed 300px box. */
+.dev-analytics-container .dev-locations-list { max-height: calc(100vh - 420px); }
 
 /* ── Locations list (beside the doughnut) ───────────────────────── */
 .dev-locations-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center; }

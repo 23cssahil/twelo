@@ -1511,7 +1511,7 @@ export default function DeveloperAdmin() {
                               <button onClick={() => setGrowthTimeframe('yearly')} className={`dev-btn-${growthTimeframe === 'yearly' ? 'primary' : 'secondary'}`} style={{ padding: '5px 12px', fontSize: '0.8rem' }}>Yearly</button>
                             </div>
                           </div>
-                          <div style={{ position: 'relative', height: '320px', width: '100%' }}>
+                          <div style={{ position: 'relative', height: 'calc(100vh - 430px)', minHeight: '220px', width: '100%' }}>
                             <Line
                               data={{
                                 labels: growthTimeframe === 'monthly' ? analyticsData.growthData.labels : analyticsData.yearlyGrowthData.labels,
@@ -1553,7 +1553,7 @@ export default function DeveloperAdmin() {
                     <div className="dev-panel">
                       <h4 style={{ marginBottom: '15px' }}>Top Locations</h4>
                       <div className="dev-locations-grid">
-                        <div style={{ position: 'relative', height: '280px', width: '100%', maxWidth: '320px', margin: '0 auto' }}>
+                        <div style={{ position: 'relative', height: 'calc(100vh - 410px)', minHeight: '220px', width: '100%', maxWidth: '320px', margin: '0 auto' }}>
                           <Doughnut
                             data={{
                               labels: analyticsData.demographics.country.labels,
@@ -1589,7 +1589,7 @@ export default function DeveloperAdmin() {
                   {analyticsView === 'gender' && (analyticsData && analyticsData.demographics ? (
                     <div className="dev-panel">
                       <h4 style={{ marginBottom: '15px' }}>Gender Distribution</h4>
-                      <div style={{ position: 'relative', height: '300px', width: '100%', maxWidth: '340px', margin: '0 auto' }}>
+                      <div style={{ position: 'relative', height: 'calc(100vh - 430px)', minHeight: '200px', width: '100%', maxWidth: '340px', margin: '0 auto' }}>
                         <Doughnut
                           data={{
                             labels: ['Male', 'Female'],
@@ -1619,7 +1619,7 @@ export default function DeveloperAdmin() {
                   {analyticsView === 'peak' && (analyticsData && analyticsData.peakHours ? (
                     <div className="dev-panel">
                       <h4 style={{ marginBottom: '15px' }}>Peak Activity Heatmap (24 Hours)</h4>
-                      <div style={{ position: 'relative', height: '320px', width: '100%' }}>
+                      <div style={{ position: 'relative', height: 'calc(100vh - 350px)', minHeight: '240px', width: '100%' }}>
                         <Bar
                           data={{
                             labels: ['12 AM', '1 AM', '2 AM', '3 AM', '4 AM', '5 AM', '6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM', '10 PM', '11 PM'],
