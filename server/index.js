@@ -4396,6 +4396,20 @@ async function assignAiCompanion(socket, ctx) {
   } catch (e) { console.error('[companion]', e.message); }
 }
 
+// ── Live "users in match rooms" counter for the Home screen pill ────────────
+// Counts REAL users currently inside an active random-chat room: 2 per real matched
+// room, 1 per AI-companion room (the human; the companion is a bot and doesn't count).
+// Diff-broadcast every 4s so any set/delete on activeRandomChats is picked up without
+// touching every mutation site. Clients fall back to a fake number while this is < 8.
+let lastInRoomCount = -1;
+setInterval(() => {
+  try {
+    let n = 0;
+    for (const chat of activeRandomChats.values()) n += chat.isAiCompanion ? 1 : 2;
+    if (n !== lastInRoomCount) { lastInRoomCount = n; io.emit('in_room_count', { count: n }); }
+  } catch (e) { /* non-blocking */ }
+}, 4000);
+
 // Cancel a still-searching user's random search: clears every queue/board entry and
 // tells the client to drop back to idle (the client listens for 'cancel_search').
 async function cancelRandomSearch(socket, userId) {
@@ -4555,6 +4569,9 @@ io.on('connection', (socket) => {
     activeSessions.set(socket.id, { userId: effectiveUserId, startTime: Date.now(), messagesSent: 0, matchesMade: 0 });
     console.log(`User ${effectiveUserId} registered with socket ${socket.id}`);
     io.emit('online_users', Array.from(onlineUsers.keys()));
+    // Immediately sync the Home "users in rooms" pill for this fresh socket so it
+    // doesn't sit on the fake number until the next interval tick fires.
+    if (lastInRoomCount >= 0) io.to(socket.id).emit('in_room_count', { count: lastInRoomCount });
 
     // Coming online counts as receiving everything that arrived while offline:
     // flip those one-tick messages to two ticks for their senders.

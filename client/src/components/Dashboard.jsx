@@ -1698,10 +1698,15 @@ export default function Dashboard() {
   }, []);
   const [onlineUsers, setOnlineUsers] = useState([]);
 
-  // "People online" counter shown near the moon on Home. It shows a fake, gently-
-  // fluctuating number (2000–4999) until at least 8 real users are online together; once
-  // 8+ are connected it switches to a real count = 5891 + online (8 users → 5899, 9 → 5900 …).
+  // "People online" counter shown near the moon on Home. It reflects users actually
+  // INSIDE match rooms (server's `in_room_count` event — 2 per matched pair, 1 per
+  // AI-companion chat), NOT merely connected users. While fewer than 8 users are in
+  // rooms it shows a fake, gently-fluctuating number (2000–4999). Once 8+ are matched
+  // and chatting it shows a real count = 5891 + in-room users (8 → 5899, 9 → 5900 …),
+  // nudging ±1–2 around that base so even real mode looks alive.
   const [fakeOnline, setFakeOnline] = useState(() => 2600 + Math.floor(Math.random() * 1600));
+  const [inRoomCount, setInRoomCount] = useState(0);
+  const [realJitter, setRealJitter] = useState(0); // ±2 nudge for real mode, same tick
   useEffect(() => {
     const id = setInterval(() => {
       setFakeOnline(prev => {
@@ -1710,11 +1715,13 @@ export default function Dashboard() {
         if (next > 4999) next = 4999 - Math.floor(Math.random() * 40);
         return next;
       });
+      setRealJitter(Math.floor(Math.random() * 5) - 2);
     }, 2500);
     return () => clearInterval(id);
   }, []);
-  const realOnline = onlineUsers.length;
-  const liveUserCount = realOnline >= 8 ? 5891 + realOnline : fakeOnline;
+  const realInRooms = inRoomCount;
+  // Real mode: base 5891 + in-room count, jittered ±2 but never below the 8-user floor (5899).
+  const liveUserCount = realInRooms >= 8 ? Math.max(5899, 5891 + realInRooms + realJitter) : fakeOnline;
   // O(1) membership lookups (industry-standard pattern): replace O(n) Array.includes()
   // scans in list-render hot paths (search rows, chat list, profiles). Set.has() is
   // exactly equivalent to includes() for primitive ids, so results are unchanged — only faster.
@@ -2705,6 +2712,7 @@ export default function Dashboard() {
     if (!socket) return;
     
     socket.on('online_users', (users) => setOnlineUsers(users));
+    socket.on('in_room_count', ({ count }) => setInRoomCount(count || 0));
     
     socket.on('receive_message', (msg) => {
 
@@ -3005,6 +3013,7 @@ export default function Dashboard() {
 
     return () => {
       socket.off('online_users');
+      socket.off('in_room_count');
       socket.off('receive_message');
       socket.off('message_sent');
       socket.off('message_deleted');
