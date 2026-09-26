@@ -422,6 +422,8 @@ export default function DeveloperAdmin() {
         headers: { 'x-admin-pass': password }
       });
       if (res.ok) {
+        // Persist so a page refresh keeps the admin signed in until they tap "Exit Admin".
+        sessionStorage.setItem('twelo_admin_key', password);
         setIsAuthenticated(true);
       } else {
         alert('Incorrect Developer Password');
@@ -430,6 +432,20 @@ export default function DeveloperAdmin() {
       alert('Network Error. Is backend running?');
     }
   };
+
+  // On mount, restore the admin session from sessionStorage (validating it once with
+  // the server) so refreshing the dashboard no longer locks the user out.
+  useEffect(() => {
+    const saved = sessionStorage.getItem('twelo_admin_key');
+    if (!saved || !API_URL) return;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/admin/stats`, { headers: { 'x-admin-pass': saved } });
+        if (res.ok) { setPassword(saved); setIsAuthenticated(true); }
+        else sessionStorage.removeItem('twelo_admin_key');
+      } catch (err) { /* offline: stay logged out for now */ }
+    })();
+  }, [API_URL]);
 
   const fetchStats = async () => {
     try {
@@ -1218,7 +1234,7 @@ export default function DeveloperAdmin() {
           <AlertTriangle color="#ff4b4b" />
           <h2 style={{ color: '#fff', margin: 0 }}>Twelo Developer Admin</h2>
         </div>
-        <button onClick={() => navigate('/')} className="dev-btn-secondary">Exit Admin</button>
+        <button onClick={() => { sessionStorage.removeItem('twelo_admin_key'); setIsAuthenticated(false); navigate('/'); }} className="dev-btn-secondary">Exit Admin</button>
       </div>
 
       <div className="dev-shell">
