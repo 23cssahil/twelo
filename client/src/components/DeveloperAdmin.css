@@ -666,3 +666,94 @@
   .dev-content { padding: 16px 12px; }
   .dev-health-metrics { gap: 10px; font-size: 0.78rem; }
 }
+
+/* ── Analytics: top button row + reveal panels ──────────────────── */
+.dev-analytics-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.dev-analytics-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #141414;
+  color: #cfcfcf;
+  border: 1px solid #262626;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.dev-analytics-tab:hover { background: #1d1d1d; color: #fff; }
+.dev-analytics-tab.active {
+  background: rgba(0, 149, 246, 0.16);
+  border-color: #0095f6;
+  color: #fff;
+}
+
+.dev-analytics-loading { text-align: center; color: #888; padding: 30px 0; }
+
+/* ── Live Users panel ───────────────────────────────────────────── */
+.dev-live-panel { display: flex; flex-direction: column; gap: 18px; }
+.dev-live-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.dev-mini-stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.dev-mini-stat-icon { display: inline-flex; align-items: center; justify-content: center; opacity: .9; }
+.dev-mini-stat-body { min-width: 0; }
+.dev-mini-stat-value { font-size: 1.4rem; font-weight: 800; line-height: 1.1; color: #fff; }
+.dev-mini-stat-label { font-size: 0.74rem; color: #9a9a9a; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.dev-live-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 560px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.dev-live-empty { text-align: center; color: #8a8a8a; padding: 26px 0; font-size: 0.9rem; }
+.dev-live-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #151515;
+  border: 1px solid #262626;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.dev-live-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid #10b981; }
+.dev-live-meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.dev-live-name { font-weight: 600; font-size: 0.94rem; display: flex; align-items: center; gap: 8px; }
+.dev-live-name span { color: #8a8a8a; font-weight: 400; font-size: 0.85rem; }
+.dev-live-guest { background: rgba(245, 158, 11, 0.18); color: #f59e0b; font-size: 0.66rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; text-transform: uppercase; letter-spacing: .4px; }
+.dev-live-sub { font-size: 0.74rem; color: #9a9a9a; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dev-live-activity { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; color: #cfcfcf; flex-shrink: 0; }
+.dev-live-activity span { display: inline-flex; align-items: center; gap: 6px; }
+.dev-live-more { align-self: center; background: #222; margin-top: 4px; }
+
+/* ── Locations list (beside the doughnut) ───────────────────────── */
+.dev-locations-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center; }
+.dev-locations-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; padding-right: 6px; }
+.dev-location-row { display: flex; align-items: center; gap: 12px; background: #151515; border: 1px solid #262626; border-radius: 10px; padding: 9px 12px; }
+.dev-location-rank { width: 22px; height: 22px; border-radius: 50%; background: #222; color: #f59e0b; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dev-location-name { flex: 1; font-weight: 600; font-size: 0.9rem; }
+.dev-location-count { color: #10b981; font-weight: 700; font-size: 0.9rem; }
+
+@media (max-width: 640px) {
+  .dev-locations-grid { grid-template-columns: 1fr; }
+  .dev-analytics-tab { flex: 1 1 calc(50% - 10px); justify-content: center; }
+}

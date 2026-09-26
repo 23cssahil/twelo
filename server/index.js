@@ -3645,6 +3645,72 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
   }
 });
 
+// Live Users feed for the Analytics > Live Users panel: aggregate totals plus a
+// real-time roster of the users who are connected (signed in) right now.
+app.get('/api/admin/live-users', adminAuth, async (req, res) => {
+  try {
+    // Merge each user's sockets into one row (earliest login, summed activity).
+    const byUser = new Map();
+    activeSessions.forEach((s) => {
+      const uid = s.userId ? s.userId.toString() : null;
+      if (!uid) return;
+      const cur = byUser.get(uid) || { userId: uid, since: s.startTime, messagesSent: 0, matchesMade: 0 };
+      cur.since = Math.min(cur.since, s.startTime);
+      cur.messagesSent += s.messagesSent || 0;
+      cur.matchesMade += s.matchesMade || 0;
+      byUser.set(uid, cur);
+    });
+    const onlineIds = Array.from(byUser.keys()).filter((id) => /^[a-fA-F0-9]{24}$/.test(id));
+    const profiles = await User.find({ _id: { $in: onlineIds }, ownedByAdmin: { $ne: true } })
+      .select('name username avatarUrl country gender isGuest').lean();
+    const users = profiles
+      .map((p) => ({
+        userId: p._id.toString(),
+        name: p.name,
+        username: p.username,
+        avatarUrl: p.avatarUrl,
+        country: p.country,
+        gender: p.gender,
+        isGuest: !!p.isGuest,
+        since: byUser.get(p._id.toString())?.since || Date.now(),
+        messagesSent: byUser.get(p._id.toString())?.messagesSent || 0,
+        matchesMade: byUser.get(p._id.toString())?.matchesMade || 0,
+      }))
+      .sort((a, b) => b.since - a.since); // newest login first
+
+    // Queue depth mirrors /api/admin/stats so the two panels never disagree.
+    let queuedRandom = _fallbackQueue.length;
+    if (pubClient) {
+      try {
+        const buckets = ['rq:male_female', 'rq:male_male', 'rq:male_any', 'rq:female_male', 'rq:female_female', 'rq:female_any'];
+        const counts = await Promise.all(buckets.map((b) => pubClient.zcard(b)));
+        queuedRandom = counts.reduce((a, b) => a + b, 0);
+      } catch (e) {}
+    }
+
+    const [totalLogins, totalUsers, guestUsers] = await Promise.all([
+      UserSession.countDocuments({}),
+      User.countDocuments({ ownedByAdmin: { $ne: true } }),
+      User.countDocuments({ isGuest: true }),
+    ]);
+
+    res.json({
+      totals: {
+        totalLogins,
+        totalUsers,
+        guestUsers,
+        onlineNow: users.length,
+        activeRooms: activeRandomChats.size,
+        inQueue: queuedRandom,
+      },
+      users,
+    });
+  } catch (err) {
+    console.error('Live Users Error', err);
+    res.status(500).json({ error: 'Failed to fetch live users' });
+  }
+});
+
 app.post('/api/admin/subscribe', adminAuth, async (req, res) => {
   try {
     const subscription = req.body;

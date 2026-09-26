@@ -82,6 +82,19 @@ function HealthSparkline({ history }) {
   );
 }
 
+// Compact stat chip used in the Analytics > Live Users totals strip.
+function MiniStat({ icon: Icon, label, value, grad }) {
+  return (
+    <div className="dev-mini-stat" style={grad ? { background: grad, border: 'none' } : undefined}>
+      {Icon ? <span className="dev-mini-stat-icon"><Icon size={18} /></span> : null}
+      <div className="dev-mini-stat-body">
+        <div className="dev-mini-stat-value">{value}</div>
+        <div className="dev-mini-stat-label">{label}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function DeveloperAdmin() {
   const { API_URL } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -108,6 +121,11 @@ export default function DeveloperAdmin() {
   const [autoFooter, setAutoFooter] = useState(true);
   const [showBlockedOnly, setShowBlockedOnly] = useState(false);
   const [showAdminStoryUI, setShowAdminStoryUI] = useState(false);
+
+  // ── Analytics sub-view + live-users feed ──
+  const [analyticsView, setAnalyticsView] = useState('live'); // live | growth | locations | gender | peak
+  const [liveUsers, setLiveUsers] = useState(null);           // { totals, users }
+  const [liveVisibleCount, setLiveVisibleCount] = useState(10);
 
   const [activeTab, setActiveTab] = useState('overview');
   // Sidebar starts open on desktop, collapsed (off-canvas) on small screens.
@@ -434,6 +452,27 @@ export default function DeveloperAdmin() {
   useEffect(() => {
     if (activeTab === 'analytics') fetchStats();
   }, [activeTab]);
+
+  // Fetch the currently-online roster + totals for the Live Users panel.
+  const fetchLiveUsers = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/live-users`, {
+        headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) setLiveUsers(await res.json());
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // While the Live Users panel is open, keep it fresh on a 5s heartbeat.
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'analytics' && analyticsView === 'live') {
+      fetchLiveUsers();
+      const id = setInterval(fetchLiveUsers, 5000);
+      return () => clearInterval(id);
+    }
+  }, [isAuthenticated, activeTab, analyticsView]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -1375,196 +1414,127 @@ export default function DeveloperAdmin() {
               )}
 
               {activeTab === 'analytics' ? (
-                analyticsData ? (
                 <div className="dev-analytics-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div className="dev-stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', border: 'none' }}>
-                        <div className="stat-info">
-                          <h3 style={{ fontSize: '2rem' }}>{analyticsData.dau}</h3>
-                          <p style={{ color: '#e0e7ff' }}>Daily Active Users</p>
-                        </div>
-                     </div>
-                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', border: 'none' }}>
-                        <div className="stat-info">
-                          <h3 style={{ fontSize: '2rem' }}>{analyticsData.mau}</h3>
-                          <p style={{ color: '#e0f2fe' }}>Monthly Active Users</p>
-                        </div>
-                     </div>
-                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none' }}>
-                        <div className="stat-info">
-                          <h3 style={{ fontSize: '2rem' }}>{analyticsData.day1Retention}%</h3>
-                          <p style={{ color: '#d1fae5' }}>Retention Rate (Est.)</p>
-                        </div>
-                     </div>
-                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', border: 'none' }}>
-                        <div className="stat-info">
-                          <h3 style={{ fontSize: '2rem' }}>{analyticsData.avgSessionMinutes}m</h3>
-                          <p style={{ color: '#fef3c7' }}>Avg Session Length</p>
-                        </div>
-                     </div>
-                  </div>
-                  
-                  <div className="analytics-charts-grid">
-                     <div className="dev-panel">
-                        <h4 style={{ marginBottom: '15px' }}>DAU Trend (Last 7 Days)</h4>
-                        {analyticsData.chartData && (
-                          <div style={{ position: 'relative', height: '300px', width: '100%' }}>
-                            <Line 
-                              data={{
-                                labels: analyticsData.chartData.labels,
-                                datasets: [{
-                                  label: 'Daily Active Users',
-                                  data: analyticsData.chartData.dau,
-                                  borderColor: '#8b5cf6',
-                                  backgroundColor: 'rgba(139, 92, 246, 0.2)',
-                                  fill: true,
-                                  tension: 0.4
-                                }]
-                              }}
-                              options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }}
-                            />
-                          </div>
-                        )}
-                     </div>
-                     
-                     <div className="dev-panel">
-                        <h4 style={{ marginBottom: '15px' }}>Core Actions (Avg per session)</h4>
-                        {analyticsData && (
-                          <div style={{ position: 'relative', height: '300px', width: '100%' }}>
-                            <Bar 
-                              data={{
-                                labels: ['Messages Sent', 'Matches Made'],
-                                datasets: [{
-                                  label: 'Average Count',
-                                  data: [analyticsData.avgMessages, analyticsData.avgMatches],
-                                  backgroundColor: ['#0ea5e9', '#f59e0b']
-                                }]
-                              }}
-                              options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }}
-                            />
-                          </div>
-                        )}
-                     </div>
-                  </div>
-                  
-                  <div className="dev-stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginTop: '10px' }}>
-                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #14b8a6, #0f766e)', border: 'none' }}>
-                        <div className="stat-info">
-                          <h3 style={{ fontSize: '2rem' }}>+{analyticsData.todaySignups || 0}</h3>
-                          <p style={{ color: '#ccfbf1' }}>New Users (Today)</p>
-                        </div>
-                     </div>
-                     <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #ec4899, #be185d)', border: 'none' }}>
-                        <div className="stat-info">
-                          <h3 style={{ fontSize: '2rem' }}>+{growthTimeframe === 'monthly' ? (analyticsData.monthSignups || 0) : (analyticsData.yearSignups || 0)}</h3>
-                          <p style={{ color: '#fbcfe8' }}>New Users ({growthTimeframe === 'monthly' ? 'Last 30 Days' : 'Last 12 Months'})</p>
-                        </div>
-                     </div>
+
+                  {/* ── Top button row: each button reveals its panel below ── */}
+                  <div className="dev-analytics-tabs">
+                    <button className={`dev-analytics-tab${analyticsView === 'live' ? ' active' : ''}`} onClick={() => { setAnalyticsView('live'); setLiveVisibleCount(10); }}><Users size={16} /> Live Users</button>
+                    <button className={`dev-analytics-tab${analyticsView === 'growth' ? ' active' : ''}`} onClick={() => setAnalyticsView('growth')}><BarChart2 size={16} /> User Growth &amp; Acquisition</button>
+                    <button className={`dev-analytics-tab${analyticsView === 'locations' ? ' active' : ''}`} onClick={() => setAnalyticsView('locations')}><Globe size={16} /> Top Locations</button>
+                    <button className={`dev-analytics-tab${analyticsView === 'gender' ? ' active' : ''}`} onClick={() => setAnalyticsView('gender')}><Users size={16} /> Gender Distribution</button>
+                    <button className={`dev-analytics-tab${analyticsView === 'peak' ? ' active' : ''}`} onClick={() => setAnalyticsView('peak')}><Activity size={16} /> Peak Activity (24 Hours)</button>
                   </div>
 
-                  {(analyticsData.growthData || analyticsData.yearlyGrowthData) && (
-                     <div className="dev-panel">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
-                          <h4 style={{ margin: 0 }}>
-                            User Growth & Acquisition ({growthTimeframe === 'monthly' ? 'Last 30 Days' : 'Last 12 Months'})
-                          </h4>
-                          <div style={{ display: 'flex', gap: '10px' }}>
-                            <button 
-                              onClick={() => setGrowthTimeframe('monthly')}
-                              className={`dev-btn-${growthTimeframe === 'monthly' ? 'primary' : 'secondary'}`}
-                              style={{ padding: '5px 12px', fontSize: '0.8rem' }}
-                            >
-                              Monthly
-                            </button>
-                            <button 
-                              onClick={() => setGrowthTimeframe('yearly')}
-                              className={`dev-btn-${growthTimeframe === 'yearly' ? 'primary' : 'secondary'}`}
-                              style={{ padding: '5px 12px', fontSize: '0.8rem' }}
-                            >
-                              Yearly
-                            </button>
+                  {/* ── LIVE USERS: totals + real-time sign-in roster (10 per page) ── */}
+                  {analyticsView === 'live' && (
+                    <div className="dev-live-panel">
+                      <div className="dev-live-totals">
+                        <MiniStat icon={UserCheck} label="Total Logins" value={liveUsers ? liveUsers.totals.totalLogins.toLocaleString() : '—'} grad="linear-gradient(135deg,#4f46e5,#7c3aed)" />
+                        <MiniStat icon={Users} label="Total Users" value={liveUsers ? liveUsers.totals.totalUsers.toLocaleString() : '—'} grad="linear-gradient(135deg,#0ea5e9,#0284c7)" />
+                        <MiniStat icon={UserPlus} label="Guest Users" value={liveUsers ? liveUsers.totals.guestUsers.toLocaleString() : '—'} grad="linear-gradient(135deg,#f59e0b,#d97706)" />
+                        <MiniStat icon={Activity} label="Online Now" value={liveUsers ? liveUsers.totals.onlineNow.toLocaleString() : '—'} grad="linear-gradient(135deg,#10b981,#059669)" />
+                        <MiniStat icon={Radio} label="Active Rooms" value={liveUsers ? liveUsers.totals.activeRooms.toLocaleString() : '—'} grad="linear-gradient(135deg,#ec4899,#be185d)" />
+                        <MiniStat icon={Clock} label="In Queue" value={liveUsers ? liveUsers.totals.inQueue.toLocaleString() : '—'} grad="linear-gradient(135deg,#14b8a6,#0f766e)" />
+                        {analyticsData && <MiniStat icon={Users} label="Daily Active (DAU)" value={analyticsData.dau} />}
+                        {analyticsData && <MiniStat icon={Users} label="Monthly Active (MAU)" value={analyticsData.mau} />}
+                        {analyticsData && <MiniStat icon={CheckCircle} label="Retention (Est.)" value={`${analyticsData.day1Retention}%`} />}
+                        {analyticsData && <MiniStat icon={Clock} label="Avg Session" value={`${analyticsData.avgSessionMinutes}m`} />}
+                        {analyticsData && <MiniStat icon={UserPlus} label="New Today" value={`+${analyticsData.todaySignups || 0}`} />}
+                      </div>
+                      <div className="dev-live-list">
+                        {!liveUsers && <div className="dev-live-empty">Loading live users…</div>}
+                        {liveUsers && liveUsers.users.length === 0 && <div className="dev-live-empty">No users are signed in right now.</div>}
+                        {liveUsers && liveUsers.users.slice(0, liveVisibleCount).map((u) => (
+                          <div key={u.userId} className="dev-live-row">
+                            <img className="dev-live-avatar" src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username || '?')}&background=random`} alt="" />
+                            <div className="dev-live-meta">
+                              <div className="dev-live-name">{u.name} <span>@{u.username}</span>{u.isGuest && <span className="dev-live-guest">guest</span>}</div>
+                              <div className="dev-live-sub">{u.country && u.country !== 'Earth' ? `📍 ${u.country}` : '🌍 Earth'} · {u.gender || '—'} · online since {new Date(u.since).toLocaleTimeString()}</div>
+                            </div>
+                            <div className="dev-live-activity">
+                              <span title="Messages sent"><MessageSquare size={13} /> {u.messagesSent}</span>
+                              <span title="Matches made"><Radio size={13} /> {u.matchesMade}</span>
+                            </div>
                           </div>
-                        </div>
-                        <div style={{ position: 'relative', height: '300px', width: '100%' }}>
-                          <Line 
-                            data={{
-                              labels: growthTimeframe === 'monthly' ? analyticsData.growthData.labels : analyticsData.yearlyGrowthData.labels,
-                              datasets: [{
-                                label: 'New Signups',
-                                data: growthTimeframe === 'monthly' ? analyticsData.growthData.signups : analyticsData.yearlyGrowthData.signups,
-                                borderColor: '#ec4899',
-                                backgroundColor: 'rgba(236, 72, 153, 0.2)',
-                                fill: true,
-                                tension: 0.4,
-                                pointRadius: 4,
-                                pointHoverRadius: 6,
-                                pointBackgroundColor: '#fff',
-                                pointBorderColor: '#ec4899',
-                                pointBorderWidth: 2,
-                              }]
-                            }}
-                            options={{ 
-                              responsive: true, 
-                              maintainAspectRatio: false,
-                              scales: { 
-                                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                                x: { grid: { color: 'rgba(255,255,255,0.05)' } }
-                              },
-                              plugins: {
-                                legend: { display: false },
-                                tooltip: {
-                                  backgroundColor: 'rgba(0,0,0,0.8)',
-                                  titleColor: '#ec4899',
-                                  bodyFont: { size: 14, weight: 'bold' },
-                                  padding: 12,
-                                  displayColors: false
-                                }
-                              }
-                            }}
-                          />
-                        </div>
-                     </div>
+                        ))}
+                        {liveUsers && liveVisibleCount < liveUsers.users.length && (
+                          <button className="dev-btn-secondary dev-live-more" onClick={() => setLiveVisibleCount((c) => c + 10)}>
+                            <RefreshCcw size={14} style={{ marginRight: '6px' }} /> Load 10 more ({liveUsers.users.length - liveVisibleCount} left)
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   )}
-                  {analyticsData.demographics && (
-                    <div className="demographics-charts-grid" style={{ marginTop: '20px' }}>
-                      <div className="dev-panel">
-                        <h4 style={{ marginBottom: '15px' }}>Gender Distribution</h4>
-                        <div style={{ position: 'relative', height: '250px', width: '100%', maxWidth: '300px', margin: '0 auto' }}>
-                          <Doughnut
-                            data={{
-                              labels: ['Male', 'Female'],
-                              datasets: [{
-                                data: [analyticsData.demographics.gender.male, analyticsData.demographics.gender.female],
-                                backgroundColor: ['#3b82f6', '#ec4899'],
-                                borderWidth: 0,
-                                hoverOffset: 4
-                              }]
-                            }}
-                            options={{
-                              responsive: true,
-                              maintainAspectRatio: false,
-                              plugins: {
-                                legend: { position: 'bottom', labels: { color: '#fff', font: { size: 14 } } },
-                                tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', padding: 12 }
-                              },
-                              cutout: '70%'
-                            }}
-                          />
+
+                  {/* ── USER GROWTH & ACQUISITION ── */}
+                  {analyticsView === 'growth' && (analyticsData ? (
+                    <>
+                      <div className="dev-stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                        <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #14b8a6, #0f766e)', border: 'none' }}>
+                          <div className="stat-info"><h3 style={{ fontSize: '2rem' }}>+{analyticsData.todaySignups || 0}</h3><p style={{ color: '#ccfbf1' }}>New Users (Today)</p></div>
+                        </div>
+                        <div className="dev-stat-card" style={{ background: 'linear-gradient(135deg, #ec4899, #be185d)', border: 'none' }}>
+                          <div className="stat-info"><h3 style={{ fontSize: '2rem' }}>+{growthTimeframe === 'monthly' ? (analyticsData.monthSignups || 0) : (analyticsData.yearSignups || 0)}</h3><p style={{ color: '#fbcfe8' }}>New Users ({growthTimeframe === 'monthly' ? 'Last 30 Days' : 'Last 12 Months'})</p></div>
                         </div>
                       </div>
+                      {(analyticsData.growthData || analyticsData.yearlyGrowthData) && (
+                        <div className="dev-panel">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
+                            <h4 style={{ margin: 0 }}>User Growth &amp; Acquisition ({growthTimeframe === 'monthly' ? 'Last 30 Days' : 'Last 12 Months'})</h4>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                              <button onClick={() => setGrowthTimeframe('monthly')} className={`dev-btn-${growthTimeframe === 'monthly' ? 'primary' : 'secondary'}`} style={{ padding: '5px 12px', fontSize: '0.8rem' }}>Monthly</button>
+                              <button onClick={() => setGrowthTimeframe('yearly')} className={`dev-btn-${growthTimeframe === 'yearly' ? 'primary' : 'secondary'}`} style={{ padding: '5px 12px', fontSize: '0.8rem' }}>Yearly</button>
+                            </div>
+                          </div>
+                          <div style={{ position: 'relative', height: '320px', width: '100%' }}>
+                            <Line
+                              data={{
+                                labels: growthTimeframe === 'monthly' ? analyticsData.growthData.labels : analyticsData.yearlyGrowthData.labels,
+                                datasets: [{
+                                  label: 'New Signups',
+                                  data: growthTimeframe === 'monthly' ? analyticsData.growthData.signups : analyticsData.yearlyGrowthData.signups,
+                                  borderColor: '#ec4899',
+                                  backgroundColor: 'rgba(236, 72, 153, 0.2)',
+                                  fill: true,
+                                  tension: 0.4,
+                                  pointRadius: 4,
+                                  pointHoverRadius: 6,
+                                  pointBackgroundColor: '#fff',
+                                  pointBorderColor: '#ec4899',
+                                  pointBorderWidth: 2,
+                                }]
+                              }}
+                              options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                  y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                                  x: { grid: { color: 'rgba(255,255,255,0.05)' } }
+                                },
+                                plugins: {
+                                  legend: { display: false },
+                                  tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#ec4899', bodyFont: { size: 14, weight: 'bold' }, padding: 12, displayColors: false }
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : <div className="dev-analytics-loading">Loading analytics data…</div>)}
 
-                      <div className="dev-panel">
-                        <h4 style={{ marginBottom: '15px' }}>Top Locations</h4>
-                        <div style={{ position: 'relative', height: '250px', width: '100%', maxWidth: '300px', margin: '0 auto' }}>
+                  {/* ── TOP LOCATIONS ── */}
+                  {analyticsView === 'locations' && (analyticsData && analyticsData.demographics ? (
+                    <div className="dev-panel">
+                      <h4 style={{ marginBottom: '15px' }}>Top Locations</h4>
+                      <div className="dev-locations-grid">
+                        <div style={{ position: 'relative', height: '280px', width: '100%', maxWidth: '320px', margin: '0 auto' }}>
                           <Doughnut
                             data={{
                               labels: analyticsData.demographics.country.labels,
                               datasets: [{
                                 data: analyticsData.demographics.country.counts,
-                                backgroundColor: [
-                                  '#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4',
-                                  '#f97316', '#14b8a6', '#6366f1', '#eab308', '#d946ef'
-                                ],
+                                backgroundColor: ['#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#f97316', '#14b8a6', '#6366f1', '#eab308', '#d946ef'],
                                 borderWidth: 0,
                                 hoverOffset: 4
                               }]
@@ -1572,22 +1542,59 @@ export default function DeveloperAdmin() {
                             options={{
                               responsive: true,
                               maintainAspectRatio: false,
-                              plugins: {
-                                legend: { position: 'bottom', labels: { color: '#fff', boxWidth: 12, padding: 15 } },
-                                tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', padding: 12 }
-                              },
+                              plugins: { legend: { position: 'bottom', labels: { color: '#fff', boxWidth: 12, padding: 15 } }, tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', padding: 12 } },
                               cutout: '60%'
                             }}
                           />
                         </div>
+                        <div className="dev-locations-list">
+                          {analyticsData.demographics.country.labels.map((label, i) => (
+                            <div key={label} className="dev-location-row">
+                              <span className="dev-location-rank">{i + 1}</span>
+                              <span className="dev-location-name">{label}</span>
+                              <span className="dev-location-count">{analyticsData.demographics.country.counts[i]}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  )}
+                  ) : <div className="dev-analytics-loading">Loading analytics data…</div>)}
 
-                  {analyticsData.peakHours && (
-                    <div className="dev-panel" style={{ marginTop: '20px' }}>
+                  {/* ── GENDER DISTRIBUTION ── */}
+                  {analyticsView === 'gender' && (analyticsData && analyticsData.demographics ? (
+                    <div className="dev-panel">
+                      <h4 style={{ marginBottom: '15px' }}>Gender Distribution</h4>
+                      <div style={{ position: 'relative', height: '300px', width: '100%', maxWidth: '340px', margin: '0 auto' }}>
+                        <Doughnut
+                          data={{
+                            labels: ['Male', 'Female'],
+                            datasets: [{
+                              data: [analyticsData.demographics.gender.male, analyticsData.demographics.gender.female],
+                              backgroundColor: ['#3b82f6', '#ec4899'],
+                              borderWidth: 0,
+                              hoverOffset: 4
+                            }]
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom', labels: { color: '#fff', font: { size: 14 } } }, tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', padding: 12 } },
+                            cutout: '70%'
+                          }}
+                        />
+                      </div>
+                      <div className="dev-live-totals" style={{ marginTop: '16px' }}>
+                        <MiniStat icon={Users} label="Male" value={analyticsData.demographics.gender.male} grad="linear-gradient(135deg,#3b82f6,#2563eb)" />
+                        <MiniStat icon={Users} label="Female" value={analyticsData.demographics.gender.female} grad="linear-gradient(135deg,#ec4899,#db2777)" />
+                      </div>
+                    </div>
+                  ) : <div className="dev-analytics-loading">Loading analytics data…</div>)}
+
+                  {/* ── PEAK ACTIVITY (24 HOURS) ── */}
+                  {analyticsView === 'peak' && (analyticsData && analyticsData.peakHours ? (
+                    <div className="dev-panel">
                       <h4 style={{ marginBottom: '15px' }}>Peak Activity Heatmap (24 Hours)</h4>
-                      <div style={{ position: 'relative', height: '300px', width: '100%' }}>
+                      <div style={{ position: 'relative', height: '320px', width: '100%' }}>
                         <Bar
                           data={{
                             labels: ['12 AM', '1 AM', '2 AM', '3 AM', '4 AM', '5 AM', '6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM', '10 PM', '11 PM'],
@@ -1601,23 +1608,15 @@ export default function DeveloperAdmin() {
                           options={{
                             responsive: true,
                             maintainAspectRatio: false,
-                            scales: { 
-                              y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                              x: { grid: { display: false } }
-                            },
-                            plugins: {
-                              legend: { display: false },
-                              tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#ec4899', padding: 12 }
-                            }
+                            scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } },
+                            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#ec4899', padding: 12 } }
                           }}
                         />
                       </div>
                     </div>
-                  )}
+                  ) : <div className="dev-analytics-loading">Loading analytics data…</div>)}
+
                 </div>
-                ) : (
-                  <div style={{ textAlign: 'center', color: '#888', marginTop: '20px' }}>Loading analytics data...</div>
-                )
               ) : activeTab === 'users' ? (
                 <>
                   <form onSubmit={handleSearch} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
