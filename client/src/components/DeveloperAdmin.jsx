@@ -74,6 +74,12 @@ export default function DeveloperAdmin() {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState([]);
+  // Cursor-based pagination state for the "Load All Users" browse list (10 per page).
+  const [usersCursor, setUsersCursor] = useState(null);
+  const [hasMoreUsers, setHasMoreUsers] = useState(false);
+  const [loadingMoreUsers, setLoadingMoreUsers] = useState(false);
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const usersSentinelRef = useRef(null);
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastTopic, setBroadcastTopic] = useState('');
@@ -404,12 +410,16 @@ export default function DeveloperAdmin() {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     try {
+      // Search always hits the FULL database server-side (not the loaded page).
       const res = await fetch(`${API_URL}/api/admin/users?q=${encodeURIComponent(searchQuery)}`, {
         headers: { 'x-admin-pass': password }
       });
       if (res.ok) {
         const data = await res.json();
-        setUsers(data);
+        setIsSearchMode(true);
+        setUsers(data.users || []);
+        setUsersCursor(null);
+        setHasMoreUsers(false);
       }
     } catch (err) {
       console.error(err);
@@ -418,17 +428,57 @@ export default function DeveloperAdmin() {
 
   const handleLoadAll = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/users`, {
+      setIsSearchMode(false);
+      const res = await fetch(`${API_URL}/api/admin/users?limit=10`, {
         headers: { 'x-admin-pass': password }
       });
       if (res.ok) {
         const data = await res.json();
-        setUsers(data);
+        setUsers(data.users || []);
+        setUsersCursor(data.nextCursor || null);
+        setHasMoreUsers(!!data.nextCursor);
       }
     } catch (err) {
       console.error(err);
     }
   };
+
+  // Append the next page of the browse list. No-op while searching or already loading.
+  const loadMoreUsers = async () => {
+    if (!usersCursor || loadingMoreUsers || isSearchMode) return;
+    setLoadingMoreUsers(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/users?limit=10&cursor=${encodeURIComponent(usersCursor)}`, {
+        headers: { 'x-admin-pass': password }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const incoming = data.users || [];
+        setUsers(prev => {
+          const seen = new Set(prev.map(u => u._id));
+          return [...prev, ...incoming.filter(u => !seen.has(u._id))];
+        });
+        setUsersCursor(data.nextCursor || null);
+        setHasMoreUsers(!!data.nextCursor);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMoreUsers(false);
+    }
+  };
+
+  // Infinite scroll: when the sentinel below the list enters view in browse mode, load next 10.
+  useEffect(() => {
+    if (isSearchMode || !hasMoreUsers) return;
+    const el = usersSentinelRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) loadMoreUsers();
+    }, { rootMargin: '200px' });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [isSearchMode, hasMoreUsers, usersCursor, loadingMoreUsers]);
 
   const fetchReports = async () => {
     try {
@@ -1629,6 +1679,23 @@ export default function DeveloperAdmin() {
                     ))}
                     {users.length === 0 && searchQuery && (
                       <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No users found for "{searchQuery}"</div>
+                    )}
+                    {users.length === 0 && !searchQuery && (
+                      <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>Click "Load All Users" to browse, or search above.</div>
+                    )}
+                    {/* Infinite-scroll sentinel + manual fallback (browse mode only) */}
+                    {!isSearchMode && hasMoreUsers && (
+                      <div ref={usersSentinelRef} style={{ textAlign: 'center', marginTop: '16px', color: '#a8a8a8' }}>
+                        {loadingMoreUsers ? 'Loading…' : (
+                          <button onClick={loadMoreUsers} className="dev-btn-secondary" style={{ backgroundColor: '#222' }}>
+                            <RefreshCcw size={16} style={{ marginRight: '6px' }} />
+                            Load 10 more
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {!isSearchMode && !hasMoreUsers && users.length > 0 && (
+                      <div style={{ textAlign: 'center', marginTop: '16px', color: '#666', fontSize: '0.85rem' }}>— End of list —</div>
                     )}
                   </div>
                 </>

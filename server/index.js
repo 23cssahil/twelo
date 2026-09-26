@@ -3704,7 +3704,18 @@ app.get('/api/config/globe', async (req, res) => {
 app.get('/api/admin/users', adminAuth, async (req, res) => {
   try {
     const query = req.query.q;
-    let filter = {};
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
+
+    // Shared mapper: decrypt only to mask in-place, and never expose the internal search key.
+    const toMasked = (u) => {
+      const userObj = u.toObject();
+      userObj.email = maskEmail(decryptEmail(userObj.email));
+      delete userObj.emailHash;
+      return userObj;
+    };
+
+    // SEARCH MODE: always query the FULL database (not the current page) so results are
+    // complete and instant. Returns up to 50 matches, no pagination cursor.
     if (query) {
       const or = [
         { name: { $regex: query, $options: 'i' } },
@@ -3717,17 +3728,33 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
         const h = hashEmail(query);
         if (h) or.push({ emailHash: h });
       }
-      filter = { $or: or };
+      const found = await User.find({ $or: or }).select('-password').sort({ createdAt: -1 }).limit(50);
+      return res.json({ users: found.map(toMasked), nextCursor: null });
     }
-    const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).limit(query ? 50 : 5000);
-    const maskedUsers = users.map(user => {
-      const userObj = user.toObject();
-      // Never ship plaintext emails to the admin frontend — decrypt only to mask in-place.
-      userObj.email = maskEmail(decryptEmail(userObj.email));
-      delete userObj.emailHash; // search key is internal; no need to expose it
-      return userObj;
-    });
-    res.json(maskedUsers);
+
+    // BROWSE MODE ("Load All Users"): cursor-based keyset pagination over createdAt+​_id,
+    // newest first. Fetch limit+1 to know whether another page exists without a COUNT.
+    let filter = {};
+    if (req.query.cursor) {
+      try {
+        const { c, i } = JSON.parse(Buffer.from(req.query.cursor, 'base64').toString('utf8'));
+        const cDate = new Date(c);
+        filter = {
+          $or: [
+            { createdAt: { $lt: cDate } },
+            { createdAt: cDate, _id: { $lt: new mongoose.Types.ObjectId(i) } }
+          ]
+        };
+      } catch (e) { /* malformed cursor → fall back to first page */ }
+    }
+    const page = await User.find(filter).select('-password').sort({ createdAt: -1, _id: -1 }).limit(limit + 1);
+    const hasMore = page.length > limit;
+    const slice = hasMore ? page.slice(0, limit) : page;
+    const last = slice[slice.length - 1];
+    const nextCursor = hasMore && last
+      ? Buffer.from(JSON.stringify({ c: last.createdAt.toISOString(), i: last._id.toString() })).toString('base64')
+      : null;
+    res.json({ users: slice.map(toMasked), nextCursor });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching users' });
   }
