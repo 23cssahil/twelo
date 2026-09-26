@@ -255,6 +255,21 @@ input, button, textarea {
   overflow: hidden !important;
 }
 
+/* Match screen chat/video mode toggle (Omegle-style). Absolutely positioned within the
+   dashboard container (which is static, so this is relative to the viewport). On mobile it
+   sits just under the 60px sticky header; on desktop it is offset past the 250px sidebar so
+   it never covers the Home/Search nav items. */
+.match-mode-toggle {
+  top: 70px;
+  left: 20px;
+}
+@media (min-width: 768px) {
+  .match-mode-toggle {
+    top: 24px;
+    left: 270px;
+  }
+}
+
 /* Mobile Bottom Navigation */
 .mobile-nav {
   display: flex;

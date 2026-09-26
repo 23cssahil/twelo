@@ -8172,7 +8172,7 @@ const handleStoryUpload = async () => {
       
   {/* Omegle-style Toggle Switch on Top Left */}
   {activeTab === 'home' && !activeChatUser && (
-    <div style={{ position: 'absolute', top: '70px', left: '20px', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(0,0,0,0.5)', padding: '10px', borderRadius: '30px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+    <div className="match-mode-toggle" style={{ position: 'absolute', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(0,0,0,0.5)', padding: '10px', borderRadius: '30px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
       <button 
         onClick={() => {
           setChatMode('video');
