@@ -8126,12 +8126,12 @@ const handleStoryUpload = async () => {
               <SearchIcon size={24} /><span>Search</span>
             </div>
             <div className={`nav-item ${activeTab === 'notifications' ? 'active' : ''}`} onClick={() => setActiveTab('notifications')}>
-              <Bell size={24} /><span>Notifications</span>
-              {unreadNotifsCount > 0 && <span className="sidebar-badge">{unreadNotifsCount}</span>}
+              <span className="nav-icon-wrap"><Bell size={24} />{unreadNotifsCount > 0 && <span className="sidebar-badge">{unreadNotifsCount}</span>}</span>
+              <span>Notifications</span>
             </div>
             <div className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
-              <MessageSquare size={24} /><span>Messages</span>
-              {totalUnreadUsers > 0 && <span className="sidebar-badge">{totalUnreadUsers}</span>}
+              <span className="nav-icon-wrap"><MessageSquare size={24} />{totalUnreadUsers > 0 && <span className="sidebar-badge">{totalUnreadUsers}</span>}</span>
+              <span>Messages</span>
             </div>
             <div className={`nav-item ${activeTab === 'everyone-stories' ? 'active' : ''}`} onClick={() => setActiveTab('everyone-stories')}>
               <Layers size={24} color={activeTab === 'everyone-stories' ? '#fff' : '#00ffff'} /><span>Global Stories</span>
