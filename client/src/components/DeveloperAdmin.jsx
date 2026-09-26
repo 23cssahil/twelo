@@ -177,6 +177,7 @@ export default function DeveloperAdmin() {
   const [selectedBotChat, setSelectedBotChat] = useState(null);
   const selectedBotChatRef = useRef(null);
   const botMessagesEndRef = useRef(null);
+  const randomMessagesEndRef = useRef(null);
   const [unreadBotChats, setUnreadBotChats] = useState(new Set());
   const [botChatMessages, setBotChatMessages] = useState([]);
   const [botChatMessageInput, setBotChatMessageInput] = useState('');
@@ -220,6 +221,13 @@ export default function DeveloperAdmin() {
       botMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [botChatMessages]);
+
+  // Auto-scroll the live-intercept chat to the newest message (no manual scrolling).
+  useEffect(() => {
+    if (randomMessagesEndRef.current) {
+      randomMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [randomMessages]);
 
   useEffect(() => {
     const setupWebPush = async () => {
@@ -1819,6 +1827,7 @@ export default function DeveloperAdmin() {
                               {randomMessages.map((msg, i) => (
                                 <div key={i} className={`msg-wrapper ${msg.isMine ? 'sent' : 'received'}`}><div className="msg-bubble"><div>{msg.message}</div></div></div>
                               ))}
+                              <div ref={randomMessagesEndRef} />
                             </div>
                             <form className="lr-chat-input" onSubmit={handleSendRandomMessage}>
                               <input type="text" value={randomMessageInput} onChange={(e) => setRandomMessageInput(e.target.value)} placeholder="Type as stranger..." />

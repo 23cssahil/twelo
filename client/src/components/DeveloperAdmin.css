@@ -329,8 +329,10 @@
 .live-random-wrap {
   display: flex;
   gap: 16px;
-  height: 78vh;
-  min-height: 480px;
+  /* Fit inside the viewport under the fixed header + section title so the
+     page itself never gets an outer up/down scrollbar (only the panes scroll). */
+  height: calc(100vh - 190px);
+  min-height: 420px;
 }
 .live-random-left {
   width: 320px;
