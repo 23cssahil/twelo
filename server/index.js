@@ -3688,11 +3688,18 @@ app.get('/api/admin/live-users', adminAuth, async (req, res) => {
       } catch (e) {}
     }
 
-    const [totalLogins, totalUsers, guestUsers] = await Promise.all([
-      UserSession.countDocuments({}),
+    const [distinctSessionUsers, totalUsers, guestUsers] = await Promise.all([
+      UserSession.distinct('user'),
       User.countDocuments({ ownedByAdmin: { $ne: true } }),
       User.countDocuments({ isGuest: true }),
     ]);
+    // "Total Logins" = distinct REAL users who have ever signed in (one per person),
+    // NOT the raw session-row count. The old countDocuments({}) summed every socket
+    // disconnect (incl. reconnects + null/admin sockets), inflating it into fake numbers.
+    const loginIds = distinctSessionUsers
+      .filter((u) => u && /^[a-fA-F0-9]{24}$/.test(u.toString()))
+      .map((u) => u.toString());
+    const totalLogins = await User.countDocuments({ _id: { $in: loginIds }, ownedByAdmin: { $ne: true } });
 
     res.json({
       totals: {
