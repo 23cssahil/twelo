@@ -8010,7 +8010,7 @@ const handleStoryUpload = async () => {
               pointerEvents: 'none'
             }}>
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#2bd856', boxShadow: '0 0 8px #2bd856', display: 'inline-block', animation: 'liveDotPulse 1.4s ease-in-out infinite' }} />
-              {liveUserCount.toLocaleString()} online
+              {liveUserCount.toLocaleString()}+ online
             </div>
             <style>{`
               .night-sky-stars {
