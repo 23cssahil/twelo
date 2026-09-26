@@ -5710,11 +5710,53 @@ const handleStoryUpload = async () => {
               className="space-ui-layer"
               style={{
                 position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
-                zIndex: 5,
-                paddingTop: '53vh'
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                pointerEvents: 'none', zIndex: 5, gap: '12px'
               }}
             >
+              {/* MATCH launcher circle — unified into this centered column so the gap
+                  between the circle and the filter/status stays a fixed size on phone AND
+                  laptop (no overlap, no huge gap), and the circle remains visible while
+                  searching instead of disappearing. */}
+              {chatMode === 'text' && !activeChatUser && !isAnonymousChatActive && (
+                <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* Animated pulse rings */}
+                    <div style={{ position: 'absolute', width: '170px', height: '170px', borderRadius: '50%', border: '2px solid rgba(139,92,246,0.45)', animation: 'matchPulse 2.2s ease-out infinite' }} />
+                    <div style={{ position: 'absolute', width: '215px', height: '215px', borderRadius: '50%', border: '2px solid rgba(139,92,246,0.25)', animation: 'matchPulse 2.2s ease-out infinite 0.45s' }} />
+                    <div style={{ position: 'absolute', width: '260px', height: '260px', borderRadius: '50%', border: '1px solid rgba(139,92,246,0.12)', animation: 'matchPulse 2.2s ease-out infinite 0.9s' }} />
+                    {/* Main button */}
+                    <button
+                      onClick={handleGlobeClick}
+                      style={{
+                        width: '140px', height: '140px', borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #6d28d9 0%, #a855f7 50%, #ec4899 100%)',
+                        border: 'none', cursor: 'pointer',
+                        boxShadow: '0 0 50px rgba(139,92,246,0.65), 0 0 90px rgba(139,92,246,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                        zIndex: 10,
+                        outline: 'none',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.07)'; e.currentTarget.style.boxShadow = '0 0 70px rgba(139,92,246,0.9), 0 0 120px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 0 50px rgba(139,92,246,0.65), 0 0 90px rgba(139,92,246,0.3), inset 0 1px 0 rgba(255,255,255,0.2)'; }}
+                      onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.94)'; }}
+                      onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                    >
+                      <GlobeIcon size={46} strokeWidth={1.5} color="#fff" style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.35))' }} />
+                      <span style={{ color: '#fff', fontWeight: '900', fontSize: '1.05rem', letterSpacing: '3px', fontFamily: 'Inter, sans-serif' }}>MATCH</span>
+                    </button>
+                  </div>
+                  <style>{`
+                    @keyframes matchPulse {
+                      0%   { transform: scale(0.95); opacity: 0.9; }
+                      70%  { transform: scale(1.18); opacity: 0; }
+                      100% { transform: scale(1.18); opacity: 0; }
+                    }
+                  `}</style>
+                </div>
+              )}
               {isSearchingRandom && (
                 <div style={{ pointerEvents: 'auto', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                   <div className="match-timer">{randomSearchTimer}s</div>
@@ -7971,53 +8013,7 @@ const handleStoryUpload = async () => {
           </>
         )}
 
-      {/* Match Button — replaces Globe */}
-      {activeTab === 'home' && chatMode === 'text' && !activeChatUser && !isAnonymousChatActive && !isSearchingRandom && !matchFailed && (
-        <div className="match-launcher" style={{
-          position: 'fixed', top: 0, height: '100dvh',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          zIndex: 5, pointerEvents: 'none'
-        }}>
-          <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', transform: 'translateY(-6vh)' }}>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {/* Animated pulse rings */}
-              <div style={{ position: 'absolute', width: '170px', height: '170px', borderRadius: '50%', border: '2px solid rgba(139,92,246,0.45)', animation: 'matchPulse 2.2s ease-out infinite' }} />
-              <div style={{ position: 'absolute', width: '215px', height: '215px', borderRadius: '50%', border: '2px solid rgba(139,92,246,0.25)', animation: 'matchPulse 2.2s ease-out infinite 0.45s' }} />
-              <div style={{ position: 'absolute', width: '260px', height: '260px', borderRadius: '50%', border: '1px solid rgba(139,92,246,0.12)', animation: 'matchPulse 2.2s ease-out infinite 0.9s' }} />
-              {/* Main button */}
-              <button
-                onClick={handleGlobeClick}
-                style={{
-                  width: '140px', height: '140px', borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #6d28d9 0%, #a855f7 50%, #ec4899 100%)',
-                  border: 'none', cursor: 'pointer',
-                  boxShadow: '0 0 50px rgba(139,92,246,0.65), 0 0 90px rgba(139,92,246,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px',
-                  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                  zIndex: 10,
-                  outline: 'none',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.07)'; e.currentTarget.style.boxShadow = '0 0 70px rgba(139,92,246,0.9), 0 0 120px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)'; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 0 50px rgba(139,92,246,0.65), 0 0 90px rgba(139,92,246,0.3), inset 0 1px 0 rgba(255,255,255,0.2)'; }}
-                onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.94)'; }}
-                onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <GlobeIcon size={46} strokeWidth={1.5} color="#fff" style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.35))' }} />
-                <span style={{ color: '#fff', fontWeight: '900', fontSize: '1.05rem', letterSpacing: '3px', fontFamily: 'Inter, sans-serif' }}>MATCH</span>
-              </button>
-            </div>
-            <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.82rem', margin: 0, fontFamily: 'Inter, sans-serif', letterSpacing: '1.5px', textTransform: 'uppercase', textShadow: '0 2px 6px rgba(0,0,0,0.55)', fontWeight: 600 }}>Tap to find a random chat</p>
-          </div>
-          <style>{`
-            @keyframes matchPulse {
-              0%   { transform: scale(0.95); opacity: 0.9; }
-              70%  { transform: scale(1.18); opacity: 0; }
-              100% { transform: scale(1.18); opacity: 0; }
-            }
-          `}</style>
-        </div>
-      )}
+      {/* Match circle now lives inside the home .space-ui-layer centered column (see renderTabContent 'home'), so it stays aligned with the filter/status on every screen size and remains visible while searching. */}
   {/* Omegle Video Chat Interface */}
   {activeTab === 'home' && !activeChatUser && chatMode === 'video' && (
     <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100dvh', zIndex: 50, background: '#05060a', overflow: 'hidden' }}>
