@@ -125,7 +125,9 @@ export default function DeveloperAdmin() {
   // ── Analytics sub-view + live-users feed ──
   const [analyticsView, setAnalyticsView] = useState('live'); // live | growth | locations | gender | peak
   const [liveUsers, setLiveUsers] = useState(null);           // { totals, users }
-  const [liveVisibleCount, setLiveVisibleCount] = useState(10);
+  // Page-based pagination for the Live Users roster (newest sign-ins on top, older pages fade away below).
+  const [livePage, setLivePage] = useState(0);                 // 0-based current page
+  const LIVE_PAGE_SIZE = 10;
 
   const [activeTab, setActiveTab] = useState('overview');
   // Sidebar starts open on desktop, collapsed (off-canvas) on small screens.
@@ -1418,7 +1420,7 @@ export default function DeveloperAdmin() {
 
                   {/* ── Top button row: each button reveals its panel below ── */}
                   <div className="dev-analytics-tabs">
-                    <button className={`dev-analytics-tab${analyticsView === 'live' ? ' active' : ''}`} onClick={() => { setAnalyticsView('live'); setLiveVisibleCount(10); }}><Users size={16} /> Live Users</button>
+                    <button className={`dev-analytics-tab${analyticsView === 'live' ? ' active' : ''}`} onClick={() => { setAnalyticsView('live'); setLivePage(0); }}><Users size={16} /> Live Users</button>
                     <button className={`dev-analytics-tab${analyticsView === 'growth' ? ' active' : ''}`} onClick={() => setAnalyticsView('growth')}><BarChart2 size={16} /> User Growth &amp; Acquisition</button>
                     <button className={`dev-analytics-tab${analyticsView === 'locations' ? ' active' : ''}`} onClick={() => setAnalyticsView('locations')}><Globe size={16} /> Top Locations</button>
                     <button className={`dev-analytics-tab${analyticsView === 'gender' ? ' active' : ''}`} onClick={() => setAnalyticsView('gender')}><Users size={16} /> Gender Distribution</button>
@@ -1441,28 +1443,43 @@ export default function DeveloperAdmin() {
                         {analyticsData && <MiniStat icon={Clock} label="Avg Session" value={`${analyticsData.avgSessionMinutes}m`} />}
                         {analyticsData && <MiniStat icon={UserPlus} label="New Today" value={`+${analyticsData.todaySignups || 0}`} />}
                       </div>
-                      <div className="dev-live-list">
-                        {!liveUsers && <div className="dev-live-empty">Loading live users…</div>}
-                        {liveUsers && liveUsers.users.length === 0 && <div className="dev-live-empty">No users are signed in right now.</div>}
-                        {liveUsers && liveUsers.users.slice(0, liveVisibleCount).map((u) => (
-                          <div key={u.userId} className="dev-live-row">
-                            <img className="dev-live-avatar" src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username || '?')}&background=random`} alt="" />
-                            <div className="dev-live-meta">
-                              <div className="dev-live-name">{u.name} <span>@{u.username}</span>{u.isGuest && <span className="dev-live-guest">guest</span>}</div>
-                              <div className="dev-live-sub">{u.country && u.country !== 'Earth' ? `📍 ${u.country}` : '🌍 Earth'} · {u.gender || '—'} · online since {new Date(u.since).toLocaleTimeString()}</div>
+                      {(() => {
+                        const all = liveUsers ? liveUsers.users : [];
+                        const total = all.length;
+                        const totalPages = Math.max(1, Math.ceil(total / LIVE_PAGE_SIZE));
+                        const page = Math.min(livePage, totalPages - 1);
+                        const start = page * LIVE_PAGE_SIZE;
+                        const pageUsers = all.slice(start, start + LIVE_PAGE_SIZE);
+                        const hasMoreBelow = total > start + LIVE_PAGE_SIZE;
+                        return (
+                          <>
+                            <div className={`dev-live-list${hasMoreBelow ? ' dev-live-fade' : ''}`}>
+                              {!liveUsers && <div className="dev-live-empty">Loading live users…</div>}
+                              {liveUsers && total === 0 && <div className="dev-live-empty">No users are signed in right now.</div>}
+                              {pageUsers.map((u) => (
+                                <div key={u.userId} className="dev-live-row">
+                                  <img className="dev-live-avatar" src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username || '?')}&background=random`} alt="" />
+                                  <div className="dev-live-meta">
+                                    <div className="dev-live-name">{u.name} <span>@{u.username}</span>{u.isGuest && <span className="dev-live-guest">guest</span>}</div>
+                                    <div className="dev-live-sub">{u.country && u.country !== 'Earth' ? `📍 ${u.country}` : '🌍 Earth'} · {u.gender || '—'} · online since {new Date(u.since).toLocaleTimeString()}</div>
+                                  </div>
+                                  <div className="dev-live-activity">
+                                    <span title="Messages sent"><MessageSquare size={13} /> {u.messagesSent}</span>
+                                    <span title="Matches made"><Radio size={13} /> {u.matchesMade}</span>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                            <div className="dev-live-activity">
-                              <span title="Messages sent"><MessageSquare size={13} /> {u.messagesSent}</span>
-                              <span title="Matches made"><Radio size={13} /> {u.matchesMade}</span>
-                            </div>
-                          </div>
-                        ))}
-                        {liveUsers && liveVisibleCount < liveUsers.users.length && (
-                          <button className="dev-btn-secondary dev-live-more" onClick={() => setLiveVisibleCount((c) => c + 10)}>
-                            <RefreshCcw size={14} style={{ marginRight: '6px' }} /> Load 10 more ({liveUsers.users.length - liveVisibleCount} left)
-                          </button>
-                        )}
-                      </div>
+                            {liveUsers && totalPages > 1 && (
+                              <div className="dev-live-pager">
+                                <button className="dev-btn-secondary dev-live-pager-btn" disabled={page <= 0} onClick={() => setLivePage((p) => Math.max(0, p - 1))}>‹ Prev</button>
+                                <span className="dev-live-pager-info">Page {page + 1} of {totalPages} · {total} online</span>
+                                <button className="dev-btn-secondary dev-live-pager-btn" disabled={page >= totalPages - 1} onClick={() => setLivePage((p) => Math.min(totalPages - 1, p + 1))}>Next ›</button>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
 

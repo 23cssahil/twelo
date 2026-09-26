@@ -744,6 +744,21 @@
 .dev-live-activity { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; color: #cfcfcf; flex-shrink: 0; }
 .dev-live-activity span { display: inline-flex; align-items: center; gap: 6px; }
 .dev-live-more { align-self: center; background: #222; margin-top: 4px; }
+/* Fade the bottom of the roster so older users visually sink away; newest stay on top. */
+.dev-live-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 78px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 78px), transparent 100%);
+}
+.dev-live-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 12px;
+}
+.dev-live-pager-btn { padding: 7px 16px; font-size: 0.85rem; }
+.dev-live-pager-btn:disabled { opacity: .35; cursor: not-allowed; }
+.dev-live-pager-info { color: #9a9a9a; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
 
 /* ── Locations list (beside the doughnut) ───────────────────────── */
 .dev-locations-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center; }
