@@ -1698,10 +1698,9 @@ export default function Dashboard() {
   }, []);
   const [onlineUsers, setOnlineUsers] = useState([]);
 
-  // "People online" counter shown near the moon on Home. While no OTHER real user is
-  // connected it shows a fake, gently-fluctuating number (2000–4999) so the room feels
-  // alive; the moment at least one real user is online it switches to a real count based
-  // at 5891 (1 user → 5891, 2 → 5892, 3 → 5893 …).
+  // "People online" counter shown near the moon on Home. It shows a fake, gently-
+  // fluctuating number (2000–4999) until at least 8 real users are online together; once
+  // 8+ are connected it switches to a real count = 5891 + online (8 users → 5899, 9 → 5900 …).
   const [fakeOnline, setFakeOnline] = useState(() => 2600 + Math.floor(Math.random() * 1600));
   useEffect(() => {
     const id = setInterval(() => {
@@ -1714,8 +1713,8 @@ export default function Dashboard() {
     }, 2500);
     return () => clearInterval(id);
   }, []);
-  const realOthersOnline = Math.max(0, onlineUsers.length - 1);
-  const liveUserCount = realOthersOnline >= 1 ? 5890 + realOthersOnline : fakeOnline;
+  const realOnline = onlineUsers.length;
+  const liveUserCount = realOnline >= 8 ? 5891 + realOnline : fakeOnline;
   // O(1) membership lookups (industry-standard pattern): replace O(n) Array.includes()
   // scans in list-render hot paths (search rows, chat list, profiles). Set.has() is
   // exactly equivalent to includes() for primitive ids, so results are unchanged — only faster.
