@@ -4733,6 +4733,77 @@ function addToLiveWaiting(entry) {
   const existing = liveRandomWaiting.get(entry.userId);
   liveRandomWaiting.set(entry.userId, { ...entry, ts: existing ? existing.ts : Date.now() });
   broadcastLiveQueue();
+  // Whenever a second user lands on the board, immediately pair the waiting users
+  // so the board only ever shows a genuinely lone searcher (admin's requested behavior).
+  setImmediate(() => { try { autoPairLiveWaiting(); } catch (e) { console.error('[autoPair]', e.message); } });
+}
+
+// Connect two users who are both sitting on the live waiting board. This IGNORES the
+// gender filter on purpose: these two already failed to match during search precisely
+// because their filters conflicted, and the admin opted into always-pairing. Mirrors the
+// real-match handshake (room + match_found + coin deduction + board/queue cleanup).
+function pairTwoLiveUsers(a, b) {
+  try {
+    const sockA = io.sockets.sockets.get(a.socketId);
+    const sockB = io.sockets.sockets.get(b.socketId);
+    if (!sockA || !sockA.connected || !sockB || !sockB.connected) {
+      // Can't pair dead sockets; drop them from the board so they don't linger.
+      removeFromLiveWaiting(a.userId);
+      removeFromLiveWaiting(b.userId);
+      return false;
+    }
+    sockA.data.randomSearching = false;
+    sockB.data.randomSearching = false;
+    const roomId = `random_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const userA = { userId: a.userId, socketId: a.socketId, genderFilter: a.wantGender, userGender: a.gender, userCountry: a.country, userCountryCode: a.countryCode };
+    const userB = { userId: b.userId, socketId: b.socketId, genderFilter: b.wantGender, userGender: b.gender, userCountry: b.country, userCountryCode: b.countryCode };
+    activeRandomChats.set(roomId, { user1: userA, user2: userB });
+    if (activeSessions.has(userA.socketId)) activeSessions.get(userA.socketId).matchesMade += 1;
+    if (activeSessions.has(userB.socketId)) activeSessions.get(userB.socketId).matchesMade += 1;
+    // The pairing itself is synchronous; the meta (coins + country facts) is fire-and-forget.
+    (async () => {
+      try {
+        await Promise.all([userA, userB].map(async uu => {
+          if (!uu.genderFilter || uu.genderFilter === 'any') return;
+          const dbU = await User.findById(uu.userId);
+          if (dbU && dbU.coins >= 2) { dbU.coins -= 2; await dbU.save(); io.to(uu.socketId).emit('coins_deducted', { amount: 2, balance: dbU.coins }); }
+        }));
+      } catch (e) { console.error('[autoPair coins]', e.message); }
+      try {
+        const [recA, recB] = await Promise.all([
+          User.findById(userA.userId).select('country countryCode').lean(),
+          User.findById(userB.userId).select('country countryCode').lean(),
+        ]);
+        const [factA, factB] = await Promise.all([getRandomCountryFact(recB?.countryCode || 'UN'), getRandomCountryFact(recA?.countryCode || 'UN')]);
+        io.to(userA.socketId).emit('match_found', { roomId, partnerId: userB.userId, partnerAvatar: null, partnerCountry: (recB?.countryCode && recB.countryCode !== 'UN') ? recB.country : factA.countryName, partnerCountryCode: (recB?.countryCode && recB.countryCode !== 'UN') ? recB.countryCode : factA.countryCode, partnerFact: factA.fact });
+        io.to(userB.socketId).emit('match_found', { roomId, partnerId: userA.userId, partnerAvatar: null, partnerCountry: (recA?.countryCode && recA.countryCode !== 'UN') ? recA.country : factB.countryName, partnerCountryCode: (recA?.countryCode && recA.countryCode !== 'UN') ? recA.countryCode : factB.countryCode, partnerFact: factB.fact });
+      } catch (e) { console.error('[autoPair meta]', e.message); }
+    })();
+    if (pubClient) { redisQueueRemove(pubClient, a.userId).catch(() => {}); redisQueueRemove(pubClient, b.userId).catch(() => {}); }
+    _fallbackQueue = _fallbackQueue.filter(u => u.userId !== a.userId && u.userId !== b.userId);
+    liveRandomWaiting.delete(a.userId);
+    liveRandomWaiting.delete(b.userId);
+    broadcastLiveQueue();
+    return true;
+  } catch (e) { console.error('[pairTwoLiveUsers]', e.message); return false; }
+}
+
+// Greedily pair up every waiting user (oldest first). Runs whenever the board changes
+// and on a short safety-net tick. Leaves a lone odd user waiting (never a bot while an
+// admin is watching — that is handled by scheduleCompanionFallback).
+function autoPairLiveWaiting() {
+  // Only override gender filters while an admin is actually on the Live board.
+  // With nobody watching, leave the normal AI-companion fallback to respect each
+  // user's paid filter instead of pairing them with a wrong-gender stranger.
+  if (!isLiveAdminWatching()) return;
+  let guard = 0;
+  while (liveRandomWaiting.size >= 2 && guard++ < 50) {
+    const ordered = Array.from(liveRandomWaiting.values()).sort((x, y) => x.ts - y.ts);
+    const a = ordered[0];
+    const b = ordered[1];
+    if (!a || !b) break;
+    if (!pairTwoLiveUsers(a, b)) break; // stale socket cleanup made no progress -> stop, let the sweeper recover
+  }
 }
 
 function removeFromLiveWaiting(userId) {
@@ -4749,6 +4820,12 @@ setInterval(() => {
   }
   if (changed) broadcastLiveQueue();
 }, 8000);
+
+// Safety-net: if two compatible-or-not users ever end up on the board without the
+// add-trigger firing (e.g. reconnects), pair them within a couple of seconds.
+setInterval(() => {
+  try { if (liveRandomWaiting.size >= 2) autoPairLiveWaiting(); } catch (e) { /* non-blocking */ }
+}, 2500);
 
 // Assign an AI companion to a still-searching user (used when nobody is watching
 // the live board, or after the admin leaves). Removes them from every queue.
@@ -5336,6 +5413,8 @@ io.on('connection', (socket) => {
     // admin can intercept them.
     socket.on('admin_watch_live', () => {
       socket.join('admin_live');
+      // Clear any waiting pairs first so the board the admin sees holds only genuine singles.
+      try { if (liveRandomWaiting.size >= 2) autoPairLiveWaiting(); } catch (e) { /* non-blocking */ }
       broadcastLiveQueue(); // send the current board immediately to the new watcher
     });
     socket.on('admin_unwatch_live', () => { socket.leave('admin_live'); });
