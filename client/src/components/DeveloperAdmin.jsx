@@ -1150,6 +1150,31 @@ export default function DeveloperAdmin() {
     });
   };
 
+  // From a PERSISTENT bot chat the admin can also reach out to the user. This must go through
+  // the SAME identity form (send-request mode) as the intercept — otherwise the request leaves
+  // with no identity applied and the user sees the raw auto-generated persona name instead of
+  // what the admin chose. submitIdentityForm then calls /bots/follow with the identity.
+  const openBotChatIdentity = () => {
+    if (!selectedBotChat || !selectedBotChat.bot || !selectedBotChat.user) return;
+    const bot = selectedBotChat.bot;
+    const target = selectedBotChat.user;
+    // If this persona is already dedicated to a DIFFERENT user, don't prefill with their data —
+    // the server clones a fresh dedicated persona for this user, so start blank.
+    const ownedByOther = bot.dedicatedTo && String(bot.dedicatedTo) !== String(target._id);
+    setIdentityForm({
+      mode: 'send-request',
+      botId: bot._id,
+      userId: target._id,
+      requesterName: target.username,
+      name: ownedByOther ? '' : (bot.name || ''),
+      username: ownedByOther ? '' : (bot.username || ''),
+      age: ownedByOther ? '' : (bot.age || ''),
+      country: ownedByOther ? '' : (bot.country || ''),
+      gender: ownedByOther ? 'male' : (bot.gender || 'male'),
+      bio: ownedByOther ? '' : (bot.bio || '')
+    });
+  };
+
   const submitIdentityForm = async (e) => {
     e.preventDefault();
     if (!identityForm || !identityForm.name.trim() || !identityForm.username.trim()) return;
@@ -1227,30 +1252,9 @@ export default function DeveloperAdmin() {
     setBotChatMessageInput('');
   };
 
-  // ── Request-to-follow / Block for the open bot chat ──
-  // The bot no longer auto-follows: it sends a real follow request the user can accept,
-  // matching how normal users connect. Only if the user already follows the bot does the
-  // server connect them instantly (mutual).
-  const followBackUser = async () => {
-    if (!selectedBotChat) return;
-    const uid = String(selectedBotChat.user._id);
-    try {
-      const res = await fetch(`${API_URL}/api/admin/bots/follow/${selectedBotChat.bot._id}/${uid}`, {
-        method: 'POST', headers: { 'x-admin-pass': password }
-      });
-      if (res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (data.connected) {
-          setFollowedIds(prev => new Set(prev).add(uid));
-        } else {
-          setRequestedUserIds(prev => new Set(prev).add(uid));
-        }
-        fetchBotChats();
-      } else {
-        alert('Could not send request.');
-      }
-    } catch (err) { console.error(err); alert('Could not send request.'); }
-  };
+  // ── Block for the open bot chat ──
+  // (Sending a friend request now goes through openBotChatIdentity → identity form → /bots/follow,
+  //  so no admin-initiated request can leave without a set identity.)
 
   const blockUserInChat = async () => {
     if (!selectedBotChat) return;
@@ -2365,7 +2369,7 @@ export default function DeveloperAdmin() {
                                   ? <span className="lr-act lr-act-static" title="Connected"><UserCheck size={18} /></span>
                                   : requestedUserIds.has(String(selectedBotChat.user._id))
                                   ? <span className="lr-act lr-act-static" title="Request sent — waiting for them to accept"><Clock size={18} /></span>
-                                  : <button className="lr-act" title="Send follow request" onClick={followBackUser}><UserPlus size={18} /></button>}
+                                  : <button className="lr-act" title="Add as friend (set identity, then send request)" onClick={openBotChatIdentity}><UserPlus size={18} /></button>}
                                 {blockedIds.has(String(selectedBotChat.user._id))
                                   ? <button className="lr-act lr-act-danger" title="Unblock user" onClick={blockUserInChat}><Ban size={18} /></button>
                                   : <button className="lr-act" title="Block user" onClick={blockUserInChat}><Ban size={18} /></button>}
