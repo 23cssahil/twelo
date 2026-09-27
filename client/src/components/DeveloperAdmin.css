@@ -668,6 +668,39 @@
   .dev-health-metrics { gap: 10px; font-size: 0.78rem; }
 }
 
+/* ── Global "waiting for random chat" banner (all tabs) ─────────── */
+.dev-waiting-banner {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 92vw;
+  padding: 10px 12px 10px 16px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.96);
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.dev-waiting-banner b { color: #fca5a5; }
+.dev-waiting-banner-alert { border-color: #ef4444; animation: waitingPulse 1s ease-in-out 3; }
+.dev-waiting-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; flex-shrink: 0; box-shadow: 0 0 0 0 rgba(239,68,68,0.6); animation: globePulse 1.6s infinite; }
+.dev-waiting-close { background: transparent; border: none; color: #9a9a9a; cursor: pointer; display: inline-flex; align-items: center; padding: 2px; border-radius: 50%; }
+.dev-waiting-close:hover { color: #fff; background: rgba(255,255,255,0.1); }
+@keyframes waitingPulse {
+  0%, 100% { box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(239,68,68,0.35), 0 8px 24px rgba(0,0,0,0.4); }
+}
+@media (max-width: 560px) {
+  .dev-waiting-banner { top: 78px; font-size: 0.82rem; padding: 8px 10px 8px 14px; }
+}
+
 /* ── Analytics: top button row + reveal panels ──────────────────── */
 /* Analytics/Overview fit chain: the section fills the viewport exactly, so the
    page itself never scrolls — only the inner list/panel boxes do. */

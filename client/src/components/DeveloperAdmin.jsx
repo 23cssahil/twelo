@@ -193,6 +193,15 @@ export default function DeveloperAdmin() {
   const [identitySaving, setIdentitySaving] = useState(false);
   const [liveTick, setLiveTick] = useState(Date.now());      // re-renders the "waiting Xs" labels every second
   const [requestToast, setRequestToast] = useState(null);    // transient toast when a new bot request arrives
+  const [waitingAlert, setWaitingAlert] = useState(null);    // transient toast when a user joins the random-chat waiting queue
+  const prevQueueCountRef = useRef(0);                        // edge-trigger the sound only when the queue actually grows
+  // Same short beep the user app uses for message notifications.
+  const playQueueBeep = () => {
+    try {
+      const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+      audio.play()?.catch(() => {});
+    } catch (e) {}
+  };
 
   // ── Admin WebRTC call state ──
   const [adminCall, setAdminCall] = useState(null);   // { active, incoming, isVideo, peerUserId, peerSocketId, peerUsername, peerAvatar, botId, botUsername }
@@ -297,7 +306,21 @@ export default function DeveloperAdmin() {
       });
         
       newSocket.on('admin_random_queue', (arr) => {
-        setLiveQueue(Array.isArray(arr) ? arr : []);
+        const q = Array.isArray(arr) ? arr : [];
+        setLiveQueue(q);
+        // A user just joined the waiting queue (count grew) → beep once + toast, anywhere in the dashboard.
+        const prev = prevQueueCountRef.current;
+        prevQueueCountRef.current = q.length;
+        if (q.length > prev && q.length > 0) {
+          const newest = q[0];
+          const uname = newest && newest.username ? newest.username : null;
+          setWaitingAlert({
+            count: q.length,
+            username: uname,
+            text: uname ? `@${uname} random chat ke liye wait kar raha hai — Intercept karo!` : `${q.length} user(s) random chat ke liye wait kar rahe hain — Intercept karo!`
+          });
+          playQueueBeep();
+        }
       });
 
       // Real-time: a user just sent a request to one of the admin's bots.
@@ -374,6 +397,7 @@ export default function DeveloperAdmin() {
 
       return () => {
         clearInterval(interval);
+        prevQueueCountRef.current = 0;
         newSocket.off('connect');
         newSocket.off('admin_random_queue');
         newSocket.off('admin_new_bot_request');
@@ -809,6 +833,18 @@ export default function DeveloperAdmin() {
     return () => clearTimeout(id);
   }, [requestToast]);
 
+  // Auto-dismiss the "waiting for random chat" alert (the persistent banner stays while users wait).
+  useEffect(() => {
+    if (!waitingAlert) return;
+    const id = setTimeout(() => setWaitingAlert(null), 8000);
+    return () => clearTimeout(id);
+  }, [waitingAlert]);
+
+  // Once the admin opens Live Random, the toast is no longer needed (banner still reflects the queue).
+  useEffect(() => {
+    if (activeTab === 'live-random') setWaitingAlert(null);
+  }, [activeTab]);
+
   // Tick the connected-call duration once a second.
   useEffect(() => {
     if (!adminCall || !callAccepted) return;
@@ -1238,6 +1274,24 @@ export default function DeveloperAdmin() {
         </div>
         <button onClick={() => { sessionStorage.removeItem('twelo_admin_key'); setIsAuthenticated(false); navigate('/'); }} className="dev-btn-secondary">Exit Admin</button>
       </div>
+
+      {/* Global "waiting for random chat" indication — visible on every tab while the queue is non-empty. */}
+      {liveQueue.length > 0 && (
+        <div
+          onClick={() => goTab('live-random', openLiveRandomPage)}
+          className={`dev-waiting-banner${waitingAlert ? ' dev-waiting-banner-alert' : ''}`}
+          role="button"
+        >
+          <span className="dev-waiting-dot" />
+          <span>
+            <b>{waitingAlert && waitingAlert.username ? `@${waitingAlert.username}` : `${liveQueue.length} user${liveQueue.length > 1 ? 's' : ''}`}</b>
+            {' '}random chat ke liye wait {' '}<b>Intercept karo ›</b>
+          </span>
+          <button className="dev-waiting-close" onClick={(e) => { e.stopPropagation(); setWaitingAlert(null); }} title="Dismiss">
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       <div className="dev-shell">
         {sidebarOpen && <div className="dev-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
