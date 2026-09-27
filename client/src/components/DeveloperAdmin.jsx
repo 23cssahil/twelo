@@ -127,9 +127,11 @@ function GeoWorldMap({ points }) {
     if (!elRef.current) return undefined;
     if (!mapRef.current) {
       mapRef.current = L.map(elRef.current, { worldCopyJump: true, minZoom: 2, maxZoom: 9, zoomControl: true }).setView([22, 12], 2);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
+      // OpenStreetMap standard tiles: free and key-less (CARTO basemaps started requiring an API key).
+      // A CSS filter (see .dev-geo-map .leaflet-tile) darkens them to match the admin theme.
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        subdomains: 'abc',
         maxZoom: 19
       }).addTo(mapRef.current);
       layerRef.current = L.layerGroup().addTo(mapRef.current);

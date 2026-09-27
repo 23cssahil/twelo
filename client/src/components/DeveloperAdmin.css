@@ -827,6 +827,10 @@
   background: #0b0f14;
 }
 .dev-geo-map .leaflet-container { background: #0b0f14; font: inherit; }
+/* Darken the key-less OpenStreetMap tiles so they match the dark admin theme. */
+.dev-geo-map .leaflet-tile {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.7);
+}
 .dev-geo-map .leaflet-tooltip {
   background: rgba(15, 20, 25, 0.95);
   border: 1px solid rgba(16, 185, 129, 0.4);
