@@ -465,6 +465,7 @@ export default function DeveloperAdmin() {
 
       newSocket.on('connect', () => {
         newSocket.emit('admin_online');
+        fetchContacts(); // hydrate Connected/Requested/Blocked from the DB on (re)connect
       });
         
       newSocket.on('admin_random_queue', (arr) => {
@@ -1024,6 +1025,7 @@ export default function DeveloperAdmin() {
     fetchBotRequests();
     fetchBotChats();
     fetchConversations();
+    fetchContacts();
   };
 
   // Join / leave the admin_live room as the page opens or closes, so waiting users are
@@ -1105,6 +1107,21 @@ export default function DeveloperAdmin() {
     try {
       const res = await fetch(`${API_URL}/api/admin/bots/conversations`, { headers: { 'x-admin-pass': password } });
       if (res.ok) setConversations(await res.json());
+    } catch (err) { console.error(err); }
+  };
+
+  // Hydrate Connected / Requested / Blocked from the DB so they survive a page refresh.
+  // (They used to be set only optimistically in-memory, which made friends look deleted
+  //  after reload — the relationships were always in Mongo, the UI just forgot them.)
+  const fetchContacts = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bots/contacts`, { headers: { 'x-admin-pass': password } });
+      if (res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setFollowedIds(new Set(d.connected || []));
+        setRequestedUserIds(new Set(d.requested || []));
+        setBlockedIds(new Set(d.blocked || []));
+      }
     } catch (err) { console.error(err); }
   };
 
@@ -1199,6 +1216,7 @@ export default function DeveloperAdmin() {
         setIdentityForm(null);
         fetchBotChats();
         fetchConversations();
+        fetchContacts();
       } else {
         alert(isSendRequest ? 'Could not send the friend request.' : 'Could not accept the request.');
       }

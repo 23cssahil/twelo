@@ -4333,6 +4333,38 @@ app.get('/api/admin/bots/requests', adminAuth, async (req, res) => {
   }
 });
 
+// Aggregate the admin bots' social state straight from the DB so the panel can hydrate on
+// load / refresh. This state used to live ONLY in React component state, so a page refresh
+// wiped the "Connected / Requested / Blocked" indicators and made previously-added friends
+// look like they had been deleted (the DB writes were fine — only the UI forgot). Returns:
+//   connected = users any admin bot follows OR is followed by (mutual/one-way)
+//   requested = users that still have one of the bots in THEIR pending friendRequests (outbound)
+//   blocked   = users any admin bot has blocked
+app.get('/api/admin/bots/contacts', adminAuth, async (req, res) => {
+  try {
+    const bots = await User.find({ ownedByAdmin: true })
+      .select('_id followers following blockedUsers').lean();
+    const botIds = bots.map(b => b._id);
+    const connected = new Set();
+    const blocked = new Set();
+    bots.forEach(b => {
+      (b.followers || []).forEach(id => id && connected.add(id.toString()));
+      (b.following || []).forEach(id => id && connected.add(id.toString()));
+      (b.blockedUsers || []).forEach(id => id && blocked.add(id.toString()));
+    });
+    const pending = await User.find({ friendRequests: { $in: botIds } }, { _id: 1 }).lean();
+    const requested = new Set(pending.map(u => u._id.toString()));
+    res.json({
+      connected: [...connected],
+      requested: [...requested],
+      blocked: [...blocked]
+    });
+  } catch (error) {
+    console.error('[admin contacts]', error);
+    res.status(500).json({ message: 'Error fetching bot contacts' });
+  }
+});
+
 // Shared admin-bot persona identity application. Claims (or clones, when the persona already
 // serves a DIFFERENT user) a persona dedicated to THIS user and applies the admin-chosen
 // name/username/age/country/gender/bio/avatar. Returns the (possibly new) bot doc; the caller
