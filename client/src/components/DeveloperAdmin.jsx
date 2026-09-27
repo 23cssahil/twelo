@@ -3,7 +3,7 @@ import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
 import io from 'socket.io-client';
 import Peer from 'simple-peer';
-import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck, Phone, Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Menu, LayoutDashboard } from 'lucide-react';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck, Phone, Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Menu, LayoutDashboard, ChevronDown, ChevronUp } from 'lucide-react';
 import './DeveloperAdmin.css';
 import {
   Chart as ChartJS,
@@ -95,6 +95,24 @@ function MiniStat({ icon: Icon, label, value, grad }) {
   );
 }
 
+// Human date+time for the expanded user detail panel. Falls back to an em dash.
+function fmtDateTime(v) {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v);
+  return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// One labelled cell in the admin user-detail grid.
+function DetailItem({ label, value, mono, full }) {
+  return (
+    <div className={`dev-detail-item${full ? ' dev-detail-full' : ''}`}>
+      <span className="dev-detail-label">{label}</span>
+      <span className={`dev-detail-value${mono ? ' dev-detail-mono' : ''}`}>{value === undefined || value === null || value === '' ? '—' : value}</span>
+    </div>
+  );
+}
+
 export default function DeveloperAdmin() {
   const { API_URL } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -114,6 +132,8 @@ export default function DeveloperAdmin() {
   const [loadingMoreUsers, setLoadingMoreUsers] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const usersSentinelRef = useRef(null);
+  // Which user's full detail panel is expanded (single-open accordion so the list stays compact).
+  const [expandedUserId, setExpandedUserId] = useState(null);
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastTopic, setBroadcastTopic] = useState('');
@@ -1756,50 +1776,85 @@ export default function DeveloperAdmin() {
 
                   <div className="dev-user-list">
                     {users.filter(u => showBlockedOnly ? u.isBlocked : true).map(u => (
-                      <div key={u._id} className="dev-user-card">
-                        <div className="user-details">
-                          <img src={u.avatarUrl} alt="avatar" className="dev-avatar" />
-                          <div>
-                            <div className="dev-username">{u.name} <span style={{ color: '#888', fontWeight: 'normal' }}>@{u.username}</span></div>
-                            <div className="dev-user-meta"><strong>ID:</strong> {u.uniqueId} | <strong>Email:</strong> {u.email}</div>
-                            <div className="dev-user-meta"><strong>Google ID:</strong> {u.googleId}</div>
-                            <div className="dev-user-meta"><strong>Gender:</strong> {u.gender} | <strong>Age:</strong> {u.age} | <strong>Country:</strong> {u.country}</div>
-                            <div className="dev-user-meta"><strong>Coins:</strong> {u.coins} | <strong>Status:</strong> {u.isBlocked ? <span style={{color: '#ff4b4b'}}>Blocked</span> : <span style={{color: '#10b981'}}>Active</span>}</div>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', width: '100%' }}>
-                          <button 
-                            onClick={() => handlePersonalNotification(u._id, u.username)}
-                            className="dev-btn-secondary"
-                            style={{ background: '#222', color: '#fff', border: '1px solid #333' }}
-                          >
-                            <Send size={16} style={{ marginRight: '5px' }} />
-                            Send Alert
-                          </button>
-                          <button 
-                            onClick={() => handleBlockUser(u._id, u.isBlocked)}
-                            className={`dev-btn-${u.isBlocked ? 'secondary' : 'danger'}`}
-                          >
-                            <Ban size={16} style={{ marginRight: '5px' }} />
-                            {u.isBlocked ? 'Unblock' : 'Block User'}
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteUser(u._id, u.username)}
-                            className="dev-btn-danger"
-                            style={{ background: '#ff4b4b', color: '#fff', padding: '8px 12px' }}
-                            title="Permanently Delete User"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                        <button 
-                          onClick={() => handleViewChats(u)}
-                          className="dev-btn-secondary"
-                          style={{ marginTop: '10px', width: '100%', display: 'flex', justifyContent: 'center' }}
+                      <div key={u._id} className={`dev-user-card${expandedUserId === u._id ? ' dev-user-card-open' : ''}`}>
+                        <div
+                          className="dev-user-head"
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={expandedUserId === u._id}
+                          onClick={() => setExpandedUserId(expandedUserId === u._id ? null : u._id)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedUserId(expandedUserId === u._id ? null : u._id); } }}
                         >
-                          <MessageSquare size={16} style={{ marginRight: '5px' }} />
-                          View All Chats
-                        </button>
+                          <img src={u.avatarUrl} alt="avatar" className="dev-avatar" />
+                          <div className="dev-user-main">
+                            <div className="dev-username">{u.name} <span className="dev-user-handle">@{u.username}</span></div>
+                            <div className="dev-user-idline">ID: {u.uniqueId}</div>
+                          </div>
+                          <div className="dev-user-chips">
+                            {u.ownedByAdmin ? <span className="dev-chip dev-chip-bot">Bot</span> : null}
+                            {u.isGuest ? <span className="dev-chip dev-chip-guest">Guest</span> : null}
+                            <span className={`dev-chip ${u.isBlocked ? 'dev-chip-blocked' : 'dev-chip-active'}`}>{u.isBlocked ? 'Blocked' : 'Active'}</span>
+                            <span className="dev-chip dev-chip-coins" title="Coins">{u.coins} coins</span>
+                          </div>
+                          <span className="dev-user-expand" aria-hidden="true">
+                            {expandedUserId === u._id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                          </span>
+                        </div>
+
+                        {expandedUserId === u._id && (
+                          <div className="dev-user-detail">
+                            <div className="dev-detail-grid">
+                              <DetailItem label="Email" value={u.email} />
+                              <DetailItem label="Google ID" value={u.googleId} mono />
+                              <DetailItem label="Mongo ID" value={u._id} mono />
+                              <DetailItem label="Account type" value={u.ownedByAdmin ? 'Admin bot' : (u.isGuest ? 'Guest' : 'Registered')} />
+                              <DetailItem label="Gender" value={u.gender} />
+                              <DetailItem label="Age" value={u.age} />
+                              <DetailItem label="Country" value={`${u.country || '—'}${u.countryCode ? ` (${u.countryCode})` : ''}`} />
+                              <DetailItem label="Private profile" value={u.isPrivate ? 'Yes' : 'No'} />
+                              <DetailItem label="Joined" value={fmtDateTime(u.createdAt)} />
+                              <DetailItem label="Last active" value={fmtDateTime(u.lastActive)} />
+                              <DetailItem label="Followers" value={u.followers?.length || 0} />
+                              <DetailItem label="Following" value={u.following?.length || 0} />
+                              <DetailItem label="Pending requests" value={u.friendRequests?.length || 0} />
+                              <DetailItem label="Blocked (by them)" value={u.blockedUsers?.length || 0} />
+                              <DetailItem label="Notifications" value={u.notifications?.length || 0} />
+                              <DetailItem label="Push (FCM)" value={u.fcmToken ? 'Enabled' : 'No'} />
+                              <DetailItem label="Last coin refill" value={fmtDateTime(u.lastCoinReplenishDate)} />
+                              <DetailItem label="Bio" value={u.bio} full />
+                            </div>
+                            <div className="dev-user-actions">
+                              <button
+                                onClick={() => handlePersonalNotification(u._id, u.username)}
+                                className="dev-btn-secondary"
+                                style={{ background: '#222', color: '#fff', border: '1px solid #333' }}
+                              >
+                                <Send size={16} style={{ marginRight: '5px' }} />
+                                Send Alert
+                              </button>
+                              <button onClick={() => handleViewChats(u)} className="dev-btn-secondary">
+                                <MessageSquare size={16} style={{ marginRight: '5px' }} />
+                                View All Chats
+                              </button>
+                              <button
+                                onClick={() => handleBlockUser(u._id, u.isBlocked)}
+                                className={`dev-btn-${u.isBlocked ? 'secondary' : 'danger'}`}
+                              >
+                                <Ban size={16} style={{ marginRight: '5px' }} />
+                                {u.isBlocked ? 'Unblock' : 'Block User'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(u._id, u.username)}
+                                className="dev-btn-danger"
+                                style={{ background: '#ff4b4b', color: '#fff' }}
+                                title="Permanently Delete User"
+                              >
+                                <Trash2 size={16} style={{ marginRight: '5px' }} />
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {users.length === 0 && searchQuery && (
