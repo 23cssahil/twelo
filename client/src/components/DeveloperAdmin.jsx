@@ -2568,96 +2568,92 @@ export default function DeveloperAdmin() {
         </div>
       )}
 
-      {selectedReport && (
+      {selectedReport && (() => {
+        const rep = selectedReport;
+        const isRepeat = rep.reportsAgainstUser >= 2;
+        let msgs = [];
+        let parseFailed = false;
+        if (rep.chatContext) {
+          try { const p = JSON.parse(rep.chatContext); if (Array.isArray(p)) msgs = p; else parseFailed = true; }
+          catch (e) { parseFailed = true; }
+        }
+        const av = `https://ui-avatars.com/api/?name=${encodeURIComponent(rep.reportedUsername || '?')}&background=random&color=fff&size=96&bold=true`;
+        return (
         <div className="modal-overlay" onClick={() => setSelectedReport(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-            <div className="modal-header">
-              <h2>Investigation: @{selectedReport.reportedUsername}</h2>
-              <button className="icon-btn" onClick={() => setSelectedReport(null)}><X size={24} /></button>
-            </div>
-            <div style={{ padding: '20px 0' }}>
-              <h3 style={{ color: '#f59e0b', marginBottom: '10px' }}>Reason: {selectedReport.reason}</h3>
-              <p style={{ color: '#a8a8a8', fontSize: '0.9rem', marginBottom: '10px' }}>Reporter: @{selectedReport.reporterUsername}</p>
-              <div style={{ marginBottom: '12px' }}>
-                {selectedReport.reportsAgainstUser >= 2
-                  ? <span style={{ background: '#ff4b4b', color: '#fff', fontWeight: 'bold', fontSize: '0.75rem', padding: '3px 10px', borderRadius: '10px' }}>⚠ This user has been reported {selectedReport.reportsAgainstUser} times — consider blocking</span>
-                  : <span style={{ background: '#f59e0b', color: '#111', fontWeight: 'bold', fontSize: '0.75rem', padding: '3px 10px', borderRadius: '10px' }}>First report on this user</span>}
+          <div className="inv-modal" onClick={e => e.stopPropagation()}>
+            {/* Sticky header */}
+            <div className="inv-head">
+              <img className="inv-avatar" src={av} alt="" />
+              <div className="inv-head-txt">
+                <div className="inv-title">Report Investigation</div>
+                <div className="inv-user">@{rep.reportedUsername}</div>
               </div>
-              
-              <div style={{ background: '#0a0a0a', padding: '15px', borderRadius: '8px', maxHeight: '350px', overflowY: 'auto', border: '1px solid #333', marginBottom: '20px' }}>
-                <p style={{ color: '#666', fontSize: '0.75rem', marginBottom: '10px', textAlign: 'center' }}>{'🔒 Last 20 encrypted messages (server-decrypted for review)'}</p>
-                {(() => {
-                  if (!selectedReport.chatContext) return <p style={{ color: '#666', fontStyle: 'italic' }}>No chat context available.</p>;
-                  try {
-                    const msgs = JSON.parse(selectedReport.chatContext);
-                    if (!Array.isArray(msgs) || msgs.length === 0) return <pre style={{ color: '#ccc', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.8rem' }}>{selectedReport.chatContext}</pre>;
-                    return msgs.map((m, i) => (
-                      <div key={i} style={{ marginBottom: '8px', display: 'flex', flexDirection: 'column', alignItems: m.from === selectedReport.reportedUsername ? 'flex-start' : 'flex-end' }}>
-                        <span style={{ fontSize: '0.7rem', color: '#666', marginBottom: '2px' }}>{'@'}{m.from} {m.time ? new Date(m.time).toLocaleString() : ''}{m.deletedForEveryone ? <span style={{ color: m.recovered ? '#10b981' : '#e74c3c', fontWeight: 700 }}> · 🗑️ {m.recovered ? 'deleted (original recovered)' : 'deleted before recovery existed (content gone)'}</span> : null}</span>
-                        <div style={{ background: m.from === selectedReport.reportedUsername ? '#1a1a2e' : '#0d2137', border: '1px solid ' + (m.from === selectedReport.reportedUsername ? '#e74c3c' : '#2980b9'), color: '#fff', padding: '8px 12px', borderRadius: '10px', maxWidth: '85%', fontSize: '0.85rem', wordBreak: 'break-word' }}>
-                          {m.type === 'image' ? '📷 Image' : m.type === 'audio' ? '🎵 Audio' : m.type === 'screenshot' ? '📸 Took a screenshot' : (m.message || '(empty)')}
-                        </div>
-                      </div>
-                    ));
-                  } catch (e) {
-                    return <pre style={{ color: '#ccc', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.8rem' }}>{selectedReport.chatContext}</pre>;
-                  }
-                })()}
+              <button className="inv-close" onClick={() => setSelectedReport(null)}><X size={20} /></button>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="inv-body">
+              <div className="inv-reason"><Flag size={14} /> <b>Reason:</b> <span>{rep.reason}</span></div>
+
+              <div className="inv-facts">
+                <span>Reporter: <b>@{rep.reporterUsername}</b></span>
+                <span>Filed: <b>{fmtDateTime(rep.createdAt)}</b></span>
+                {isRepeat
+                  ? <span className="inv-badge inv-badge-repeat">⚠ {rep.reportsAgainstUser} reports — consider blocking</span>
+                  : <span className="inv-badge inv-badge-first">First report</span>}
+                {rep.warnSent && <span className="inv-badge inv-badge-warned">✓ Warning sent</span>}
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', color: '#a8a8a8', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '6px' }}>Warning notice to @{selectedReport.reportedUsername} <span style={{ color: '#666', fontWeight: 'normal' }}>(built-in from the report reason &mdash; editable)</span></label>
+              <div className="inv-chat">
+                <div className="inv-chat-label">🔒 Last 20 messages between them (server-decrypted for review)</div>
+                {parseFailed && rep.chatContext
+                  ? <pre className="inv-raw">{rep.chatContext}</pre>
+                  : msgs.length === 0
+                    ? <div className="inv-chat-empty">No chat context available.</div>
+                    : msgs.map((m, i) => {
+                        const isReported = m.from === rep.reportedUsername;
+                        return (
+                          <div key={i} className={`inv-msg${isReported ? ' inv-msg-left' : ' inv-msg-right'}`}>
+                            <div className="inv-bubble">
+                              <span className="inv-bubble-text">{m.type === 'image' ? '📷 Image' : m.type === 'audio' ? '🎵 Audio' : m.type === 'screenshot' ? '📸 Took a screenshot' : (m.message || '(empty)')}</span>
+                              {m.deletedForEveryone && <span className={`inv-deleted${m.recovered ? ' inv-deleted-ok' : ''}`}>🗑️ {m.recovered ? 'deleted (original recovered)' : 'deleted — content gone'}</span>}
+                            </div>
+                            <div className="inv-msg-meta"><b>@{m.from}</b>{m.time ? ` · ${new Date(m.time).toLocaleString()}` : ''}</div>
+                          </div>
+                        );
+                      })}
+              </div>
+
+              <div className="inv-warn">
+                <label>Warning notice to @{rep.reportedUsername} <span>(built-in from the report reason — editable)</span></label>
                 <textarea
                   value={warnNotice}
                   onChange={(e) => setWarnNotice(e.target.value)}
-                  disabled={selectedReport.warnSent}
-                  rows={5}
-                  className="dev-input"
-                  style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit', fontSize: '0.85rem', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}
+                  disabled={rep.warnSent}
+                  rows={4}
+                  className="dev-input inv-textarea"
                   placeholder="Enter the warning message to send to this user..."
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setWarnNotice(buildWarning(selectedReport.reason, selectedReport.reportedUsername))}
-                    disabled={selectedReport.warnSent}
-                    style={{ background: 'none', border: 'none', color: '#0095f6', cursor: 'pointer', fontSize: '0.78rem', textDecoration: 'underline', padding: 0 }}
-                  >Reset to built-in text</button>
-                  {selectedReport.warnSent && <span style={{ color: '#10b981', fontSize: '0.8rem', fontWeight: 'bold' }}>✓ Warning already sent</span>}
-                </div>
+                <button type="button" className="inv-reset" onClick={() => setWarnNotice(buildWarning(rep.reason, rep.reportedUsername))} disabled={rep.warnSent}>Reset to built-in text</button>
               </div>
+            </div>
 
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => handleSendReportWarning(selectedReport)}
-                  disabled={selectedReport.warnSent || sendingWarn}
-                  className="dev-btn-secondary"
-                  style={{ background: '#222', opacity: (selectedReport.warnSent || sendingWarn) ? 0.5 : 1, cursor: (selectedReport.warnSent || sendingWarn) ? 'not-allowed' : 'pointer' }}
-                >
-                  <AlertTriangle size={16} style={{ marginRight: '5px' }} />
-                  {sendingWarn ? 'Sending…' : (selectedReport.warnSent ? 'Warning Sent' : 'Send Warning')}
-                </button>
-                <button
-                  onClick={() => handleBlockUser(selectedReport.reportedUserId, false)}
-                  className="dev-btn-danger"
-                >
-                  <Ban size={16} style={{ marginRight: '5px' }} />
-                  Block User
-                </button>
-                <button
-                  onClick={() => handleResolveReport(selectedReport._id)}
-                  className="dev-btn-primary"
-                  disabled={resolvingReport}
-                  style={{ background: '#10b981', opacity: resolvingReport ? 0.6 : 1, cursor: resolvingReport ? 'not-allowed' : 'pointer' }}
-                >
-                  <CheckCircle size={16} style={{ marginRight: '5px' }} />
-                  {resolvingReport ? 'Resolving…' : 'Mark as Resolved'}
-                </button>
-              </div>
+            {/* Sticky footer actions */}
+            <div className="inv-foot">
+              <button className="inv-btn inv-btn-warn" onClick={() => handleSendReportWarning(rep)} disabled={rep.warnSent || sendingWarn}>
+                <AlertTriangle size={16} /> {sendingWarn ? 'Sending…' : (rep.warnSent ? 'Warning Sent' : 'Send Warning')}
+              </button>
+              <button className="inv-btn inv-btn-block" onClick={() => handleBlockUser(rep.reportedUserId, false)}>
+                <Ban size={16} /> Block User
+              </button>
+              <button className="inv-btn inv-btn-resolve" onClick={() => handleResolveReport(rep._id)} disabled={resolvingReport}>
+                <CheckCircle size={16} /> {resolvingReport ? 'Resolving…' : 'Mark as Resolved'}
+              </button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {chatViewTarget && (
         <div className="modal-overlay" onClick={() => setChatViewTarget(null)}>
