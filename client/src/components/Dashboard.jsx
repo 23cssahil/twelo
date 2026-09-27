@@ -3098,7 +3098,16 @@ export default function Dashboard() {
   }, [globeStatus.isEnabled, globeStatus.enableAt]);
 
   // SPA Back Button Handling for Overlays & Chats
+  // Assigned below (where handleLeaveAnonymousChat is defined); used by the pop-state
+  // handler so a hardware/web back out of a stranger chat runs the same ad-firing leave.
+  const leaveAnonymousChatRef = useRef(null);
+  // Interstitial / Watch&Earn ad overlay guard for the pop-state handler.
+  const adOverlayRef = useRef(false);
+  // The interstitial counts as an overlay on purpose: it pushes a history entry, so a back
+  // press lands on popstate (which swallows it) instead of popping the stack / closing the
+  // app. Without this, tapping back while an ad is up skips the ad.
   const openOverlaysCount = [
+    showInterstitial,
     showChangeUsernameModal, 
     showInnerSettingsModal, 
     showCommentsModal, 
@@ -3167,13 +3176,18 @@ export default function Dashboard() {
         fetcheveryoneStories();
       } else if (showLogoutConfirm) {
         setShowLogoutConfirm(false);
+      } else if (adOverlayRef.current) {
+        // An ad is on screen: consume this back so it cannot skip the interstitial. The ad
+        // dismisses only via its own close control.
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(40);
       } else if (chatMode === 'video') {
         exitVideoMode();
       } else if (isAnonymousChatActive) {
-        if (socket) {
-           socket.emit('leave_anonymous_chat', { roomId: anonymousRoomId });
-        }
-        setIsAnonymousChatActive(false);
+        // Route through the ONE leave-chat flow so the interstitial always fires. This used to
+        // clear the chat inline with no ad, which is exactly how users escaped advertising by
+        // pressing the hardware back button (and it raced with the native backButton guard,
+        // because that guard calls history.back() to do normal in-app navigation).
+        leaveAnonymousChatRef.current?.();
       } else if (activeChatUser) {
         if (activeTabRef.current === 'publicProfile') {
           _setActiveTab('messages');
@@ -5506,6 +5520,9 @@ const handleStoryUpload = async () => {
   adGuardRefs.current.showAdModal = showAdModal;
   adGuardRefs.current.anonActive = isAnonymousChatActive;
   adGuardRefs.current.leave = handleLeaveAnonymousChat;
+  // Shared with the pop-state (web / history.back) handler above.
+  leaveAnonymousChatRef.current = handleLeaveAnonymousChat;
+  adOverlayRef.current = showInterstitial || showAdModal;
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;
