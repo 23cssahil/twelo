@@ -127,6 +127,7 @@ const UserSchema = new mongoose.Schema({
   lastLon: { type: Number, default: null },
   lastRegion: { type: String, default: null },
   lastCity: { type: String, default: null },
+  lastDistrict: { type: String, default: null },
 }, { timestamps: true });
 
 // ========== INDEXES FOR PERFORMANCE ==========

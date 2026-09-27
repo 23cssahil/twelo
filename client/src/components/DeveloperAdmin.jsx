@@ -115,48 +115,108 @@ function DetailItem({ label, value, mono, full }) {
   );
 }
 
-// ── Admin world map: plots IP-derived user-location clusters as green dots on a Leaflet map.
-// Plain imperative Leaflet (no react-leaflet) so it stays version-stable; circleMarkers avoid
-// the bundler icon-path issue. Dots are sized by user count and show a city/region/country label.
+// ── Admin world map with click-to-drill-down by administrative level. ──
+// The server returns one row per (country, region/state, city, district) tuple with a user count
+// and that tuple's centroid. Depending on the current zoom we roll those rows up to a coarser
+// level and draw ONE small green dot per group, sized by count, labelled with its count. Zooming
+// (or clicking a dot, which zooms in) reveals the next finer level: country → state → city → district.
+const GEO_LEVEL_LABEL = { country: 'Country', region: 'State / Region', city: 'City', district: 'District' };
+
+// Map zoom → grouping level.
+function geoLevelForZoom(z) {
+  if (z <= 3) return 'country';
+  if (z <= 5) return 'region';
+  if (z <= 7) return 'city';
+  return 'district';
+}
+// Clicking a dot at a level zooms to the zoom that reveals the next finer level.
+function geoZoomForLevel(level) {
+  return { country: 4, region: 6, city: 8, district: 10 }[level] || 4;
+}
+// Small base radius, grows with sqrt(count), capped so a single user is a tiny dot.
+function geoRadius(count) {
+  return Math.min(16, 4 + Math.sqrt(Math.max(1, count)) * 1.6);
+}
+
+// Roll server tuples up into groups for the requested level, weighting the centroid by count.
+function geoGroupPoints(points, level) {
+  const groups = new Map();
+  (points || []).forEach((p) => {
+    if (typeof p.lat !== 'number' || typeof p.lon !== 'number') return;
+    let key;
+    let name;
+    if (level === 'country') {
+      key = p.countryCode || p.country || '??';
+      name = p.country || p.countryCode || 'Unknown country';
+    } else if (level === 'region') {
+      key = `${p.countryCode}|${p.region || ''}`;
+      name = p.region || 'Unknown state';
+    } else if (level === 'city') {
+      key = `${p.countryCode}|${p.region}|${p.city || ''}`;
+      name = p.city || 'Unknown city';
+    } else {
+      key = `${p.countryCode}|${p.region}|${p.city}|${p.district || ''}`;
+      name = p.district || p.city || 'Unknown area';
+    }
+    const c = p.count || 1;
+    const g = groups.get(key) || { name, count: 0, latSum: 0, lonSum: 0 };
+    g.count += c;
+    g.latSum += p.lat * c;
+    g.lonSum += p.lon * c;
+    groups.set(key, g);
+  });
+  return Array.from(groups.values()).map((g) => ({
+    name: g.name,
+    count: g.count,
+    lat: g.latSum / g.count,
+    lon: g.lonSum / g.count
+  }));
+}
+
 function GeoWorldMap({ points }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
+  const [level, setLevel] = useState('country');
 
+  // Init the map once; re-group whenever the zoom crosses a level boundary.
   useEffect(() => {
-    if (!elRef.current) return undefined;
-    if (!mapRef.current) {
-      mapRef.current = L.map(elRef.current, { worldCopyJump: true, minZoom: 2, maxZoom: 9, zoomControl: true }).setView([22, 12], 2);
-      // OpenStreetMap standard tiles: free and key-less (CARTO basemaps started requiring an API key).
-      // A CSS filter (see .dev-geo-map .leaflet-tile) darkens them to match the admin theme.
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        subdomains: 'abc',
-        maxZoom: 19
-      }).addTo(mapRef.current);
-      layerRef.current = L.layerGroup().addTo(mapRef.current);
-    }
-    return () => { };
+    if (!elRef.current || mapRef.current) return undefined;
+    const map = L.map(elRef.current, { worldCopyJump: true, minZoom: 2, maxZoom: 12, zoomControl: true }).setView([22, 12], 2);
+    // OpenStreetMap standard tiles: free and key-less (CARTO basemaps started requiring an API key).
+    // A CSS filter (see .dev-geo-map .leaflet-tile) darkens them to match the admin theme.
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      subdomains: 'abc',
+      maxZoom: 19
+    }).addTo(map);
+    layerRef.current = L.layerGroup().addTo(map);
+    map.on('zoomend', () => { setLevel(geoLevelForZoom(map.getZoom())); });
+    mapRef.current = map;
+    return () => { map.remove(); mapRef.current = null; layerRef.current = null; };
   }, []);
 
+  // (Re)draw dots whenever the data or the active level changes.
   useEffect(() => {
     if (!mapRef.current || !layerRef.current) return;
     layerRef.current.clearLayers();
-    const maxCount = (points || []).reduce((m, p) => Math.max(m, p.count || 0), 0) || 1;
-    (points || []).forEach((p) => {
-      if (typeof p.lat !== 'number' || typeof p.lon !== 'number') return;
-      const radius = 4 + Math.sqrt((p.count || 1) / maxCount) * 20;
-      const label = [p.city, p.region, p.country].filter(Boolean).join(', ') || 'Unknown location';
-      const count = p.count || 1;
-      L.circleMarker([p.lat, p.lon], {
-        radius, color: '#10b981', weight: 1, fillColor: '#10b981', fillOpacity: 0.5
-      }).bindTooltip(`${label} — ${count} ${count === 1 ? 'user' : 'users'}`).addTo(layerRef.current);
+    geoGroupPoints(points, level).forEach((g) => {
+      const marker = L.circleMarker([g.lat, g.lon], {
+        radius: geoRadius(g.count), color: '#10b981', weight: 1, fillColor: '#10b981', fillOpacity: 0.6
+      });
+      marker.bindTooltip(`${g.name} — ${g.count} ${g.count === 1 ? 'user' : 'users'}`);
+      // Click a dot to zoom into it and reveal the next finer administrative level.
+      marker.on('click', () => { mapRef.current.setView([g.lat, g.lon], geoZoomForLevel(level)); });
+      marker.addTo(layerRef.current);
     });
-  }, [points]);
+  }, [points, level]);
 
-  useEffect(() => () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; layerRef.current = null; } }, []);
-
-  return <div ref={elRef} className="dev-geo-map" />;
+  return (
+    <div className="dev-geo-wrap">
+      <div className="dev-geo-level">Showing by <strong>{GEO_LEVEL_LABEL[level]}</strong> · zoom in or tap a dot to drill deeper</div>
+      <div ref={elRef} className="dev-geo-map" />
+    </div>
+  );
 }
 
 export default function DeveloperAdmin() {

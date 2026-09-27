@@ -728,6 +728,7 @@ const geoFromIp = async (ip) => {
         country: g.country, countryCode: g.countryCode,
         region: g.regionName || g.region || null,
         city: g.city || null,
+        district: g.district || null,
         lat: typeof g.lat === 'number' ? g.lat : null,
         lon: typeof g.lon === 'number' ? g.lon : null,
       };
@@ -749,6 +750,7 @@ const applyGeoToUser = async (user, req) => {
     user.countryCode = geo.countryCode;
     user.lastRegion = geo.region;
     user.lastCity = geo.city;
+    user.lastDistrict = geo.district;
     user.lastLat = geo.lat;
     user.lastLon = geo.lon;
   }
@@ -3691,48 +3693,44 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
   }
 });
 
-// World-map geolocation feed: clusters users that have IP-derived coordinates (lastLat/lastLon,
-// captured on login/registration) into approximate areas and returns one point per cluster with a
-// user count. Coordinates are rounded to ~0.1\u00b0 (roughly 11 km) so city/state-level clusters
-// stay readable without leaking exact positions. Only forward-looking users have coordinates.
+// World-map geolocation feed: returns one row per distinct (country, state/region, city, district)
+// tuple that has IP-derived coordinates, with a user count and the tuple's centroid (average
+// lat/lon). The client rolls these up to any coarser level (country / state / city / district)
+// depending on the current map zoom, which gives the click-to-drill-down behaviour. Only
+// forward-looking users (who logged in after capture shipped) have coordinates.
 app.get('/api/admin/geo', adminAuth, async (req, res) => {
   try {
     const points = await User.aggregate([
       { $match: { lastLat: { $ne: null }, lastLon: { $ne: null } } },
       {
-        $project: {
-          lat: { $round: ['$lastLat', 1] },
-          lon: { $round: ['$lastLon', 1] },
-          country: 1,
-          countryCode: 1,
-          region: '$lastRegion',
-          city: '$lastCity'
-        }
-      },
-      {
         $group: {
-          _id: { lat: '$lat', lon: '$lon' },
+          _id: {
+            country: { $ifNull: ['$country', ''] },
+            countryCode: { $ifNull: ['$countryCode', ''] },
+            region: { $ifNull: ['$lastRegion', ''] },
+            city: { $ifNull: ['$lastCity', ''] },
+            district: { $ifNull: ['$lastDistrict', ''] }
+          },
           count: { $sum: 1 },
-          country: { $first: '$country' },
-          countryCode: { $first: '$countryCode' },
-          region: { $first: '$region' },
-          city: { $first: '$city' }
+          lat: { $avg: '$lastLat' },
+          lon: { $avg: '$lastLon' }
         }
       },
-      { $sort: { count: -1 } },
-      { $limit: 1000 },
       {
         $project: {
           _id: 0,
-          lat: '$_id.lat',
-          lon: '$_id.lon',
+          country: '$_id.country',
+          countryCode: '$_id.countryCode',
+          region: '$_id.region',
+          city: '$_id.city',
+          district: '$_id.district',
           count: 1,
-          country: 1,
-          countryCode: 1,
-          region: 1,
-          city: 1
+          lat: 1,
+          lon: 1
         }
-      }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 5000 }
     ]);
     const totalGeoUsers = points.reduce((s, p) => s + p.count, 0);
     res.json({ points, totalGeoUsers });
