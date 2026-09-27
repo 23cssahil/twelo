@@ -843,6 +843,60 @@
 .dev-spin { animation: dev-spin 0.9s linear infinite; }
 @keyframes dev-spin { to { transform: rotate(360deg); } }
 
+/* ── User Map dedicated page ─────────────────────────────────── */
+.dev-map-page { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
+.dev-map-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 700;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 4px 0 12px;
+  background: var(--bg-color, #0b0f14);
+  flex-shrink: 0;
+}
+.dev-map-title { min-width: 240px; }
+.dev-map-title h3 { color: #fff; }
+.dev-map-sub { font-size: 12px; color: #9aa0aa; line-height: 1.4; display: block; margin-top: 4px; max-width: 560px; }
+.dev-map-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 6px 8px 6px 12px;
+  color: #9aa0aa;
+  min-width: 280px;
+  flex: 1;
+  max-width: 460px;
+}
+.dev-map-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 0.9rem;
+  min-width: 0;
+}
+.dev-map-toolbar { display: flex; align-items: center; gap: 22px; font-size: 13px; color: #c7ccd4; flex-shrink: 0; }
+.dev-map-toolbar strong { color: #10b981; font-size: 15px; }
+.dev-map-toolbar .dev-btn-secondary { margin-left: auto; }
+.dev-map-msg { font-size: 13px; color: #9aa0aa; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 12px; flex-shrink: 0; }
+.dev-map-msg-err { color: #ef4444; border-color: rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.08); }
+.dev-map-result { background: rgba(255,255,255,0.03); border: 1px solid rgba(16,185,129,0.28); border-radius: 12px; padding: 12px 14px; flex-shrink: 0; }
+.dev-map-result-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.dev-map-result-name { color: #fff; font-weight: 600; font-size: 1rem; }
+.dev-map-result-handle { color: #10b981; font-weight: 500; }
+.dev-map-result-id { display: block; font-size: 12px; color: #9aa0aa; margin-top: 2px; }
+/* Inside the dedicated page the map fills the remaining height instead of a fixed calc. */
+.dev-map-page .dev-geo-wrap { flex: 1; min-height: 0; }
+.dev-map-page .dev-geo-map { flex: 1; height: auto; min-height: 240px; }
+
 /* ── Live Users panel ───────────────────────────────────────────── */
 .dev-live-panel { display: flex; flex-direction: column; gap: 18px; }
 .dev-live-totals {

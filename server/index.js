@@ -3740,6 +3740,47 @@ app.get('/api/admin/geo', adminAuth, async (req, res) => {
   }
 });
 
+// Look up a single user's captured location by username, unique ID, or Mongo _id (for the
+// User Map page's search box). Returns the stored IP-derived admin divisions + coordinates.
+app.get('/api/admin/user-location', adminAuth, async (req, res) => {
+  try {
+    const raw = (req.query.q || '').toString().trim().replace(/^@/, '');
+    if (!raw) return res.status(400).json({ message: 'Enter a username or ID' });
+    const escaped = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const or = [
+      { username: new RegExp('^' + escaped + '$', 'i') },
+      { uniqueId: raw }
+    ];
+    if (/^[a-fA-F0-9]{24}$/.test(raw)) {
+      try { or.push({ _id: new mongoose.Types.ObjectId(raw) }); } catch (e) { /* ignore bad id */ }
+    }
+    const u = await User.findOne({ $or: or }).select('name username uniqueId isGuest isBlocked country countryCode lastRegion lastCity lastDistrict lastLat lastLon lastIp lastIpAt').lean();
+    if (!u) return res.json({ found: false });
+    res.json({
+      found: true,
+      user: {
+        name: u.name || null,
+        username: u.username || null,
+        uniqueId: u.uniqueId || null,
+        isGuest: !!u.isGuest,
+        isBlocked: !!u.isBlocked,
+        country: u.country || null,
+        countryCode: u.countryCode || null,
+        region: u.lastRegion || null,
+        city: u.lastCity || null,
+        district: u.lastDistrict || null,
+        lat: typeof u.lastLat === 'number' ? u.lastLat : null,
+        lon: typeof u.lastLon === 'number' ? u.lastLon : null,
+        lastIp: u.lastIp || null,
+        lastIpAt: u.lastIpAt || null
+      }
+    });
+  } catch (err) {
+    console.error('User location lookup error', err);
+    res.status(500).json({ error: 'Failed to look up user location' });
+  }
+});
+
 // Live Users feed for the Analytics > Live Users panel: aggregate totals plus a
 // real-time roster of the users who are connected (signed in) right now.
 app.get('/api/admin/live-users', adminAuth, async (req, res) => {

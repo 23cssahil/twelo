@@ -173,10 +173,11 @@ function geoGroupPoints(points, level) {
   }));
 }
 
-function GeoWorldMap({ points }) {
+function GeoWorldMap({ points, focus }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
+  const highlightRef = useRef(null);
   const [level, setLevel] = useState('country');
 
   // Init the map once; re-group whenever the zoom crosses a level boundary.
@@ -210,6 +211,16 @@ function GeoWorldMap({ points }) {
       marker.addTo(layerRef.current);
     });
   }, [points, level]);
+
+  // When a searched user is provided, fly to their coordinates and pin an amber highlight marker.
+  useEffect(() => {
+    if (!mapRef.current || !focus || typeof focus.lat !== 'number' || typeof focus.lon !== 'number') return;
+    mapRef.current.setView([focus.lat, focus.lon], 10);
+    if (highlightRef.current) { highlightRef.current.remove(); highlightRef.current = null; }
+    highlightRef.current = L.circleMarker([focus.lat, focus.lon], {
+      radius: 9, color: '#f59e0b', weight: 2, fillColor: '#f59e0b', fillOpacity: 0.9
+    }).bindTooltip(focus.label || 'This user', { permanent: true, direction: 'top', offset: [0, -8] }).addTo(mapRef.current);
+  }, [focus]);
 
   return (
     <div className="dev-geo-wrap">
@@ -253,6 +264,12 @@ export default function DeveloperAdmin() {
   // World-map geolocation feed (IP-derived user location clusters).
   const [geoData, setGeoData] = useState(null);               // { points, totalGeoUsers } | null
   const [geoLoading, setGeoLoading] = useState(false);
+  // User Map: search a specific user by username / ID and jump to their location.
+  const [locQuery, setLocQuery] = useState('');
+  const [locResult, setLocResult] = useState(null);           // { found, user } | null
+  const [locLoading, setLocLoading] = useState(false);
+  const [locError, setLocError] = useState('');
+  const [mapFocus, setMapFocus] = useState(null);             // { lat, lon, label, ts }
   const [liveUsers, setLiveUsers] = useState(null);           // { totals, users }
   // Page-based pagination for the Live Users roster (newest sign-ins on top, older pages fade away below).
   const [livePage, setLivePage] = useState(0);                 // 0-based current page
@@ -656,12 +673,35 @@ export default function DeveloperAdmin() {
     finally { setGeoLoading(false); }
   };
 
-  // Load the geolocation feed only when the World Map panel is open (and once on entry).
+  // Search a single user by username / ID and reveal their captured location on the map.
+  const handleLocateUser = async (e) => {
+    e.preventDefault();
+    const q = locQuery.trim();
+    if (!q) { setLocError('Enter a username or ID first'); return; }
+    setLocLoading(true); setLocError(''); setLocResult(null);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/user-location?q=${encodeURIComponent(q)}`, { headers: { 'x-admin-pass': password } });
+      const data = await res.json();
+      if (!res.ok) { setLocError(data.error || data.message || 'Lookup failed'); return; }
+      if (!data.found) { setLocError(`No user found for "${q}"`); return; }
+      setLocResult(data);
+      const u = data.user;
+      if (typeof u.lat === 'number' && typeof u.lon === 'number') {
+        setMapFocus({ lat: u.lat, lon: u.lon, label: `${u.username || u.name || u.uniqueId} — ${[u.city, u.region, u.country].filter(Boolean).join(', ') || 'located'}`, ts: Date.now() });
+      }
+    } catch (err) {
+      setLocError('Network error while looking up user');
+    } finally {
+      setLocLoading(false);
+    }
+  };
+
+  // Load the geolocation feed when the User Map page is opened (and once on entry).
   useEffect(() => {
-    if (isAuthenticated && activeTab === 'analytics' && analyticsView === 'map' && !geoData) {
+    if (isAuthenticated && activeTab === 'map' && !geoData) {
       fetchGeo();
     }
-  }, [isAuthenticated, activeTab, analyticsView]);
+  }, [isAuthenticated, activeTab]);
 
   // While the Live Users panel is open, keep it fresh on a 5s heartbeat.
   useEffect(() => {
@@ -1406,6 +1446,7 @@ export default function DeveloperAdmin() {
     { key: 'reports', label: 'User Reports', icon: Flag, badge: reports.length, run: fetchReports },
     { key: 'live-random', label: 'Live Random', icon: Radio, badge: botRequests.length + liveQueue.length, run: openLiveRandomPage },
     { key: 'analytics', label: 'Analytics & Growth', icon: BarChart2 },
+    { key: 'map', label: 'User Map', icon: MapIcon },
   ];
 
   return (
@@ -1466,7 +1507,7 @@ export default function DeveloperAdmin() {
         </aside>
 
         <div className="dev-main-col">
-          <div className={`dev-content${(activeTab === 'analytics' || activeTab === 'overview') ? ' dev-fit' : ''}`}>
+          <div className={`dev-content${(activeTab === 'analytics' || activeTab === 'overview' || activeTab === 'map') ? ' dev-fit' : ''}`}>
             {/* ── OVERVIEW ── live health row + quick-control panels ── */}
             {activeTab === 'overview' && (
               <div className="dev-fit-content">
@@ -1642,6 +1683,78 @@ export default function DeveloperAdmin() {
               </div>
             )}
 
+            {/* ── USER MAP: dedicated full page (sticky header + user search + drill-down map) ── */}
+            {activeTab === 'map' && (
+              <div className="dev-map-page">
+                <div className="dev-map-topbar">
+                  <div className="dev-map-title">
+                    <h3 style={{ margin: 0 }}>User Map</h3>
+                    <span className="dev-map-sub">Where users signed up / last logged in, by IP. Zoom in or tap a dot to drill country → state → city → district.</span>
+                  </div>
+                  <form className="dev-map-search" onSubmit={handleLocateUser}>
+                    <Search size={16} />
+                    <input
+                      type="text"
+                      placeholder="Username or ID to find their location…"
+                      value={locQuery}
+                      onChange={(e) => setLocQuery(e.target.value)}
+                    />
+                    <button type="submit" className="dev-btn" disabled={locLoading}>{locLoading ? 'Searching…' : 'Locate'}</button>
+                  </form>
+                </div>
+
+                <div className="dev-map-toolbar">
+                  <span><strong>{geoData ? geoData.totalGeoUsers.toLocaleString() : '—'}</strong> users located</span>
+                  <span><strong>{geoData ? geoData.points.length : '—'}</strong> areas</span>
+                  <button className="dev-btn dev-btn-secondary" onClick={fetchGeo} disabled={geoLoading}>
+                    <RefreshCcw size={14} className={geoLoading ? 'dev-spin' : ''} /> {geoLoading ? 'Loading…' : 'Refresh'}
+                  </button>
+                </div>
+
+                {locError && <div className="dev-map-msg dev-map-msg-err">{locError}</div>}
+
+                {locResult && locResult.user && (() => {
+                  const u = locResult.user;
+                  const located = typeof u.lat === 'number' && typeof u.lon === 'number';
+                  const focusUser = () => setMapFocus({ lat: u.lat, lon: u.lon, label: `${u.username || u.name || u.uniqueId} — ${[u.city, u.region, u.country].filter(Boolean).join(', ') || 'located'}`, ts: Date.now() });
+                  return (
+                    <div className="dev-map-result">
+                      <div className="dev-map-result-head">
+                        <div>
+                          <span className="dev-map-result-name">{u.name || '—'} <span className="dev-map-result-handle">@{u.username}</span></span>
+                          <span className="dev-map-result-id">ID: {u.uniqueId}{u.isGuest ? ' · Guest' : ''}{u.isBlocked ? ' · Blocked' : ''}</span>
+                        </div>
+                        {located && <button className="dev-btn" onClick={focusUser}><MapIcon size={14} /> Show on map</button>}
+                      </div>
+                      {located ? (
+                        <div className="dev-detail-grid">
+                          <DetailItem label="Country" value={u.country} />
+                          <DetailItem label="State / Region" value={u.region} />
+                          <DetailItem label="City" value={u.city} />
+                          <DetailItem label="District" value={u.district} />
+                          <DetailItem label="Coordinates" value={`${u.lat.toFixed(3)}, ${u.lon.toFixed(3)}`} mono />
+                          <DetailItem label="IP Address" value={u.lastIp} mono />
+                          <DetailItem label="IP captured" value={fmtDateTime(u.lastIpAt)} />
+                        </div>
+                      ) : (
+                        <div className="dev-map-msg">No IP location stored for this user yet — it appears once they sign up or log in after location capture is live.</div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {geoLoading && !geoData ? (
+                  <div className="dev-analytics-loading">Loading map data…</div>
+                ) : geoData && geoData.points && geoData.points.length ? (
+                  <GeoWorldMap points={geoData.points} focus={mapFocus} />
+                ) : (
+                  <div className="dev-analytics-loading">
+                    No located users yet. Dots appear as users sign up or log in from now on (their IP gets geolocated).
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ── DATA SECTIONS (open on the right when a sidebar item is active) ── */}
             {(activeTab === 'users' || activeTab === 'reports' || activeTab === 'live-random' || activeTab === 'analytics') && (
               <div className="dev-main">
@@ -1666,7 +1779,6 @@ export default function DeveloperAdmin() {
                     <button className={`dev-analytics-tab${analyticsView === 'locations' ? ' active' : ''}`} onClick={() => setAnalyticsView('locations')}><Globe size={16} /> Top Locations</button>
                     <button className={`dev-analytics-tab${analyticsView === 'gender' ? ' active' : ''}`} onClick={() => setAnalyticsView('gender')}><Users size={16} /> Gender Distribution</button>
                     <button className={`dev-analytics-tab${analyticsView === 'peak' ? ' active' : ''}`} onClick={() => setAnalyticsView('peak')}><Activity size={16} /> Peak Activity (24 Hours)</button>
-                    <button className={`dev-analytics-tab${analyticsView === 'map' ? ' active' : ''}`} onClick={() => setAnalyticsView('map')}><MapIcon size={16} /> User Map (World)</button>
                   </div>
 
                   {/* ── LIVE USERS: totals + real-time sign-in roster (10 per page) ── */}
@@ -1875,36 +1987,6 @@ export default function DeveloperAdmin() {
                       </div>
                     </div>
                   ) : <div className="dev-analytics-loading">Loading analytics data…</div>)}
-
-                  {/* ── USER MAP (WORLD) — IP-derived location clusters ── */}
-                  {analyticsView === 'map' && (
-                    <div className="dev-panel">
-                      <div className="dev-geo-header">
-                        <div>
-                          <h4 style={{ marginBottom: '4px' }}>User Map (World)</h4>
-                          <span className="dev-geo-subtitle">
-                            Green dots mark where users last signed up / logged in, based on their phone's IP (approx city/region — not exact location).
-                          </span>
-                        </div>
-                        <button className="dev-btn dev-btn-secondary" onClick={fetchGeo} disabled={geoLoading}>
-                          <RefreshCcw size={14} className={geoLoading ? 'dev-spin' : ''} /> {geoLoading ? 'Loading…' : 'Refresh'}
-                        </button>
-                      </div>
-                      <div className="dev-geo-stats">
-                        <span><strong>{geoData ? geoData.totalGeoUsers.toLocaleString() : '—'}</strong> users located</span>
-                        <span><strong>{geoData ? geoData.points.length : '—'}</strong> areas</span>
-                      </div>
-                      {geoLoading && !geoData ? (
-                        <div className="dev-analytics-loading">Loading map data…</div>
-                      ) : geoData && geoData.points && geoData.points.length ? (
-                        <GeoWorldMap points={geoData.points} />
-                      ) : (
-                        <div className="dev-analytics-loading">
-                          No located users yet. Dots appear as users sign up or log in from now on (their IP gets geolocated).
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                 </div>
               ) : activeTab === 'users' ? (
