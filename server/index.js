@@ -373,6 +373,47 @@ async function getRandomCountryFact(countryCode) {
   } catch(e) {}
   return { fact: "A beautiful country with rich culture.", countryCode: 'UN', countryName: 'Earth' };
 }
+
+// ── Partner country display for random chat ────────────────────────
+// A user's REAL country must always win over the random icebreaker country. The old
+// inline logic keyed only on countryCode, so a user whose country NAME was known
+// (e.g. "Türkiye") but whose code was still 'UN' got shown a RANDOM country + flag
+// (e.g. Indonesia). Resolve the code from the name when it is missing, and only invent
+// a random country when the user's country is genuinely unknown ('Earth' / empty).
+const NAME_TO_CC = {
+  'turkey': 'TR', 'türkiye': 'TR', 'turkiye': 'TR',
+  'india': 'IN', 'pakistan': 'PK', 'bangladesh': 'BD', 'nepal': 'NP', 'sri lanka': 'LK',
+  'united states': 'US', 'usa': 'US', 'united kingdom': 'GB', 'uk': 'GB', 'england': 'GB',
+  'canada': 'CA', 'australia': 'AU', 'germany': 'DE', 'france': 'FR', 'japan': 'JP',
+  'brazil': 'BR', 'indonesia': 'ID', 'russia': 'RU', 'china': 'CN', 'south korea': 'KR',
+  'spain': 'ES', 'italy': 'IT', 'portugal': 'PT', 'netherlands': 'NL', 'poland': 'PL',
+  'ukraine': 'UA', 'turkmenistan': 'TM', 'uzbekistan': 'UZ', 'kazakhstan': 'KZ',
+  'south africa': 'ZA', 'nigeria': 'NG', 'egypt': 'EG', 'kenya': 'KE', 'morocco': 'MA',
+  'mexico': 'MX', 'argentina': 'AR', 'colombia': 'CO', 'chile': 'CL', 'peru': 'PE',
+  'vietnam': 'VN', 'thailand': 'TH', 'malaysia': 'MY', 'philippines': 'PH', 'singapore': 'SG',
+  'saudi arabia': 'SA', 'united arab emirates': 'AE', 'uae': 'AE', 'iran': 'IR', 'iraq': 'IQ',
+  'israel': 'IL', 'greece': 'GR', 'romania': 'RO', 'sweden': 'SE', 'norway': 'NO',
+};
+function resolveCountryCode(rec) {
+  const cc = rec && rec.countryCode;
+  if (cc && cc !== 'UN') return String(cc).toUpperCase();
+  const nm = ((rec && rec.country) || '').trim().toLowerCase();
+  return NAME_TO_CC[nm] || '';
+}
+// Returns { partnerCountry, partnerCountryCode, partnerFact } for one participant.
+async function buildPartnerCountryMeta(rec) {
+  const name = ((rec && rec.country) || '').trim();
+  const known = !!name && name.toLowerCase() !== 'earth';
+  if (known) {
+    const code = resolveCountryCode(rec);
+    let partnerFact = 'A beautiful country with rich culture.';
+    if (code) { const f = await getRandomCountryFact(code); if (f && f.fact) partnerFact = f.fact; }
+    return { partnerCountry: name, partnerCountryCode: code || 'UN', partnerFact };
+  }
+  // Genuinely unknown country: keep the old behaviour of inventing a random one.
+  const fact = await getRandomCountryFact(((rec && rec.countryCode) || 'UN'));
+  return { partnerCountry: fact.countryName, partnerCountryCode: fact.countryCode, partnerFact: fact.fact };
+}
 const server = http.createServer(app);
 setupOptimizations(app, server);
 
@@ -4808,9 +4849,9 @@ function pairTwoLiveUsers(a, b) {
           User.findById(userA.userId).select('country countryCode').lean(),
           User.findById(userB.userId).select('country countryCode').lean(),
         ]);
-        const [factA, factB] = await Promise.all([getRandomCountryFact(recB?.countryCode || 'UN'), getRandomCountryFact(recA?.countryCode || 'UN')]);
-        io.to(userA.socketId).emit('match_found', { roomId, partnerId: userB.userId, partnerAvatar: null, partnerCountry: (recB?.countryCode && recB.countryCode !== 'UN') ? recB.country : factA.countryName, partnerCountryCode: (recB?.countryCode && recB.countryCode !== 'UN') ? recB.countryCode : factA.countryCode, partnerFact: factA.fact });
-        io.to(userB.socketId).emit('match_found', { roomId, partnerId: userA.userId, partnerAvatar: null, partnerCountry: (recA?.countryCode && recA.countryCode !== 'UN') ? recA.country : factB.countryName, partnerCountryCode: (recA?.countryCode && recA.countryCode !== 'UN') ? recA.countryCode : factB.countryCode, partnerFact: factB.fact });
+        const [metaB, metaA] = await Promise.all([buildPartnerCountryMeta(recB), buildPartnerCountryMeta(recA)]);
+        io.to(userA.socketId).emit('match_found', { roomId, partnerId: userB.userId, partnerAvatar: null, ...metaB });
+        io.to(userB.socketId).emit('match_found', { roomId, partnerId: userA.userId, partnerAvatar: null, ...metaA });
       } catch (e) { console.error('[autoPair meta]', e.message); }
     })();
     if (pubClient) { redisQueueRemove(pubClient, a.userId).catch(() => {}); redisQueueRemove(pubClient, b.userId).catch(() => {}); }
@@ -5656,9 +5697,9 @@ io.on('connection', (socket) => {
 
             try {
               const [u1Record, u2Record] = await Promise.all([User.findById(user1.userId).select('country countryCode').lean(), User.findById(user2.userId).select('country countryCode').lean()]);
-              const [factForU1, factForU2] = await Promise.all([getRandomCountryFact(u2Record?.countryCode || 'UN'), getRandomCountryFact(u1Record?.countryCode || 'UN')]);
-              io.to(user1.socketId).emit('match_found', { roomId, partnerId: user2.userId, partnerAvatar: null, partnerCountry: (u2Record?.countryCode && u2Record.countryCode !== 'UN') ? u2Record.country : factForU1.countryName, partnerCountryCode: (u2Record?.countryCode && u2Record.countryCode !== 'UN') ? u2Record.countryCode : factForU1.countryCode, partnerFact: factForU1.fact });
-              io.to(user2.socketId).emit('match_found', { roomId, partnerId: user1.userId, partnerAvatar: null, partnerCountry: (u1Record?.countryCode && u1Record.countryCode !== 'UN') ? u1Record.country : factForU2.countryName, partnerCountryCode: (u1Record?.countryCode && u1Record.countryCode !== 'UN') ? u1Record.countryCode : factForU2.countryCode, partnerFact: factForU2.fact });
+              const [metaU2, metaU1] = await Promise.all([buildPartnerCountryMeta(u2Record), buildPartnerCountryMeta(u1Record)]);
+              io.to(user1.socketId).emit('match_found', { roomId, partnerId: user2.userId, partnerAvatar: null, ...metaU2 });
+              io.to(user2.socketId).emit('match_found', { roomId, partnerId: user1.userId, partnerAvatar: null, ...metaU1 });
             } catch (err) { console.error('Error emitting match_found', err); }
             return;
           }
@@ -5699,9 +5740,9 @@ io.on('connection', (socket) => {
         if (activeSessions.has(u2.socketId)) activeSessions.get(u2.socketId).matchesMade += 1;
         try {
           const [ur1, ur2] = await Promise.all([User.findById(u1.userId).select('country countryCode').lean(), User.findById(u2.userId).select('country countryCode').lean()]);
-          const [f1, f2] = await Promise.all([getRandomCountryFact(ur2?.countryCode || 'UN'), getRandomCountryFact(ur1?.countryCode || 'UN')]);
-          io.to(u1.socketId).emit('match_found', { roomId, partnerId: u2.userId, partnerAvatar: null, partnerCountry: (ur2?.countryCode && ur2.countryCode !== 'UN') ? ur2.country : f1.countryName, partnerCountryCode: (ur2?.countryCode && ur2.countryCode !== 'UN') ? ur2.countryCode : f1.countryCode, partnerFact: f1.fact });
-          io.to(u2.socketId).emit('match_found', { roomId, partnerId: u1.userId, partnerAvatar: null, partnerCountry: (ur1?.countryCode && ur1.countryCode !== 'UN') ? ur1.country : f2.countryName, partnerCountryCode: (ur1?.countryCode && ur1.countryCode !== 'UN') ? ur1.countryCode : f2.countryCode, partnerFact: f2.fact });
+          const [metaUr2, metaUr1] = await Promise.all([buildPartnerCountryMeta(ur2), buildPartnerCountryMeta(ur1)]);
+          io.to(u1.socketId).emit('match_found', { roomId, partnerId: u2.userId, partnerAvatar: null, ...metaUr2 });
+          io.to(u2.socketId).emit('match_found', { roomId, partnerId: u1.userId, partnerAvatar: null, ...metaUr1 });
         } catch(err) { console.error('Error emitting match_found (fallback)', err); }
         return;
       }
