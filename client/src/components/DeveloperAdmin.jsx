@@ -1110,12 +1110,13 @@ export default function DeveloperAdmin() {
 
   // Accepting a request opens the per-friend identity form first (how the admin will
   // appear to this user, since the admin was a stranger when the request was sent).
-  const openIdentityForm = (req) => {
+  const openIdentityForm = (req, mode = 'accept') => {
     // Prefill from the bot's existing persona so the admin doesn't retype it. But if the
     // persona is already dedicated to a DIFFERENT user, don't show their data — accepting
     // will clone a fresh bot for this requester, so start blank.
     const ownedByOther = req.bot.dedicatedTo && String(req.bot.dedicatedTo) !== String(req.requester._id);
     setIdentityForm({
+      mode,
       botId: req.bot._id,
       userId: req.requester._id,
       requesterName: req.requester.username,
@@ -1128,21 +1129,53 @@ export default function DeveloperAdmin() {
     });
   };
 
+  // From the LIVE intercept chat: the admin wants to "add as friend" the user they're chatting
+  // with. Open the same identity form first so the persona gets a real name BEFORE the request
+  // is sent (mirrors how accepting an inbound request sets the admin's name).
+  const openInterceptIdentity = () => {
+    if (!activeRandomChat || !activeRandomChat.botAccount || !activeRandomChat.targetUser) return;
+    const bot = activeRandomChat.botAccount;
+    const target = activeRandomChat.targetUser;
+    setIdentityForm({
+      mode: 'send-request',
+      botId: bot._id,
+      userId: target._id,
+      requesterName: target.username,
+      name: bot.name || '',
+      username: bot.username || '',
+      age: bot.age || '',
+      country: bot.country || '',
+      gender: bot.gender || 'male',
+      bio: bot.bio || ''
+    });
+  };
+
   const submitIdentityForm = async (e) => {
     e.preventDefault();
     if (!identityForm || !identityForm.name.trim() || !identityForm.username.trim()) return;
     setIdentitySaving(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/bots/accept/${identityForm.botId}/${identityForm.userId}`, {
+      const isSendRequest = identityForm.mode === 'send-request';
+      const endpoint = isSendRequest ? 'follow' : 'accept';
+      const res = await fetch(`${API_URL}/api/admin/bots/${endpoint}/${identityForm.botId}/${identityForm.userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
         body: JSON.stringify({ identity: { name: identityForm.name, username: identityForm.username, age: identityForm.age, country: identityForm.country, gender: identityForm.gender, bio: identityForm.bio } })
       });
       if (res.ok) {
-        setBotRequests(prev => prev.filter(r => r.requester._id !== identityForm.userId || r.bot._id !== identityForm.botId));
+        if (isSendRequest) {
+          const data = await res.json().catch(() => ({}));
+          const uid = String(identityForm.userId);
+          if (data.connected) setFollowedIds(prev => new Set(prev).add(uid));
+          else setRequestedUserIds(prev => new Set(prev).add(uid));
+        } else {
+          setBotRequests(prev => prev.filter(r => r.requester._id !== identityForm.userId || r.bot._id !== identityForm.botId));
+        }
         setIdentityForm(null);
         fetchBotChats();
         fetchConversations();
+      } else {
+        alert(isSendRequest ? 'Could not send the friend request.' : 'Could not accept the request.');
       }
     } catch (err) { console.error(err); }
     finally { setIdentitySaving(false); }
@@ -2297,7 +2330,15 @@ export default function DeveloperAdmin() {
                                 <div className="lr-chat-title">🔴 Live intercept — @{activeRandomChat.targetUser?.username}</div>
                                 <div className="lr-chat-sub">Disguised as @{activeRandomChat.botAccount?.username}</div>
                               </div>
-                              <button className="lr-leave" onClick={() => { if (adminSocket) { adminSocket.emit('send_anonymous_message', { roomId: activeRandomChat.roomId, messageText: 'bye' }); adminSocket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId }); } setActiveRandomChat(null); }}>Leave</button>
+                              <div className="lr-chat-actions">
+                                {(() => {
+                                  const uid = String(activeRandomChat.targetUser?._id || '');
+                                  if (uid && followedIds.has(uid)) return <span className="lr-act lr-act-static" title="Connected"><UserCheck size={18} /></span>;
+                                  if (uid && requestedUserIds.has(uid)) return <span className="lr-act lr-act-static" title="Request sent — waiting for them to accept"><Clock size={18} /></span>;
+                                  return <button className="lr-act" title="Add as friend (send request)" onClick={openInterceptIdentity}><UserPlus size={18} /></button>;
+                                })()}
+                                <button className="lr-leave" onClick={() => { if (adminSocket) { adminSocket.emit('send_anonymous_message', { roomId: activeRandomChat.roomId, messageText: 'bye' }); adminSocket.emit('leave_anonymous_chat', { roomId: activeRandomChat.roomId }); } setActiveRandomChat(null); }}>Leave</button>
+                              </div>
                             </div>
                             <div className="lr-chat-body">
                               {randomMessages.map((msg, i) => (
@@ -2408,8 +2449,8 @@ export default function DeveloperAdmin() {
                   {identityForm && (
                     <div className="lr-modal-overlay" onClick={() => !identitySaving && setIdentityForm(null)}>
                       <form className="lr-modal" onClick={(e) => e.stopPropagation()} onSubmit={submitIdentityForm}>
-                        <h3>Set your identity for @{identityForm.requesterName}</h3>
-                        <p className="lr-modal-sub">This is how you'll appear to them (you were a stranger when they requested).</p>
+                        <h3>{identityForm.mode === 'send-request' ? `Add @${identityForm.requesterName} as friend` : `Set your identity for @${identityForm.requesterName}`}</h3>
+                        <p className="lr-modal-sub">{identityForm.mode === 'send-request' ? "Set the name/identity you want to appear with — it's saved before the request is sent." : "This is how you'll appear to them (you were a stranger when they requested)."}</p>
                         <label>Name<input className="dev-input" type="text" value={identityForm.name} onChange={(e) => setIdentityForm({ ...identityForm, name: e.target.value })} required maxLength={60} /></label>
                         <label>Username<input className="dev-input" type="text" value={identityForm.username} onChange={(e) => setIdentityForm({ ...identityForm, username: e.target.value })} required maxLength={30} /></label>
                         <div className="lr-modal-row">
@@ -2424,7 +2465,7 @@ export default function DeveloperAdmin() {
                         <label>Bio<textarea className="dev-input" value={identityForm.bio} onChange={(e) => setIdentityForm({ ...identityForm, bio: e.target.value })} maxLength={150} rows={2} /></label>
                         <div className="lr-modal-actions">
                           <button type="button" className="dev-btn-secondary" onClick={() => setIdentityForm(null)} disabled={identitySaving}>Cancel</button>
-                          <button type="submit" className="dev-btn-primary" style={{ background: '#10b981' }} disabled={identitySaving}>{identitySaving ? 'Saving…' : 'Accept & Save'}</button>
+                          <button type="submit" className="dev-btn-primary" style={{ background: '#10b981' }} disabled={identitySaving}>{identitySaving ? 'Saving…' : (identityForm.mode === 'send-request' ? 'Send Request' : 'Accept & Save')}</button>
                         </div>
                       </form>
                     </div>

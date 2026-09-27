@@ -4333,61 +4333,66 @@ app.get('/api/admin/bots/requests', adminAuth, async (req, res) => {
   }
 });
 
+// Shared admin-bot persona identity application. Claims (or clones, when the persona already
+// serves a DIFFERENT user) a persona dedicated to THIS user and applies the admin-chosen
+// name/username/age/country/gender/bio/avatar. Returns the (possibly new) bot doc; the caller
+// still needs to save it unless a fresh clone was created (already saved here). Used by BOTH
+// the accept flow and the follow/send-request flow so the admin always appears with a real
+// identity — never an unnamed shared persona — before a request is ever delivered.
+const applyBotPersonaIdentity = async (bot, user, idn) => {
+  const owner = bot.dedicatedTo ? bot.dedicatedTo.toString() : null;
+  // If this persona already serves a DIFFERENT user, clone a brand-new dedicated bot for the
+  // current user instead of overwriting the shared one.
+  if (owner && owner !== user._id.toString()) {
+    const cleanU = String(idn.username || '').trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
+    let uname = cleanU || `friend${Date.now().toString(36)}`;
+    const taken = await User.findOne({ username: uname }).lean();
+    if (taken) uname = `${uname}${Math.floor(Math.random() * 9000 + 1000)}`;
+    const rn = Math.floor(Math.random() * 900) + 100;
+    const cloned = new User({
+      name: (idn.name && String(idn.name).trim().slice(0, 60)) || bot.name || `User${rn}`,
+      username: uname,
+      email: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}@twelo.com`,
+      googleId: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      uniqueId: await generateUniqueUniqueId(),
+      avatarUrl: (idn.avatarUrl && String(idn.avatarUrl).trim()) || bot.avatarUrl || generateAvatarUrl(bot.gender),
+      ownedByAdmin: true,
+      dedicatedTo: user._id
+    });
+    await cloned.save();
+    return cloned;
+  }
+  if (!bot.dedicatedTo) bot.dedicatedTo = user._id; // first person to claim this persona
+  // Apply the (edited) identity to THIS user's dedicated bot only.
+  if (idn.name && String(idn.name).trim()) bot.name = String(idn.name).trim().slice(0, 60);
+  if (idn.username && String(idn.username).trim()) {
+    const uname = String(idn.username).trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
+    if (uname) {
+      const clash = await User.findOne({ username: uname, _id: { $ne: bot._id } }).lean();
+      if (!clash) {
+        if (bot.username && !bot.pastUsernames.includes(bot.username)) bot.pastUsernames.push(bot.username);
+        bot.username = uname;
+      }
+    }
+  }
+  if (idn.age) { const a = parseInt(idn.age, 10); if (!isNaN(a)) bot.age = Math.max(1, Math.min(120, a)); }
+  if (idn.country && String(idn.country).trim()) bot.country = String(idn.country).trim().slice(0, 60);
+  if (idn.countryCode && String(idn.countryCode).trim()) bot.countryCode = String(idn.countryCode).trim().slice(0, 4);
+  if (idn.gender && ['male', 'female'].includes(idn.gender)) bot.gender = idn.gender;
+  if (idn.bio !== undefined) bot.bio = String(idn.bio).slice(0, 150);
+  if (idn.avatarUrl && String(idn.avatarUrl).trim()) bot.avatarUrl = String(idn.avatarUrl).trim();
+  return bot;
+};
+
 app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) => {
   try {
     let bot = await User.findById(req.params.botId);
     const user = await User.findById(req.params.userId);
     if (!bot || !user || !bot.ownedByAdmin) return res.status(404).json({ message: "Invalid request" });
 
-    // Per-friend identity: when the admin accepts, they choose how they appear to THIS
-    // user. A bot persona belongs to exactly ONE real user (via dedicatedTo) so editing
-    // it for one friend can NEVER change what another friend sees.
+    // Per-friend identity: the admin chooses how they appear to THIS user (claim/clone + fields).
     const idn = (req.body && req.body.identity) || {};
-    const owner = bot.dedicatedTo ? bot.dedicatedTo.toString() : null;
-
-    // If this persona already serves a DIFFERENT user, clone a brand-new dedicated bot
-    // for the current user instead of overwriting the shared one.
-    if (owner && owner !== user._id.toString()) {
-      const cleanU = String(idn.username || '').trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
-      let uname = cleanU || `friend${Date.now().toString(36)}`;
-      const taken = await User.findOne({ username: uname }).lean();
-      if (taken) uname = `${uname}${Math.floor(Math.random() * 9000 + 1000)}`;
-      const rn = Math.floor(Math.random() * 900) + 100;
-      const cloned = new User({
-        name: (idn.name && String(idn.name).trim().slice(0, 60)) || bot.name || `User${rn}`,
-        username: uname,
-        email: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}@twelo.com`,
-        googleId: `fake_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-        uniqueId: await generateUniqueUniqueId(),
-        avatarUrl: (idn.avatarUrl && String(idn.avatarUrl).trim()) || bot.avatarUrl || generateAvatarUrl(bot.gender),
-        ownedByAdmin: true,
-        dedicatedTo: user._id
-      });
-      await cloned.save();
-      bot = cloned;
-    } else if (!bot.dedicatedTo) {
-      // First person to claim this persona -> it becomes theirs permanently.
-      bot.dedicatedTo = user._id;
-    }
-
-    // Apply the (new or edited) identity to THIS user's dedicated bot only.
-    if (idn.name && String(idn.name).trim()) bot.name = String(idn.name).trim().slice(0, 60);
-    if (idn.username && String(idn.username).trim()) {
-      const uname = String(idn.username).trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
-      if (uname) {
-        const clash = await User.findOne({ username: uname, _id: { $ne: bot._id } }).lean();
-        if (!clash) {
-          if (bot.username && !bot.pastUsernames.includes(bot.username)) bot.pastUsernames.push(bot.username);
-          bot.username = uname;
-        }
-      }
-    }
-    if (idn.age) { const a = parseInt(idn.age, 10); if (!isNaN(a)) bot.age = Math.max(1, Math.min(120, a)); }
-    if (idn.country && String(idn.country).trim()) bot.country = String(idn.country).trim().slice(0, 60);
-    if (idn.countryCode && String(idn.countryCode).trim()) bot.countryCode = String(idn.countryCode).trim().slice(0, 4);
-    if (idn.gender && ['male', 'female'].includes(idn.gender)) bot.gender = idn.gender;
-    if (idn.bio !== undefined) bot.bio = String(idn.bio).slice(0, 150);
-    if (idn.avatarUrl && String(idn.avatarUrl).trim()) bot.avatarUrl = String(idn.avatarUrl).trim();
+    bot = await applyBotPersonaIdentity(bot, user, idn);
 
     // Drop the pending request from the ORIGINAL persona if we cloned to a new bot.
     if (req.params.botId !== bot._id.toString()) {
@@ -4421,9 +4426,14 @@ app.post('/api/admin/bots/accept/:botId/:userId', adminAuth, async (req, res) =>
 // (previously it silently auto-followed and only fired a "started following you" ping).
 app.post('/api/admin/bots/follow/:botId/:userId', adminAuth, async (req, res) => {
   try {
-    const bot = await User.findById(req.params.botId);
+    let bot = await User.findById(req.params.botId);
     const user = await User.findById(req.params.userId);
     if (!bot || !user || !bot.ownedByAdmin) return res.status(404).json({ message: "Invalid request" });
+
+    // Set the admin's persona identity BEFORE reaching out (same claim/clone + fields as accept),
+    // so the user receives the request from a real named profile, never an unnamed shared bot.
+    const idn = (req.body && req.body.identity) || {};
+    if (idn && Object.keys(idn).length) bot = await applyBotPersonaIdentity(bot, user, idn);
 
     const botId = bot._id.toString();
     const userId = user._id.toString();
@@ -4451,6 +4461,7 @@ app.post('/api/admin/bots/follow/:botId/:userId', adminAuth, async (req, res) =>
     if (!user.friendRequests.some(id => id.toString() === botId)) user.friendRequests.push(bot._id);
     user.notifications = (user.notifications || []).filter(n => !(n.type === 'follow_request' && n.user && n.user.toString() === botId));
     user.notifications.push({ type: 'follow_request', user: bot._id });
+    await bot.save();
     await user.save();
 
     const userSocketId = onlineUsers.get(userId);

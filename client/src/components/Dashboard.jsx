@@ -1295,7 +1295,7 @@ export default function Dashboard() {
   const [showHomeAdPopup, setShowHomeAdPopup] = useState(false);
   const [adTimeLeft, setAdTimeLeft] = useState(15);
   const [adCompleted, setAdCompleted] = useState(false);
-  const videoRef = React.useRef(null);
+  const watchAdHostRef = React.useRef(null);
 
   useEffect(() => {
     let timer;
@@ -1309,6 +1309,26 @@ export default function Dashboard() {
     }
     return () => clearTimeout(timer);
   }, [showAdModal, adTimeLeft, adCompleted]);
+
+  // Watch & Earn: show a real Adsterra display banner inside the reward modal (fresh on every
+  // open), replacing the old placeholder video. The 15s countdown above still grants 5 coins.
+  useEffect(() => {
+    if (!showAdModal) return undefined;
+    const host = watchAdHostRef.current;
+    if (!host) return undefined;
+    host.innerHTML = '';
+    window.atOptions = { key: INTERSTITIAL_BANNER_KEY, format: 'iframe', height: 250, width: 300, params: {} };
+    const container = document.createElement('div');
+    container.id = `container-${INTERSTITIAL_BANNER_KEY}`;
+    container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:300px;max-width:100%;min-height:250px;overflow:hidden;margin:0 auto;';
+    const script = document.createElement('script');
+    script.src = `https://${INTERSTITIAL_BANNER_NETWORK}/${INTERSTITIAL_BANNER_KEY}/invoke.js`;
+    script.async = true;
+    script.dataset.cfasync = 'false';
+    host.appendChild(container);
+    host.appendChild(script);
+    return () => { script.remove(); container.remove(); };
+  }, [showAdModal]);
 
   // Handle Banner Ad logic based on activeTab
   useEffect(() => {
@@ -9222,16 +9242,11 @@ const handleStoryUpload = async () => {
             )}
           </div>
           
-          {/* Ad Video */}
-          <video 
-            ref={videoRef}
-            src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" 
-            autoPlay 
-            muted 
-            playsInline
-            loop
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
+          {/* Ad content: real Adsterra display banner (injected by the effect above) */}
+          <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '14px', padding: '16px' }}>
+            <span style={{ color: '#888', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sponsored</span>
+            <div ref={watchAdHostRef} style={{ width: '100%', maxWidth: '320px', minHeight: '250px', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }} />
+          </div>
 
           {/* Reward Screen Overlay */}
           {adCompleted && (
