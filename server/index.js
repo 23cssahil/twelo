@@ -3793,13 +3793,21 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
       const or = [
         { name: { $regex: query, $options: 'i' } },
         { username: { $regex: query, $options: 'i' } },
-        { googleId: { $regex: query, $options: 'i' } }
+        { googleId: { $regex: query, $options: 'i' } },
+        // The "ID:" shown in the admin user list is uniqueId (a String), so searching by it
+        // must match this field — it was previously missing, which broke ID-based searches.
+        { uniqueId: { $regex: query, $options: 'i' } }
       ];
       // Emails are stored as randomized AES ciphertext, so a $regex on `email` can never
       // match. Search by the deterministic HMAC instead (exact, case-insensitive match).
       if (query.includes('@')) {
         const h = hashEmail(query);
         if (h) or.push({ emailHash: h });
+      }
+      // The "User ID" shown in the admin UI is the MongoDB _id (24-hex ObjectId). $regex can't
+      // match an _id, so when the query is a valid ObjectId, look it up exactly.
+      if (/^[a-fA-F0-9]{24}$/.test(query)) {
+        try { or.push({ _id: new mongoose.Types.ObjectId(query) }); } catch (e) { /* invalid id → skip */ }
       }
       const found = await User.find({ $or: or }).select('-password').sort({ createdAt: -1 }).limit(50);
       return res.json({ users: found.map(toMasked), nextCursor: null });
