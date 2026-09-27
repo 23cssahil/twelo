@@ -1038,6 +1038,12 @@ export default function DeveloperAdmin() {
     adminSocket.emit('admin_intercept_random', { targetUserId: userId });
   };
 
+  // Board "Cancel": hand this waiting user to a real AI-companion bot instead of intercepting.
+  const releaseToBot = (userId) => {
+    if (!userId || !adminSocket) return;
+    adminSocket.emit('admin_release_to_bot', { targetUserId: userId });
+  };
+
   const openLiveRandomPage = () => {
     fetchBotRequests();
     fetchBotChats();
@@ -2330,14 +2336,14 @@ export default function DeveloperAdmin() {
                         <h3>Waiting Now</h3>
                         <span className="lr-count">{liveQueue.length}</span>
                       </div>
-                      <div className="lr-left-sub">Users who pressed Match with no partner. Tap to intercept &amp; chat. Newest first (max 10).</div>
+                      <div className="lr-left-sub">Users who pressed Match with no partner. Tap to intercept &amp; chat, or ✕ to hand them to a bot. Newest first (max 10).</div>
                       <div className="lr-list">
                         {liveQueue.length === 0 ? (
                           <div className="lr-empty">No one waiting right now. 🎉</div>
                         ) : liveQueue.map((u) => {
                           const secs = Math.max(0, Math.floor((liveTick - (u.waitingSince || liveTick)) / 1000));
                           return (
-                            <button key={u.userId} className="lr-user-row" onClick={() => interceptUser(u.userId)}>
+                            <div key={u.userId} role="button" tabIndex={0} className="lr-user-row" onClick={() => interceptUser(u.userId)}>
                               <div className="lr-avatar">
                                 <img src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username || '?')}&background=random`} alt='' />
                               </div>
@@ -2345,8 +2351,9 @@ export default function DeveloperAdmin() {
                                 <span className="lr-user-name">@{u.username}</span>
                                 <span className="lr-user-sub">{u.country && u.country !== 'Earth' ? `📍 ${u.country}` : '🌍 Earth'} · {u.gender || '—'} · waiting {secs}s</span>
                               </div>
+                              <button className="lr-row-cancel" title="Cancel — match them with a bot instead of intercepting" onClick={(e) => { e.stopPropagation(); releaseToBot(u.userId); }}>✕</button>
                               <span className="lr-intercept">Intercept ›</span>
-                            </button>
+                            </div>
                           );
                         })}
                       </div>

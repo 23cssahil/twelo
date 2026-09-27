@@ -4711,8 +4711,13 @@ let lastGlobePushTime = 0; // Cooldown tracker for push notifications (5 min thr
 const liveRandomWaiting = new Map(); // userId -> { userId, socketId, username, avatarUrl, country, countryCode, gender, wantGender, ts }
 const LIVE_QUEUE_MAX = 10;
 
+// Is any admin currently on (or actively intercepting from) the Live Random page?
+// An admin mid-intercept also counts as watching, so a second user who can't find a
+// real match is HELD on the board instead of dropped to an AI bot while the admin is
+// busy chatting with the first user.
 function isLiveAdminWatching() {
   try {
+    if (adminBusySockets.size > 0) return true;
     const room = io.sockets.adapter.rooms.get('admin_live');
     return !!(room && room.size > 0);
   } catch (e) { return false; }
@@ -5436,6 +5441,15 @@ io.on('connection', (socket) => {
         if (idx !== -1) { targetUserSocket = _fallbackQueue[idx].socketId; _fallbackQueue.splice(idx, 1); }
       }
       if (targetUserSocket) {
+        // If this admin is already inside another intercept, end it FIRST: intercepting a
+        // new user must instantly disconnect the previous one (they get chat-ended normally).
+        for (const [rid, c] of activeRandomChats.entries()) {
+          if (c && !c.isAiCompanion && (c.user1?.socketId === socket.id || c.user2?.socketId === socket.id)) {
+            const otherSockId = c.user1?.socketId === socket.id ? c.user2?.socketId : c.user1?.socketId;
+            if (otherSockId) io.to(otherSockId).emit('anonymous_chat_ended');
+            activeRandomChats.delete(rid);
+          }
+        }
         adminBusySockets.add(socket.id);
         // Take the user off the live board and stop their held AI-companion fallback so
         // the deferred timer cannot later drop a bot into this intercept chat.
@@ -5491,6 +5505,28 @@ io.on('connection', (socket) => {
         });
       }
     }); // end admin_intercept_random
+
+    // Admin tapped Cancel on a waiting user: stop holding them for intercept and match them
+    // with a real AI-companion bot instead.
+    socket.on('admin_release_to_bot', async ({ targetUserId }) => {
+      try {
+        if (!targetUserId) return;
+        const entry = liveRandomWaiting.get(targetUserId);
+        if (!entry) return;
+        const userSocket = io.sockets.sockets.get(entry.socketId);
+        removeFromLiveWaiting(targetUserId);
+        if (pubClient) { try { await redisQueueRemove(pubClient, targetUserId); } catch (e) {} }
+        _fallbackQueue = _fallbackQueue.filter(u => u.userId !== targetUserId);
+        if (!userSocket || !userSocket.connected) { broadcastLiveQueue(); return; }
+        assignAiCompanion(userSocket, {
+          userId: targetUserId,
+          userGender: entry.gender,
+          userCountry: entry.country,
+          userCountryCode: entry.countryCode,
+          genderFilter: entry.wantGender,
+        });
+      } catch (e) { console.error('[admin_release_to_bot]', e.message); }
+    });
 
     // --- Anonymous Random Chat Events (Redis-optimized) ---
     socket.on('search_random', async (payload) => {
