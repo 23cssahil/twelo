@@ -1852,6 +1852,9 @@ export default function Dashboard() {
   // (otherwise you reply into the wrong conversation). seq = last started request; lastChatFetchId = thread on screen.
   const chatFetchSeqRef = useRef(0);
   const lastChatFetchIdRef = useRef(null);
+  // Debounce timer for recent-chats refresh: coalesces the per-message fetches that used
+  // to fire on every send/receive into at most one request per burst.
+  const recentChatsTimerRef = useRef(null);
   const searchQueryRef = useRef(searchQuery);
   const searchHistoryCacheRefSync = searchHistoryCacheRef;
   const publicProfileDataRef = useRef(publicProfileData);
@@ -2756,8 +2759,8 @@ export default function Dashboard() {
           }
           setUnreadMessages(prev => ({...prev, [msg.sender]: (prev[msg.sender] || 0) + 1}));
         }
-        // Only fetch recent chats for incoming messages from others
-        fetchRecentChats();
+        // Debounced recent-chats refresh (coalesces message bursts into one fetch).
+        scheduleRecentChats();
       }
     });
 
@@ -2765,8 +2768,9 @@ export default function Dashboard() {
     socket.on('message_sent', ({ tempId, message }) => {
       // Replace the optimistic temp message with the confirmed server message
       setMessages(prev => prev.map(m => m._id === tempId ? message : m));
-      // Update recent chats after message is confirmed
-      fetchRecentChats();
+      // Update recent chats after message is confirmed (debounced; the optimistic bump already
+      // floated the thread so this is just an eventual server resync).
+      scheduleRecentChats();
     });
 
     socket.on('message_deleted', ({ messageId, type }) => {
@@ -3393,6 +3397,12 @@ export default function Dashboard() {
       setIsFetchingChats(true);
       fetchRecentChats(chatsCursor);
     }
+  };
+
+  // Coalesce recent-chats refreshes triggered by rapid send/receive into one request.
+  const scheduleRecentChats = (delay = 1200) => {
+    if (recentChatsTimerRef.current) clearTimeout(recentChatsTimerRef.current);
+    recentChatsTimerRef.current = setTimeout(() => { fetchRecentChats(); }, delay);
   };
 
   const fetchMessages = async (otherId, cursor = null) => {

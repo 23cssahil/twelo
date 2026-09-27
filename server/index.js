@@ -498,7 +498,12 @@ const io = socketIo(server, {
     origin: corsOriginFn,
     methods: ['GET', 'POST'],
     credentials: corsStrict
-  }
+  },
+  // Connection tuning for many concurrent mobile sockets on a small instance:
+  perMessageDeflate: false,   // chat payloads are tiny; skip per-message gzip CPU
+  pingInterval: 25000,
+  pingTimeout: 60000,         // tolerate mobile network pauses before dropping the socket
+  maxHttpBufferSize: 1e6      // cap a single packet at 1MB to bound memory/abuse
 });
 
 // Authenticate the socket handshake when a JWT is supplied. We do not reject
@@ -4801,13 +4806,16 @@ io.on('connection', (socket) => {
         activeSessions.get(socket.id).messagesSent += 1;
       }
 
-      // Block guard: if either user has blocked the other, do not deliver the message.
-      // Fail-open on any error so normal chat is never broken by a lookup problem.
+      // ONE lean read for both parties. This single round-trip powers the block guard AND
+      // the toast/offline-push enrichment below, so a sent message costs 1 user query
+      // instead of 4 (previously two block-guard + two non-lean sender/receiver lookups).
+      let senderDoc = null, receiverDoc = null;
       try {
-        const [senderDoc, receiverDoc] = await Promise.all([
-          User.findById(senderId).select('blockedUsers').lean(),
-          User.findById(receiverId).select('blockedUsers').lean(),
-        ]);
+        const docs = await User.find({ _id: { $in: [senderId, receiverId] } })
+          .select('_id blockedUsers username avatarUrl followers following pushSubscriptions fcmToken ownedByAdmin')
+          .lean();
+        senderDoc = docs.find(d => String(d._id) === String(senderId)) || null;
+        receiverDoc = docs.find(d => String(d._id) === String(receiverId)) || null;
         const senderBlockedReceiver = (senderDoc?.blockedUsers || []).some(id => String(id) === String(receiverId));
         const receiverBlockedSender = (receiverDoc?.blockedUsers || []).some(id => String(id) === String(senderId));
         if (senderBlockedReceiver || receiverBlockedSender) {
@@ -4838,14 +4846,14 @@ io.on('connection', (socket) => {
       const receiverSocketId = onlineUsers.get(receiverId?.toString());
       const senderSocketId = onlineUsers.get(senderId?.toString());
       // Receiver connected = their device received it straight away -> delivered (two ticks).
+      // Persist async (fire-and-forget): the in-memory deliveredNow flag already drives the
+      // ack we send back, so we don't block the handler on this write.
       const deliveredNow = !!receiverSocketId;
       if (deliveredNow) {
-        try {
-          await Message.updateOne(
-            { _id: message._id },
-            { $set: { isDelivered: true, deliveredAt: new Date() } }
-          );
-        } catch (e) {}
+        Message.updateOne(
+          { _id: message._id },
+          { $set: { isDelivered: true, deliveredAt: new Date() } }
+        ).catch(e => console.error('delivered update failed:', e.message));
       }
 
       const payload = {
@@ -4876,38 +4884,34 @@ io.on('connection', (socket) => {
         io.to(senderSocketId).emit('receive_message', payload);
       }
 
-      // Check if they are mutual followers (friends) to send a push notification
-      const senderObj = await User.findById(senderId).select('username avatarUrl followers following');
-      const receiverObj = await User.findById(receiverId).select('pushSubscriptions fcmToken followers following ownedByAdmin');
-      
-      // Enrich payload with sender info for rich toast
-      payload.senderUsername = senderObj?.username || '';
-      payload.senderAvatarUrl = senderObj?.avatarUrl || '';
-      // Re-emit enriched payload
+      // Enrich payload with sender info for the receiver's rich toast (from the merged read above).
+      payload.senderUsername = senderDoc?.username || '';
+      payload.senderAvatarUrl = senderDoc?.avatarUrl || '';
+      // Re-emit enriched payload to the receiver's live socket.
       if (receiverSocketId) {
         io.to(receiverSocketId).emit('receive_message', payload);
       }
 
       // Receiver is an admin-owned bot: it has no socket of its own, so push the live
       // message to every watching admin so the open bot-chat updates without a refresh.
-      if (receiverObj && receiverObj.ownedByAdmin) {
+      if (receiverDoc && receiverDoc.ownedByAdmin) {
         io.to('admin_room').emit('receive_message', payload);
       }
-      
-      if (senderObj && receiverObj) {
-        // Only push when the receiver is OFFLINE (online -> in-app toast).
-        const isReceiverOnline = !!receiverSocketId;
-        const isMutual = senderObj.followers.some(id => id.toString() === receiverId.toString()) &&
-                         senderObj.following.some(id => id.toString() === receiverId.toString());
-        const hasAnyChannel = (receiverObj.pushSubscriptions && receiverObj.pushSubscriptions.length > 0) || receiverObj.fcmToken;
-        if (isMutual && !isReceiverOnline && !receiverObj.ownedByAdmin && hasAnyChannel) {
-          // sendToUserDevices delivers over FCM (native app) and/or web-push (PWA).
-          await sendToUserDevices(receiverObj, {
-            title: `New message from ${senderObj.username}`,
+
+      // Offline push (mutual followers only, receiver not online). Runs off the hot path
+      // as fire-and-forget so the socket handler returns immediately after the emits above.
+      if (senderDoc && receiverDoc && !receiverSocketId && !receiverDoc.ownedByAdmin) {
+        const rid = String(receiverId);
+        const isMutual = (senderDoc.followers || []).some(id => String(id) === rid) &&
+                         (senderDoc.following || []).some(id => String(id) === rid);
+        const hasAnyChannel = (receiverDoc.pushSubscriptions && receiverDoc.pushSubscriptions.length > 0) || receiverDoc.fcmToken;
+        if (isMutual && hasAnyChannel) {
+          sendToUserDevices(receiverDoc, {
+            title: `New message from ${senderDoc.username}`,
             // Do not leak (potentially encrypted) message content into the push payload.
             body: messageType === 'text' ? 'You have a new message' : `Sent a ${messageType}`,
             url: `/?chat=${senderId}`
-          });
+          }).catch(e => console.error('offline push failed:', e.message));
         }
       }
     } catch (error) {
