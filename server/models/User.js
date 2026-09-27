@@ -93,6 +93,16 @@ const UserSchema = new mongoose.Schema({
     default: {}
   },
   isBlocked: { type: Boolean, default: false },
+  // ── Moderation / enforcement ──────────────────────────────────────────────
+  // Suspension is DISTINCT from a block: a suspended account can still sign in
+  // but is shown a notice + live countdown and is auto-lifted once it lapses.
+  // A block is a hard lockout. Both persist the last admin message in
+  // enforcementNotice so the user actually reads it even when offline.
+  isSuspended: { type: Boolean, default: false },
+  suspendedUntil: { type: Date, default: null }, // null + isSuspended=true => permanent (admin must lift)
+  suspensionStart: { type: Date, default: null },
+  suspensionReason: { type: String, default: null },
+  enforcementNotice: { type: String, default: null }, // last warn/suspend/block text shown to the user
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   notifications: [{
     type: { type: String, enum: ['follow_request', 'request_accepted', 'system_alert', 'anonymous_follow_request', 'anonymous_request_accepted', 'follow_back_request', 'started_following_you', 'request_rejected', 'story_comment', 'comment_reply', 'story_like'], required: true },

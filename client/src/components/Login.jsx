@@ -40,6 +40,49 @@ export default function Login() {
   const [showRecover, setShowRecover] = useState(false);
   const [recoverCode, setRecoverCode] = useState('');
 
+  // Moderation enforcement (block / suspension) returned by /api/auth/google.
+  const [enforce, setEnforce] = useState(null); // { kind:'block'|'suspend', permanent, until, reason, notice, message }
+  const [now, setNow] = useState(Date.now());
+
+  // Tick the countdown once a second while a timed suspension is showing.
+  React.useEffect(() => {
+    if (!enforce || enforce.kind !== 'suspend' || enforce.permanent || !enforce.until) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [enforce]);
+
+  // Detect a 403 enforcement response before the generic error handling in each login path.
+  const applyEnforcement = (data) => {
+    if (data && (data.blocked || data.suspended)) {
+      setEnforce({
+        kind: data.suspended ? 'suspend' : 'block',
+        permanent: !!data.permanent,
+        until: data.until || null,
+        reason: data.reason || null,
+        notice: data.notice || null,
+        message: data.message || '',
+      });
+      setNow(Date.now());
+      return true;
+    }
+    return false;
+  };
+
+  const formatRemaining = (untilIso) => {
+    let ms = new Date(untilIso).getTime() - now;
+    if (isNaN(ms) || ms <= 0) return 'any moment now';
+    const d = Math.floor(ms / 86400000); ms -= d * 86400000;
+    const h = Math.floor(ms / 3600000); ms -= h * 3600000;
+    const m = Math.floor(ms / 60000); ms -= m * 60000;
+    const s = Math.floor(ms / 1000);
+    const parts = [];
+    if (d) parts.push(`${d}d`);
+    if (h) parts.push(`${h}h`);
+    if (m) parts.push(`${m}m`);
+    parts.push(`${s}s`);
+    return parts.join(' ');
+  };
+
   React.useEffect(() => {
     // Detect access_token returned in URL hash from direct Google OAuth redirect
     if (window.location.hash && window.location.hash.includes('access_token=')) {
@@ -63,6 +106,7 @@ export default function Login() {
       });
       
       const data = await res.json();
+      if (applyEnforcement(data)) return;
       if (!res.ok) throw new Error(data.message || 'Failed to authenticate');
 
       if (data.isNewUser) {
@@ -109,6 +153,7 @@ export default function Login() {
       });
       
       const data = await res.json();
+      if (applyEnforcement(data)) return;
       
       if (!res.ok) {
         throw new Error(data.message || 'Failed to authenticate');
@@ -156,6 +201,7 @@ export default function Login() {
       });
       
       const data = await res.json();
+      if (applyEnforcement(data)) return;
       
       if (!res.ok) {
         throw new Error(data.message || 'Failed to authenticate');
@@ -251,6 +297,46 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  if (enforce) {
+    const isSuspend = enforce.kind === 'suspend';
+    const accent = isSuspend ? '#f59e0b' : '#ff4b4b';
+    return (
+      <div className="auth-container">
+        <div style={{ width: '100%', maxWidth: 440, background: '#141417', border: '1px solid #2c2c31', borderRadius: 18, padding: '30px 26px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,.6)' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, background: isSuspend ? 'rgba(245,158,11,.14)' : 'rgba(255,75,75,.14)', border: `1px solid ${accent}` }}>
+            {isSuspend ? '⏸️' : '🚫'}
+          </div>
+          <h2 style={{ margin: '0 0 6px', color: '#fff', fontSize: '1.4rem' }}>
+            {isSuspend ? 'Account Suspended' : 'Account Blocked'}
+          </h2>
+          {isSuspend && (
+            <p style={{ margin: '0 0 4px', color: '#a8a8a8', fontSize: '.9rem' }}>
+              {enforce.permanent
+                ? 'This suspension is indefinite and will be lifted after a manual review.'
+                : <>Access will be restored in <b style={{ color: accent, fontVariantNumeric: 'tabular-nums' }}>{formatRemaining(enforce.until)}</b></>}
+            </p>
+          )}
+          {isSuspend && !enforce.permanent && enforce.until && (
+            <p style={{ margin: '2px 0 0', color: '#6a6a6a', fontSize: '.78rem' }}>
+              until {new Date(enforce.until).toLocaleString()}
+            </p>
+          )}
+          {enforce.reason && (
+            <div style={{ margin: '14px auto 0', display: 'inline-block', background: 'rgba(255,75,75,.1)', border: '1px solid rgba(255,75,75,.25)', color: '#ff8a8a', padding: '5px 12px', borderRadius: 999, fontSize: '.78rem' }}>
+              Reason: {enforce.reason}
+            </div>
+          )}
+          <div style={{ marginTop: 18, textAlign: 'left', background: '#0c0c0e', border: '1px solid #26262b', borderRadius: 12, padding: '14px 16px', color: '#cfcfd6', fontSize: '.88rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+            {enforce.notice || enforce.message || 'Your account is currently restricted by our moderation team.'}
+          </div>
+          <button onClick={() => { setEnforce(null); setError(''); }} style={{ marginTop: 20, background: 'transparent', border: '1px solid #333', color: '#bbb', borderRadius: 10, padding: '10px 18px', cursor: 'pointer', fontSize: '.9rem' }}>
+            Back to login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-container">

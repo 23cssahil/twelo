@@ -318,6 +318,9 @@ export default function DeveloperAdmin() {
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [warnNotice, setWarnNotice] = useState('');
+  const [noticeEdited, setNoticeEdited] = useState(false); // admin edited the default text => send it verbatim; else per-action template is used
+  const [suspendDuration, setSuspendDuration] = useState('1'); // '1'|'3'|'7'|'30'|'permanent'
+  const [moderating, setModerating] = useState(false);
   const [sendingWarn, setSendingWarn] = useState(false);
   const [resolvingReport, setResolvingReport] = useState(false);
 
@@ -1493,6 +1496,73 @@ export default function DeveloperAdmin() {
   const openInvestigate = (report) => {
     setSelectedReport(report);
     setWarnNotice(buildWarning(report.reason, report.reportedUsername));
+    setNoticeEdited(false);
+    setSuspendDuration('1');
+  };
+
+  // Mirrors the server per-action defaults (buildModerationMessage) so the composer
+  // chips insert exactly what would be sent if left untouched.
+  const reasonPhrase = (reason) => ({
+    'Sexual Harassment': 'sexual harassment and inappropriate sexual conduct',
+    'Spam / Scams': 'spam, scams or misleading behaviour',
+    'Abuse / Insult': 'abusive language, insults or harassment of other users',
+    'Other Inappropriate Behavior': 'behaviour that violates our community guidelines'
+  }[reason] || 'conduct that violates our community guidelines');
+  const buildSuspend = (reason, username, days) => {
+    const who = username ? `@${username}` : 'Your account';
+    const what = reasonPhrase(reason);
+    const permanent = days === 'permanent';
+    const dur = permanent ? 'indefinitely, pending a manual review by our team' : `for ${days} day${Number(days) === 1 ? '' : 's'}`;
+    const restore = permanent ? 'once our team completes a manual review' : `on ${new Date(Date.now() + Number(days) * 86400000).toUTCString()}`;
+    return `⏸️ Account Suspended\n\n${who} has been suspended ${dur} after a moderation review for ${what}. Your account access will be restored ${restore}. Please treat other users with respect — repeated violations may lead to a permanent ban.`;
+  };
+  const buildBlock = (reason, username) => {
+    const who = username ? `@${username}` : 'Your account';
+    const what = reasonPhrase(reason);
+    return `🚫 Account Blocked\n\n${who} has been permanently blocked from Twelo following a moderation review for ${what}. You will no longer be able to access this account. If you believe this is a mistake, please contact our support team.`;
+  };
+
+  // One moderation action for a report. The message is persisted to the user BEFORE
+  // enforcement, so a suspended/blocked user still sees it on their login screen.
+  const handleModerate = async (report, action) => {
+    if (moderating) return;
+    const needsConfirm = action !== 'warn';
+    const label = action === 'suspend' ? `suspend for ${suspendDuration === 'permanent' ? 'an indefinite period' : suspendDuration + ' day(s)'}` : 'block';
+    if (needsConfirm && !window.confirm(`Are you sure you want to ${label} @${report.reportedUsername}? They will be force-logged-out and shown this notice on next login.`)) return;
+
+    // If the admin edited the composer, send it verbatim; otherwise let the server
+    // pick THIS action's built-in template (so a block never accidentally sends a warning).
+    const message = noticeEdited ? (warnNotice || '').trim() : '';
+    setModerating(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/reports/${report._id}/moderate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
+        body: JSON.stringify({ action, message, durationDays: action === 'suspend' ? suspendDuration : undefined })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (action === 'warn') {
+          setReports(prev => prev.map(r => r._id === report._id ? { ...r, warnSent: true, warningMessage: data.message } : r));
+          setSelectedReport(prev => prev ? { ...prev, warnSent: true, warningMessage: data.message } : prev);
+          alert('Warning sent to the reported user.');
+        } else {
+          // suspend/block closes the report -> drop it from the pending list
+          setReports(prev => prev.filter(r => r._id !== report._id));
+          setSelectedReport(null);
+          alert(action === 'suspend'
+            ? `Account suspended.${data.suspendedUntil ? ' Access restores ' + new Date(data.suspendedUntil).toLocaleString() : ' Indefinite (lift manually).'} The user has been notified.`
+            : 'Account blocked. The user has been force-logged-out and notified.');
+        }
+      } else {
+        alert(data.message || 'Moderation action failed');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Moderation action failed');
+    } finally {
+      setModerating(false);
+    }
   };
 
   const handleSendReportWarning = async (report) => {
@@ -2638,26 +2708,42 @@ export default function DeveloperAdmin() {
               </div>
 
               <div className="inv-warn">
-                <label>Warning notice to @{rep.reportedUsername} <span>(built-in from the report reason — editable)</span></label>
+                <label>Notice message to @{rep.reportedUsername} <span>(manual — pick a preset, then edit if you like; each action has its own wording)</span></label>
+                <div className="inv-presets">
+                  <button type="button" className="inv-chip" onClick={() => { setWarnNotice(buildWarning(rep.reason, rep.reportedUsername)); setNoticeEdited(false); }}>⚠️ Warning</button>
+                  <button type="button" className="inv-chip" onClick={() => { setWarnNotice(buildSuspend(rep.reason, rep.reportedUsername, suspendDuration)); setNoticeEdited(true); }}>⏸️ Suspension</button>
+                  <button type="button" className="inv-chip" onClick={() => { setWarnNotice(buildBlock(rep.reason, rep.reportedUsername)); setNoticeEdited(true); }}>🚫 Block</button>
+                </div>
                 <textarea
                   value={warnNotice}
-                  onChange={(e) => setWarnNotice(e.target.value)}
-                  disabled={rep.warnSent}
+                  onChange={(e) => { setWarnNotice(e.target.value); setNoticeEdited(true); }}
                   rows={4}
                   className="dev-input inv-textarea"
-                  placeholder="Enter the warning message to send to this user..."
+                  placeholder="Enter the message to send to this user..."
                 />
-                <button type="button" className="inv-reset" onClick={() => setWarnNotice(buildWarning(rep.reason, rep.reportedUsername))} disabled={rep.warnSent}>Reset to built-in text</button>
+                {!noticeEdited && <span className="inv-hint">Unedited — the built-in text for the chosen action will be sent.</span>}
               </div>
             </div>
 
             {/* Sticky footer actions */}
             <div className="inv-foot">
-              <button className="inv-btn inv-btn-warn" onClick={() => handleSendReportWarning(rep)} disabled={rep.warnSent || sendingWarn}>
-                <AlertTriangle size={16} /> {sendingWarn ? 'Sending…' : (rep.warnSent ? 'Warning Sent' : 'Send Warning')}
+              <button className="inv-btn inv-btn-warn" onClick={() => handleModerate(rep, 'warn')} disabled={rep.warnSent || moderating}>
+                <AlertTriangle size={16} /> {rep.warnSent ? 'Warning Sent' : 'Send Warning'}
               </button>
-              <button className="inv-btn inv-btn-block" onClick={() => handleBlockUser(rep.reportedUserId, false)}>
-                <Ban size={16} /> Block User
+              <div className="inv-suspend-group">
+                <select className="dev-input inv-duration" value={suspendDuration} onChange={(e) => setSuspendDuration(e.target.value)} title="Suspension length">
+                  <option value="1">1 day</option>
+                  <option value="3">3 days</option>
+                  <option value="7">7 days</option>
+                  <option value="30">30 days</option>
+                  <option value="permanent">Permanent</option>
+                </select>
+                <button className="inv-btn inv-btn-suspend" onClick={() => handleModerate(rep, 'suspend')} disabled={moderating}>
+                  <Clock size={16} /> Suspend
+                </button>
+              </div>
+              <button className="inv-btn inv-btn-block" onClick={() => handleModerate(rep, 'block')} disabled={moderating}>
+                <Ban size={16} /> Block
               </button>
               <button className="inv-btn inv-btn-resolve" onClick={() => handleResolveReport(rep._id)} disabled={resolvingReport}>
                 <CheckCircle size={16} /> {resolvingReport ? 'Resolving…' : 'Mark as Resolved'}
