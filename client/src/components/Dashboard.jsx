@@ -9262,22 +9262,26 @@ const handleStoryUpload = async () => {
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
           background: '#000', zIndex: 10000, display: 'flex', flexDirection: 'column'
         }}>
-          {/* Top Bar for Ad */}
-          <div style={{ padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.5)', position: 'absolute', top: 0, width: '100%', zIndex: 10 }}>
+          {/* Top Bar for Ad — NORMAL FLOW (not absolute) so it reserves its own row and
+              the ad can never sit underneath it. With the old absolute bar, the tall/fluid
+              Adsterra banner's clickable iframe overlapped the ✕, so tapping close fired an
+              (invalid) ad click instead of closing. */}
+          <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', background: '#000', position: 'relative', zIndex: 20 }}>
             <div style={{ color: '#fff', fontSize: '1rem', fontWeight: 'bold' }}>
-              Reward in {adTimeLeft}s
+              {adCompleted ? 'Ad finished' : `Reward in ${adTimeLeft}s`}
             </div>
             {adCompleted ? (
-              <button onClick={() => setShowAdModal(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', cursor: 'pointer' }}>
+              <button onClick={() => setShowAdModal(false)} style={{ background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.35)', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             ) : (
               <div style={{ width: '40px', height: '40px' }} /> /* Placeholder to keep alignment */
             )}
           </div>
-          
-          {/* Ad content: real Adsterra display banner (injected by the effect above) */}
-          <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '14px', padding: '16px' }}>
+
+          {/* Ad content: real Adsterra display banner (injected by the effect above).
+              flex:1 + minHeight:0 keeps it strictly in the leftover space below the header. */}
+          <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '14px', padding: '16px', overflow: 'hidden' }}>
             <span style={{ color: '#888', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sponsored</span>
             <div ref={watchAdHostRef} style={{ width: '100%', maxWidth: '320px', minHeight: '250px', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }} />
           </div>
@@ -9286,7 +9290,7 @@ const handleStoryUpload = async () => {
           {adCompleted && (
             <div style={{
               position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-              background: 'rgba(0,0,0,0.8)', zIndex: 5, display: 'flex', flexDirection: 'column',
+              background: 'rgba(0,0,0,0.85)', zIndex: 10, display: 'flex', flexDirection: 'column',
               justifyContent: 'center', alignItems: 'center', color: '#fff'
             }}>
               <CoinSVG size={80} />
