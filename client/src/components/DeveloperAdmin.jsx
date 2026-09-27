@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useMemo } from 'react';
 import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
 import io from 'socket.io-client';
@@ -216,14 +216,17 @@ function GeoWorldMap({ points, focus }) {
     });
   }, [points, level]);
 
-  // When a searched user is provided, fly to their coordinates and pin an amber highlight marker.
+  // When a searched user / signup / history point is provided, fly to it and pin a highlight
+  // marker. Callers can override the pin colour and zoom so the current location (amber), the
+  // frozen signup (blue) and history stops (green) are visually distinct.
   useEffect(() => {
     if (!mapRef.current || !focus || typeof focus.lat !== 'number' || typeof focus.lon !== 'number') return;
     mapRef.current.invalidateSize();
-    mapRef.current.flyTo([focus.lat, focus.lon], 12, { duration: 0.8 });
+    mapRef.current.flyTo([focus.lat, focus.lon], focus.zoom || 12, { duration: 0.8 });
     if (highlightRef.current) { highlightRef.current.remove(); highlightRef.current = null; }
+    const color = focus.color || '#f59e0b';
     highlightRef.current = L.circleMarker([focus.lat, focus.lon], {
-      radius: 9, color: '#f59e0b', weight: 2, fillColor: '#f59e0b', fillOpacity: 0.9
+      radius: 9, color, weight: 2, fillColor: color, fillOpacity: 0.9
     }).bindTooltip(focus.label || 'This user', { permanent: true, direction: 'top', offset: [0, -8] }).addTo(mapRef.current);
   }, [focus]);
 
@@ -275,6 +278,14 @@ export default function DeveloperAdmin() {
   const [locLoading, setLocLoading] = useState(false);
   const [locError, setLocError] = useState('');
   const [mapFocus, setMapFocus] = useState(null);             // { lat, lon, label, ts }
+  const [showTopAreas, setShowTopAreas] = useState(true);     // Top-Areas overlay panel on the map
+  // Top 10 city-level areas by located-user count (rolled up from the geo feed), for the map overlay.
+  const topAreas = useMemo(() => {
+    if (!geoData || !geoData.points) return [];
+    return geoGroupPoints(geoData.points, 'city')
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }, [geoData]);
   const [liveUsers, setLiveUsers] = useState(null);           // { totals, users }
   // Page-based pagination for the Live Users roster (newest sign-ins on top, older pages fade away below).
   const [livePage, setLivePage] = useState(0);                 // 0-based current page
@@ -1711,6 +1722,9 @@ export default function DeveloperAdmin() {
                 <div className="dev-map-toolbar">
                   <span><strong>{geoData ? geoData.totalGeoUsers.toLocaleString() : '—'}</strong> users located</span>
                   <span><strong>{geoData ? geoData.points.length : '—'}</strong> areas</span>
+                  <button className={`dev-btn dev-btn-secondary${showTopAreas ? ' active' : ''}`} onClick={() => setShowTopAreas((s) => !s)}>
+                    <MapIcon size={14} /> Top Areas
+                  </button>
                   <button className="dev-btn dev-btn-secondary" onClick={fetchGeo} disabled={geoLoading}>
                     <RefreshCcw size={14} className={geoLoading ? 'dev-spin' : ''} /> {geoLoading ? 'Loading…' : 'Refresh'}
                   </button>
@@ -1724,7 +1738,11 @@ export default function DeveloperAdmin() {
                   {locResult && locResult.user && (() => {
                     const u = locResult.user;
                     const located = typeof u.lat === 'number' && typeof u.lon === 'number';
-                    const focusUser = () => setMapFocus({ lat: u.lat, lon: u.lon, label: `${u.username || u.name || u.uniqueId} — ${[u.city, u.region, u.country].filter(Boolean).join(', ') || 'located'}`, ts: Date.now() });
+                    const nameOrId = u.username || u.name || u.uniqueId;
+                    const placeOf = (o) => [o && o.city, o && o.region, o && o.country].filter(Boolean).join(', ') || 'located';
+                    const focusPoint = (o, color, tag) => setMapFocus({ lat: o.lat, lon: o.lon, label: `${nameOrId}${tag ? ' · ' + tag : ''} — ${placeOf(o)}`, color, ts: Date.now() });
+                    const signup = u.signup && typeof u.signup.lat === 'number' ? u.signup : null;
+                    const history = Array.isArray(u.history) ? u.history.filter((h) => typeof h.lat === 'number') : [];
                     return (
                       <div className="dev-map-left">
                         <div className="dev-map-result">
@@ -1733,20 +1751,48 @@ export default function DeveloperAdmin() {
                               <span className="dev-map-result-name">{u.name || '—'} <span className="dev-map-result-handle">@{u.username}</span></span>
                               <span className="dev-map-result-id">ID: {u.uniqueId}{u.isGuest ? ' · Guest' : ''}{u.isBlocked ? ' · Blocked' : ''}</span>
                             </div>
-                            {located && <button className="dev-btn" onClick={focusUser}><MapIcon size={14} /> Show on map</button>}
+                            {located && <button className="dev-btn" onClick={() => focusPoint(u, '#f59e0b', 'current')}><MapIcon size={14} /> Show on map</button>}
                           </div>
                           {located ? (
-                            <div className="dev-detail-grid">
-                              <DetailItem label="Country" value={u.country} />
-                              <DetailItem label="State / Region" value={u.region} />
-                              <DetailItem label="City" value={u.city} />
-                              <DetailItem label="District" value={u.district} />
-                              <DetailItem label="Coordinates" value={`${u.lat.toFixed(3)}, ${u.lon.toFixed(3)}`} mono />
-                              <DetailItem label="IP Address" value={u.lastIp} mono />
-                              <DetailItem label="IP captured" value={fmtDateTime(u.lastIpAt)} />
-                            </div>
+                            <>
+                              <div className="dev-map-sub-title">Current · last login</div>
+                              <div className="dev-detail-grid">
+                                <DetailItem label="Country" value={u.country} />
+                                <DetailItem label="State / Region" value={u.region} />
+                                <DetailItem label="City" value={u.city} />
+                                <DetailItem label="District" value={u.district} />
+                                <DetailItem label="Coordinates" value={`${u.lat.toFixed(3)}, ${u.lon.toFixed(3)}`} mono />
+                                <DetailItem label="IP Address" value={u.lastIp} mono />
+                                <DetailItem label="IP captured" value={fmtDateTime(u.lastIpAt)} />
+                              </div>
+                            </>
                           ) : (
                             <div className="dev-map-msg">No IP location stored for this user yet — it appears once they sign up or log in after location capture is live.</div>
+                          )}
+
+                          {signup && (
+                            <div className="dev-map-signup">
+                              <div className="dev-map-sub-title">
+                                <span>Signup location · frozen</span>
+                                <button className="dev-map-mini-btn" onClick={() => focusPoint(signup, '#3b82f6', 'signup')}><MapIcon size={12} /> Show</button>
+                              </div>
+                              <div className="dev-map-line">{placeOf(signup)}</div>
+                              <div className="dev-map-line dev-map-muted">{fmtDateTime(signup.at)} · {signup.lat.toFixed(3)}, {signup.lon.toFixed(3)}</div>
+                            </div>
+                          )}
+
+                          {history.length > 0 && (
+                            <div className="dev-map-history">
+                              <div className="dev-map-sub-title"><span>Login history · {history.length} place{history.length === 1 ? '' : 's'}</span></div>
+                              <div className="dev-map-history-list">
+                                {history.map((h, i) => (
+                                  <button key={`${h.lat}-${h.lon}-${i}`} className="dev-map-history-row" onClick={() => focusPoint(h, '#22c55e', 'login')}>
+                                    <span className="dev-map-history-place">{[h.city, h.region, h.country].filter(Boolean).join(', ') || 'Unknown'}</span>
+                                    <span className="dev-map-history-time">{fmtDateTime(h.at)}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1754,6 +1800,22 @@ export default function DeveloperAdmin() {
                   })()}
 
                   <div className="dev-map-mapbox">
+                    {showTopAreas && topAreas.length > 0 && (
+                      <div className="dev-top-areas">
+                        <div className="dev-top-areas-title">Top Areas · City</div>
+                        {topAreas.map((a, i) => (
+                          <button
+                            key={`${a.name}-${i}`}
+                            className="dev-top-area-row"
+                            onClick={() => setMapFocus({ lat: a.lat, lon: a.lon, label: `${a.name} — ${a.count} ${a.count === 1 ? 'user' : 'users'}`, ts: Date.now() })}
+                          >
+                            <span className="dev-top-area-rank">{i + 1}</span>
+                            <span className="dev-top-area-name">{a.name}</span>
+                            <span className="dev-top-area-count">{a.count}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {geoLoading && !geoData ? (
                       <div className="dev-analytics-loading">Loading map data…</div>
                     ) : geoData && geoData.points && geoData.points.length ? (

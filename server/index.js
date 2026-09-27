@@ -736,25 +736,56 @@ const geoFromIp = async (ip) => {
   } catch (geoErr) { console.error('IP geolocation failed:', geoErr.message); }
   return null;
 };
-// Stamp a user doc with the current client IP + derived geo (country + approx city/region
-// coordinates) WITHOUT saving. Callers save themselves. Fail-soft: if IP/geo is unavailable
-// we still record the IP when we have it. Returns true if anything changed.
+// Apply an ALREADY-resolved geo object onto a user doc (no save). This centralises the three
+// behaviours the admin User Map relies on: (1) freeze the SIGNUP location the first time we ever
+// geolocate this account so it never changes; (2) update the CURRENT/last-login fields the map dot
+// uses; and (3) append the place to a capped login HISTORY (skipping consecutive duplicates).
+// Returns true if anything changed. Fail-soft: with no geo we still record the IP when present.
+const stampGeoOnUser = (user, geo, ip) => {
+  let changed = false;
+  if (ip) { user.lastIp = ip; user.lastIpAt = new Date(); changed = true; }
+  if (!geo) return changed;
+  // (1) Freeze signup location on the first coordinate we ever capture for this account.
+  if (typeof user.signupLat !== 'number' && typeof geo.lat === 'number') {
+    user.signupLat = geo.lat;
+    user.signupLon = geo.lon;
+    user.signupRegion = geo.region;
+    user.signupCity = geo.city;
+    user.signupDistrict = geo.district;
+    user.signupCountry = geo.country;
+    user.signupAt = new Date();
+  }
+  // (2) Current / last-login location (this is what the world-map dot + drill-down use).
+  user.country = geo.country;
+  user.countryCode = geo.countryCode;
+  user.lastRegion = geo.region;
+  user.lastCity = geo.city;
+  user.lastDistrict = geo.district;
+  user.lastLat = geo.lat;
+  user.lastLon = geo.lon;
+  // (3) Login history — one entry per distinct place, newest last, capped to keep docs small.
+  if (typeof geo.lat === 'number') {
+    if (!Array.isArray(user.locationHistory)) user.locationHistory = [];
+    const last = user.locationHistory[user.locationHistory.length - 1];
+    if (last && last.lat === geo.lat && last.lon === geo.lon) {
+      last.at = new Date(); // same place revisited — just bump its timestamp
+    } else {
+      user.locationHistory.push({
+        lat: geo.lat, lon: geo.lon,
+        city: geo.city, region: geo.region, district: geo.district, country: geo.country,
+        at: new Date(),
+      });
+      if (user.locationHistory.length > 20) user.locationHistory = user.locationHistory.slice(-20);
+    }
+  }
+  return true;
+};
+// Fetch IP + geo for the request and stamp the user doc (see stampGeoOnUser). Callers save.
 const applyGeoToUser = async (user, req) => {
   const ip = getClientIp(req);
   if (!ip) return false;
-  user.lastIp = ip;
-  user.lastIpAt = new Date();
   const geo = await geoFromIp(ip);
-  if (geo) {
-    user.country = geo.country;
-    user.countryCode = geo.countryCode;
-    user.lastRegion = geo.region;
-    user.lastCity = geo.city;
-    user.lastDistrict = geo.district;
-    user.lastLat = geo.lat;
-    user.lastLon = geo.lon;
-  }
-  return true;
+  return stampGeoOnUser(user, geo, ip);
 };
 
 // Middleware to authenticate JWT token
@@ -1029,13 +1060,10 @@ app.post('/api/auth/guest', authLimiter, async (req, res) => {
       lastDailyReward: new Date(),
       isGuest: true,
       guestClaimCodeHash: sha256Hex(claimCode),
-      lastIp: clientIp || null,
-      lastIpAt: clientIp ? new Date() : null,
-      lastLat: geo ? geo.lat : null,
-      lastLon: geo ? geo.lon : null,
-      lastRegion: geo ? geo.region : null,
-      lastCity: geo ? geo.city : null,
     });
+    // Stamp this first-ever geolocation the same way logins are: it freezes the SIGNUP location,
+    // sets the CURRENT location the map dot uses, and seeds the login HISTORY.
+    stampGeoOnUser(guest, geo, clientIp);
     await guest.save();
 
     const jwtToken = jwt.sign(
@@ -3741,7 +3769,8 @@ app.get('/api/admin/geo', adminAuth, async (req, res) => {
 });
 
 // Look up a single user's captured location by username, unique ID, or Mongo _id (for the
-// User Map page's search box). Returns the stored IP-derived admin divisions + coordinates.
+// User Map page's search box). Returns the CURRENT/last-login divisions + coordinates (what the
+// map dot uses), the frozen SIGNUP location, and the distinct login HISTORY (newest first).
 app.get('/api/admin/user-location', adminAuth, async (req, res) => {
   try {
     const raw = (req.query.q || '').toString().trim().replace(/^@/, '');
@@ -3754,7 +3783,7 @@ app.get('/api/admin/user-location', adminAuth, async (req, res) => {
     if (/^[a-fA-F0-9]{24}$/.test(raw)) {
       try { or.push({ _id: new mongoose.Types.ObjectId(raw) }); } catch (e) { /* ignore bad id */ }
     }
-    const u = await User.findOne({ $or: or }).select('name username uniqueId isGuest isBlocked country countryCode lastRegion lastCity lastDistrict lastLat lastLon lastIp lastIpAt').lean();
+    const u = await User.findOne({ $or: or }).select('name username uniqueId isGuest isBlocked country countryCode lastRegion lastCity lastDistrict lastLat lastLon lastIp lastIpAt signupLat signupLon signupRegion signupCity signupDistrict signupCountry signupAt locationHistory').lean();
     if (!u) return res.json({ found: false });
     res.json({
       found: true,
@@ -3772,7 +3801,29 @@ app.get('/api/admin/user-location', adminAuth, async (req, res) => {
         lat: typeof u.lastLat === 'number' ? u.lastLat : null,
         lon: typeof u.lastLon === 'number' ? u.lastLon : null,
         lastIp: u.lastIp || null,
-        lastIpAt: u.lastIpAt || null
+        lastIpAt: u.lastIpAt || null,
+        // Frozen signup location (where they first joined) — never overwritten by later logins.
+        signup: typeof u.signupLat === 'number' ? {
+          lat: u.signupLat,
+          lon: u.signupLon,
+          country: u.signupCountry || null,
+          region: u.signupRegion || null,
+          city: u.signupCity || null,
+          district: u.signupDistrict || null,
+          at: u.signupAt || null
+        } : null,
+        // Distinct places this account has logged in from, newest first, for the map history list.
+        history: Array.isArray(u.locationHistory)
+          ? u.locationHistory.slice().reverse().map((h) => ({
+              lat: h.lat,
+              lon: h.lon,
+              country: h.country || null,
+              region: h.region || null,
+              city: h.city || null,
+              district: h.district || null,
+              at: h.at || null
+            }))
+          : []
       }
     });
   } catch (err) {

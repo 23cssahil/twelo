@@ -128,6 +128,26 @@ const UserSchema = new mongoose.Schema({
   lastRegion: { type: String, default: null },
   lastCity: { type: String, default: null },
   lastDistrict: { type: String, default: null },
+  // Signup (first-ever captured) location — frozen permanently the first time we geolocate
+  // this account and never overwritten by later logins, so we always know where they joined.
+  signupLat: { type: Number, default: null },
+  signupLon: { type: Number, default: null },
+  signupRegion: { type: String, default: null },
+  signupCity: { type: String, default: null },
+  signupDistrict: { type: String, default: null },
+  signupCountry: { type: String, default: null },
+  signupAt: { type: Date, default: null },
+  // Rolling list of the distinct places this account has logged in from (newest last, capped
+  // server-side to ~20) so the admin User Map can show a "where have they been" history.
+  locationHistory: [{
+    lat: Number,
+    lon: Number,
+    city: String,
+    region: String,
+    district: String,
+    country: String,
+    at: Date,
+  }],
 }, { timestamps: true });
 
 // ========== INDEXES FOR PERFORMANCE ==========
