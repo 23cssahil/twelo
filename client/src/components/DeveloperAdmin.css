@@ -913,10 +913,10 @@
 .dev-map-mapbox { flex: 1; min-width: 0; min-height: 0; display: flex; position: relative; }
 .dev-map-mapbox .dev-geo-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 .dev-map-mapbox .dev-geo-map { flex: 1; height: auto; min-height: 240px; }
-/* After a search: fixed-width user card on the left, a big SQUARE map box on the right. */
+/* After a search: fixed-width user card on the left; the map fills ALL remaining space (no square
+   letterboxing) so there's no empty gap beside it. */
 .dev-map-body-split .dev-map-left { width: 360px; flex-shrink: 0; overflow-y: auto; }
-.dev-map-body-split .dev-map-mapbox { align-items: center; justify-content: center; }
-.dev-map-body-split .dev-map-mapbox .dev-geo-wrap { flex: none; height: 100%; aspect-ratio: 1 / 1; max-width: 100%; }
+.dev-map-body-split .dev-map-mapbox .dev-geo-wrap { flex: 1; height: 100%; }
 /* Floating "Top Areas" overlay on the map (top-right, above Leaflet panes). */
 .dev-top-areas {
   position: absolute;
