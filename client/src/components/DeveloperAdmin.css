@@ -894,8 +894,19 @@
 .dev-map-result-handle { color: #10b981; font-weight: 500; }
 .dev-map-result-id { display: block; font-size: 12px; color: #9aa0aa; margin-top: 2px; }
 /* Inside the dedicated page the map fills the remaining height instead of a fixed calc. */
-.dev-map-page .dev-geo-wrap { flex: 1; min-height: 0; }
-.dev-map-page .dev-geo-map { flex: 1; height: auto; min-height: 240px; }
+.dev-map-body { flex: 1; min-height: 0; display: flex; gap: 14px; }
+.dev-map-mapbox { flex: 1; min-width: 0; min-height: 0; display: flex; }
+.dev-map-mapbox .dev-geo-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.dev-map-mapbox .dev-geo-map { flex: 1; height: auto; min-height: 240px; }
+/* After a search: fixed-width user card on the left, a big SQUARE map box on the right. */
+.dev-map-body-split .dev-map-left { width: 360px; flex-shrink: 0; overflow-y: auto; }
+.dev-map-body-split .dev-map-mapbox { align-items: center; justify-content: center; }
+.dev-map-body-split .dev-map-mapbox .dev-geo-wrap { flex: none; height: 100%; aspect-ratio: 1 / 1; max-width: 100%; }
+@media (max-width: 900px) {
+  .dev-map-body-split { flex-direction: column; }
+  .dev-map-body-split .dev-map-left { width: auto; max-height: 40%; }
+  .dev-map-body-split .dev-map-mapbox .dev-geo-wrap { height: 60vh; width: 100%; aspect-ratio: auto; }
+}
 
 /* ── Live Users panel ───────────────────────────────────────────── */
 .dev-live-panel { display: flex; flex-direction: column; gap: 18px; }

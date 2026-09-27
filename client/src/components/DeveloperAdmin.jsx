@@ -193,8 +193,12 @@ function GeoWorldMap({ points, focus }) {
     }).addTo(map);
     layerRef.current = L.layerGroup().addTo(map);
     map.on('zoomend', () => { setLevel(geoLevelForZoom(map.getZoom())); });
+    // When the container resizes (window resize OR the full-map ↔ split-view layout switch),
+    // tell Leaflet to recompute its size — otherwise setView/fly looks broken until a refresh.
+    const ro = new ResizeObserver(() => { if (mapRef.current) mapRef.current.invalidateSize(); });
+    ro.observe(elRef.current);
     mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; layerRef.current = null; };
+    return () => { ro.disconnect(); map.remove(); mapRef.current = null; layerRef.current = null; };
   }, []);
 
   // (Re)draw dots whenever the data or the active level changes.
@@ -215,7 +219,8 @@ function GeoWorldMap({ points, focus }) {
   // When a searched user is provided, fly to their coordinates and pin an amber highlight marker.
   useEffect(() => {
     if (!mapRef.current || !focus || typeof focus.lat !== 'number' || typeof focus.lon !== 'number') return;
-    mapRef.current.setView([focus.lat, focus.lon], 10);
+    mapRef.current.invalidateSize();
+    mapRef.current.flyTo([focus.lat, focus.lon], 12, { duration: 0.8 });
     if (highlightRef.current) { highlightRef.current.remove(); highlightRef.current = null; }
     highlightRef.current = L.circleMarker([focus.lat, focus.lon], {
       radius: 9, color: '#f59e0b', weight: 2, fillColor: '#f59e0b', fillOpacity: 0.9
@@ -1713,45 +1718,53 @@ export default function DeveloperAdmin() {
 
                 {locError && <div className="dev-map-msg dev-map-msg-err">{locError}</div>}
 
-                {locResult && locResult.user && (() => {
-                  const u = locResult.user;
-                  const located = typeof u.lat === 'number' && typeof u.lon === 'number';
-                  const focusUser = () => setMapFocus({ lat: u.lat, lon: u.lon, label: `${u.username || u.name || u.uniqueId} — ${[u.city, u.region, u.country].filter(Boolean).join(', ') || 'located'}`, ts: Date.now() });
-                  return (
-                    <div className="dev-map-result">
-                      <div className="dev-map-result-head">
-                        <div>
-                          <span className="dev-map-result-name">{u.name || '—'} <span className="dev-map-result-handle">@{u.username}</span></span>
-                          <span className="dev-map-result-id">ID: {u.uniqueId}{u.isGuest ? ' · Guest' : ''}{u.isBlocked ? ' · Blocked' : ''}</span>
+                {/* No search result → full-width map. After a search → split: left user card,
+                    right a large square map box that flies to the user. */}
+                <div className={`dev-map-body${locResult && locResult.user ? ' dev-map-body-split' : ''}`}>
+                  {locResult && locResult.user && (() => {
+                    const u = locResult.user;
+                    const located = typeof u.lat === 'number' && typeof u.lon === 'number';
+                    const focusUser = () => setMapFocus({ lat: u.lat, lon: u.lon, label: `${u.username || u.name || u.uniqueId} — ${[u.city, u.region, u.country].filter(Boolean).join(', ') || 'located'}`, ts: Date.now() });
+                    return (
+                      <div className="dev-map-left">
+                        <div className="dev-map-result">
+                          <div className="dev-map-result-head">
+                            <div>
+                              <span className="dev-map-result-name">{u.name || '—'} <span className="dev-map-result-handle">@{u.username}</span></span>
+                              <span className="dev-map-result-id">ID: {u.uniqueId}{u.isGuest ? ' · Guest' : ''}{u.isBlocked ? ' · Blocked' : ''}</span>
+                            </div>
+                            {located && <button className="dev-btn" onClick={focusUser}><MapIcon size={14} /> Show on map</button>}
+                          </div>
+                          {located ? (
+                            <div className="dev-detail-grid">
+                              <DetailItem label="Country" value={u.country} />
+                              <DetailItem label="State / Region" value={u.region} />
+                              <DetailItem label="City" value={u.city} />
+                              <DetailItem label="District" value={u.district} />
+                              <DetailItem label="Coordinates" value={`${u.lat.toFixed(3)}, ${u.lon.toFixed(3)}`} mono />
+                              <DetailItem label="IP Address" value={u.lastIp} mono />
+                              <DetailItem label="IP captured" value={fmtDateTime(u.lastIpAt)} />
+                            </div>
+                          ) : (
+                            <div className="dev-map-msg">No IP location stored for this user yet — it appears once they sign up or log in after location capture is live.</div>
+                          )}
                         </div>
-                        {located && <button className="dev-btn" onClick={focusUser}><MapIcon size={14} /> Show on map</button>}
                       </div>
-                      {located ? (
-                        <div className="dev-detail-grid">
-                          <DetailItem label="Country" value={u.country} />
-                          <DetailItem label="State / Region" value={u.region} />
-                          <DetailItem label="City" value={u.city} />
-                          <DetailItem label="District" value={u.district} />
-                          <DetailItem label="Coordinates" value={`${u.lat.toFixed(3)}, ${u.lon.toFixed(3)}`} mono />
-                          <DetailItem label="IP Address" value={u.lastIp} mono />
-                          <DetailItem label="IP captured" value={fmtDateTime(u.lastIpAt)} />
-                        </div>
-                      ) : (
-                        <div className="dev-map-msg">No IP location stored for this user yet — it appears once they sign up or log in after location capture is live.</div>
-                      )}
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
 
-                {geoLoading && !geoData ? (
-                  <div className="dev-analytics-loading">Loading map data…</div>
-                ) : geoData && geoData.points && geoData.points.length ? (
-                  <GeoWorldMap points={geoData.points} focus={mapFocus} />
-                ) : (
-                  <div className="dev-analytics-loading">
-                    No located users yet. Dots appear as users sign up or log in from now on (their IP gets geolocated).
+                  <div className="dev-map-mapbox">
+                    {geoLoading && !geoData ? (
+                      <div className="dev-analytics-loading">Loading map data…</div>
+                    ) : geoData && geoData.points && geoData.points.length ? (
+                      <GeoWorldMap points={geoData.points} focus={mapFocus} />
+                    ) : (
+                      <div className="dev-analytics-loading">
+                        No located users yet. Dots appear as users sign up or log in from now on (their IP gets geolocated).
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             )}
 
