@@ -689,10 +689,9 @@ export default function DeveloperAdmin() {
     finally { setGeoLoading(false); }
   };
 
-  // Search a single user by username / ID and reveal their captured location on the map.
-  const handleLocateUser = async (e) => {
-    e.preventDefault();
-    const q = locQuery.trim();
+  // Look up a single user by username / ID and reveal their captured location on the map.
+  const locateByQuery = async (rawQuery) => {
+    const q = (rawQuery || '').trim();
     if (!q) { setLocError('Enter a username or ID first'); return; }
     setLocLoading(true); setLocError(''); setLocResult(null);
     try {
@@ -703,13 +702,27 @@ export default function DeveloperAdmin() {
       setLocResult(data);
       const u = data.user;
       if (typeof u.lat === 'number' && typeof u.lon === 'number') {
-        setMapFocus({ lat: u.lat, lon: u.lon, label: `${u.username || u.name || u.uniqueId} — ${[u.city, u.region, u.country].filter(Boolean).join(', ') || 'located'}`, ts: Date.now() });
+        setMapFocus({ lat: u.lat, lon: u.lon, label: `${u.username || u.name || u.uniqueId} — ${[u.city, u.region, u.country].filter(Boolean).join(', ') || 'located'}`, color: '#f59e0b', ts: Date.now() });
       }
     } catch (err) {
       setLocError('Network error while looking up user');
     } finally {
       setLocLoading(false);
     }
+  };
+
+  // Search-box submit on the User Map page.
+  const handleLocateUser = async (e) => {
+    e.preventDefault();
+    await locateByQuery(locQuery);
+  };
+
+  // From the User Database: jump to the User Map page pre-loaded with this user's location + data.
+  const openUserMap = (u) => {
+    const q = u.username || u.uniqueId || u._id;
+    setActiveTab('map');
+    setLocQuery(q);
+    locateByQuery(q);
   };
 
   // Load the geolocation feed when the User Map page is opened (and once on entry).
@@ -2151,6 +2164,10 @@ export default function DeveloperAdmin() {
                               <button onClick={() => handleViewChats(u)} className="dev-btn-secondary">
                                 <MessageSquare size={16} style={{ marginRight: '5px' }} />
                                 View All Chats
+                              </button>
+                              <button onClick={() => openUserMap(u)} className="dev-btn-secondary" title="View this user's location on the User Map">
+                                <MapIcon size={16} style={{ marginRight: '5px' }} />
+                                Map
                               </button>
                               <button
                                 onClick={() => handleBlockUser(u._id, u.isBlocked)}
