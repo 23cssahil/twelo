@@ -121,6 +121,12 @@ const UserSchema = new mongoose.Schema({
   // surfaced in the admin User Database for moderation/abuse review).
   lastIp: { type: String, default: null },
   lastIpAt: { type: Date, default: null },
+  // Approximate geolocation of that IP (city/region/state level) for the admin world map.
+  // Populated on login/registration; only forward-looking users have coordinates.
+  lastLat: { type: Number, default: null },
+  lastLon: { type: Number, default: null },
+  lastRegion: { type: String, default: null },
+  lastCity: { type: String, default: null },
 }, { timestamps: true });
 
 // ========== INDEXES FOR PERFORMANCE ==========

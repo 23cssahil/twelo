@@ -717,15 +717,42 @@ const cleanClientIp = (raw) => {
 const getClientIp = (req) => cleanClientIp(
   req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket?.remoteAddress || req.ip
 );
-// Free ip-api.com endpoint (HTTP, no key). Returns { country, countryCode } on success.
+// Free ip-api.com endpoint (HTTP, no key). Returns country, region/city and lat/lon on success.
 const geoFromIp = async (ip) => {
   if (!ip) return null;
   try {
     const response = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}`);
-    const geoData = await response.json();
-    if (geoData && geoData.status === 'success') return { country: geoData.country, countryCode: geoData.countryCode };
+    const g = await response.json();
+    if (g && g.status === 'success') {
+      return {
+        country: g.country, countryCode: g.countryCode,
+        region: g.regionName || g.region || null,
+        city: g.city || null,
+        lat: typeof g.lat === 'number' ? g.lat : null,
+        lon: typeof g.lon === 'number' ? g.lon : null,
+      };
+    }
   } catch (geoErr) { console.error('IP geolocation failed:', geoErr.message); }
   return null;
+};
+// Stamp a user doc with the current client IP + derived geo (country + approx city/region
+// coordinates) WITHOUT saving. Callers save themselves. Fail-soft: if IP/geo is unavailable
+// we still record the IP when we have it. Returns true if anything changed.
+const applyGeoToUser = async (user, req) => {
+  const ip = getClientIp(req);
+  if (!ip) return false;
+  user.lastIp = ip;
+  user.lastIpAt = new Date();
+  const geo = await geoFromIp(ip);
+  if (geo) {
+    user.country = geo.country;
+    user.countryCode = geo.countryCode;
+    user.lastRegion = geo.region;
+    user.lastCity = geo.city;
+    user.lastLat = geo.lat;
+    user.lastLon = geo.lon;
+  }
+  return true;
 };
 
 // Middleware to authenticate JWT token
@@ -849,6 +876,9 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
       await user.save();
     }
 
+    // Refresh IP + approximate geolocation on each login so returning users appear on the admin map.
+    if (await applyGeoToUser(user, req)) await user.save();
+
     const jwtToken = jwt.sign(
       { userId: user._id, username: user.username, uniqueId: user.uniqueId },
       JWT_SECRET,
@@ -901,25 +931,8 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
 
     let avatarUrl = generateAvatarUrl(gender);
 
-    let finalCountry = country;
-    let countryCode = 'UN';
-
-    // IP Geolocation Logic
-    try {
-      const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || req.ip;
-      // Exclude localhost/private IPs from triggering the API (optional but safe)
-      if (clientIp && clientIp !== '::1' && clientIp !== '127.0.0.1') {
-        const response = await fetch(`http://ip-api.com/json/${clientIp}`);
-        const geoData = await response.json();
-        if (geoData && geoData.status === 'success') {
-          finalCountry = geoData.country;
-          countryCode = geoData.countryCode;
-        }
-      }
-    } catch (geoErr) {
-      console.error('IP Geolocation failed:', geoErr.message);
-    }
-
+    // Stamp the client IP + derived geolocation (country wins over the entered one, plus
+    // approximate city/region coordinates) so this user appears on the admin world map.
     const newUser = new User({ 
       username, 
       name, 
@@ -928,13 +941,13 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
       googleId, 
       uniqueId, 
       age: Number(age), 
-      country: finalCountry, 
-      countryCode,
+      country, 
       gender: gender.toLowerCase(), 
       avatarUrl,
       coins: 3,
       lastDailyReward: new Date()
     });
+    await applyGeoToUser(newUser, req);
     await newUser.save();
 
     if (referredBy) {
@@ -1016,6 +1029,10 @@ app.post('/api/auth/guest', authLimiter, async (req, res) => {
       guestClaimCodeHash: sha256Hex(claimCode),
       lastIp: clientIp || null,
       lastIpAt: clientIp ? new Date() : null,
+      lastLat: geo ? geo.lat : null,
+      lastLon: geo ? geo.lon : null,
+      lastRegion: geo ? geo.region : null,
+      lastCity: geo ? geo.city : null,
     });
     await guest.save();
 
@@ -1050,15 +1067,8 @@ app.post('/api/auth/guest/recover', authLimiter, async (req, res) => {
     if (!claimCode || typeof claimCode !== 'string') return res.status(400).json({ message: 'Enter your recovery code' });
     const guest = await User.findOne({ guestClaimCodeHash: sha256Hex(claimCode.trim().toUpperCase()), isGuest: true });
     if (!guest) return res.status(404).json({ message: 'Invalid or already-used recovery code' });
-    // Refresh IP + country on every guest login (device/network may have changed since creation).
-    const rIp = getClientIp(req);
-    if (rIp) {
-      guest.lastIp = rIp;
-      guest.lastIpAt = new Date();
-      const rGeo = await geoFromIp(rIp);
-      if (rGeo) { guest.country = rGeo.country; guest.countryCode = rGeo.countryCode; }
-      await guest.save();
-    }
+    // Refresh IP + country + approximate coordinates on every guest login (device/network may change).
+    if (await applyGeoToUser(guest, req)) await guest.save();
     const jwtToken = jwt.sign(
       { userId: guest._id, username: guest.username, uniqueId: guest.uniqueId },
       JWT_SECRET,
@@ -3678,6 +3688,57 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
   } catch (err) {
     console.error("Analytics Error", err);
     res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// World-map geolocation feed: clusters users that have IP-derived coordinates (lastLat/lastLon,
+// captured on login/registration) into approximate areas and returns one point per cluster with a
+// user count. Coordinates are rounded to ~0.1\u00b0 (roughly 11 km) so city/state-level clusters
+// stay readable without leaking exact positions. Only forward-looking users have coordinates.
+app.get('/api/admin/geo', adminAuth, async (req, res) => {
+  try {
+    const points = await User.aggregate([
+      { $match: { lastLat: { $ne: null }, lastLon: { $ne: null } } },
+      {
+        $project: {
+          lat: { $round: ['$lastLat', 1] },
+          lon: { $round: ['$lastLon', 1] },
+          country: 1,
+          countryCode: 1,
+          region: '$lastRegion',
+          city: '$lastCity'
+        }
+      },
+      {
+        $group: {
+          _id: { lat: '$lat', lon: '$lon' },
+          count: { $sum: 1 },
+          country: { $first: '$country' },
+          countryCode: { $first: '$countryCode' },
+          region: { $first: '$region' },
+          city: { $first: '$city' }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 1000 },
+      {
+        $project: {
+          _id: 0,
+          lat: '$_id.lat',
+          lon: '$_id.lon',
+          count: 1,
+          country: 1,
+          countryCode: 1,
+          region: 1,
+          city: 1
+        }
+      }
+    ]);
+    const totalGeoUsers = points.reduce((s, p) => s + p.count, 0);
+    res.json({ points, totalGeoUsers });
+  } catch (err) {
+    console.error('Geo Analytics Error', err);
+    res.status(500).json({ error: 'Failed to fetch geolocation data' });
   }
 });
 

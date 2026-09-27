@@ -3,7 +3,9 @@ import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
 import io from 'socket.io-client';
 import Peer from 'simple-peer';
-import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck, Phone, Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Menu, LayoutDashboard, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck, Phone, Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Menu, LayoutDashboard, ChevronDown, ChevronUp, Map as MapIcon } from 'lucide-react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import './DeveloperAdmin.css';
 import {
   Chart as ChartJS,
@@ -113,6 +115,48 @@ function DetailItem({ label, value, mono, full }) {
   );
 }
 
+// ── Admin world map: plots IP-derived user-location clusters as green dots on a Leaflet map.
+// Plain imperative Leaflet (no react-leaflet) so it stays version-stable; circleMarkers avoid
+// the bundler icon-path issue. Dots are sized by user count and show a city/region/country label.
+function GeoWorldMap({ points }) {
+  const elRef = useRef(null);
+  const mapRef = useRef(null);
+  const layerRef = useRef(null);
+
+  useEffect(() => {
+    if (!elRef.current) return undefined;
+    if (!mapRef.current) {
+      mapRef.current = L.map(elRef.current, { worldCopyJump: true, minZoom: 2, maxZoom: 9, zoomControl: true }).setView([22, 12], 2);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }).addTo(mapRef.current);
+      layerRef.current = L.layerGroup().addTo(mapRef.current);
+    }
+    return () => { };
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current || !layerRef.current) return;
+    layerRef.current.clearLayers();
+    const maxCount = (points || []).reduce((m, p) => Math.max(m, p.count || 0), 0) || 1;
+    (points || []).forEach((p) => {
+      if (typeof p.lat !== 'number' || typeof p.lon !== 'number') return;
+      const radius = 4 + Math.sqrt((p.count || 1) / maxCount) * 20;
+      const label = [p.city, p.region, p.country].filter(Boolean).join(', ') || 'Unknown location';
+      const count = p.count || 1;
+      L.circleMarker([p.lat, p.lon], {
+        radius, color: '#10b981', weight: 1, fillColor: '#10b981', fillOpacity: 0.5
+      }).bindTooltip(`${label} — ${count} ${count === 1 ? 'user' : 'users'}`).addTo(layerRef.current);
+    });
+  }, [points]);
+
+  useEffect(() => () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; layerRef.current = null; } }, []);
+
+  return <div ref={elRef} className="dev-geo-map" />;
+}
+
 export default function DeveloperAdmin() {
   const { API_URL } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -143,7 +187,10 @@ export default function DeveloperAdmin() {
   const [showAdminStoryUI, setShowAdminStoryUI] = useState(false);
 
   // ── Analytics sub-view + live-users feed ──
-  const [analyticsView, setAnalyticsView] = useState('live'); // live | growth | locations | gender | peak
+  const [analyticsView, setAnalyticsView] = useState('live'); // live | growth | locations | gender | peak | map
+  // World-map geolocation feed (IP-derived user location clusters).
+  const [geoData, setGeoData] = useState(null);               // { points, totalGeoUsers } | null
+  const [geoLoading, setGeoLoading] = useState(false);
   const [liveUsers, setLiveUsers] = useState(null);           // { totals, users }
   // Page-based pagination for the Live Users roster (newest sign-ins on top, older pages fade away below).
   const [livePage, setLivePage] = useState(0);                 // 0-based current page
@@ -536,6 +583,23 @@ export default function DeveloperAdmin() {
       console.error(err);
     }
   };
+
+  // Fetch the IP-derived location clusters for the world-map panel.
+  const fetchGeo = async () => {
+    setGeoLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/geo`, { headers: { 'x-admin-pass': password } });
+      if (res.ok) setGeoData(await res.json());
+    } catch (err) { /* offline: keep last data */ }
+    finally { setGeoLoading(false); }
+  };
+
+  // Load the geolocation feed only when the World Map panel is open (and once on entry).
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'analytics' && analyticsView === 'map' && !geoData) {
+      fetchGeo();
+    }
+  }, [isAuthenticated, activeTab, analyticsView]);
 
   // While the Live Users panel is open, keep it fresh on a 5s heartbeat.
   useEffect(() => {
@@ -1540,6 +1604,7 @@ export default function DeveloperAdmin() {
                     <button className={`dev-analytics-tab${analyticsView === 'locations' ? ' active' : ''}`} onClick={() => setAnalyticsView('locations')}><Globe size={16} /> Top Locations</button>
                     <button className={`dev-analytics-tab${analyticsView === 'gender' ? ' active' : ''}`} onClick={() => setAnalyticsView('gender')}><Users size={16} /> Gender Distribution</button>
                     <button className={`dev-analytics-tab${analyticsView === 'peak' ? ' active' : ''}`} onClick={() => setAnalyticsView('peak')}><Activity size={16} /> Peak Activity (24 Hours)</button>
+                    <button className={`dev-analytics-tab${analyticsView === 'map' ? ' active' : ''}`} onClick={() => setAnalyticsView('map')}><MapIcon size={16} /> User Map (World)</button>
                   </div>
 
                   {/* ── LIVE USERS: totals + real-time sign-in roster (10 per page) ── */}
@@ -1748,6 +1813,36 @@ export default function DeveloperAdmin() {
                       </div>
                     </div>
                   ) : <div className="dev-analytics-loading">Loading analytics data…</div>)}
+
+                  {/* ── USER MAP (WORLD) — IP-derived location clusters ── */}
+                  {analyticsView === 'map' && (
+                    <div className="dev-panel">
+                      <div className="dev-geo-header">
+                        <div>
+                          <h4 style={{ marginBottom: '4px' }}>User Map (World)</h4>
+                          <span className="dev-geo-subtitle">
+                            Green dots mark where users last signed up / logged in, based on their phone's IP (approx city/region — not exact location).
+                          </span>
+                        </div>
+                        <button className="dev-btn dev-btn-secondary" onClick={fetchGeo} disabled={geoLoading}>
+                          <RefreshCcw size={14} className={geoLoading ? 'dev-spin' : ''} /> {geoLoading ? 'Loading…' : 'Refresh'}
+                        </button>
+                      </div>
+                      <div className="dev-geo-stats">
+                        <span><strong>{geoData ? geoData.totalGeoUsers.toLocaleString() : '—'}</strong> users located</span>
+                        <span><strong>{geoData ? geoData.points.length : '—'}</strong> areas</span>
+                      </div>
+                      {geoLoading && !geoData ? (
+                        <div className="dev-analytics-loading">Loading map data…</div>
+                      ) : geoData && geoData.points && geoData.points.length ? (
+                        <GeoWorldMap points={geoData.points} />
+                      ) : (
+                        <div className="dev-analytics-loading">
+                          No located users yet. Dots appear as users sign up or log in from now on (their IP gets geolocated).
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                 </div>
               ) : activeTab === 'users' ? (
