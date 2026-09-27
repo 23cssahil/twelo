@@ -1821,6 +1821,8 @@ export default function DeveloperAdmin() {
                               <DetailItem label="Notifications" value={u.notifications?.length || 0} />
                               <DetailItem label="Push (FCM)" value={u.fcmToken ? 'Enabled' : 'No'} />
                               <DetailItem label="Last coin refill" value={fmtDateTime(u.lastCoinReplenishDate)} />
+                              <DetailItem label="IP Address" value={u.lastIp} mono />
+                              <DetailItem label="IP captured" value={fmtDateTime(u.lastIpAt)} />
                               <DetailItem label="Bio" value={u.bio} full />
                             </div>
                             <div className="dev-user-actions">

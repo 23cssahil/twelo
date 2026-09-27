@@ -117,6 +117,10 @@ const UserSchema = new mongoose.Schema({
   lastActive: { type: Date, default: Date.now },
   lastDailyReward: { type: Date },
   isPrivate: { type: Boolean, default: false },
+  // Last client IP captured at guest creation/recovery login (used to derive country and
+  // surfaced in the admin User Database for moderation/abuse review).
+  lastIp: { type: String, default: null },
+  lastIpAt: { type: Date, default: null },
 }, { timestamps: true });
 
 // ========== INDEXES FOR PERFORMANCE ==========

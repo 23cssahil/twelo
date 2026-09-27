@@ -698,6 +698,31 @@ const genGuestClaimCode = () => {
   return `TWG-${block(4)}-${block(4)}`;
 };
 
+// ── Client IP + geolocation helpers ───────────────────────────────
+// Behind a proxy (Render, Cloudflare) the real client IP is the FIRST entry of
+// X-Forwarded-For; Node may also prefix IPv4 with the IPv4-mapped ::ffff: form.
+// Loopback/private addresses can't be geolocated, so we return null for them.
+const cleanClientIp = (raw) => {
+  if (!raw) return null;
+  let ip = String(raw).split(',')[0].trim();
+  if (ip.startsWith('::ffff:')) ip = ip.slice(7);
+  if (ip === '::1' || ip === 'localhost' || ip.startsWith('127.') || ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('::')) return null;
+  return ip;
+};
+const getClientIp = (req) => cleanClientIp(
+  req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket?.remoteAddress || req.ip
+);
+// Free ip-api.com endpoint (HTTP, no key). Returns { country, countryCode } on success.
+const geoFromIp = async (ip) => {
+  if (!ip) return null;
+  try {
+    const response = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}`);
+    const geoData = await response.json();
+    if (geoData && geoData.status === 'success') return { country: geoData.country, countryCode: geoData.countryCode };
+  } catch (geoErr) { console.error('IP geolocation failed:', geoErr.message); }
+  return null;
+};
+
 // Middleware to authenticate JWT token
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -966,14 +991,9 @@ app.post('/api/auth/guest', authLimiter, async (req, res) => {
 
     let finalCountry = 'Earth';
     let countryCode = 'UN';
-    try {
-      const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || req.ip;
-      if (clientIp && clientIp !== '::1' && clientIp !== '127.0.0.1') {
-        const response = await fetch(`http://ip-api.com/json/${clientIp}`);
-        const geoData = await response.json();
-        if (geoData && geoData.status === 'success') { finalCountry = geoData.country; countryCode = geoData.countryCode; }
-      }
-    } catch (geoErr) { console.error('Guest geolocation failed:', geoErr.message); }
+    const clientIp = getClientIp(req);
+    const geo = await geoFromIp(clientIp);
+    if (geo) { finalCountry = geo.country; countryCode = geo.countryCode; }
 
     const claimCode = genGuestClaimCode();
     const guest = new User({
@@ -989,6 +1009,8 @@ app.post('/api/auth/guest', authLimiter, async (req, res) => {
       lastDailyReward: new Date(),
       isGuest: true,
       guestClaimCodeHash: sha256Hex(claimCode),
+      lastIp: clientIp || null,
+      lastIpAt: clientIp ? new Date() : null,
     });
     await guest.save();
 
@@ -1023,6 +1045,15 @@ app.post('/api/auth/guest/recover', authLimiter, async (req, res) => {
     if (!claimCode || typeof claimCode !== 'string') return res.status(400).json({ message: 'Enter your recovery code' });
     const guest = await User.findOne({ guestClaimCodeHash: sha256Hex(claimCode.trim().toUpperCase()), isGuest: true });
     if (!guest) return res.status(404).json({ message: 'Invalid or already-used recovery code' });
+    // Refresh IP + country on every guest login (device/network may have changed since creation).
+    const rIp = getClientIp(req);
+    if (rIp) {
+      guest.lastIp = rIp;
+      guest.lastIpAt = new Date();
+      const rGeo = await geoFromIp(rIp);
+      if (rGeo) { guest.country = rGeo.country; guest.countryCode = rGeo.countryCode; }
+      await guest.save();
+    }
     const jwtToken = jwt.sign(
       { userId: guest._id, username: guest.username, uniqueId: guest.uniqueId },
       JWT_SECRET,
