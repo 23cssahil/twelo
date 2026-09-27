@@ -106,6 +106,7 @@ const CoinSVG = ({ size = 18, style = {} }) => (
   <span style={{ fontSize: `${size}px`, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', ...style }}>🪙</span>
 );
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { AdMob, RewardAdPluginEvents, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
 
@@ -5415,8 +5416,7 @@ const handleStoryUpload = async () => {
 
     if (!isSearchingRandom) {
       if (genderFilter !== 'any' && coins < 2) {
-        alert("Not enough coins! You need 2 coins to use the gender filter.");
-        return;
+        showToastMsg("Need 2 coins for the gender filter \u2014 searching without it.", 'error');
       }
       setIsSearchingRandom(true);
       setMatchWaiting(false);
@@ -5502,6 +5502,39 @@ const handleStoryUpload = async () => {
     maybeShowInterstitial();
   };
 
+  // ── Android hardware BACK button ───────────────────────────────────────────
+  // Stops two ad-revenue leaks: (1) backing out of a stranger chat used to skip the
+  // interstitial entirely — now it runs the same leave flow that fires the ad; (2)
+  // pressing back WHILE an ad/reward modal is up used to dismiss it — that press is
+  // now swallowed until the ad's own close control is used.
+  const adGuardRefs = useRef({ showInterstitial: false, showAdModal: false, anonActive: false, leave: null });
+  adGuardRefs.current.showInterstitial = showInterstitial;
+  adGuardRefs.current.showAdModal = showAdModal;
+  adGuardRefs.current.anonActive = isAnonymousChatActive;
+  adGuardRefs.current.leave = handleLeaveAnonymousChat;
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+    let cancelled = false;
+    let handle = null;
+    App.addListener('backButton', () => {
+      const r = adGuardRefs.current;
+      if (r.showInterstitial || r.showAdModal) {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(40);
+        return; // block back so the ad can't be skipped
+      }
+      if (r.anonActive) {
+        r.leave?.(); // leaving a chat via back still triggers the interstitial
+        return;
+      }
+      window.history.back(); // otherwise keep normal in-app navigation
+    }).then((h) => {
+      if (cancelled) h.remove();
+      else handle = h;
+    }).catch((e) => console.error('backButton listener failed', e));
+    return () => { cancelled = true; if (handle) handle.remove(); };
+  }, []);
+
   // End the current stranger chat and immediately start looking for a new one
   const handleSkipAnonymousChat = () => {
     if (socket && anonymousRoomId) {
@@ -5514,10 +5547,10 @@ const handleStoryUpload = async () => {
     setIsAnonymousChatActive(false);
     setAnonymousMessages([]);
     setActiveTab('home');
-    // Respect the gender-filter coin cost before starting a fresh search
+    // A fresh search always proceeds. If the gender filter can't be afforded the
+    // server searches unfiltered (so the user still lands on the admin board).
     if (genderFilter !== 'any' && coins < 2) {
-      alert("Not enough coins! You need 2 coins to use the gender filter.");
-      return;
+      showToastMsg("Need 2 coins for the gender filter \u2014 searching without it.", 'error');
     }
     maybeShowInterstitial();
     setIsSearchingRandom(true);

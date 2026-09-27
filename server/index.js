@@ -5428,7 +5428,7 @@ io.on('connection', (socket) => {
       // Handle both old string payload and new object payload from updated clients
       const userId = typeof payload === 'string' ? payload : payload.userId;
       const isBotEligible = typeof payload === 'object' ? payload.isBotEligible : false;
-      const genderFilter = typeof payload === 'object' ? (payload.genderFilter || 'any') : 'any';
+      let genderFilter = typeof payload === 'object' ? (payload.genderFilter || 'any') : 'any';
 
       let userGender = 'male';
       let userCoins = 0;
@@ -5446,9 +5446,11 @@ io.on('connection', (socket) => {
           }
       } catch (err) {}
 
+      // Gender filter is a paid feature (2 coins per real match). Users who can't
+      // afford it are NOT blocked from searching — they just search unfiltered, so
+      // they still land on the admin Live board for interception instead of vanishing.
       if (genderFilter !== 'any' && userCoins < 2) {
-        io.to(socket.id).emit('cancel_search');
-        return;
+        genderFilter = 'any';
       }
 
       // Mark this socket as actively searching. The AI-companion fallback below keys off this
