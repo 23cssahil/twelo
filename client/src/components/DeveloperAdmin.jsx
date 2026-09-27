@@ -105,6 +105,22 @@ function fmtDateTime(v) {
   return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+// Compact relative time (e.g. "just now", "5m ago", "3h ago", "2d ago") with the full
+// timestamp as a native title tooltip for precision on hover.
+function timeAgo(v) {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v);
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  let rel;
+  if (s < 45) rel = 'just now';
+  else if (s < 3600) rel = `${Math.floor(s / 60)}m ago`;
+  else if (s < 86400) rel = `${Math.floor(s / 3600)}h ago`;
+  else if (s < 604800) rel = `${Math.floor(s / 86400)}d ago`;
+  else rel = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return rel;
+}
+
 // One labelled cell in the admin user-detail grid.
 function DetailItem({ label, value, mono, full }) {
   return (
@@ -2268,34 +2284,39 @@ export default function DeveloperAdmin() {
                   </div>
                 </>
               ) : activeTab === 'reports' ? (
-                <div className="dev-reports-list" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div className="dev-reports-list">
                   {reports.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No pending reports. Great job!</div>
+                    <div className="rp-empty">🎉 No pending reports — nothing to moderate right now.</div>
                   ) : (
-                    reports.map(report => (
-                      <div key={report._id} className="dev-user-card" style={{ borderLeft: '4px solid #ff4b4b' }}>
-                        <div className="user-details" style={{ flex: 1 }}>
-                          <div className="dev-user-info">
-                            <h3>Reported User: @{report.reportedUsername}</h3>
-                            <div className="dev-user-meta" style={{ color: '#ff4b4b', fontWeight: 'bold' }}>Reason: {report.reason}</div>
-                            <div className="dev-user-meta" style={{ fontSize: '0.8rem' }}>Reported by: @{report.reporterUsername} | {new Date(report.createdAt).toLocaleString()}</div>
-                            <div className="dev-user-meta" style={{ fontSize: '0.8rem', marginTop: '6px' }}>
-                              {report.reportsAgainstUser >= 2
-                                ? <span style={{ background: '#ff4b4b', color: '#fff', fontWeight: 'bold', fontSize: '0.72rem', padding: '2px 8px', borderRadius: '10px' }}>⚠ Reported {report.reportsAgainstUser} times</span>
-                                : <span style={{ background: '#f59e0b', color: '#111', fontWeight: 'bold', fontSize: '0.72rem', padding: '2px 8px', borderRadius: '10px' }}>1st report</span>}
-                              {report.warnSent && <span style={{ marginLeft: '8px', color: '#10b981', fontSize: '0.78rem', fontWeight: 'bold' }}>✓ Warning sent</span>}
+                    reports.map(report => {
+                      const repeat = report.reportsAgainstUser >= 2;
+                      const av = `https://ui-avatars.com/api/?name=${encodeURIComponent(report.reportedUsername || '?')}&background=random&color=fff&size=96&bold=true`;
+                      return (
+                        <div key={report._id} className={`rp-card${repeat ? ' rp-card-repeat' : ''}`}>
+                          <div className="rp-avatar"><img src={av} alt="" /></div>
+                          <div className="rp-body">
+                            <div className="rp-title-row">
+                              <span className="rp-user">@{report.reportedUsername}</span>
+                              <span className="rp-was">reported by</span>
+                              <span className="rp-reporter">@{report.reporterUsername}</span>
+                            </div>
+                            <div className="rp-reason"><Flag size={13} /> <span>{report.reason}</span></div>
+                            <div className="rp-foot">
+                              <span className="rp-time" title={fmtDateTime(report.createdAt)}>🕒 {timeAgo(report.createdAt)}</span>
+                              {report.warnSent && <span className="rp-warned">✓ Warning sent</span>}
                             </div>
                           </div>
+                          <div className="rp-side">
+                            {repeat
+                              ? <span className="rp-badge rp-badge-repeat" title={`Total ${report.reportsAgainstUser} reports against this user`}>⚠ {report.reportsAgainstUser}× reports</span>
+                              : <span className="rp-badge rp-badge-first">1st report</span>}
+                            <button className="rp-btn" onClick={() => openInvestigate(report)}>
+                              <Search size={15} /> Investigate
+                            </button>
+                          </div>
                         </div>
-                        <button 
-                          onClick={() => openInvestigate(report)}
-                          className="dev-btn-primary"
-                        >
-                          <Search size={16} style={{ marginRight: '5px' }} />
-                          Investigate
-                        </button>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               ) : activeTab === 'live-random' ? (

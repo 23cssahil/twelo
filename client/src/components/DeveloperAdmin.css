@@ -266,6 +266,46 @@
   word-break: break-all;
 }
 
+/* ── User Reports list — dedicated card (fixes the old cramped .dev-user-card reuse) ── */
+.dev-reports-list { display: flex; flex-direction: column; gap: 14px; }
+.rp-empty { text-align: center; color: #8a8a8a; padding: 40px 10px; font-size: 0.95rem; }
+.rp-card {
+  display: flex; align-items: center; gap: 14px;
+  background-color: #1a1a1a; border: 1px solid #2a2a2a;
+  border-left: 4px solid #ff4b4b; border-radius: 12px; padding: 14px 16px;
+  transition: border-color 0.15s ease;
+}
+.rp-card:hover { border-color: #3a3a3a; }
+.rp-avatar img { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; background: #333; flex-shrink: 0; }
+.rp-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.rp-title-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.rp-user { color: #fff; font-weight: 700; font-size: 1rem; word-break: break-word; }
+.rp-was { color: #777; font-size: 0.82rem; font-style: italic; }
+.rp-reporter { color: #bbb; font-size: 0.88rem; font-weight: 600; word-break: break-word; }
+.rp-reason {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; max-width: 100%;
+  background: rgba(255, 75, 75, 0.12); color: #ff6b6b; border: 1px solid rgba(255, 75, 75, 0.25);
+  padding: 4px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+}
+.rp-reason span { word-break: break-word; }
+.rp-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rp-time { color: #8a8a8a; font-size: 0.78rem; }
+.rp-warned { color: #10b981; font-size: 0.78rem; font-weight: 700; }
+.rp-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex-shrink: 0; }
+.rp-badge { font-size: 0.72rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.rp-badge-repeat { background: #ff4b4b; color: #fff; }
+.rp-badge-first { background: #f59e0b; color: #111; }
+.rp-btn {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  background: var(--brand-blue, #0095f6); color: #fff; border: none;
+  border-radius: 9px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600;
+}
+.rp-btn:hover { filter: brightness(1.08); }
+@media (max-width: 620px) {
+  .rp-card { flex-wrap: wrap; }
+  .rp-side { flex-direction: row; justify-content: space-between; align-items: center; width: 100%; }
+}
+
 @media (max-width: 768px) {
   .dev-header {
     padding: 15px;
