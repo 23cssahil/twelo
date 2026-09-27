@@ -1847,6 +1847,11 @@ export default function Dashboard() {
   // Refs for Socket optimization
   const activeChatUserRef = useRef(activeChatUser);
   const activeTabRef = useRef(activeTab);
+  // Race guards for rapid chat switching: `messages` is a single shared array, so a slow
+  // fetchMessages response for a chat you already left must NOT overwrite the current thread
+  // (otherwise you reply into the wrong conversation). seq = last started request; lastChatFetchId = thread on screen.
+  const chatFetchSeqRef = useRef(0);
+  const lastChatFetchIdRef = useRef(null);
   const searchQueryRef = useRef(searchQuery);
   const searchHistoryCacheRefSync = searchHistoryCacheRef;
   const publicProfileDataRef = useRef(publicProfileData);
@@ -3328,14 +3333,22 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (activeChatUser) {
-      setMessageCursor(null);
-      setHasMoreMessages(true);
-      setShowScrollToLatest(false); // reset the jump-to-latest button when opening a chat
-      setNewMsgsWhileUp(0);
-      chatAtBottomRef.current = true;
-      fetchMessages(activeChatUser._id, null);
+    if (!activeChatUser) {
+      lastChatFetchIdRef.current = null;
+      return;
     }
+    const cid = String(activeChatUser._id);
+    // Only (re)load when the open thread actually changes. Clear first so the previous
+    // chat's bubbles never linger under the new header while the fetch is in flight.
+    if (lastChatFetchIdRef.current === cid) return;
+    lastChatFetchIdRef.current = cid;
+    setMessages([]);
+    setMessageCursor(null);
+    setHasMoreMessages(true);
+    setShowScrollToLatest(false); // reset the jump-to-latest button when opening a chat
+    setNewMsgsWhileUp(0);
+    chatAtBottomRef.current = true;
+    fetchMessages(activeChatUser._id, null);
   }, [activeChatUser]);
 
   const fetchRecentChats = async (cursorParam = null) => {
@@ -3383,6 +3396,7 @@ export default function Dashboard() {
   };
 
   const fetchMessages = async (otherId, cursor = null) => {
+    const seq = ++chatFetchSeqRef.current;
     try {
       if (!cursor) setIsFetchingMessages(true);
       const url = new URL(`${API_URL}/api/messages/${otherId}`);
@@ -3391,6 +3405,11 @@ export default function Dashboard() {
 
       const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
+      // Stale-response guard: a newer chat load started while we were awaiting, OR the user
+      // already switched away. Writing now would show the wrong thread and cause replies to go
+      // to the wrong person, so drop it.
+      if (seq !== chatFetchSeqRef.current) return;
+      if (!activeChatUserRef.current || String(activeChatUserRef.current._id) !== String(otherId)) return;
       if (res.ok) {
         if (!cursor) {
           setMessages(data.messages);
@@ -3404,7 +3423,9 @@ export default function Dashboard() {
         }
       }
     } catch (err) { console.error(err); } finally {
-      if (!cursor) setIsFetchingMessages(false);
+      // Only clear the loading flag if this is still the newest request; a superseded
+      // (stale) response must not reset the spinner while a newer chat load is running.
+      if (!cursor && seq === chatFetchSeqRef.current) setIsFetchingMessages(false);
     }
   };
 
@@ -4932,7 +4953,7 @@ const handleStoryUpload = async () => {
     setShowNotificationsModal(false);
     setShowMyProfileModal(false);
     setShowCloseFriendsModal(false);
-    fetchMessages(targetUser._id);
+    // Messages are loaded by the activeChatUser effect (single, race-guarded source).
     fetchBlockedUsers();
     if (socket) {
       socket.emit('mark_all_read', { senderId: targetUser._id, receiverId: user.id });
