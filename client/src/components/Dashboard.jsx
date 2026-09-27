@@ -2336,7 +2336,7 @@ export default function Dashboard() {
       
       setNotifsFetching(true);
       const url = new URL(`${API_URL}/api/users/notifications`);
-      url.searchParams.append('limit', '20');
+      url.searchParams.append('limit', '50');
       if (cursorParam) url.searchParams.append('cursor', cursorParam);
 
       const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
@@ -6203,6 +6203,19 @@ const handleStoryUpload = async () => {
                   <div style={{ textAlign: 'center', padding: '15px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading more...</div>
                 )}
               </>
+            )}
+
+            {/* Reliable load-more: short Activity/Updates lists can't trigger scroll-based fetch, so expose a button. */}
+            {notifsHasMore && notifications.length > 0 && (
+              <div style={{ textAlign: 'center', padding: '16px 0 8px' }}>
+                <button
+                  onClick={() => notifsCursor && fetchNotifications(notifsCursor)}
+                  disabled={notifsFetching}
+                  style={{ padding: '10px 24px', fontSize: '0.9rem', fontWeight: 600, cursor: notifsFetching ? 'default' : 'pointer', background: 'var(--hover-bg, rgba(128,128,128,0.15))', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '20px', opacity: notifsFetching ? 0.6 : 1 }}
+                >
+                  {notifsFetching ? 'Loading…' : 'Load more'}
+                </button>
+              </div>
             )}
           </div>
         );
