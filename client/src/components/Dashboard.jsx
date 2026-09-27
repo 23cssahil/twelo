@@ -250,12 +250,13 @@ const AdsterraBanner = () => {
   );
 };
 
-// Adsterra display Banner zone (300x250) used by the random-chat interstitial.
-// A fixed-size display banner stays inside its box — unlike the fluid Native Banner,
-// which expanded to full screen and stacked multiple creatives. Recreate/replace via the
-// Adsterra dashboard and update these two constants.
-const INTERSTITIAL_BANNER_KEY = 'b0dd4840ad154ef80f375422ad27c946';
-const INTERSTITIAL_BANNER_NETWORK = 'www.highrevenueformat.com';
+// Adsterra banner zone used by the random-chat interstitial AND the Coins "Watch & Earn" modal.
+// The original dedicated 300x250 display zone (b0dd… @ highrevenueformat.com) went inactive on
+// Adsterra's side (stopped serving), so both placements were blank. Pointed at the zone that is
+// confirmed live (the same one Home/Stories uses). Replace with a fresh 300x250 Display Banner
+// zone from the Adsterra dashboard and update these two constants whenever it changes.
+const INTERSTITIAL_BANNER_KEY = '68a0807fea81fdc49bc8a49017e7e443';
+const INTERSTITIAL_BANNER_NETWORK = 'pl30895199.effectivecpmnetwork.com';
 
 // Adsterra interstitial overlay shown between stranger chats (skip / end).
 // It injects the Adsterra loader DIRECTLY into a container (single-level invoke) instead of
@@ -290,7 +291,7 @@ const InterstitialAd = ({ onClose }) => {
     container.id = `container-${INTERSTITIAL_BANNER_KEY}`;
     container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:300px;max-width:100%;min-height:250px;overflow:hidden;margin:0 auto;';
     const script = document.createElement('script');
-    script.src = `https://${INTERSTITIAL_BANNER_NETWORK}/${INTERSTITIAL_BANNER_KEY}/invoke.js`;
+    script.src = `https://${INTERSTITIAL_BANNER_NETWORK}/${INTERSTITIAL_BANNER_KEY}/invoke.js?r=${Date.now()}`;
     script.async = true;
     script.dataset.cfasync = 'false';
     host.appendChild(container);
@@ -1322,7 +1323,7 @@ export default function Dashboard() {
     container.id = `container-${INTERSTITIAL_BANNER_KEY}`;
     container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:300px;max-width:100%;min-height:250px;overflow:hidden;margin:0 auto;';
     const script = document.createElement('script');
-    script.src = `https://${INTERSTITIAL_BANNER_NETWORK}/${INTERSTITIAL_BANNER_KEY}/invoke.js`;
+    script.src = `https://${INTERSTITIAL_BANNER_NETWORK}/${INTERSTITIAL_BANNER_KEY}/invoke.js?r=${Date.now()}`;
     script.async = true;
     script.dataset.cfasync = 'false';
     host.appendChild(container);
