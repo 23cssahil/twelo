@@ -183,7 +183,7 @@ function GeoWorldMap({ points, focus }) {
   // Init the map once; re-group whenever the zoom crosses a level boundary.
   useEffect(() => {
     if (!elRef.current || mapRef.current) return undefined;
-    const map = L.map(elRef.current, { worldCopyJump: true, minZoom: 2, maxZoom: 12, zoomControl: true }).setView([22, 12], 2);
+    const map = L.map(elRef.current, { worldCopyJump: true, minZoom: 2, maxZoom: 19, zoomControl: true }).setView([22, 12], 2);
     // OpenStreetMap standard tiles: free and key-less (CARTO basemaps started requiring an API key).
     // A CSS filter (see .dev-geo-map .leaflet-tile) darkens them to match the admin theme.
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
