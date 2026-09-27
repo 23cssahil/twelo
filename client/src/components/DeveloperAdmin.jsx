@@ -364,6 +364,7 @@ export default function DeveloperAdmin() {
 
   // ── Live Random page state ──
   const [liveQueue, setLiveQueue] = useState([]);            // waiting users board (max 10, newest first)
+  const [liveStats, setLiveStats] = useState({ pairs: 0, inChat: 0, queue: 0 }); // live stats row (pairs bane / in chat / queue)
   const [adminRightTab, setAdminRightTab] = useState('requests'); // requests | friends | chats
   const [showRightList, setShowRightList] = useState(false); // drawer open on the right pane
   const [conversations, setConversations] = useState([]);    // recent chats with previews
@@ -485,6 +486,10 @@ export default function DeveloperAdmin() {
         fetchContacts(); // hydrate Connected/Requested/Blocked from the DB on (re)connect
       });
         
+      newSocket.on('live_random_stats', (s) => {
+        setLiveStats({ pairs: s?.pairs || 0, inChat: s?.inChat || 0, queue: s?.queue || 0 });
+      });
+
       newSocket.on('admin_random_queue', (arr) => {
         const q = Array.isArray(arr) ? arr : [];
         setLiveQueue(q);
@@ -580,6 +585,7 @@ export default function DeveloperAdmin() {
         prevQueueCountRef.current = 0;
         newSocket.off('connect');
         newSocket.off('admin_random_queue');
+        newSocket.off('live_random_stats');
         newSocket.off('admin_new_bot_request');
         newSocket.off('admin_bots_updated');
         newSocket.off('admin_intercept_started');
@@ -2328,6 +2334,21 @@ export default function DeveloperAdmin() {
                 </div>
               ) : activeTab === 'live-random' ? (
                 <>
+                  {/* Top stats row: pairs currently chatting, users in chat, users queued */}
+                  <div className="lr-stats-row">
+                    <div className="lr-stat">
+                      <span className="lr-stat-val">{liveStats.pairs}</span>
+                      <span className="lr-stat-label">Pairs chatting</span>
+                    </div>
+                    <div className="lr-stat">
+                      <span className="lr-stat-val">{liveStats.inChat}</span>
+                      <span className="lr-stat-label">Users in chat</span>
+                    </div>
+                    <div className="lr-stat lr-stat-queue">
+                      <span className="lr-stat-val">{liveStats.queue}</span>
+                      <span className="lr-stat-label">In queue</span>
+                    </div>
+                  </div>
                   <div className="live-random-wrap">
                     {/* LEFT: live waiting board */}
                     <aside className="live-random-left">

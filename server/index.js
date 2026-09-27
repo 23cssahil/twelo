@@ -4730,6 +4730,8 @@ function broadcastLiveQueue() {
       .slice(0, LIVE_QUEUE_MAX)
       .map(u => ({ userId: u.userId, username: u.username, avatarUrl: u.avatarUrl, country: u.country, countryCode: u.countryCode, gender: u.gender, waitingSince: u.ts }));
     io.to('admin_live').emit('admin_random_queue', arr);
+    // Queue size just changed — refresh the admin stats row in the same tick.
+    broadcastLiveStats();
   } catch (e) { console.error('[liveQueue] broadcast failed:', e.message); }
 }
 
@@ -4853,6 +4855,22 @@ async function assignAiCompanion(socket, ctx) {
   } catch (e) { console.error('[companion]', e.message); }
 }
 
+// ── Live stats row for the admin "Live Random" page ──────────────────────
+// Pairs = active stranger chats right now (each room holds two people, so 10 users
+// in chat reads as 5 pairs). In Chat = real users inside a room. Queue = the size of
+// the waiting board. Reuses the same live maps the 4s counter below already walks.
+function broadcastLiveStats() {
+  try {
+    let inRoom = 0;
+    let realRooms = 0;
+    for (const chat of activeRandomChats.values()) {
+      if (chat.isAiCompanion) inRoom += 1;
+      else { inRoom += 2; realRooms += 1; }
+    }
+    io.to('admin_live').emit('live_random_stats', { pairs: realRooms, inChat: inRoom, queue: liveRandomWaiting.size });
+  } catch (e) { /* non-blocking */ }
+}
+
 // ── Live "users in match rooms" counter for the Home screen pill ────────────
 // Counts REAL users currently inside an active random-chat room: 2 per real matched
 // room, 1 per AI-companion room (the human; the companion is a bot and doesn't count).
@@ -4864,6 +4882,7 @@ setInterval(() => {
     let n = 0;
     for (const chat of activeRandomChats.values()) n += chat.isAiCompanion ? 1 : 2;
     if (n !== lastInRoomCount) { lastInRoomCount = n; io.emit('in_room_count', { count: n }); }
+    broadcastLiveStats();
   } catch (e) { /* non-blocking */ }
 }, 4000);
 
@@ -5421,6 +5440,7 @@ io.on('connection', (socket) => {
       // Clear any waiting pairs first so the board the admin sees holds only genuine singles.
       try { if (liveRandomWaiting.size >= 2) autoPairLiveWaiting(); } catch (e) { /* non-blocking */ }
       broadcastLiveQueue(); // send the current board immediately to the new watcher
+      broadcastLiveStats(); // and the pairs / in-chat / queue row too
     });
     socket.on('admin_unwatch_live', () => { socket.leave('admin_live'); });
 
