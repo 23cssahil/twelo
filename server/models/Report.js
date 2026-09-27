@@ -12,9 +12,6 @@ const ReportSchema = new mongoose.Schema({
   warnSent: { type: Boolean, default: false }, // admin sent a warning for this report (prevents duplicates)
   warningMessage: { type: String }, // the exact warning text delivered to the reported user
   actionTaken: { type: Boolean, default: false }, // reporter was notified that action was taken
-  actionType: { type: String, enum: [null, 'warn', 'suspend', 'block'], default: null }, // last moderation action applied
-  moderatedAt: { type: Date }, // when an action (warn/suspend/block) was applied
-  suspendedUntil: { type: Date, default: null }, // snapshot of a suspension expiry (permanent => null)
   resolvedAt: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });

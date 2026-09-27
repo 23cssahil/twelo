@@ -898,32 +898,7 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
     // guest, they are now logged into their existing account (guest data is not merged here).
 
     if (user.isBlocked) {
-      return res.status(403).json({
-        message: user.enforcementNotice || 'Your account has been blocked by the admin.',
-        blocked: true,
-        notice: user.enforcementNotice || null,
-      });
-    }
-
-    // Suspension: let the user reach a notice + countdown. Auto-lift once it lapses.
-    if (user.isSuspended) {
-      const until = user.suspendedUntil ? new Date(user.suspendedUntil).getTime() : null;
-      const lapsed = until !== null && Date.now() >= until;
-      if (!lapsed) {
-        return res.status(403).json({
-          message: user.enforcementNotice || 'Your account is currently suspended.',
-          suspended: true,
-          permanent: until === null,
-          until: user.suspendedUntil || null,
-          reason: user.suspensionReason || null,
-          notice: user.enforcementNotice || null,
-        });
-      }
-      // Suspension expired -> clear it and continue signing in normally.
-      user.isSuspended = false;
-      user.suspendedUntil = null;
-      user.suspensionStart = null;
-      await user.save();
+      return res.status(403).json({ message: 'Your account has been blocked by the admin.' });
     }
 
     const now = Date.now();
@@ -4107,32 +4082,11 @@ app.put('/api/admin/bot-rules/:id', adminAuth, async (req, res) => {
 app.post('/api/admin/block', adminAuth, async (req, res) => {
   try {
     const { userId, isBlocked } = req.body;
-    const message = (req.body.message && req.body.message.trim()) || null;
-    const update = { isBlocked };
+    const user = await User.findByIdAndUpdate(userId, { isBlocked }, { new: true });
     if (isBlocked) {
-      // Persist the block notice so the user reads it on the login screen; also clear
-      // any active suspension (a block is the stronger state).
-      update.enforcementNotice = message || 'Your account has been blocked by the admin.';
-      update.isSuspended = false;
-      update.suspendedUntil = null;
-    } else {
-      // Unblock: drop the stale notice + any suspension so they can sign straight back in.
-      update.enforcementNotice = null;
-      update.isSuspended = false;
-      update.suspendedUntil = null;
-    }
-    const user = await User.findByIdAndUpdate(userId, update, { new: true });
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    if (isBlocked) {
-      // Deliver the notice before the hard logout (also saved in DB above).
-      if (update.enforcementNotice) {
-        await User.findByIdAndUpdate(userId, { $push: { notifications: { type: 'system_alert', message: update.enforcementNotice, alertType: 'urgent', read: false, createdAt: new Date() } } });
-      }
       const socketId = onlineUsers.get(userId?.toString());
       if (socketId) {
-        io.to(socketId).emit('new_notification');
-        io.to(socketId).emit('system_alert_toast', { message: update.enforcementNotice, type: 'personal' });
-        io.to(socketId).emit('force_logout', { message: update.enforcementNotice });
+        io.to(socketId).emit('force_logout', { message: 'You have been blocked by the admin.' });
       }
     }
     res.json({ success: true, isBlocked: user.isBlocked });
@@ -4306,30 +4260,6 @@ function buildWarningMessage(reason, username) {
   return `⚠️ Community Guidelines Warning\n\n${who} has been reported and reviewed by our moderation team for ${what}. This is an official warning. Repeated violations may lead to temporary restrictions or a permanent ban from Twelo. Please treat other users with respect.`;
 }
 
-// Build the default official message for a moderation action. Each action carries
-// its OWN wording (this is what fixes "blocking sends a warning message"): warn =>
-// warning, suspend => suspension notice with duration + restore date, block => ban.
-function buildModerationMessage(action, reason, username, durationDays) {
-  const who = username ? `@${username}` : 'Your account';
-  const map = {
-    'Sexual Harassment': 'sexual harassment and inappropriate sexual conduct',
-    'Spam / Scams': 'spam, scams or misleading behaviour',
-    'Abuse / Insult': 'abusive language, insults or harassment of other users',
-    'Other Inappropriate Behavior': 'behaviour that violates our community guidelines'
-  };
-  const what = map[reason] || 'conduct that violates our community guidelines';
-  if (action === 'block') {
-    return `🚫 Account Blocked\n\n${who} has been permanently blocked from Twelo following a moderation review for ${what}. You will no longer be able to access this account. If you believe this is a mistake, please contact our support team.`;
-  }
-  if (action === 'suspend') {
-    const permanent = durationDays === 'permanent';
-    const dur = permanent ? 'indefinitely, pending a manual review by our team' : `for ${durationDays} day${Number(durationDays) === 1 ? '' : 's'}`;
-    const restore = permanent ? 'once our team completes a manual review' : `on ${new Date(Date.now() + Number(durationDays) * 86400000).toUTCString()}`;
-    return `⏸️ Account Suspended\n\n${who} has been suspended ${dur} after a moderation review for ${what}. Your account access will be restored ${restore}. Please treat other users with respect — repeated violations may lead to a permanent ban.`;
-  }
-  return buildWarningMessage(reason, username);
-}
-
 app.get('/api/admin/reports', adminAuth, async (req, res) => {
   try {
     const reports = await Report.find({ status: 'pending' }).sort({ createdAt: -1 }).lean();
@@ -4372,76 +4302,6 @@ app.post('/api/admin/reports/:id/warn', adminAuth, async (req, res) => {
   } catch (error) {
     console.error('[Report warn]', error);
     res.status(500).json({ message: 'Error sending warning' });
-  }
-});
-
-// ── Unified moderation action for a report: warn | suspend | block ──────────
-// The message is ALWAYS persisted to the user (notification + enforcementNotice)
-// BEFORE any enforcement is applied, so a suspended/blocked user still sees it on
-// the login screen even though they are force-logged-out immediately. Suspension is
-// time-boxed (auto-lifts at login once suspendedUntil has passed); a block is hard.
-app.post('/api/admin/reports/:id/moderate', adminAuth, async (req, res) => {
-  try {
-    const { action } = req.body || {};
-    if (!['warn', 'suspend', 'block'].includes(action)) {
-      return res.status(400).json({ message: 'Invalid action. Use warn, suspend or block.' });
-    }
-    const report = await Report.findById(req.params.id);
-    if (!report) return res.status(404).json({ message: 'Report not found' });
-    const user = await User.findById(report.reportedUserId);
-    if (!user) return res.status(404).json({ message: 'Reported user not found' });
-
-    // Only a suspension needs a duration. Accept 1/3/7/30 days or 'permanent'.
-    const ALLOWED_DAYS = [1, 3, 7, 30];
-    let durationDays = null;
-    if (action === 'suspend') {
-      const raw = req.body.durationDays;
-      durationDays = raw === 'permanent' ? 'permanent' : (ALLOWED_DAYS.includes(Number(raw)) ? Number(raw) : 1);
-    }
-
-    // Manual-first: use the admin's edited text; otherwise fall back to THIS action's
-    // built-in template (never a warning on a block/suspend).
-    const message = (req.body.message && req.body.message.trim())
-      || buildModerationMessage(action, report.reason, report.reportedUsername, durationDays);
-
-    // 1) Persist the notice FIRST (survives force-logout / offline / re-login).
-    user.notifications.push({ type: 'system_alert', message, alertType: action === 'warn' ? 'warning' : 'urgent', read: false, createdAt: new Date() });
-    user.enforcementNotice = message;
-
-    // 2) Apply enforcement.
-    if (action === 'warn') {
-      report.warnSent = true;
-      report.warningMessage = message;
-    } else if (action === 'suspend') {
-      user.isSuspended = true;
-      user.isBlocked = false; // a suspension supersedes an old block state on this path
-      user.suspensionStart = new Date();
-      user.suspendedUntil = durationDays === 'permanent' ? null : new Date(Date.now() + durationDays * 86400000);
-      user.suspensionReason = report.reason;
-    } else if (action === 'block') {
-      user.isBlocked = true;
-    }
-    await user.save();
-
-    // 3) Record the action on the report (suspend/block also close it out).
-    report.actionType = action;
-    report.actionTaken = true;
-    report.moderatedAt = new Date();
-    if (action === 'suspend') report.suspendedUntil = user.suspendedUntil || null;
-    if (action !== 'warn') { report.status = 'resolved'; report.resolvedAt = new Date(); }
-    await report.save();
-
-    // 4) Live delivery: show the message, THEN force-logout for suspend/block.
-    const socketId = onlineUsers.get(String(user._id));
-    if (socketId) {
-      io.to(socketId).emit('new_notification');
-      io.to(socketId).emit('system_alert_toast', { message, type: 'personal' });
-      if (action !== 'warn') io.to(socketId).emit('force_logout', { message });
-    }
-    res.json({ success: true, action, message, suspendedUntil: user.suspendedUntil || null });
-  } catch (error) {
-    console.error('[Report moderate]', error);
-    res.status(500).json({ message: 'Moderation action failed' });
   }
 });
 

@@ -345,14 +345,6 @@
 .inv-warn label span { color: #666; font-weight: normal; }
 .inv-textarea { width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit; font-size: .85rem; line-height: 1.4; white-space: pre-wrap; }
 .inv-reset { align-self: flex-start; background: none; border: none; color: #0095f6; cursor: pointer; font-size: .78rem; text-decoration: underline; padding: 0; }
-.inv-presets { display: flex; flex-wrap: wrap; gap: 8px; }
-.inv-chip { background: #1c1c20; border: 1px solid #33333a; color: #cfcfd6; border-radius: 999px; padding: 5px 12px; font-size: .76rem; cursor: pointer; }
-.inv-chip:hover { border-color: #0095f6; color: #fff; }
-.inv-hint { font-size: .72rem; color: #6a6a6a; font-style: italic; }
-.inv-suspend-group { display: inline-flex; align-items: center; gap: 6px; }
-.inv-duration { width: auto; padding: 8px 8px; font-size: .82rem; border-radius: 10px; }
-.inv-btn-suspend { background: #3a2e12; color: #f59e0b; border: 1px solid rgba(245,158,11,.4); }
-.inv-btn-suspend:hover:not(:disabled) { background: #4a3a16; }
 .inv-foot { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid #26262b; background: rgba(255,255,255,.02); flex-shrink: 0; }
 .inv-btn { display: inline-flex; align-items: center; gap: 6px; border: none; border-radius: 10px; padding: 9px 16px; font-size: .86rem; font-weight: 600; cursor: pointer; color: #fff; }
 .inv-btn:disabled { opacity: .5; cursor: not-allowed; }
