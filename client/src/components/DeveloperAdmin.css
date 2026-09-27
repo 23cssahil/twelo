@@ -550,6 +550,8 @@
 .lr-stat-label { font-size: 0.72rem; color: #9a9a9a; text-transform: uppercase; letter-spacing: .04em; }
 .lr-stat-queue { border-color: #3b2a12; background: #1a1408; }
 .lr-stat-queue .lr-stat-val { color: #f59e0b; }
+.lr-stat-live { border-color: #123524; background: #0a1a12; }
+.lr-stat-live .lr-stat-val { color: #10b981; }
 
 .lr-row { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid #222; flex-wrap: wrap; }
 .lr-row-btn {

@@ -4711,6 +4711,33 @@ let lastGlobePushTime = 0; // Cooldown tracker for push notifications (5 min thr
 const liveRandomWaiting = new Map(); // userId -> { userId, socketId, username, avatarUrl, country, countryCode, gender, wantGender, ts }
 const LIVE_QUEUE_MAX = 10;
 
+// Total real users signed in right now ("live on site"). Bots never own a socket, so
+// unique non-bot userIds across activeSessions is the live count. ownedByAdmin ids are
+// cached ~60s so we don't hit the DB on every board change / 4s tick.
+const _botIdCache = { ids: null, at: 0 };
+function _refreshBotIdCache() {
+  const now = Date.now();
+  if (_botIdCache.ids && now - _botIdCache.at < 60000) return Promise.resolve(_botIdCache.ids);
+  return User.find({ ownedByAdmin: true }).select('_id').lean()
+    .then(bots => { _botIdCache.ids = new Set(bots.map(b => String(b._id))); _botIdCache.at = now; return _botIdCache.ids; })
+    .catch(() => _botIdCache.ids || new Set());
+}
+function getLiveUserCount() {
+  const botIds = _botIdCache.ids || new Set();
+  const uniq = new Set();
+  try {
+    activeSessions.forEach((s) => {
+      const uid = s.userId ? String(s.userId) : null;
+      if (!uid || !/^[a-fA-F0-9]{24}$/.test(uid) || botIds.has(uid)) return;
+      uniq.add(uid);
+    });
+  } catch (e) { /* non-blocking */ }
+  return uniq.size;
+}
+// Keep the bot cache warm without blocking the counter.
+_refreshBotIdCache();
+setInterval(() => { _refreshBotIdCache(); }, 60000);
+
 // Is any admin currently on (or actively intercepting from) the Live Random page?
 // An admin mid-intercept also counts as watching, so a second user who can't find a
 // real match is HELD on the board instead of dropped to an AI bot while the admin is
@@ -4867,7 +4894,7 @@ function broadcastLiveStats() {
       if (chat.isAiCompanion) inRoom += 1;
       else { inRoom += 2; realRooms += 1; }
     }
-    io.to('admin_live').emit('live_random_stats', { pairs: realRooms, inChat: inRoom, queue: liveRandomWaiting.size });
+    io.to('admin_live').emit('live_random_stats', { pairs: realRooms, inChat: inRoom, queue: liveRandomWaiting.size, liveUsers: getLiveUserCount() });
   } catch (e) { /* non-blocking */ }
 }
 

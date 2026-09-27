@@ -364,7 +364,7 @@ export default function DeveloperAdmin() {
 
   // ── Live Random page state ──
   const [liveQueue, setLiveQueue] = useState([]);            // waiting users board (max 10, newest first)
-  const [liveStats, setLiveStats] = useState({ pairs: 0, inChat: 0, queue: 0 }); // live stats row (pairs bane / in chat / queue)
+  const [liveStats, setLiveStats] = useState({ pairs: 0, inChat: 0, queue: 0, liveUsers: 0 }); // live stats row (pairs / in chat / queue / live on site)
   const [adminRightTab, setAdminRightTab] = useState('requests'); // requests | friends | chats
   const [showRightList, setShowRightList] = useState(false); // drawer open on the right pane
   const [conversations, setConversations] = useState([]);    // recent chats with previews
@@ -487,7 +487,7 @@ export default function DeveloperAdmin() {
       });
         
       newSocket.on('live_random_stats', (s) => {
-        setLiveStats({ pairs: s?.pairs || 0, inChat: s?.inChat || 0, queue: s?.queue || 0 });
+        setLiveStats({ pairs: s?.pairs || 0, inChat: s?.inChat || 0, queue: s?.queue || 0, liveUsers: s?.liveUsers || 0 });
       });
 
       newSocket.on('admin_random_queue', (arr) => {
@@ -2347,6 +2347,10 @@ export default function DeveloperAdmin() {
                     <div className="lr-stat lr-stat-queue">
                       <span className="lr-stat-val">{liveStats.queue}</span>
                       <span className="lr-stat-label">In queue</span>
+                    </div>
+                    <div className="lr-stat lr-stat-live">
+                      <span className="lr-stat-val">{liveStats.liveUsers}</span>
+                      <span className="lr-stat-label">Live on site</span>
                     </div>
                   </div>
                   <div className="live-random-wrap">
