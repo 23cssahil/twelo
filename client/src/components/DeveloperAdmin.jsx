@@ -1266,7 +1266,7 @@ export default function DeveloperAdmin() {
         </aside>
 
         <div className="dev-main-col">
-          <div className="dev-content">
+          <div className={`dev-content${(activeTab === 'analytics' || activeTab === 'overview') ? ' dev-fit' : ''}`}>
             {/* ── OVERVIEW ── live health row + quick-control panels ── */}
             {activeTab === 'overview' && (
               <div className="dev-fit-content">
@@ -1493,10 +1493,9 @@ export default function DeveloperAdmin() {
                         const page = Math.min(livePage, totalPages - 1);
                         const start = page * LIVE_PAGE_SIZE;
                         const pageUsers = all.slice(start, start + LIVE_PAGE_SIZE);
-                        const hasMoreBelow = total > start + LIVE_PAGE_SIZE;
                         return (
                           <>
-                            <div className={`dev-live-list${hasMoreBelow ? ' dev-live-fade' : ''}`}>
+                            <div className="dev-live-list">
                               {!liveUsers && <div className="dev-live-empty">Loading live users…</div>}
                               {liveUsers && total === 0 && <div className="dev-live-empty">No users are signed in right now.</div>}
                               {pageUsers.map((u) => (

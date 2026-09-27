@@ -669,11 +669,21 @@
 }
 
 /* ── Analytics: top button row + reveal panels ──────────────────── */
+/* Analytics/Overview fit chain: the section fills the viewport exactly, so the
+   page itself never scrolls — only the inner list/panel boxes do. */
+.dev-content.dev-fit { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.dev-fit .dev-main { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.dev-fit .dev-section-title { flex-shrink: 0; }
+.dev-fit .dev-analytics-container { display: flex; flex-direction: column; }
+.dev-fit .dev-live-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.dev-fit .dev-analytics-container > .dev-panel { flex: 1; min-height: 0; overflow-y: auto; }
 /* Overview: everything fits on one page — no wrapping scroll container. */
 .dev-fit-content {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  flex: 1;
+  min-height: 0;
 }
 .dev-fit-content .dev-analytics-tabs { flex-shrink: 0; }
 .dev-fit-content .dev-overview-hero { min-height: 0; }
@@ -734,7 +744,10 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 560px;
+  /* Own scroll box: any amount of live data stays contained, page never blows up. */
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 470px);
   overflow-y: auto;
   padding-right: 6px;
 }
@@ -757,11 +770,6 @@
 .dev-live-activity { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; color: #cfcfcf; flex-shrink: 0; }
 .dev-live-activity span { display: inline-flex; align-items: center; gap: 6px; }
 .dev-live-more { align-self: center; background: #222; margin-top: 4px; }
-/* Fade the bottom of the roster so older users visually sink away; newest stay on top. */
-.dev-live-fade {
-  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 78px), transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 78px), transparent 100%);
-}
 .dev-live-pager {
   display: flex;
   align-items: center;
