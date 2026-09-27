@@ -274,23 +274,17 @@ const InterstitialAd = ({ onClose }) => {
     return () => clearTimeout(t);
   }, [secs]);
 
-  // Inject the Adsterra display-banner loader into a container that exists only while this
-  // overlay is open. Removed on unmount so the next open re-runs the loader with a fresh ad.
+  // Inject the Adsterra loader into a container that exists only while this overlay is open,
+  // using the SAME proven invocation as the working Home/Stories banner: NO window.atOptions
+  // iframe override (this zone is In-Page/native, and forcing format:'iframe'/300x250 served a
+  // blank ad). A fresh cache-busted script per open so the ad re-runs each time.
   useEffect(() => {
     const host = adHostRef.current;
     if (!host) return;
     host.innerHTML = '';
-    // Adsterra's display banner reads window.atOptions and renders a fixed 300x250 iframe.
-    window.atOptions = {
-      key: INTERSTITIAL_BANNER_KEY,
-      format: 'iframe',
-      height: 250,
-      width: 300,
-      params: {},
-    };
     const container = document.createElement('div');
     container.id = `container-${INTERSTITIAL_BANNER_KEY}`;
-    container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:300px;max-width:100%;min-height:250px;overflow:hidden;margin:0 auto;';
+    container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:100%;max-width:320px;min-height:250px;overflow:hidden;margin:0 auto;';
     const script = document.createElement('script');
     script.src = `https://${INTERSTITIAL_BANNER_NETWORK}/${INTERSTITIAL_BANNER_KEY}/invoke.js?r=${Date.now()}`;
     script.async = true;
@@ -1312,17 +1306,17 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [showAdModal, adTimeLeft, adCompleted]);
 
-  // Watch & Earn: show a real Adsterra display banner inside the reward modal (fresh on every
-  // open), replacing the old placeholder video. The 15s countdown above still grants 5 coins.
+  // Watch & Earn: show a real Adsterra banner inside the reward modal (fresh on every open),
+  // using the same proven in-page invocation as Home/Stories (no window.atOptions iframe
+  // override — that format mismatch served a blank ad). The 15s countdown still grants 5 coins.
   useEffect(() => {
     if (!showAdModal) return undefined;
     const host = watchAdHostRef.current;
     if (!host) return undefined;
     host.innerHTML = '';
-    window.atOptions = { key: INTERSTITIAL_BANNER_KEY, format: 'iframe', height: 250, width: 300, params: {} };
     const container = document.createElement('div');
     container.id = `container-${INTERSTITIAL_BANNER_KEY}`;
-    container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:300px;max-width:100%;min-height:250px;overflow:hidden;margin:0 auto;';
+    container.style.cssText = 'display:flex;justify-content:center;align-items:center;width:100%;max-width:320px;min-height:250px;overflow:hidden;margin:0 auto;';
     const script = document.createElement('script');
     script.src = `https://${INTERSTITIAL_BANNER_NETWORK}/${INTERSTITIAL_BANNER_KEY}/invoke.js?r=${Date.now()}`;
     script.async = true;
