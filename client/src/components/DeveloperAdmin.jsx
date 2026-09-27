@@ -367,6 +367,7 @@ export default function DeveloperAdmin() {
   const [adminRightTab, setAdminRightTab] = useState('requests'); // requests | friends | chats
   const [showRightList, setShowRightList] = useState(false); // drawer open on the right pane
   const [conversations, setConversations] = useState([]);    // recent chats with previews
+  const [drawerVisible, setDrawerVisible] = useState(10);     // Friends/Chats drawer pagination: 10 rows at a time (page was rendering every contact at once)
   const [identityForm, setIdentityForm] = useState(null);    // { botId, userId, requesterName, name, username, age, country, gender, bio }
   const [identitySaving, setIdentitySaving] = useState(false);
   const [liveTick, setLiveTick] = useState(Date.now());      // re-renders the "waiting Xs" labels every second
@@ -2354,13 +2355,13 @@ export default function DeveloperAdmin() {
                     {/* RIGHT: chat + top row */}
                     <section className="live-random-right">
                       <div className="lr-row">
-                        <button className={`lr-row-btn ${adminRightTab === 'requests' && showRightList ? 'active' : ''}`} onClick={() => { setAdminRightTab('requests'); setShowRightList(true); }}>
+                        <button className={`lr-row-btn ${adminRightTab === 'requests' && showRightList ? 'active' : ''}`} onClick={() => { setAdminRightTab('requests'); setDrawerVisible(10); setShowRightList(true); }}>
                           <UserPlus size={16} /> Requests {botRequests.length > 0 && <span className="lr-badge">{botRequests.length}</span>}
                         </button>
-                        <button className={`lr-row-btn ${adminRightTab === 'friends' && showRightList ? 'active' : ''}`} onClick={() => { setAdminRightTab('friends'); setShowRightList(true); }}>
+                        <button className={`lr-row-btn ${adminRightTab === 'friends' && showRightList ? 'active' : ''}`} onClick={() => { setAdminRightTab('friends'); setDrawerVisible(10); setShowRightList(true); }}>
                           <UserCheck size={16} /> Friends {botChats.length > 0 && <span className="lr-badge">{botChats.length}</span>}
                         </button>
-                        <button className={`lr-row-btn ${adminRightTab === 'chats' && showRightList ? 'active' : ''}`} onClick={() => { setAdminRightTab('chats'); setShowRightList(true); fetchConversations(); }}>
+                        <button className={`lr-row-btn ${adminRightTab === 'chats' && showRightList ? 'active' : ''}`} onClick={() => { setAdminRightTab('chats'); setDrawerVisible(10); setShowRightList(true); fetchConversations(); }}>
                           <MessageSquare size={16} /> Chats {unreadBotChats.size > 0 && <span className="lr-badge" style={{ background: '#f59e0b' }}>{unreadBotChats.size}</span>}
                         </button>
                       </div>
@@ -2457,8 +2458,8 @@ export default function DeveloperAdmin() {
                               ))
                             )}
                             {adminRightTab === 'friends' && (
-                              botChats.length === 0 ? <div className="lr-empty">No friends yet. Accept a request first.</div> :
-                              botChats.map((chat, i) => (
+                              botChats.length === 0 ? <div className="lr-empty">No friends yet. Accept a request first.</div> : <>
+                              {botChats.slice(0, drawerVisible).map((chat, i) => (
                                 <div key={i} className="lr-drawer-item clickable" onClick={() => openBotChat(chat)}>
                                   <img className="lr-avatar-sm" src={chat.user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(chat.user.username)}`} alt='' />
                                   <div className="lr-drawer-meta">
@@ -2467,11 +2468,17 @@ export default function DeveloperAdmin() {
                                   </div>
                                   <MessageSquare size={16} color="#10b981" />
                                 </div>
-                              ))
+                              ))}
+                              {botChats.length > drawerVisible && (
+                                <button className="lr-load-more" onClick={() => setDrawerVisible(v => v + 10)}>
+                                  Load more ({botChats.length - drawerVisible} remaining)
+                                </button>
+                              )}
+                              </>
                             )}
                             {adminRightTab === 'chats' && (
-                              conversations.length === 0 ? <div className="lr-empty">No conversations yet.</div> :
-                              conversations.map((c, i) => (
+                              conversations.length === 0 ? <div className="lr-empty">No conversations yet.</div> : <>
+                              {conversations.slice(0, drawerVisible).map((c, i) => (
                                 <div key={i} className="lr-drawer-item clickable" onClick={() => openBotChat({ bot: c.bot, user: c.user })}>
                                   <img className="lr-avatar-sm" src={c.user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.user.username)}`} alt='' />
                                   <div className="lr-drawer-meta">
@@ -2480,7 +2487,13 @@ export default function DeveloperAdmin() {
                                   </div>
                                   {(unreadBotChats.has(String(c.userId || c.user._id))) && <span className="lr-unread" />}
                                 </div>
-                              ))
+                              ))}
+                              {conversations.length > drawerVisible && (
+                                <button className="lr-load-more" onClick={() => setDrawerVisible(v => v + 10)}>
+                                  Load more ({conversations.length - drawerVisible} remaining)
+                                </button>
+                              )}
+                              </>
                             )}
                           </div>
                         </div>
