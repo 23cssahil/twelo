@@ -1074,7 +1074,9 @@ export default function DeveloperAdmin() {
     setIsFetchingChats(true);
     setSelectedUserChats(null);
     try {
-      const res = await fetch(`${API_URL}/api/admin/users/${user._id}/chats`, {
+      // Deleted accounts carry a fresh archive _id — messages still reference the original one.
+      const uid = user.originalUserId || user._id;
+      const res = await fetch(`${API_URL}/api/admin/users/${uid}/chats`, {
         headers: { 'x-admin-pass': password }
       });
       if (res.ok) {
@@ -2325,13 +2327,15 @@ export default function DeveloperAdmin() {
                         >
                           <img src={u.avatarUrl} alt="avatar" className="dev-avatar" />
                           <div className="dev-user-main">
-                            <div className="dev-username">{u.name} <span className="dev-user-handle">@{u.username}</span></div>
+                            <div className="dev-username">{u.name} <span className="dev-user-handle">@{u.username}</span>{u.isDeleted && <span style={{ color: '#ff4b4b', fontWeight: 700, fontSize: '0.82rem', marginLeft: '6px', whiteSpace: 'nowrap' }}>(deleted account)</span>}</div>
                             <div className="dev-user-idline">ID: {u.uniqueId}</div>
                           </div>
                           <div className="dev-user-chips">
                             {u.ownedByAdmin ? <span className="dev-chip dev-chip-bot">Bot</span> : null}
                             {u.isGuest ? <span className="dev-chip dev-chip-guest">Guest</span> : null}
-                            <span className={`dev-chip ${u.isBlocked ? 'dev-chip-blocked' : 'dev-chip-active'}`}>{u.isBlocked ? 'Blocked' : 'Active'}</span>
+                            {u.isDeleted
+                              ? <span className="dev-chip" style={{ background: 'rgba(255,75,75,0.14)', color: '#ff4b4b', border: '1px solid rgba(255,75,75,0.4)' }}>Deleted</span>
+                              : <span className={`dev-chip ${u.isBlocked ? 'dev-chip-blocked' : 'dev-chip-active'}`}>{u.isBlocked ? 'Blocked' : 'Active'}</span>}
                             {(u.resolvedLocation?.city || u.resolvedLocation?.district) && <span className="dev-chip" title={`Location: ${[u.resolvedLocation.city, u.resolvedLocation.district, u.resolvedLocation.region, u.resolvedLocation.country].filter(Boolean).join(', ')}`}>📍 {u.resolvedLocation.city || u.resolvedLocation.district}</span>}
                             <span className="dev-chip dev-chip-coins" title="Coins">{u.coins} coins</span>
                           </div>
@@ -2345,7 +2349,8 @@ export default function DeveloperAdmin() {
                             <div className="dev-detail-grid">
                               <DetailItem label="Email" value={u.email} />
                               <DetailItem label="Google ID" value={u.googleId} mono />
-                              <DetailItem label="Mongo ID" value={u._id} mono />
+                              <DetailItem label="Mongo ID" value={u.originalUserId || u._id} mono />
+                              {u.isDeleted && <DetailItem label="Deleted at" value={fmtDateTime(u.deletedAt)} />}
                               <DetailItem label="Account type" value={u.ownedByAdmin ? 'Admin bot' : (u.isGuest ? 'Guest' : 'Registered')} />
                               <DetailItem label="Gender" value={u.gender} />
                               <DetailItem label="Age" value={u.age} />
@@ -2368,6 +2373,7 @@ export default function DeveloperAdmin() {
                               <DetailItem label="Bio" value={u.bio} full />
                             </div>
                             <div className="dev-user-actions">
+                              {!u.isDeleted && (
                               <button
                                 onClick={() => handlePersonalNotification(u._id, u.username)}
                                 className="dev-btn-secondary"
@@ -2376,6 +2382,7 @@ export default function DeveloperAdmin() {
                                 <Send size={16} style={{ marginRight: '5px' }} />
                                 Send Alert
                               </button>
+                              )}
                               <button onClick={() => handleViewChats(u)} className="dev-btn-secondary">
                                 <MessageSquare size={16} style={{ marginRight: '5px' }} />
                                 View All Chats
@@ -2384,6 +2391,8 @@ export default function DeveloperAdmin() {
                                 <MapIcon size={16} style={{ marginRight: '5px' }} />
                                 Map
                               </button>
+                              {!u.isDeleted && (
+                              <>
                               <button
                                 onClick={() => handleBlockUser(u._id, u.isBlocked)}
                                 className={`dev-btn-${u.isBlocked ? 'secondary' : 'danger'}`}
@@ -2400,6 +2409,8 @@ export default function DeveloperAdmin() {
                                 <Trash2 size={16} style={{ marginRight: '5px' }} />
                                 Delete
                               </button>
+                              </>
+                              )}
                             </div>
                           </div>
                         )}

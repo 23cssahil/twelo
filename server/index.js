@@ -2291,6 +2291,7 @@ app.post('/api/users/delete_account', authenticateToken, async (req, res) => {
 
     // Move to DeletedUser
     const deletedUserData = user.toObject();
+    deletedUserData.originalUserId = String(deletedUserData._id); // archive gets a new _id — keep the live one for reference
     delete deletedUserData._id; // Let mongoose generate a new ID or keep it? We can keep it or not. We'll drop it so it creates a new one.
     
     // Archiving must never block the deletion itself — legacy/guest documents can miss
@@ -4297,6 +4298,10 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
     if (req.query.district) locCondFor('District', req.query.district);
     if (req.query.city) locCondFor('City', req.query.city);
 
+    // Archives map through the same masker, flagged so the admin UI can show the
+    // username plus a "deleted account" marker and hide live-only actions.
+    const toMaskedDeleted = (u) => ({ ...toMasked(u), isDeleted: true });
+
     // SEARCH MODE: always query the FULL database (not the current page) so results are
     // complete and instant. Returns up to 50 matches, no pagination cursor.
     if (query) {
@@ -4322,7 +4327,14 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
       const searchFilter = { $or: or };
       if (locCond.length) searchFilter.$and = locCond;
       const found = await User.find(searchFilter).select('-password').sort({ createdAt: -1 }).limit(50);
-      return res.json({ users: found.map(toMasked), nextCursor: null });
+      // Deleted accounts stay in the database — search must see them too (newest first,
+      // merged with live matches, whole result capped at 50).
+      let foundDeleted = [];
+      try { foundDeleted = await DeletedUser.find(searchFilter).sort({ createdAt: -1 }).limit(50); } catch (e) { console.error('deleted-user search:', e.message); }
+      const merged = [...found.map(toMasked), ...foundDeleted.map(toMaskedDeleted)]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 50);
+      return res.json({ users: merged, nextCursor: null });
     }
 
     // BROWSE MODE ("Load All Users"): cursor-based keyset pagination over createdAt+​_id,
@@ -4348,7 +4360,17 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
     const nextCursor = hasMore && last
       ? Buffer.from(JSON.stringify({ c: last.createdAt.toISOString(), i: last._id.toString() })).toString('base64')
       : null;
-    res.json({ users: slice.map(toMasked), nextCursor });
+    // First browse page also surfaces the 10 most recently deleted accounts at the end,
+    // so the User Database keeps showing them (username + "deleted account") after deletion.
+    let deletedTail = [];
+    if (!req.query.cursor) {
+      try {
+        const dq = locCond.length ? { $and: locCond } : {};
+        const recentDeleted = await DeletedUser.find(dq).sort({ deletedAt: -1 }).limit(10);
+        deletedTail = recentDeleted.map(toMaskedDeleted);
+      } catch (e) { console.error('deleted-user browse:', e.message); }
+    }
+    res.json({ users: [...slice.map(toMasked), ...deletedTail], nextCursor });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching users' });
   }
@@ -4521,6 +4543,7 @@ app.post('/api/admin/delete-user', adminAuth, async (req, res) => {
 
     // Move to DeletedUser (or simply delete for admin wipe)
     const deletedUserData = user.toObject();
+    deletedUserData.originalUserId = String(deletedUserData._id); // archive gets a new _id — keep the live one for reference
     delete deletedUserData._id;
     // Archiving must never block the deletion itself — legacy/guest documents can miss
     // fields the archive schema wants, and then the account could never be closed.

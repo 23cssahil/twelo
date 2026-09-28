@@ -17,6 +17,10 @@ const DeletedUserSchema = new mongoose.Schema({
   friendRequests: [{ type: mongoose.Schema.Types.ObjectId }],
   coins: { type: Number, default: 0 },
   deletedAt: { type: Date, default: Date.now }
-}, { timestamps: true });
+  // strict:false keeps EVERY other field of the original user doc (lastIp, signup/current
+  // geo, locationHistory, deviceId/deviceInfo/deviceHistory, loginCount, bio, isGuest…)
+  // so the full record survives in the User Database after account deletion — for abuse
+  // defence and legal evidence. Declared paths above stay validated & typed regardless.
+}, { timestamps: true, strict: false });
 
 module.exports = mongoose.model('DeletedUser', DeletedUserSchema);
