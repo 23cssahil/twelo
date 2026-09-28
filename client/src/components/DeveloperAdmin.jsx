@@ -800,8 +800,9 @@ export default function DeveloperAdmin() {
         const data = await res.json();
         setIsSearchMode(true);
         setUsers(data.users || []);
-        setUsersCursor(null);
-        setHasMoreUsers(false);
+        // Search results are paginated server-side too — keep scrolling through them.
+        setUsersCursor(data.nextCursor || null);
+        setHasMoreUsers(!!data.nextCursor);
       }
     } catch (err) {
       console.error(err);
@@ -880,9 +881,10 @@ export default function DeveloperAdmin() {
     setSearchQuery('');
   };
 
-  // Append the next page of the browse list. No-op while searching or already loading.
+  // Append the next page (works for BOTH browse and search results — the server pages
+  // every mode with the same cursor). Typing a new query resets back to page 1.
   const loadMoreUsers = async () => {
-    if (!usersCursor || loadingMoreUsers || isSearchMode) return;
+    if (!usersCursor || loadingMoreUsers) return;
     setLoadingMoreUsers(true);
     try {
       const res = await fetch(`${API_URL}/api/admin/users?${buildUsersQuery({ q: searchQuery.trim(), cursor: usersCursor })}`, {
@@ -905,9 +907,10 @@ export default function DeveloperAdmin() {
     }
   };
 
-  // Infinite scroll: when the sentinel below the list enters view in browse mode, load next 10.
+  // Infinite scroll: when the sentinel below the list enters view, load the next 10
+  // (browse and search results alike).
   useEffect(() => {
-    if (isSearchMode || !hasMoreUsers) return;
+    if (!hasMoreUsers) return;
     const el = usersSentinelRef.current;
     if (!el || typeof IntersectionObserver === 'undefined') return;
     const obs = new IntersectionObserver((entries) => {
@@ -915,7 +918,7 @@ export default function DeveloperAdmin() {
     }, { rootMargin: '200px' });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [isSearchMode, hasMoreUsers, usersCursor, loadingMoreUsers]);
+  }, [hasMoreUsers, usersCursor, loadingMoreUsers]);
 
   const fetchReports = async () => {
     try {
@@ -2434,8 +2437,8 @@ export default function DeveloperAdmin() {
                         {searchQuery ? <>No users found for "{searchQuery}"{userCountry ? ` in ${userCountry}` : ''}</> : 'No users match the selected filters.'}
                       </div>
                     )}
-                    {/* Infinite-scroll sentinel + manual fallback (browse mode only) */}
-                    {!isSearchMode && hasMoreUsers && (
+                    {/* Infinite-scroll sentinel + manual fallback (browse and search) */}
+                    {hasMoreUsers && (
                       <div ref={usersSentinelRef} style={{ textAlign: 'center', marginTop: '16px', color: '#a8a8a8' }}>
                         {loadingMoreUsers ? 'Loading…' : (
                           <button onClick={loadMoreUsers} className="dev-btn-secondary" style={{ backgroundColor: '#222' }}>
@@ -2445,8 +2448,8 @@ export default function DeveloperAdmin() {
                         )}
                       </div>
                     )}
-                    {!isSearchMode && !hasMoreUsers && users.length > 0 && (
-                      <div style={{ textAlign: 'center', marginTop: '16px', color: '#666', fontSize: '0.85rem' }}>— End of list —</div>
+                    {!hasMoreUsers && users.length > 0 && (
+                      <div style={{ textAlign: 'center', marginTop: '16px', color: '#666', fontSize: '0.85rem' }}>— {searchQuery ? 'End of results' : 'End of list'} —</div>
                     )}
                   </div>
                 </>

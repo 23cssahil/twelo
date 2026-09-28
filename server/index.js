@@ -4323,30 +4323,56 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
     // username plus a "deleted account" marker and hide live-only actions.
     const toMaskedDeleted = (u) => ({ ...toMasked(u), isDeleted: true });
 
-    // SEARCH MODE: always query the FULL database (not the current page) so results are
-    // complete and instant. Returns up to 50 matches, no pagination cursor.
+    // SEARCH MODE: query the FULL database (not the current page) with the same
+    // keyset {sortField,_id} cursor pagination as browse mode, so every search —
+    // including the magic tokens — can be paged instead of being capped at one page.
     if (query) {
+      const searchLimit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 50, 100));
+      let cur = null;
+      if (req.query.cursor) {
+        try {
+          const { c, i, f } = JSON.parse(Buffer.from(req.query.cursor, 'base64').toString('utf8'));
+          cur = { date: new Date(c), id: new mongoose.Types.ObjectId(i), field: f || 'createdAt' };
+        } catch (e) { /* malformed cursor → first page */ }
+      }
+      const withKeyset = (filter, field) => {
+        if (!cur || cur.field !== field) return filter;
+        const ks = { $or: [{ [field]: { $lt: cur.date } }, { [field]: cur.date, _id: { $lt: cur.id } }] };
+        return Object.keys(filter).length ? { $and: [filter, ks] } : ks;
+      };
+      const encodeCursor = (u, field = 'createdAt') => u
+        ? Buffer.from(JSON.stringify({ c: new Date(u[field]).toISOString(), i: u._id.toString(), f: field })).toString('base64')
+        : null;
+      // One page-walk helper shared by all single-collection token modes.
+      const pagedFind = async (model, filter, field, proj) => {
+        let q = model.find(withKeyset(filter, field)).sort({ [field]: -1, _id: -1 }).limit(searchLimit + 1);
+        if (proj) q = q.select(proj);
+        const rows = await q;
+        const hasMore = rows.length > searchLimit;
+        const page = hasMore ? rows.slice(0, searchLimit) : rows;
+        return { page, nextCursor: hasMore ? encodeCursor(page[page.length - 1], field) : null };
+      };
       // Magic filter tokens (exact match, case-insensitive): @deleted, @guest, @live
       // (socket-connected right now), @offline (@ofline typo accepted). Location dropdown
-      // filters still narrow these; each returns up to 100 rows.
+      // filters still narrow these.
       const cmd = String(query).trim().toLowerCase();
       const onlineIds = Array.from(onlineUsers.keys()).map((id) => { try { return new mongoose.Types.ObjectId(String(id)); } catch (e) { return null; } }).filter(Boolean);
       const locAnd = locCond.length ? { $and: locCond } : {};
       if (cmd === '@deleted') {
-        const archives = await DeletedUser.find(locAnd).sort({ deletedAt: -1 }).limit(100);
-        return res.json({ users: archives.map(toMaskedDeleted), nextCursor: null });
+        const { page, nextCursor } = await pagedFind(DeletedUser, locAnd, 'deletedAt');
+        return res.json({ users: page.map(toMaskedDeleted), nextCursor });
       }
       if (cmd === '@guest') {
-        const found = await User.find({ isGuest: true, ...locAnd }).select('-password').sort({ createdAt: -1 }).limit(100);
-        return res.json({ users: found.map(toMasked), nextCursor: null });
+        const { page, nextCursor } = await pagedFind(User, { isGuest: true, ...locAnd }, 'createdAt', '-password');
+        return res.json({ users: page.map(toMasked), nextCursor });
       }
       if (cmd === '@live') {
-        const found = await User.find({ _id: { $in: onlineIds }, ...locAnd }).select('-password').sort({ createdAt: -1 }).limit(100);
-        return res.json({ users: found.map(toMasked), nextCursor: null });
+        const { page, nextCursor } = await pagedFind(User, { _id: { $in: onlineIds }, ...locAnd }, 'createdAt', '-password');
+        return res.json({ users: page.map(toMasked), nextCursor });
       }
       if (cmd === '@offline' || cmd === '@ofline') {
-        const found = await User.find({ _id: { $nin: onlineIds }, ...locAnd }).select('-password').sort({ createdAt: -1 }).limit(100);
-        return res.json({ users: found.map(toMasked), nextCursor: null });
+        const { page, nextCursor } = await pagedFind(User, { _id: { $nin: onlineIds }, ...locAnd }, 'createdAt', '-password');
+        return res.json({ users: page.map(toMasked), nextCursor });
       }
       const or = [
         { name: { $regex: query, $options: 'i' } },
@@ -4369,15 +4395,20 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
       }
       const searchFilter = { $or: or };
       if (locCond.length) searchFilter.$and = locCond;
-      const found = await User.find(searchFilter).select('-password').sort({ createdAt: -1 }).limit(50);
-      // Deleted accounts stay in the database — search must see them too (newest first,
-      // merged with live matches, whole result capped at 50).
-      let foundDeleted = [];
-      try { foundDeleted = await DeletedUser.find(searchFilter).sort({ createdAt: -1 }).limit(50); } catch (e) { console.error('deleted-user search:', e.message); }
+      // Deleted accounts stay in the database — search sees them too. Both collections are
+      // walked with the SAME keyset page by page, merged newest-first (global top-N always
+      // fits inside each collection's top N+1, so paging across them stays correct).
+      const pq = withKeyset(searchFilter, 'createdAt');
+      const [found, foundDeleted] = await Promise.all([
+        User.find(pq).select('-password').sort({ createdAt: -1, _id: -1 }).limit(searchLimit + 1),
+        DeletedUser.find(pq).sort({ createdAt: -1, _id: -1 }).limit(searchLimit + 1)
+      ]);
       const merged = [...found.map(toMasked), ...foundDeleted.map(toMaskedDeleted)]
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 50);
-      return res.json({ users: merged, nextCursor: null });
+        .sort((a, b) => (new Date(b.createdAt) - new Date(a.createdAt)) || (String(b._id) > String(a._id) ? 1 : -1))
+        .slice(0, searchLimit + 1);
+      const sHasMore = merged.length > searchLimit;
+      const sPage = sHasMore ? merged.slice(0, searchLimit) : merged;
+      return res.json({ users: sPage, nextCursor: sHasMore && sPage.length ? encodeCursor(sPage[sPage.length - 1]) : null });
     }
 
     // BROWSE MODE ("Load All Users"): cursor-based keyset pagination over createdAt+​_id,
