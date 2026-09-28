@@ -350,6 +350,17 @@ const StorySlide = ({
   const [touchStartY, setTouchStartY] = React.useState(null);
   const [touchEndY, setTouchEndY] = React.useState(null);
   const [showHeartAnimation, setShowHeartAnimation] = React.useState(false);
+  // Tap-vs-double-tap arbitration: a single tap delays its navigation by ~300ms so a
+  // follow-up double-tap can cancel it (otherwise the two clicks of a double-tap-like
+  // advance/skip the story before dblclick fires). lastLikeAt guards rapid re-likes
+  // that would toggle the like back off before the optimistic state lands.
+  const tapNavTimerRef = React.useRef(null);
+  const lastLikeAtRef = React.useRef(0);
+  const scheduleNav = (fn) => {
+    if (tapNavTimerRef.current) clearTimeout(tapNavTimerRef.current);
+    tapNavTimerRef.current = setTimeout(fn, 300);
+  };
+  React.useEffect(() => () => { if (tapNavTimerRef.current) clearTimeout(tapNavTimerRef.current); }, []);
 
   const localAudioRef = React.useRef(null);
 
@@ -418,18 +429,24 @@ const StorySlide = ({
 
   const handleDoubleClick = (e) => {
     e.stopPropagation();
-    
-    // Check if not already liked
-    const isLiked = story.likedBy?.some(u => u._id === (user?._id || user?.id) || u === (user?._id || user?.id));
-    if (!isLiked) {
+    // Cancel the pending single-tap navigation from the first click of this double-tap.
+    if (tapNavTimerRef.current) { clearTimeout(tapNavTimerRef.current); tapNavTimerRef.current = null; }
+
+    // Like only if not already liked — and never twice inside 800ms (the optimistic
+    // likedBy update may not have landed yet, and a second toggle would unlike it).
+    const myId = user?._id || user?.id;
+    const isLiked = story.likedBy?.some(u => u._id === myId || u === myId);
+    const now = Date.now();
+    if (!isLiked && now - lastLikeAtRef.current > 800) {
+      lastLikeAtRef.current = now;
       handleStoryLike(story._id, groupIdx, (isActiveSlide ? currentStoryIndex : 0));
     }
-    
+
     // Show animation
     setShowHeartAnimation(true);
     setTimeout(() => {
       setShowHeartAnimation(false);
-    }, 1000);
+    }, 900);
   };
 
   return (
@@ -447,19 +464,36 @@ const StorySlide = ({
       }}>
       <style>{`
         @keyframes storyHeartPop {
-          0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
-          15% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
-          30% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-          70% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+          0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+          20% { transform: translate(-50%, -50%) scale(1.12); opacity: 1; }
+          35% { transform: translate(-50%, -50%) scale(0.94); opacity: 1; }
+          50% { transform: translate(-50%, -50%) scale(1.03); opacity: 1; }
+          65% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          85% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1.08); opacity: 0; }
+        }
+        @keyframes storyHeartRing {
+          0% { transform: translate(-50%, -50%) scale(0.45); opacity: 0.9; }
+          100% { transform: translate(-50%, -50%) scale(1.55); opacity: 0; }
         }
       `}</style>
       {showHeartAnimation && (
         <div style={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-          zIndex: 100, pointerEvents: 'none', animation: 'storyHeartPop 1s ease-out forwards'
+          zIndex: 100, pointerEvents: 'none'
         }}>
-          <Heart size={200} fill="#ff2a2a" color="#fff" strokeWidth={1.5} />
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%', width: '110px', height: '110px',
+            borderRadius: '50%', border: '2px solid rgba(255,80,80,0.5)',
+            animation: 'storyHeartRing 0.7s ease-out forwards'
+          }} />
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            animation: 'storyHeartPop 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+            filter: 'drop-shadow(0 4px 14px rgba(255,42,42,0.45))'
+          }}>
+            <Heart size={110} fill="#ff2a2a" color="#fff" strokeWidth={1.5} />
+          </div>
         </div>
       )}
       {/* Progress Bars */}
@@ -477,7 +511,7 @@ const StorySlide = ({
       </div>
 
       {/* User Info Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '25px 15px 15px', position: 'absolute', top: '10px', left: 0, right: 0, zIndex: 10, background: 'linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)' }}>
+      <div onDoubleClick={(e) => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '25px 15px 15px', position: 'absolute', top: '10px', left: 0, right: 0, zIndex: 10, background: 'linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)' }}>
         <div 
           style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, cursor: 'pointer' }}
           onClick={(e) => {
@@ -642,13 +676,15 @@ const StorySlide = ({
           onClick={(e) => {
             e.stopPropagation();
             if (swipedRef.current) { swipedRef.current = false; return; }
-            const idx = isActiveSlide ? currentStoryIndex : 0;
-            if (idx > 0) {
-              setCurrentStoryIndex(idx - 1);
-              setStoryProgress(0);
-            } else if (handlePrevUser) {
-              handlePrevUser();
-            }
+            scheduleNav(() => {
+              const idx = isActiveSlide ? currentStoryIndex : 0;
+              if (idx > 0) {
+                setCurrentStoryIndex(idx - 1);
+                setStoryProgress(0);
+              } else if (handlePrevUser) {
+                handlePrevUser();
+              }
+            });
           }}
         />
         <div 
@@ -657,19 +693,21 @@ const StorySlide = ({
           onClick={(e) => {
             e.stopPropagation();
             if (swipedRef.current) { swipedRef.current = false; return; }
-            const idx = isActiveSlide ? currentStoryIndex : 0;
-            if (idx < group.stories.length - 1) {
-              setCurrentStoryIndex(idx + 1);
-              setStoryProgress(0);
-            } else if (handleNextUser) {
-              handleNextUser();
-            }
+            scheduleNav(() => {
+              const idx = isActiveSlide ? currentStoryIndex : 0;
+              if (idx < group.stories.length - 1) {
+                setCurrentStoryIndex(idx + 1);
+                setStoryProgress(0);
+              } else if (handleNextUser) {
+                handleNextUser();
+              }
+            });
           }}
         />
 
         {/* Action Bar for Everyone Stories */}
         {(!story.isAd && (activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone')) && (
-          <div style={{ position: 'absolute', right: '12px', bottom: '80px', zIndex: 15, display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+          <div onDoubleClick={(e) => e.stopPropagation()} style={{ position: 'absolute', right: '12px', bottom: '80px', zIndex: 15, display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
             {/* Like Button */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <button 
@@ -728,7 +766,7 @@ const StorySlide = ({
 
       {/* Bottom Controls (Only for normal stories or your own stories) */}
       {(!story.isAd && (!(activeTab === 'everyone-stories' || story.visibility === 'global' || story.visibility === 'everyone') || group.user._id === (user?._id || user?.id))) && (
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
+        <div onDoubleClick={(e) => e.stopPropagation()} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
           {group.user._id === (user?._id || user?.id) ? (
             <>
               <div 
