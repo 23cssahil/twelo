@@ -1547,6 +1547,61 @@ export default function Dashboard() {
   const [storyViewerActive, setStoryViewerActive] = useState(false);
   const [currentStoryUserIndex, setCurrentStoryUserIndex] = useState(0);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
+
+  // ── Story tray: shared ring-state helpers + memoized lookups ──
+  // The unseen / close-friend / ring-color logic used to be copy-pasted in three places
+  // (story tray, chat list rows, active-chat header) and each chat row did an O(n) findIndex
+  // (O(n²) overall). Centralised here so there is one source of truth and lookups are O(1).
+  const storyBarRef = useRef(null);
+  const [storiesLoading, setStoriesLoading] = useState(true);
+  const currentUserIdStr = String(user?._id || user?.id || '');
+  const storyIndexById = useMemo(() => {
+    const m = new Map();
+    groupedStories.forEach((g, i) => m.set(String(g.user._id), i));
+    return m;
+  }, [groupedStories]);
+  const myStoryGroup = useMemo(
+    () => groupedStories.find(g => String(g.user._id) === currentUserIdStr) || null,
+    [groupedStories, currentUserIdStr]
+  );
+  // Returns { total, unseenCount, hasUnseen, isCloseFriend, totalViews } or null for no story.
+  const analyzeStoryGroup = (group) => {
+    if (!group) return null;
+    const stories = group.stories || [];
+    const total = stories.length;
+    const unseen = stories.filter(s => !s.viewedBy || !s.viewedBy.some(v => String(v._id || v) === currentUserIdStr));
+    const unseenCount = unseen.length;
+    const hasUnseen = unseenCount > 0;
+    const isCloseFriend = hasUnseen ? unseen.some(s => s.visibility === 'custom') : stories.some(s => s.visibility === 'custom');
+    const totalViews = stories.reduce((n, s) => n + (Array.isArray(s.viewedBy) ? s.viewedBy.length : 0), 0);
+    return { total, unseenCount, hasUnseen, isCloseFriend, totalViews };
+  };
+  // Conic progress ring: the bright arc = how many of this user's stories are still UNSEEN,
+  // so a fresh story shows a full brand-blue ring that drains to a faint track as you watch.
+  const storyRingBg = (a) => {
+    if (!a) return 'transparent';
+    const track = 'rgba(255,255,255,0.14)';
+    const bright = a.isCloseFriend ? '#7b5cff' : '#00c6ff';
+    const deg = a.total ? (a.unseenCount / a.total) * 360 : 0;
+    return `conic-gradient(from -90deg, ${bright} ${deg}deg, ${track} ${deg}deg)`;
+  };
+  const openStoryByUserId = (userId) => {
+    const idx = storyIndexById.get(String(userId));
+    if (idx == null) return false;
+    const group = groupedStories[idx];
+    let firstUnseen = group.stories.findIndex(s => !s.viewedBy || !s.viewedBy.some(v => String(v._id || v) === currentUserIdStr));
+    if (firstUnseen === -1) firstUnseen = 0;
+    setProfileStoryGroups(null);
+    setCurrentStoryUserIndex(idx);
+    setCurrentStoryIndex(firstUnseen);
+    setStoryProgress(0);
+    setStoryViewerActive(true);
+    return true;
+  };
+  const scrollStoryBar = (dir) => {
+    const el = storyBarRef.current;
+    if (el) el.scrollBy({ left: dir * 220, behavior: 'smooth' });
+  };
   useEffect(() => {
     if (storyViewerActive && activeTab === 'everyone-stories') {
       setTimeout(() => {
@@ -2454,6 +2509,8 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Failed to fetch stories', err);
       showToastMsg('Network error loading stories', 'error');
+    } finally {
+      setStoriesLoading(false);
     }
   };
 
@@ -6913,64 +6970,86 @@ const handleStoryUpload = async () => {
                 </div>
               </div>
               
-              <div className="story-bar-container" style={{
-                display: 'flex', gap: '15px', padding: '15px', 
-                overflowX: 'auto', borderBottom: '1px solid var(--border-color)', 
-                scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch'
-              }}>
-                <style>{`.story-bar-container::-webkit-scrollbar { display: none; }`}</style>
+              <div className="tw-storybar-wrap">
+                <style>{`
+                  .tw-storybar-wrap { position: relative; }
+                  .story-bar-container.tw-storybar { display: flex; gap: 16px; padding: 16px 14px; overflow-x: auto; border-bottom: 1px solid var(--border-color); scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+                  .story-bar-container.tw-storybar::-webkit-scrollbar { display: none; }
+                  .tw-story { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; flex-shrink: 0; outline: none; -webkit-tap-highlight-color: transparent; }
+                  .tw-ring { width: 60px; height: 60px; border-radius: 50%; padding: 2.5px; display: flex; align-items: center; justify-content: center; transition: transform .18s ease; }
+                  .tw-story:hover .tw-ring, .tw-story:focus-visible .tw-ring { transform: scale(1.07); }
+                  .tw-story:active .tw-ring { transform: scale(.95); }
+                  .tw-ring-inner { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2.5px solid #050505; background: var(--insta-gradient, linear-gradient(135deg,#00c6ff,#0072ff)); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; }
+                  .tw-ring-inner img { width: 100%; height: 100%; object-fit: cover; }
+                  .tw-count { position: absolute; top: -2px; right: 3px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: linear-gradient(135deg,#00c6ff,#0072ff); color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid #050505; box-shadow: 0 2px 8px rgba(0,114,255,.5); pointer-events: none; }
+                  .tw-add-badge { position: absolute; bottom: 20px; right: 1px; background: var(--brand-blue,#0072ff); border-radius: 50%; padding: 2px; display: flex; align-items: center; justify-content: center; border: 2px solid #050505; box-shadow: 0 2px 8px rgba(0,114,255,.55); cursor: pointer; }
+                  .tw-name { font-size: .72rem; color: #eaeaea; max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                  .tw-views { font-size: .62rem; color: #8fb8ff; display: flex; align-items: center; gap: 3px; margin-top: -3px; }
+                  .tw-story-skel { width: 60px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+                  .tw-skel-ring { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(90deg,#111 25%,#1e1e1e 37%,#111 63%); background-size: 400% 100%; animation: tw-shimmer 1.4s ease infinite; }
+                  .tw-skel-line { width: 44px; height: 8px; border-radius: 4px; background: linear-gradient(90deg,#111 25%,#1e1e1e 37%,#111 63%); background-size: 400% 100%; animation: tw-shimmer 1.4s ease infinite; }
+                  @keyframes tw-shimmer { 0% { background-position: 100% 0 } 100% { background-position: 0 0 } }
+                  .tw-storybar-arrow { position: absolute; top: 46px; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); background: rgba(10,10,10,.72); color: #fff; display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 5; backdrop-filter: blur(4px); }
+                  .tw-storybar-arrow:hover { background: rgba(0,114,255,.85); }
+                  .tw-storybar-arrow-l { left: 2px; } .tw-storybar-arrow-r { right: 2px; }
+                  @media (min-width: 900px) { .tw-storybar-arrow { display: flex; } }
+                `}</style>
                 <input type="file" accept="image/*,video/*" style={{ display: 'none' }} ref={storyFileInputRef} onChange={handleStorySelect} onClick={(e) => { e.target.value = null; }} />
-                
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 }} onClick={openStoryCamera}>
-                  <div style={{ position: 'relative' }}>
-                    <div className="user-avatar-small" style={{ width: '56px', height: '56px', border: '2px solid #333' }}>
-                      {storyUploading ? <Loader2 className="rotating" size={24} color="#fff" /> : (user.avatarUrl ? <img src={user.avatarUrl} alt='me' /> : user.username.charAt(0).toUpperCase())}
-                    </div>
-                    <div style={{ position: 'absolute', bottom: '-2px', right: '-2px', background: 'var(--brand-blue)', borderRadius: '50%', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <PlusCircle size={14} color="#fff" />
-                    </div>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: '#a8a8a8' }}>{storyUploading ? 'Posting...' : 'Your Story'}</span>
-                </div>
-                
-                {groupedStories.map((group, idx) => {
-                  const myId = user?._id || user?.id;
-                  const unseenStories = group.stories.filter(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
-                  const hasUnseen = unseenStories.length > 0;
-                  const isCloseFriend = hasUnseen ? unseenStories.some(s => s.visibility === 'custom') : group.stories.some(s => s.visibility === 'custom');
-                  
-                  let ringBackground = '#444'; // grey for seen
-                  if (hasUnseen) {
-                    if (isCloseFriend) {
-                      ringBackground = '#1cf23b'; // green for close friends
-                    } else {
-                      ringBackground = 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
-                    }
-                  }
 
-                  return (
-                  <div key={group.user._id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 }} onClick={() => {
-                    let firstUnseenIdx = group.stories.findIndex(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
-                    if (firstUnseenIdx === -1) firstUnseenIdx = 0;
-                    setProfileStoryGroups(null);
-                    setCurrentStoryUserIndex(idx);
-                    setCurrentStoryIndex(firstUnseenIdx);
-                    setStoryProgress(0);
-                    setStoryViewerActive(true);
-                  }}>
-                    <div className="user-avatar-small" style={{ 
-                      width: '56px', height: '56px', 
-                      background: ringBackground,
-                      padding: '2px', // gap for border
-                      borderRadius: '50%'
-                    }}>
-                      <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: '2px solid #000' }}>
-                        {group.user.avatarUrl ? <img src={group.user.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}}/> : <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)'}}>{group.user.username.charAt(0).toUpperCase()}</div>}
+                <button type="button" className="tw-storybar-arrow tw-storybar-arrow-l" onClick={() => scrollStoryBar(-1)} aria-label="Scroll stories left"><ChevronLeft size={18} /></button>
+                <button type="button" className="tw-storybar-arrow tw-storybar-arrow-r" onClick={() => scrollStoryBar(1)} aria-label="Scroll stories right"><ChevronRight size={18} /></button>
+
+                <div className="story-bar-container tw-storybar" ref={storyBarRef}>
+                  {/* Your Story — merged create + view tile (self is not duplicated below). */}
+                  {(() => {
+                    const a = analyzeStoryGroup(myStoryGroup);
+                    const hasStory = !!myStoryGroup;
+                    const activate = () => { hasStory ? openStoryByUserId(user?._id || user?.id) : openStoryCamera('user', 'story'); };
+                    return (
+                      <div className="tw-story" role="button" tabIndex={0} aria-label="Your story" onClick={activate}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } }}>
+                        <div className="tw-ring" style={{ background: a ? storyRingBg(a) : 'transparent' }}>
+                          <div className="tw-ring-inner" style={{ border: hasStory ? '2.5px solid #050505' : '2px solid #333' }}>
+                            {storyUploading ? <Loader2 className="rotating" size={24} color="#fff" /> : (user.avatarUrl ? <img src={user.avatarUrl} alt="me" /> : (user.username || '?').charAt(0).toUpperCase())}
+                          </div>
+                        </div>
+                        <div className="tw-add-badge" title="Add to your story" onClick={(e) => { e.stopPropagation(); openStoryCamera('user', 'story'); }}>
+                          <PlusCircle size={14} color="#fff" />
+                        </div>
+                        {hasStory && a.total > 1 && <div className="tw-count">{a.total}</div>}
+                        <span className="tw-name">{storyUploading ? 'Posting…' : 'Your Story'}</span>
+                        {hasStory && <span className="tw-views"><Eye size={11} /> {a.totalViews}</span>}
                       </div>
+                    );
+                  })()}
+
+                  {/* Skeleton shimmer while the first story fetch is in flight. */}
+                  {storiesLoading && groupedStories.length === 0 && [0, 1, 2, 3, 4].map(i => (
+                    <div className="tw-story-skel" key={`skel-${i}`} aria-hidden="true">
+                      <div className="tw-skel-ring" /><div className="tw-skel-line" />
                     </div>
-                    <span style={{ fontSize: '0.75rem', color: '#fff' }}>{group.user.username.length > 8 ? group.user.username.substring(0, 8) + '...' : group.user.username}</span>
-                  </div>
-                )})}
+                  ))}
+
+                  {/* Friends' stories — self is skipped (rendered as the tile above). */}
+                  {groupedStories.map((group) => {
+                    if (String(group.user._id) === currentUserIdStr) return null;
+                    const a = analyzeStoryGroup(group);
+                    const uname = group.user.username || 'user';
+                    return (
+                      <div key={group.user._id} className="tw-story" role="button" tabIndex={0} aria-label={`${uname}'s story`}
+                        onClick={() => openStoryByUserId(group.user._id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openStoryByUserId(group.user._id); } }}>
+                        <div className="tw-ring" style={{ background: storyRingBg(a) }}>
+                          <div className="tw-ring-inner">
+                            {group.user.avatarUrl ? <img src={group.user.avatarUrl} alt="avatar" /> : uname.charAt(0).toUpperCase()}
+                          </div>
+                        </div>
+                        {a.total > 1 && <div className="tw-count">{a.total}</div>}
+                        <span className="tw-name">{uname.length > 8 ? uname.substring(0, 8) + '…' : uname}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="chat-users-scroll" onScroll={handleChatsScroll}>
@@ -6978,24 +7057,12 @@ const handleStoryUpload = async () => {
                   const isOnline = onlineUsersSet.has(chatUser._id);
                   const unreadCount = unreadMessages[chatUser._id] || 0;
                   
-                  // Check if this chat user has a story
-                  const chatUserStoryGroupIndex = groupedStories.findIndex(g => g.user._id === chatUser._id);
-                  const chatUserStoryGroup = chatUserStoryGroupIndex !== -1 ? groupedStories[chatUserStoryGroupIndex] : null;
-                  let ringBackground = 'transparent';
-                  let hasRing = false;
-                  if (chatUserStoryGroup) {
-                    const myId = user?._id || user?.id;
-                    const unseenStories = chatUserStoryGroup.stories.filter(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
-                    const hasUnseen = unseenStories.length > 0;
-                    const isCloseFriend = hasUnseen ? unseenStories.some(s => s.visibility === 'custom') : chatUserStoryGroup.stories.some(s => s.visibility === 'custom');
-                    
-                    hasRing = true;
-                    if (hasUnseen) {
-                      ringBackground = isCloseFriend ? '#1cf23b' : 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
-                    } else {
-                      ringBackground = '#444';
-                    }
-                  }
+                  // Story ring for this chat user — shared helper + O(1) memoized lookup
+                  // (was an inline O(n) findIndex per row + duplicated ring logic).
+                  const chatUserIdx = storyIndexById.get(String(chatUser._id));
+                  const chatUserStoryGroup = chatUserIdx != null ? groupedStories[chatUserIdx] : null;
+                  const hasRing = !!chatUserStoryGroup;
+                  const ringBackground = storyRingBg(analyzeStoryGroup(chatUserStoryGroup));
 
                   return (
                     <div 
@@ -7005,22 +7072,15 @@ const handleStoryUpload = async () => {
                     >
                       <div 
                         className="user-avatar-small" 
-                        style={{ background: ringBackground, padding: hasRing ? '2px' : '0', borderRadius: '50%', cursor: chatUserStoryGroup ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent' }}
+                        style={{ background: ringBackground, padding: hasRing ? '2.5px' : '0', borderRadius: '50%', cursor: chatUserStoryGroup ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent' }}
                         onClick={(e) => {
                           if (chatUserStoryGroup) {
                             e.stopPropagation();
-                            const myId = user?._id || user?.id;
-                            let firstUnseenIdx = chatUserStoryGroup.stories.findIndex(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
-                            if (firstUnseenIdx === -1) firstUnseenIdx = 0;
-                            setProfileStoryGroups(null);
-                            setCurrentStoryUserIndex(chatUserStoryGroupIndex);
-                            setCurrentStoryIndex(firstUnseenIdx);
-                            setStoryProgress(0);
-                            setStoryViewerActive(true);
+                            openStoryByUserId(chatUser._id);
                           }
                         }}
                       >
-                        <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: hasRing ? '2px solid #000' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)' }}>
+                        <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: hasRing ? '2px solid #050505' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)' }}>
                           {chatUser.avatarUrl ? <img src={chatUser.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : chatUser.username.charAt(0).toUpperCase()}
                         </div>
                       </div>
@@ -7099,56 +7159,28 @@ const handleStoryUpload = async () => {
                       >
                         ←
                       </button>
-                      <div 
-                        className="user-avatar-small" 
-                        onClick={() => {
-                          const chatUserStoryGroupIndex = groupedStories.findIndex(g => g.user._id === activeChatUser._id);
-                          const chatUserStoryGroup = chatUserStoryGroupIndex !== -1 ? groupedStories[chatUserStoryGroupIndex] : null;
-                          if (chatUserStoryGroup) {
-                            const myId = user?._id || user?.id;
-                            let firstUnseenIdx = chatUserStoryGroup.stories.findIndex(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
-                            if (firstUnseenIdx === -1) firstUnseenIdx = 0;
-                            setProfileStoryGroups(null);
-                            setCurrentStoryUserIndex(chatUserStoryGroupIndex);
-                            setCurrentStoryIndex(firstUnseenIdx);
-                            setStoryProgress(0);
-                            setStoryViewerActive(true);
-                          } else {
-                            viewPublicProfile(activeChatUser._id);
-                          }
-                        }}
-                        style={(() => {
-                          const chatUserStoryGroupIndex = groupedStories.findIndex(g => g.user._id === activeChatUser._id);
-                          const chatUserStoryGroup = chatUserStoryGroupIndex !== -1 ? groupedStories[chatUserStoryGroupIndex] : null;
-                          let ringBackground = 'transparent';
-                          let hasRing = false;
-                          if (chatUserStoryGroup) {
-                            const myId = user?._id || user?.id;
-                            const unseenStories = chatUserStoryGroup.stories.filter(s => !s.viewedBy || !s.viewedBy.some(v => (v._id || v) === myId));
-                            const hasUnseen = unseenStories.length > 0;
-                            const isCloseFriend = hasUnseen ? unseenStories.some(s => s.visibility === 'custom') : chatUserStoryGroup.stories.some(s => s.visibility === 'custom');
-                            hasRing = true;
-                            if (hasUnseen) {
-                              ringBackground = isCloseFriend ? '#1cf23b' : 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
-                            } else {
-                              ringBackground = '#444';
-                            }
-                          }
-                          return { background: ringBackground, padding: hasRing ? '2px' : '0', borderRadius: '50%', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' };
-                        })()}
-                      >
-                        <div style={{ 
-                          width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', 
-                          border: (() => {
-                            const chatUserStoryGroupIndex = groupedStories.findIndex(g => g.user._id === activeChatUser._id);
-                            const hasRing = chatUserStoryGroupIndex !== -1;
-                            return hasRing ? '2px solid #000' : 'none';
-                          })(),
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)'
-                        }}>
-                          {activeChatUser.avatarUrl ? <img src={activeChatUser.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : activeChatUser.username.charAt(0).toUpperCase()}
-                        </div>
-                      </div>
+                      {(() => {
+                        // One lookup + shared ring helper (was three duplicate findIndex calls).
+                        const idx = storyIndexById.get(String(activeChatUser._id));
+                        const grp = idx != null ? groupedStories[idx] : null;
+                        const hasRing = !!grp;
+                        const activate = () => { if (grp) openStoryByUserId(activeChatUser._id); else viewPublicProfile(activeChatUser._id); };
+                        return (
+                          <div
+                            className="user-avatar-small"
+                            role="button"
+                            tabIndex={0}
+                            aria-label={hasRing ? `View ${activeChatUser.username}'s story` : 'View profile'}
+                            onClick={activate}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } }}
+                            style={{ background: storyRingBg(analyzeStoryGroup(grp)), padding: hasRing ? '2.5px' : '0', borderRadius: '50%', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                          >
+                            <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: hasRing ? '2px solid #050505' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)' }}>
+                              {activeChatUser.avatarUrl ? <img src={activeChatUser.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : activeChatUser.username.charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <div className="user-names" onClick={() => viewPublicProfile(activeChatUser._id)} style={{ cursor: 'pointer' }}>
                         <span className="user-username">@{activeChatUser.username}</span>
                         <span style={{ fontSize: '0.75rem', color: onlineUsersSet.has(activeChatUser._id) ? '#2bd856' : 'var(--chat-user-subtext, #a8a8a8)' }}>
