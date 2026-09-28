@@ -75,6 +75,20 @@ import {
 
 const APP_VERSION = '1.0.0';
 
+// Generic silhouette shown in the "Choose 3D Avatar" grid when a gender's avatar
+// files aren't present yet (currently: male has no /avatars/male/*.png). Inline
+// SVG data-URI so it needs no network/CORS and never taints the canvas in the
+// click-to-upload handler. Once real male PNGs are added, this stops firing.
+const AVATAR_PLACEHOLDER =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'>" +
+    "<rect width='200' height='200' fill='#161821'/>" +
+    "<circle cx='100' cy='78' r='34' fill='#3a4152'/>" +
+    "<path d='M40 172a60 60 0 0 1 120 0z' fill='#3a4152'/>" +
+    "</svg>"
+  );
+
 const CHAT_THEMES = [
   {"id":"default","name":"Default","bg":"transparent","preview":"#222"},
   {"id":"whatsapp_light","name":"Doodle Chat","bg":"#e5ddd5 url(\"data:image/svg+xml,%3Csvg%20width%3D%22100%22%20height%3D%22100%22%20viewBox%3D%220%200%20100%20100%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2220%22%20r%3D%223%22%20fill%3D%22%23000%22%20opacity%3D%220.05%22%2F%3E%3Crect%20x%3D%2260%22%20y%3D%2240%22%20width%3D%226%22%20height%3D%226%22%20fill%3D%22%23000%22%20opacity%3D%220.05%22%20transform%3D%22rotate(45%2063%2043)%22%2F%3E%3Cpath%20d%3D%22M%2080%2080%20Q%2085%2070%2090%2080%20T%20100%2080%22%20stroke%3D%22%23000%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20opacity%3D%220.05%22%2F%3E%3C%2Fsvg%3E\") repeat","preview":"#e5ddd5 url(\"data:image/svg+xml,%3Csvg%20width%3D%22100%22%20height%3D%22100%22%20viewBox%3D%220%200%20100%20100%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2220%22%20r%3D%223%22%20fill%3D%22%23000%22%20opacity%3D%220.05%22%2F%3E%3Crect%20x%3D%2260%22%20y%3D%2240%22%20width%3D%226%22%20height%3D%226%22%20fill%3D%22%23000%22%20opacity%3D%220.05%22%20transform%3D%22rotate(45%2063%2043)%22%2F%3E%3Cpath%20d%3D%22M%2080%2080%20Q%2085%2070%2090%2080%20T%20100%2080%22%20stroke%3D%22%23000%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20opacity%3D%220.05%22%2F%3E%3C%2Fsvg%3E\") repeat"},
@@ -9825,7 +9839,7 @@ const handleStoryUpload = async () => {
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
-              {[1, 2, 3, 4, 5, 6].map((num) => (
+              {Array.from({ length: user?.gender === 'female' ? 6 : 10 }, (_, i) => i + 1).map((num) => (
                 <div 
                   key={num} 
                   onClick={() => {
@@ -9863,7 +9877,7 @@ const handleStoryUpload = async () => {
                   onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.borderColor = '#10B981'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'transparent'; }}
                 >
-                  <img id={`avatar-img-${num}`} crossOrigin="anonymous" src={`/avatars/${user?.gender === 'female' ? 'female' : 'male'}/${num}.png`} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.src = 'https://via.placeholder.com/150?text=Pending' }} />
+                  <img id={`avatar-img-${num}`} crossOrigin="anonymous" src={`/avatars/${user?.gender === 'female' ? 'female' : 'male'}/${num}.png`} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = AVATAR_PLACEHOLDER; }} />
                 </div>
               ))}
             </div>
