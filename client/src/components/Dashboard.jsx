@@ -9938,15 +9938,39 @@ const handleStoryUpload = async () => {
           background: '#000', zIndex: 11000, display: 'flex', flexDirection: 'column'
         }}>
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px', background: 'rgba(0,0,0,0.5)', zIndex: 10 }}>
-            <button style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }} onClick={() => setStoryEditorOpen(false)}>
-              <X size={28} />
-            </button>
-            <button style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }} onClick={() => setShowMusicPicker(!showMusicPicker)}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: selectedSongUrl ? 'var(--brand-blue)' : 'rgba(255,255,255,0.2)', padding: '5px 10px', borderRadius: '20px' }}>
-                <span style={{ fontSize: '1.2rem' }}>🎵</span>
-                <span style={{ fontSize: '0.85rem' }}>{selectedSongUrl ? 'Song Added' : 'Music'}</span>
-              </div>
+          <style>{`
+            .se-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; background: linear-gradient(180deg, rgba(0,0,0,0.72), rgba(0,0,0,0.35)); position: relative; z-index: 10; }
+            .se-icon-btn { width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.16); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(8px); }
+            .se-icon-btn:active { transform: scale(.93); }
+            .se-title-wrap { position: absolute; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+            .se-title { font-weight: 700; font-size: .98rem; color: #fff; letter-spacing: .2px; }
+            .se-subtitle { font-size: .66rem; color: rgba(255,255,255,.55); margin-top: 1px; }
+            .se-song-pill { margin-left: auto; display: flex; align-items: center; gap: 7px; max-width: 165px; padding: 8px 14px; border-radius: 22px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.16); color: #fff; font-size: .82rem; font-weight: 600; cursor: pointer; backdrop-filter: blur(8px); transition: background .18s ease, box-shadow .18s ease; }
+            .se-song-pill.active { background: linear-gradient(135deg,#00c6ff,#0072ff); border-color: transparent; box-shadow: 0 4px 16px rgba(0,114,255,.45); }
+            .se-song-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .se-footer { padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(12,12,16,0.72), rgba(8,8,10,0.96)); backdrop-filter: blur(14px); border-top: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 12px; z-index: 10; }
+            .se-handle { width: 40px; height: 4px; border-radius: 4px; background: rgba(255,255,255,0.22); margin: 0 auto; }
+            .se-label { color: rgba(255,255,255,.6); font-size: .74rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+            .se-seg { display: flex; gap: 6px; background: rgba(255,255,255,0.07); padding: 5px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); }
+            .se-seg-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 4px; border: none; border-radius: 12px; background: transparent; color: rgba(255,255,255,.65); font-size: .8rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .16s ease, color .16s ease, box-shadow .16s ease; }
+            .se-seg-btn.active { background: linear-gradient(135deg,#00c6ff,#0072ff); color: #fff; box-shadow: 0 4px 14px rgba(0,114,255,.4); }
+            .se-friends-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-radius: 14px; background: rgba(123,92,255,0.13); border: 1px solid rgba(123,92,255,0.5); color: #c4b5fd; font-size: .88rem; font-weight: 600; cursor: pointer; }
+            .se-friends-row:active { transform: scale(.99); }
+            .se-friends-side { display: flex; align-items: center; gap: 7px; }
+            .se-share-btn { width: 100%; padding: 14px; border: none; border-radius: 16px; background: linear-gradient(135deg,#00c6ff,#0072ff); color: #fff; font-size: 1rem; font-weight: 700; display: flex; justify-content: center; align-items: center; gap: 10px; cursor: pointer; box-shadow: 0 6px 22px rgba(0,114,255,.45); transition: transform .15s ease, box-shadow .15s ease; }
+            .se-share-btn:active:not(:disabled) { transform: scale(.98); }
+            .se-share-btn:disabled { background: rgba(255,255,255,0.12); color: rgba(255,255,255,.5); box-shadow: none; cursor: not-allowed; }
+            .se-expire-note { text-align: center; font-size: .72rem; color: rgba(255,255,255,.5); }
+          `}</style>
+          <div className="se-header">
+            <button className="se-icon-btn" onClick={() => setStoryEditorOpen(false)} aria-label="Close editor"><X size={20} /></button>
+            <div className="se-title-wrap">
+              <span className="se-title">New Story</span>
+              <span className="se-subtitle">Disappears after 24 hours</span>
+            </div>
+            <button className={`se-song-pill ${selectedSongUrl ? 'active' : ''}`} onClick={() => setShowMusicPicker(!showMusicPicker)}>
+              <span aria-hidden="true">🎵</span>
+              <span className="se-song-label">{selectedSongUrl ? (selectedStorySongData?.title || 'Song added') : 'Add music'}</span>
             </button>
           </div>
 
@@ -10262,41 +10286,32 @@ const handleStoryUpload = async () => {
 
           {/* Footer Controls */}
           {!isCroppingStory && (
-            <div style={{ padding: '20px 15px', background: 'rgba(0,0,0,0.8)', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#222', padding: '10px 15px', borderRadius: '12px' }}>
-              <span style={{ color: '#a8a8a8', fontSize: '0.9rem' }}>Who can see this?</span>
-              <select 
-                value={storyVisibility} 
-                onChange={(e) => setStoryVisibility(e.target.value)}
-                style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.9rem', cursor: 'pointer' }}
-              >
-                <option value="global" style={{ color: '#000' }}>Global Story</option>
-                <option value="followers" style={{ color: '#000' }}>Followers Only</option>
-                <option value="custom" style={{ color: '#000' }}>Close Friends</option>
-              </select>
-            </div>
-            
-            {storyVisibility === 'custom' && (
-              <div 
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#222', padding: '10px 15px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #1cf23b' }}
-                onClick={() => { setCloseFriendSearch(''); setShowCloseFriendsModal(true); }}
-              >
-                <span style={{ color: '#1cf23b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Users size={16} /> Select Friends
-                </span>
-                <span style={{ color: '#fff', fontSize: '0.9rem' }}>{selectedCloseFriends.length} selected &gt;</span>
+            <div className="se-footer">
+              <div className="se-handle" />
+              <span className="se-label">Who can see this story?</span>
+              <div className="se-seg" role="group" aria-label="Story visibility">
+                <button type="button" className={`se-seg-btn ${(storyVisibility === 'global' || storyVisibility === 'everyone') ? 'active' : ''}`} onClick={() => setStoryVisibility('global')}><GlobeIcon size={15} /> Global</button>
+                <button type="button" className={`se-seg-btn ${storyVisibility === 'followers' ? 'active' : ''}`} onClick={() => setStoryVisibility('followers')}><Users size={15} /> Followers</button>
+                <button type="button" className={`se-seg-btn ${storyVisibility === 'custom' ? 'active' : ''}`} onClick={() => setStoryVisibility('custom')}><Lock size={15} /> Close Friends</button>
               </div>
-            )}
-            
-            <button 
-              onClick={handleStoryUpload}
-              disabled={storyUploading || storyPreviewSafety === 'checking' || storyPreviewSafety === 'unsafe'}
-              style={{ width: '100%', padding: '15px', background: storyUploading || storyPreviewSafety === 'checking' || storyPreviewSafety === 'unsafe' ? '#555' : 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: '#fff', border: 'none', borderRadius: '30px', fontSize: '1rem', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', cursor: (storyUploading || storyPreviewSafety === 'checking' || storyPreviewSafety === 'unsafe') ? 'not-allowed' : 'pointer', opacity: (storyUploading || storyPreviewSafety === 'checking' || storyPreviewSafety === 'unsafe') ? 0.5 : 1 }}
-            >
-              {storyUploading ? <Loader2 className="rotating" size={20} /> : <Check size={20} />}
-              {storyUploading ? 'Posting...' : 'Share to Status'}
-            </button>
-          </div>
+
+              {storyVisibility === 'custom' && (
+                <div className="se-friends-row" onClick={() => { setCloseFriendSearch(''); setShowCloseFriendsModal(true); }}>
+                  <span className="se-friends-side"><Users size={16} /> Select friends</span>
+                  <span className="se-friends-side">{selectedCloseFriends.length ? `${selectedCloseFriends.length} selected` : 'None selected'} <ChevronRight size={15} /></span>
+                </div>
+              )}
+
+              <button
+                className="se-share-btn"
+                onClick={handleStoryUpload}
+                disabled={storyUploading || storyPreviewSafety === 'checking' || storyPreviewSafety === 'unsafe'}
+              >
+                {storyUploading ? <Loader2 className="rotating" size={20} /> : <Send size={18} />}
+                {storyUploading ? 'Posting…' : storyPreviewSafety === 'checking' ? 'Scanning your photo…' : storyPreviewSafety === 'unsafe' ? 'Flagged — cannot post' : 'Share to Story'}
+              </button>
+              <div className="se-expire-note">⏳ Story stays live for 24 hours, then disappears</div>
+            </div>
           )}
         </div>
       )}
