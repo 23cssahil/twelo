@@ -123,7 +123,7 @@ input, button, textarea {
   align-items: center;
   min-height: 100vh;
   padding: 20px;
-  background-color: var(--bg-color);
+  background: radial-gradient(700px 460px at 50% -12%, rgba(0, 114, 255, 0.09), transparent 70%), var(--bg-color, #050607);
 }
 
 .auth-box {
@@ -135,14 +135,36 @@ input, button, textarea {
 }
 
 .auth-logo {
-  font-size: 2.8rem;
+  font-size: 2rem;
   font-weight: 700;
   text-align: center;
-  background: var(--insta-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #ffffff;
+  letter-spacing: -0.5px;
   margin-bottom: 12px;
   font-family: 'Outfit', sans-serif;
+}
+
+/* Login card — clean platform-grade surface (scoped so admin pages are untouched) */
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(17, 19, 23, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 22px;
+  padding: 32px 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  font-size: 0.85rem;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
 }
 
 .auth-form {
@@ -1347,16 +1369,16 @@ input, button, textarea {
 
 .step-badge {
   display: inline-block;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: #9ca3af;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 0.7rem;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
 }
 
 .onboarding-header {
@@ -1379,20 +1401,20 @@ input, button, textarea {
 
 .floating-input {
   width: 100%;
-  padding: 16px 16px;
-  background: #111;
-  border: 2px solid #333;
-  border-radius: 12px;
+  padding: 15px 16px;
+  background: #0b0d10;
+  border: 1px solid #26292f;
+  border-radius: 14px;
   color: #fff;
   font-size: 1rem;
-  transition: all 0.3s ease;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
   outline: none;
 }
 
 .floating-input:focus {
-  border-color: #0095f6;
-  background: #000;
-  box-shadow: 0 0 0 4px rgba(0, 149, 246, 0.1);
+  border-color: var(--brand-blue, #0072ff);
+  background: #0b0d10;
+  box-shadow: 0 0 0 3px rgba(0, 114, 255, 0.14);
 }
 
 .floating-label {
@@ -1411,30 +1433,31 @@ input, button, textarea {
 .floating-input:not(:placeholder-shown) ~ .floating-label {
   top: 0;
   transform: translateY(-50%) scale(0.85);
-  background: #111;
+  background: #111418;
   padding: 0 4px;
-  color: #0095f6;
+  color: var(--brand-blue, #0072ff);
 }
 
 .glow-btn {
-  background: linear-gradient(135deg, #0095f6, #00d2ff);
+  background: var(--brand-blue, #0072ff);
   color: #fff;
   border: none;
-  padding: 16px;
-  border-radius: 12px;
+  padding: 15px;
+  border-radius: 14px;
   width: 100%;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: filter 0.2s ease, transform 0.1s ease;
 }
 
 .glow-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 149, 246, 0.4);
+  filter: brightness(1.08);
 }
 
 .glow-btn:active {
-  transform: translateY(0);
+  transform: scale(0.99);
+  filter: brightness(0.95);
 }
 
 .spinner-text {

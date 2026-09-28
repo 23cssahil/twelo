@@ -261,17 +261,17 @@ export default function Login() {
 
   return (
     <div className="auth-container">
-      <div className="auth-card">
+      <div className="auth-card login-card">
         <h1 className="auth-logo">Twelo</h1>
         
         {error && <div className="auth-error">{error}</div>}
         
         {!isNewUser ? (
           <>
-            <h2 style={{ textAlign: 'center', marginBottom: '24px', fontSize: '1.2rem', color: '#f5f5f5' }}>
+            <h2 style={{ textAlign: 'center', marginBottom: '6px', fontSize: '1.3rem', fontWeight: 600, color: '#ffffff' }}>
               Welcome to Twelo
             </h2>
-            <p style={{ textAlign: 'center', color: '#a8a8a8', marginBottom: '32px', fontSize: '0.9rem' }}>
+            <p style={{ textAlign: 'center', color: '#8a8f98', marginBottom: '28px', fontSize: '0.88rem' }}>
               Log in with Google to continue.
             </p>
             
@@ -280,19 +280,20 @@ export default function Login() {
                 <button 
                   onClick={handleNativeGoogleLogin}
                   style={{
-                    backgroundColor: '#1a1a1a',
-                    color: '#fff',
-                    border: '1px solid #333',
-                    borderRadius: '24px',
+                    backgroundColor: '#ffffff',
+                    color: '#1f1f1f',
+                    border: 'none',
+                    borderRadius: '12px',
                     padding: '12px 24px',
-                    fontSize: '1rem',
+                    fontSize: '0.95rem',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
                     width: '280px',
                     justifyContent: 'center',
-                    fontWeight: '500'
+                    fontWeight: 600,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.35)'
                   }}
                 >
                   <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" style={{ width: '20px', height: '20px' }} />
@@ -313,26 +314,26 @@ export default function Login() {
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', marginTop: '18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '280px', color: '#666', fontSize: '0.8rem', margin: '4px 0 14px' }}>
-                <div style={{ flex: 1, height: '1px', background: '#333' }}></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '280px', color: '#565b63', fontSize: '0.75rem', margin: '4px 0 14px' }}>
+                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}></div>
                 or
-                <div style={{ flex: 1, height: '1px', background: '#333' }}></div>
+                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}></div>
               </div>
               <button
                 onClick={startGuestSignup}
                 disabled={loading}
-                style={{ width: '280px', padding: '12px 24px', background: 'transparent', color: '#fff', border: '1px solid #444', borderRadius: '24px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                style={{ width: '280px', padding: '12px 24px', background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '12px', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
-                👻 Continue as Guest
+                Continue as guest
               </button>
-              <p style={{ color: '#777', fontSize: '0.78rem', marginTop: '8px', textAlign: 'center', maxWidth: '280px' }}>
+              <p style={{ color: '#6b7280', fontSize: '0.76rem', marginTop: '8px', textAlign: 'center', maxWidth: '280px' }}>
                 No sign-up needed. Upgrade to Google anytime to keep your account.
               </p>
               {!showRecover ? (
-                <span onClick={() => setShowRecover(true)} style={{ marginTop: '10px', fontSize: '0.82rem', color: 'var(--brand-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Have a guest recovery code?</span>
+                <span onClick={() => setShowRecover(true)} style={{ marginTop: '10px', fontSize: '0.82rem', color: 'var(--brand-blue, #0072ff)', cursor: 'pointer', fontWeight: 500 }}>Have a guest recovery code?</span>
               ) : (
-                <form onSubmit={handleRecoverGuest} style={{ width: '280px', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid #333', borderRadius: '14px', padding: '14px' }}>
-                  <label style={{ fontSize: '0.78rem', color: '#a8a8a8', textAlign: 'left', fontWeight: 600, letterSpacing: '0.3px' }}>Enter your guest recovery code</label>
+                <form onSubmit={handleRecoverGuest} style={{ width: '280px', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '14px' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#8a8f98', textAlign: 'left', fontWeight: 600, letterSpacing: '0.3px' }}>Enter your guest recovery code</label>
                   <input
                     type="text"
                     value={recoverCode}
@@ -340,20 +341,20 @@ export default function Login() {
                     placeholder="TWG-XXXX-XXXX"
                     autoComplete="off"
                     spellCheck={false}
-                    style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px', borderRadius: '10px', background: '#0a0a0a', border: '1px solid #444', color: '#ffffff', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '2px', textTransform: 'uppercase', textAlign: 'center', outline: 'none' }}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px', borderRadius: '12px', background: '#0b0d10', border: '1px solid #26292f', color: '#ffffff', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '2px', textTransform: 'uppercase', textAlign: 'center', outline: 'none' }}
                   />
-                  <button type="submit" disabled={loading} style={{ width: '100%', padding: '10px', borderRadius: '20px', border: 'none', background: '#0095f6', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Restore Guest Account</button>
+                  <button type="submit" disabled={loading} style={{ width: '100%', padding: '10px', borderRadius: '12px', border: 'none', background: 'var(--brand-blue, #0072ff)', color: '#fff', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer' }}>Restore Guest Account</button>
                 </form>
               )}
             </div>
 
-            <div style={{ marginTop: '20px', fontSize: '0.8rem', color: '#a8a8a8', textAlign: 'center' }}>
+            <div style={{ marginTop: '22px', fontSize: '0.75rem', color: '#6b7280', textAlign: 'center', lineHeight: 1.7 }}>
               By logging in, you agree to our <br/>
-              <span onClick={() => { window.scrollTo(0,0); navigate('/terms'); }} style={{ color: 'var(--brand-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Terms & Conditions</span> and <span onClick={() => { window.scrollTo(0,0); navigate('/privacy-policy'); }} style={{ color: 'var(--brand-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Privacy Policy</span>.<br/><br/>
-              <span style={{ display: 'block', marginBottom: '12px', fontWeight: 'bold', color: '#ddd' }}>Twelo - Powered by NexGenRewards</span>
-              Need help? <span onClick={() => { window.scrollTo(0,0); navigate('/contact-us'); }} style={{ color: 'var(--brand-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Contact Us</span>
+              <span onClick={() => { window.scrollTo(0,0); navigate('/terms'); }} style={{ color: 'rgba(255,255,255,0.65)', cursor: 'pointer', textDecoration: 'underline' }}>Terms & Conditions</span> and <span onClick={() => { window.scrollTo(0,0); navigate('/privacy-policy'); }} style={{ color: 'rgba(255,255,255,0.65)', cursor: 'pointer', textDecoration: 'underline' }}>Privacy Policy</span>.<br/><br/>
+              <span style={{ display: 'block', marginBottom: '12px', color: '#565b63', fontWeight: 500 }}>Twelo - Powered by NexGenRewards</span>
+              Need help? <span onClick={() => { window.scrollTo(0,0); navigate('/contact-us'); }} style={{ color: 'rgba(255,255,255,0.65)', cursor: 'pointer', textDecoration: 'underline' }}>Contact Us</span>
             </div>
-            {loading && <p style={{ textAlign: 'center', marginTop: '16px', color: '#a8a8a8' }}>Please wait...</p>}
+            {loading && <p style={{ textAlign: 'center', marginTop: '16px', color: '#8a8f98', fontSize: '0.85rem' }}>Please wait...</p>}
           </>
         ) : (
           <form onSubmit={handleCompleteProfile} className="onboarding-form">
@@ -368,10 +369,10 @@ export default function Login() {
               ) : (
                 <span className="step-badge">Final Step</span>
               )}
-              <h2 className="gradient-text" style={{ textAlign: 'center', marginBottom: '8px', fontSize: '1.5rem', fontWeight: '700' }}>
+              <h2 style={{ textAlign: 'center', marginBottom: '8px', fontSize: '1.45rem', fontWeight: 700, color: '#ffffff' }}>
                 Welcome to Twelo
               </h2>
-              <p style={{ textAlign: 'center', color: '#a8a8a8', marginBottom: '32px', fontSize: '0.95rem' }}>
+              <p style={{ textAlign: 'center', color: '#8a8f98', marginBottom: '28px', fontSize: '0.92rem' }}>
                 Let's set up your profile. What should we call you?
               </p>
             </div>
@@ -430,7 +431,8 @@ export default function Login() {
                 {showCountryDropdown && (
                   <div style={{ 
                     position: 'absolute', top: '100%', left: 0, right: 0, 
-                    background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', 
+                    background: '#16181d', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', 
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
                     maxHeight: '200px', overflowY: 'auto', zIndex: 10, marginTop: '5px' 
                   }}>
                     {WORLD_COUNTRIES.map((c) => (
@@ -440,8 +442,8 @@ export default function Login() {
                           setCountry(c.name);
                           setShowCountryDropdown(false);
                         }}
-                        style={{ padding: '10px 15px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderBottom: '1px solid #222', color: '#fff' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = '#333'}
+                        style={{ padding: '10px 15px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#fff' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#23262c'}
                         onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                       >
                         <img src={`https://flagcdn.com/w20/${c.code.toLowerCase()}.png`} alt={c.code} style={{ borderRadius: '2px' }} />
@@ -455,17 +457,17 @@ export default function Login() {
             </div>
 
             <div className="form-group" style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', color: '#a8a8a8', fontSize: '0.9rem', marginBottom: '8px', marginLeft: '4px' }}>Gender</label>
+              <label style={{ display: 'block', color: '#8a8f98', fontSize: '0.88rem', marginBottom: '8px', marginLeft: '4px' }}>Gender</label>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <div 
                   onClick={() => setGender('male')}
-                  style={{ flex: 1, padding: '12px', textAlign: 'center', borderRadius: '12px', cursor: 'pointer', border: gender === 'male' ? '2px solid var(--brand-blue)' : '2px solid #333', background: gender === 'male' ? 'rgba(0,191,255,0.1)' : 'transparent', color: gender === 'male' ? 'var(--brand-blue)' : '#888', fontWeight: gender === 'male' ? 'bold' : 'normal', transition: 'all 0.3s' }}
+                  style={{ flex: 1, padding: '12px', textAlign: 'center', borderRadius: '12px', cursor: 'pointer', border: gender === 'male' ? '1px solid var(--brand-blue, #0072ff)' : '1px solid #26292f', background: gender === 'male' ? 'rgba(0,114,255,0.12)' : 'transparent', color: gender === 'male' ? '#ffffff' : '#8a8f98', fontWeight: gender === 'male' ? 600 : 400, transition: 'all 0.25s' }}
                 >
                   Male
                 </div>
                 <div 
                   onClick={() => setGender('female')}
-                  style={{ flex: 1, padding: '12px', textAlign: 'center', borderRadius: '12px', cursor: 'pointer', border: gender === 'female' ? '2px solid var(--brand-blue)' : '2px solid #333', background: gender === 'female' ? 'rgba(0,191,255,0.1)' : 'transparent', color: gender === 'female' ? 'var(--brand-blue)' : '#888', fontWeight: gender === 'female' ? 'bold' : 'normal', transition: 'all 0.3s' }}
+                  style={{ flex: 1, padding: '12px', textAlign: 'center', borderRadius: '12px', cursor: 'pointer', border: gender === 'female' ? '1px solid var(--brand-blue, #0072ff)' : '1px solid #26292f', background: gender === 'female' ? 'rgba(0,114,255,0.12)' : 'transparent', color: gender === 'female' ? '#ffffff' : '#8a8f98', fontWeight: gender === 'female' ? 600 : 400, transition: 'all 0.25s' }}
                 >
                   Female
                 </div>
@@ -481,8 +483,8 @@ export default function Login() {
               {loading ? (
                 <span className="spinner-text">Creating Account...</span>
               ) : (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold', fontSize: '1rem' }}>
-                  Join Twelo 🚀
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 600, fontSize: '1rem' }}>
+                  Continue
                 </span>
               )}
             </button>
