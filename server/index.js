@@ -4042,11 +4042,14 @@ app.get('/api/admin/user-facets', adminAuth, async (req, res) => {
   try {
     const { country, state, district, city } = req.query;
     const rx = (v) => ({ $regex: `^${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' });
+    // $match keys must be plain field paths (no leading $); $group references fields with a
+    // single leading $. The earlier version used "$resolvedCountry" as a match key, which is
+    // invalid and made the whole aggregate throw → empty dropdowns.
     const conds = [];
-    if (country) conds.push({ $resolvedCountry: rx(country) });
-    if (state) conds.push({ $resolvedRegion: rx(state) });
-    if (district) conds.push({ $resolvedDistrict: rx(district) });
-    if (city) conds.push({ $resolvedCity: rx(city) });
+    if (country) conds.push({ resolvedCountry: rx(country) });
+    if (state) conds.push({ resolvedRegion: rx(state) });
+    if (district) conds.push({ resolvedDistrict: rx(district) });
+    if (city) conds.push({ resolvedCity: rx(city) });
     const base = [
       { $match: {} },
       ...resolveUserLocationStages(),
@@ -4060,10 +4063,10 @@ app.get('/api/admin/user-facets', adminAuth, async (req, res) => {
       { $limit: 300 }
     ];
     const [countryRows, stateRows, districtRows, cityRows] = await Promise.all([
-      User.aggregate(level('$resolvedCountry', { _id: 1 })),
-      User.aggregate(level('$resolvedRegion', { count: -1 })),
-      User.aggregate(level('$resolvedDistrict', { count: -1 })),
-      User.aggregate(level('$resolvedCity', { count: -1 }))
+      User.aggregate(level('resolvedCountry', { _id: 1 })),
+      User.aggregate(level('resolvedRegion', { count: -1 })),
+      User.aggregate(level('resolvedDistrict', { count: -1 })),
+      User.aggregate(level('resolvedCity', { count: -1 }))
     ]);
     res.json({ countries: countryRows, states: stateRows, districts: districtRows, cities: cityRows });
   } catch (err) {
