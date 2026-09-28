@@ -65,6 +65,7 @@ export default function ShayariStudio({ onClose, onComplete }) {
   // UI
   const [activeTab, setActiveTab] = useState("text");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
 
   // Refs
   const canvasRef = useRef(null);   // the export node (visible canvas)
@@ -228,19 +229,21 @@ export default function ShayariStudio({ onClose, onComplete }) {
                   ...effectStyle
                 }}
               />
-            </div>
 
-            {author && (
-              <div className="shayari-watermark" style={{ color: textColor, fontFamily, ...effectStyle }}>
-                ~ {author}
-              </div>
-            )}
+              {/* Author sits in normal flow under the text (was absolute, so long
+                  shayaris rendered right on top of the pen name). */}
+              {author && (
+                <div className="shayari-watermark" style={{ color: textColor, fontFamily, ...effectStyle }}>
+                  ~ {author}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="studio-controls-panel">
-          <div className="sheet-handle" />
+        <div className={`studio-controls-panel ${panelCollapsed ? 'collapsed' : ''}`}>
+          <div className="sheet-handle" onClick={() => setPanelCollapsed(v => !v)} aria-label="Minimize controls" title="Tap to minimize" />
           <div className="control-tabs">
             <button className={`control-tab-btn ${activeTab === 'text' ? 'active' : ''}`} onClick={() => setActiveTab('text')}>
               <Type size={16} /> Text
