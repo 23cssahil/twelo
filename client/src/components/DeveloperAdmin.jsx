@@ -273,6 +273,17 @@ export default function DeveloperAdmin() {
   const [loadingMoreUsers, setLoadingMoreUsers] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const usersSentinelRef = useRef(null);
+  // User Database location filters: cascading Country → State → District → City selectors.
+  // Options come from /api/admin/user-facets and carry live user counts.
+  const [userCountry, setUserCountry] = useState('');
+  const [userState, setUserState] = useState('');
+  const [userDistrict, setUserDistrict] = useState('');
+  const [userCity, setUserCity] = useState('');
+  const [facetCountries, setFacetCountries] = useState([]);
+  const [facetStates, setFacetStates] = useState([]);
+  const [facetDistricts, setFacetDistricts] = useState([]);
+  const [facetCities, setFacetCities] = useState([]);
+  const searchDebounceRef = useRef(null);
   // Which user's full detail panel is expanded (single-open accordion so the list stays compact).
   const [expandedUserId, setExpandedUserId] = useState(null);
   const [broadcastMessage, setBroadcastMessage] = useState('');
@@ -765,12 +776,24 @@ export default function DeveloperAdmin() {
     }
   }, [isAuthenticated, activeTab, analyticsView]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
+  // Build the shared query string for /api/admin/users (search text + location filters).
+  const buildUsersQuery = ({ q = '', cursor = null } = {}) => {
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    if (userCountry) p.set('country', userCountry);
+    if (userState) p.set('state', userState);
+    if (userDistrict) p.set('district', userDistrict);
+    if (userCity) p.set('city', userCity);
+    p.set('limit', '10');
+    if (cursor) p.set('cursor', cursor);
+    return p.toString();
+  };
+
+  // Live search: fired from a 300ms debounce while typing — results arrive as the user
+  // types, no need to press the Search button.
+  const runLiveSearch = async (q) => {
     try {
-      // Search always hits the FULL database server-side (not the loaded page).
-      const res = await fetch(`${API_URL}/api/admin/users?q=${encodeURIComponent(searchQuery)}`, {
+      const res = await fetch(`${API_URL}/api/admin/users?${buildUsersQuery({ q })}`, {
         headers: { 'x-admin-pass': password }
       });
       if (res.ok) {
@@ -785,10 +808,11 @@ export default function DeveloperAdmin() {
     }
   };
 
-  const handleLoadAll = async () => {
+  // Browse mode: (re)load the first page, narrowed by the selected location filters.
+  const loadBrowse = async () => {
     try {
       setIsSearchMode(false);
-      const res = await fetch(`${API_URL}/api/admin/users?limit=10`, {
+      const res = await fetch(`${API_URL}/api/admin/users?${buildUsersQuery()}`, {
         headers: { 'x-admin-pass': password }
       });
       if (res.ok) {
@@ -802,12 +826,66 @@ export default function DeveloperAdmin() {
     }
   };
 
+  // Auto-refresh the list whenever a selector changes; debounce the text query so search
+  // feels instant. With no query the tab simply browses (filtered) users on open.
+  useEffect(() => {
+    if (!isAuthenticated || activeTab !== 'users') return;
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (searchQuery.trim()) {
+      searchDebounceRef.current = setTimeout(() => runLiveSearch(searchQuery.trim()), 300);
+      return () => clearTimeout(searchDebounceRef.current);
+    }
+    loadBrowse();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, activeTab, searchQuery, userCountry, userState, userDistrict, userCity]);
+
+  // Facet options reload when the tab opens and cascade when country / state changes,
+  // so every selector only ever shows places users actually signed up from.
+  useEffect(() => {
+    if (!isAuthenticated || activeTab !== 'users') return;
+    const p = new URLSearchParams();
+    if (userCountry) p.set('country', userCountry);
+    if (userState) p.set('state', userState);
+    fetch(`${API_URL}/api/admin/user-facets?${p.toString()}`, { headers: { 'x-admin-pass': password } })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data) return;
+        setFacetCountries(data.countries || []);
+        setFacetStates(data.states || []);
+        setFacetDistricts(data.districts || []);
+        setFacetCities(data.cities || []);
+      })
+      .catch(err => console.error(err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, activeTab, userCountry, userState]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    // Search now runs live as the user types; this submit just forces an immediate run.
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (searchQuery.trim()) runLiveSearch(searchQuery.trim());
+    else loadBrowse();
+  };
+
+  const handleLoadAll = async () => {
+    setSearchQuery('');
+    await loadBrowse();
+  };
+
+  const clearUserFilters = () => {
+    setUserCountry('');
+    setUserState('');
+    setUserDistrict('');
+    setUserCity('');
+    setSearchQuery('');
+  };
+
   // Append the next page of the browse list. No-op while searching or already loading.
   const loadMoreUsers = async () => {
     if (!usersCursor || loadingMoreUsers || isSearchMode) return;
     setLoadingMoreUsers(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/users?limit=10&cursor=${encodeURIComponent(usersCursor)}`, {
+      const res = await fetch(`${API_URL}/api/admin/users?${buildUsersQuery({ q: searchQuery.trim(), cursor: usersCursor })}`, {
         headers: { 'x-admin-pass': password }
       });
       if (res.ok) {
@@ -2163,10 +2241,10 @@ export default function DeveloperAdmin() {
                 </div>
               ) : activeTab === 'users' ? (
                 <>
-                  <form onSubmit={handleSearch} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                  <form onSubmit={handleSearch} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
                     <input 
                       type="text" 
-                      placeholder="Search database..."
+                      placeholder="Search database… (searches live as you type)"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="dev-input"
@@ -2184,6 +2262,55 @@ export default function DeveloperAdmin() {
                       Blocked Only
                     </button>
                   </form>
+
+                  {/* Cascading location filters: every option shows how many users signed up from there */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
+                    <select
+                      className="dev-input"
+                      value={userCountry}
+                      onChange={(e) => { setUserCountry(e.target.value); setUserState(''); setUserDistrict(''); setUserCity(''); }}
+                      style={{ flex: '1 1 180px', minWidth: '160px' }}
+                    >
+                      <option value="">All Countries {facetCountries.length ? `(${facetCountries.reduce((s, c) => s + c.count, 0)})` : ''}</option>
+                      {facetCountries.map(c => <option key={c._id} value={c._id}>{c._id} ({c.count})</option>)}
+                    </select>
+                    <select
+                      className="dev-input"
+                      value={userState}
+                      onChange={(e) => { setUserState(e.target.value); setUserDistrict(''); setUserCity(''); }}
+                      disabled={!userCountry}
+                      style={{ flex: '1 1 150px', minWidth: '140px', opacity: userCountry ? 1 : 0.5 }}
+                    >
+                      <option value="">All States</option>
+                      {facetStates.map(s => <option key={s._id} value={s._id}>{s._id} ({s.count})</option>)}
+                    </select>
+                    <select
+                      className="dev-input"
+                      value={userDistrict}
+                      onChange={(e) => { setUserDistrict(e.target.value); setUserCity(''); }}
+                      disabled={!userState}
+                      style={{ flex: '1 1 150px', minWidth: '140px', opacity: userState ? 1 : 0.5 }}
+                    >
+                      <option value="">All Districts</option>
+                      {facetDistricts.map(d => <option key={d._id} value={d._id}>{d._id} ({d.count})</option>)}
+                    </select>
+                    <select
+                      className="dev-input"
+                      value={userCity}
+                      onChange={(e) => setUserCity(e.target.value)}
+                      disabled={!userDistrict}
+                      style={{ flex: '1 1 150px', minWidth: '140px', opacity: userDistrict ? 1 : 0.5 }}
+                    >
+                      <option value="">All Cities</option>
+                      {facetCities.map(c => <option key={c._id} value={c._id}>{c._id} ({c.count})</option>)}
+                    </select>
+                    {(userCountry || userState || userDistrict || userCity || searchQuery) && (
+                      <button type="button" onClick={clearUserFilters} className="dev-btn-secondary" style={{ backgroundColor: 'transparent', border: '1px solid #333' }} title="Clear country/state/district/city filters and search">
+                        <X size={16} style={{ marginRight: '5px' }} />
+                        Clear Filters
+                      </button>
+                    )}
+                  </div>
 
                   <div className="dev-user-list">
                     {users.filter(u => showBlockedOnly ? u.isBlocked : true).map(u => (
@@ -2205,6 +2332,7 @@ export default function DeveloperAdmin() {
                             {u.ownedByAdmin ? <span className="dev-chip dev-chip-bot">Bot</span> : null}
                             {u.isGuest ? <span className="dev-chip dev-chip-guest">Guest</span> : null}
                             <span className={`dev-chip ${u.isBlocked ? 'dev-chip-blocked' : 'dev-chip-active'}`}>{u.isBlocked ? 'Blocked' : 'Active'}</span>
+                            {(u.signupCity || u.signupDistrict || u.lastCity) && <span className="dev-chip" title="Where this user signed up / last logged in">📍 {u.signupCity || u.signupDistrict || u.lastCity}</span>}
                             <span className="dev-chip dev-chip-coins" title="Coins">{u.coins} coins</span>
                           </div>
                           <span className="dev-user-expand" aria-hidden="true">
@@ -2222,6 +2350,8 @@ export default function DeveloperAdmin() {
                               <DetailItem label="Gender" value={u.gender} />
                               <DetailItem label="Age" value={u.age} />
                               <DetailItem label="Country" value={`${u.country || '—'}${u.countryCode ? ` (${u.countryCode})` : ''}`} />
+                              <DetailItem label="Signup location" value={[u.signupCity, u.signupDistrict, u.signupRegion, u.signupCountry].filter(Boolean).join(', ') || '—'} />
+                              <DetailItem label="Last seen at" value={[u.lastCity, u.lastDistrict, u.lastRegion].filter(Boolean).join(', ') || '—'} />
                               <DetailItem label="Private profile" value={u.isPrivate ? 'Yes' : 'No'} />
                               <DetailItem label="Joined" value={fmtDateTime(u.createdAt)} />
                               <DetailItem label="Last active" value={fmtDateTime(u.lastActive)} />
@@ -2274,11 +2404,10 @@ export default function DeveloperAdmin() {
                         )}
                       </div>
                     ))}
-                    {users.length === 0 && searchQuery && (
-                      <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>No users found for "{searchQuery}"</div>
-                    )}
-                    {users.length === 0 && !searchQuery && (
-                      <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>Click "Load All Users" to browse, or search above.</div>
+                    {users.length === 0 && !loadingMoreUsers && (
+                      <div style={{ textAlign: 'center', color: '#a8a8a8', marginTop: '20px' }}>
+                        {searchQuery ? <>No users found for "{searchQuery}"{userCountry ? ` in ${userCountry}` : ''}</> : 'No users match the selected filters.'}
+                      </div>
                     )}
                     {/* Infinite-scroll sentinel + manual fallback (browse mode only) */}
                     {!isSearchMode && hasMoreUsers && (

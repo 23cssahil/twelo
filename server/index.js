@@ -4002,6 +4002,53 @@ app.get('/api/config/globe', async (req, res) => {
   res.json(globeWithRemaining());
 });
 
+// Location facets for the User Database filters: countries with user counts, plus the
+// state (region) / district / city options cascaded by the current selection. Options are
+// derived from the signup location (fallback: last IP location) so only places users
+// actually signed up from show up, and grow automatically as new users join.
+app.get('/api/admin/user-facets', adminAuth, async (req, res) => {
+  try {
+    const { country, state, district, city } = req.query;
+    const conds = [];
+    const rx = (v) => ({ $regex: `^${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' });
+    if (country) conds.push({ $country: rx(country) });
+    if (state) conds.push({ $region: rx(state) });
+    if (district) conds.push({ $district: rx(district) });
+    if (city) conds.push({ $city: rx(city) });
+    const base = conds.length ? [{ $match: { $and: conds } }] : [{ $match: {} }];
+    const level = (field) => [
+      ...base,
+      { $project: { [field]: { $ifNull: [`$${field}`, '$last' + field.charAt(0).toUpperCase() + field.slice(1)] } } },
+      { $match: { [field]: { $nin: [null, ''] } } },
+      { $group: { _id: `$${field}`, count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 300 }
+    ];
+    // Local $country copy = signupCountry, falling back to the profile country ("Earth" users).
+    const countryPipeline = [
+      { $project: { $country: { $ifNull: ['$signupCountry', '$country'] } } },
+      { $match: { $country: { $nin: [null, ''] } } },
+      { $group: { _id: '$country', count: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ];
+    const [countryRows, stateRows, districtRows, cityRows] = await Promise.all([
+      User.aggregate(countryPipeline),
+      User.aggregate(level('region')),
+      User.aggregate(level('district')),
+      User.aggregate(level('city'))
+    ]);
+    res.json({
+      countries: countryRows,
+      states: stateRows.map(r => ({ _id: r._id, count: r.count })),
+      districts: districtRows,
+      cities: cityRows
+    });
+  } catch (err) {
+    console.error('User facets error', err);
+    res.status(500).json({ message: 'Error fetching user facets' });
+  }
+});
+
 app.get('/api/admin/users', adminAuth, async (req, res) => {
   try {
     const query = req.query.q;
@@ -4014,6 +4061,19 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
       delete userObj.emailHash;
       return userObj;
     };
+
+    // Shared location filter (country / state / district / city) applied in BOTH search and
+    // browse mode, so typed queries can be narrowed to the selected country's users.
+    // Mirrors the facets endpoint: signup location first, last IP location as fallback.
+    const locCond = [];
+    const locOr = (signupField, lastField, label) => ({
+      $or: [{ [signupField]: rx(label) }, { [signupField]: null, [lastField]: rx(label) }]
+    });
+    const rx = (v) => ({ $regex: `^${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' });
+    if (req.query.country) locCond.push({ $or: [{ signupCountry: rx(req.query.country) }, { signupCountry: null, country: rx(req.query.country) }] });
+    if (req.query.state) locCond.push(locOr('signupRegion', 'lastRegion', req.query.state));
+    if (req.query.district) locCond.push(locOr('signupDistrict', 'lastDistrict', req.query.district));
+    if (req.query.city) locCond.push(locOr('signupCity', 'lastCity', req.query.city));
 
     // SEARCH MODE: always query the FULL database (not the current page) so results are
     // complete and instant. Returns up to 50 matches, no pagination cursor.
@@ -4037,7 +4097,9 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
       if (/^[a-fA-F0-9]{24}$/.test(query)) {
         try { or.push({ _id: new mongoose.Types.ObjectId(query) }); } catch (e) { /* invalid id → skip */ }
       }
-      const found = await User.find({ $or: or }).select('-password').sort({ createdAt: -1 }).limit(50);
+      const searchFilter = { $or: or };
+      if (locCond.length) searchFilter.$and = locCond;
+      const found = await User.find(searchFilter).select('-password').sort({ createdAt: -1 }).limit(50);
       return res.json({ users: found.map(toMasked), nextCursor: null });
     }
 
@@ -4056,6 +4118,7 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
         };
       } catch (e) { /* malformed cursor → fall back to first page */ }
     }
+    if (locCond.length) filter = Object.keys(filter).length ? { $and: [filter, ...locCond] } : { $and: locCond };
     const page = await User.find(filter).select('-password').sort({ createdAt: -1, _id: -1 }).limit(limit + 1);
     const hasMore = page.length > limit;
     const slice = hasMore ? page.slice(0, limit) : page;
