@@ -3,8 +3,10 @@ const mongoose = require('mongoose');
 const DeletedUserSchema = new mongoose.Schema({
   username: { type: String, required: true },
   name: { type: String, required: true },
-  email: { type: String, required: true },
-  googleId: { type: String, required: true },
+  // Guest accounts have no Google identity — these must stay optional, otherwise
+  // archiving a deleted guest throws a ValidationError and /delete_account returns 500.
+  email: { type: String, default: null },
+  googleId: { type: String, default: null },
   uniqueId: { type: String, required: true },
   age: { type: Number, required: true },
   country: { type: String, required: true },

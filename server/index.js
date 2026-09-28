@@ -2287,8 +2287,14 @@ app.post('/api/users/delete_account', authenticateToken, async (req, res) => {
     const deletedUserData = user.toObject();
     delete deletedUserData._id; // Let mongoose generate a new ID or keep it? We can keep it or not. We'll drop it so it creates a new one.
     
-    const archivedUser = new DeletedUser(deletedUserData);
-    await archivedUser.save();
+    // Archiving must never block the deletion itself — legacy/guest documents can miss
+    // fields the archive schema wants, and then the account could never be closed.
+    try {
+      const archivedUser = new DeletedUser(deletedUserData);
+      await archivedUser.save();
+    } catch (archiveErr) {
+      console.error('Failed to archive deleted user (continuing with deletion):', archiveErr.message);
+    }
 
     // Clean up references in other users
     await User.updateMany(
@@ -4439,8 +4445,14 @@ app.post('/api/admin/delete-user', adminAuth, async (req, res) => {
     // Move to DeletedUser (or simply delete for admin wipe)
     const deletedUserData = user.toObject();
     delete deletedUserData._id;
-    const archivedUser = new DeletedUser(deletedUserData);
-    await archivedUser.save();
+    // Archiving must never block the deletion itself — legacy/guest documents can miss
+    // fields the archive schema wants, and then the account could never be closed.
+    try {
+      const archivedUser = new DeletedUser(deletedUserData);
+      await archivedUser.save();
+    } catch (archiveErr) {
+      console.error('Failed to archive deleted user (continuing with deletion):', archiveErr.message);
+    }
 
     // Clean up references in other users
     await User.updateMany(
