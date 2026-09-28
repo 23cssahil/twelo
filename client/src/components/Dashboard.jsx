@@ -68,7 +68,8 @@ import {
   SkipForward,
   Key,
   Link2,
-  Copy
+  Copy,
+  Search
 } from 'lucide-react';
 
 const APP_VERSION = '1.0.0';
@@ -1641,6 +1642,13 @@ export default function Dashboard() {
   const [showCloseFriendsModal, setShowCloseFriendsModal] = useState(false);
   const [selectedCloseFriends, setSelectedCloseFriends] = useState([]);
   const [userConnections, setUserConnections] = useState([]);
+  const [closeFriendSearch, setCloseFriendSearch] = useState('');
+  // Close Friends picker: live-filter the follower list by username.
+  const filteredCloseFriendOptions = useMemo(() => {
+    const q = closeFriendSearch.trim().toLowerCase();
+    if (!q) return userConnections;
+    return userConnections.filter(c => (c.username || '').toLowerCase().includes(q));
+  }, [closeFriendSearch, userConnections]);
   const [selectedSongUrl, setSelectedSongUrl] = useState('');
   const [showMusicPicker, setShowMusicPicker] = useState(false);
   const [musicPlayerRef, setMusicPlayerRef] = useState(null);
@@ -10271,7 +10279,7 @@ const handleStoryUpload = async () => {
             {storyVisibility === 'custom' && (
               <div 
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#222', padding: '10px 15px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #1cf23b' }}
-                onClick={() => setShowCloseFriendsModal(true)}
+                onClick={() => { setCloseFriendSearch(''); setShowCloseFriendsModal(true); }}
               >
                 <span style={{ color: '#1cf23b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Users size={16} /> Select Friends
@@ -10301,11 +10309,26 @@ const handleStoryUpload = async () => {
               <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Close Friends</h3>
               <button onClick={() => setShowCloseFriendsModal(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
             </div>
+            <div style={{ padding: '12px 16px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e1e1e', border: '1px solid #333', borderRadius: '10px', padding: '10px 12px' }}>
+                <Search size={16} color="#888" />
+                <input
+                  type="text"
+                  placeholder="Search friends…"
+                  value={closeFriendSearch}
+                  onChange={(e) => setCloseFriendSearch(e.target.value)}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '0.95rem' }}
+                />
+                {closeFriendSearch && (
+                  <button onClick={() => setCloseFriendSearch('')} aria-label="Clear search" style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', display: 'flex' }}><X size={16} /></button>
+                )}
+              </div>
+            </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-              {userConnections.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#888', marginTop: '40px' }}>No friends found to select.</div>
+              {filteredCloseFriendOptions.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#888', marginTop: '40px' }}>{userConnections.length === 0 ? 'No friends found to select.' : 'No friends match your search.'}</div>
               ) : (
-                userConnections.map(conn => {
+                filteredCloseFriendOptions.map(conn => {
                   const isSelected = selectedCloseFriends.includes(conn._id);
                   return (
                     <div 
