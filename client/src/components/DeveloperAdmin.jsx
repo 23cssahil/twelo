@@ -2370,6 +2370,19 @@ export default function DeveloperAdmin() {
                               <DetailItem label="Last coin refill" value={fmtDateTime(u.lastCoinReplenishDate)} />
                               <DetailItem label="IP Address" value={u.lastIp} mono />
                               <DetailItem label="IP captured" value={fmtDateTime(u.lastIpAt)} />
+                              <DetailItem label="Last login" value={fmtDateTime(u.lastLoginAt)} />
+                              <DetailItem label="Total logins" value={u.loginCount || 0} />
+                              {/* Device metadata collected passively on app open (deviceInfo = latest snapshot) */}
+                              <DetailItem label="Device" value={u.deviceInfo ? [u.deviceInfo.brand, u.deviceInfo.model].filter(Boolean).join(' ') || u.deviceInfo.model || '—' : '— (app never reported / old build)'} />
+                              <DetailItem label="OS / Platform" value={u.deviceInfo ? `${u.deviceInfo.os || '—'} · ${u.deviceInfo.platform || '—'}` : '—'} />
+                              <DetailItem label="App version" value={u.deviceInfo?.appVersion ? `${u.deviceInfo.app || 'Twelo'} v${u.deviceInfo.appVersion}` : '—'} />
+                              <DetailItem label="Browser / WebView" value={u.deviceInfo?.browser || '—'} />
+                              <DetailItem label="Screen" value={u.deviceInfo?.screen ? `${u.deviceInfo.screen} @${u.deviceInfo.dpr || 1}x` : '—'} />
+                              <DetailItem label="Network" value={u.deviceInfo?.networkType || '—'} />
+                              <DetailItem label="Timezone / Lang" value={u.deviceInfo ? `${u.deviceInfo.timezone || '—'} · ${u.deviceInfo.language || '—'}` : '—'} />
+                              <DetailItem label="RAM / Cores" value={u.deviceInfo ? `${u.deviceInfo.memoryGB ?? '—'} GB / ${u.deviceInfo.cores ?? '—'}` : '—'} />
+                              <DetailItem label="Device ID" value={u.deviceId || u.deviceInfo?.deviceId || '—'} mono />
+                              <DetailItem label="Known devices" value={u.deviceHistory?.length ? `${u.deviceHistory.length} (last: ${fmtDateTime(u.deviceHistory[u.deviceHistory.length - 1].lastSeen || u.deviceHistory[u.deviceHistory.length - 1].firstSeen)})` : '—'} />
                               <DetailItem label="Bio" value={u.bio} full />
                             </div>
                             <div className="dev-user-actions">

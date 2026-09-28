@@ -4181,11 +4181,13 @@ const resolveUserLocationStages = () => {
     };
   };
   const base = (lvl) => ({
-    $ifNull: [nz({ $ifNull: [`$signup${lvl}`, null] }),
-      { $ifNull: [nz({ $ifNull: [`$last${lvl}`, null] }), nz(hist(lvl))] }]
+    // CURRENT location wins (last* is re-stamped from the IP on every login), then the
+    // last recorded history place, then the frozen signup location as fallback.
+    $ifNull: [nz({ $ifNull: [`$last${lvl}`, null] }),
+      { $ifNull: [nz(hist(lvl)), nz({ $ifNull: [`$signup${lvl}`, null] })] }]
   });
   return [
-    { $addFields: { resolvedCountry: { $ifNull: [base('Country'), nz('$country')] } } },
+    { $addFields: { resolvedCountry: { $ifNull: [nz('$country'), base('Country')] } } },
     { $addFields: { resolvedRegion: base('Region') } },
     { $addFields: { resolvedCity: base('City') } },
     { $addFields: { resolvedDistrict: { $ifNull: [base('District'), '$resolvedCity'] } } }
@@ -4247,13 +4249,15 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
       const lastH = Array.isArray(userObj.locationHistory) && userObj.locationHistory.length
         ? userObj.locationHistory[userObj.locationHistory.length - 1]
         : null;
-      const pick = (signup, last, hist) => signup || last || (hist ? String(hist) : '') || '';
-      const cityVal = pick(userObj.signupCity, userObj.lastCity, lastH && lastH.city);
+      // Show the CURRENT place (re-stamped from the IP on every login), falling back to
+      // history → frozen signup. (Signup-first made recently-migrated accounts look stale.)
+      const pick = (last, hist, signup) => last || (hist ? String(hist) : '') || signup || '';
+      const cityVal = pick(userObj.lastCity, lastH && lastH.city, userObj.signupCity);
       userObj.resolvedLocation = {
         city: cityVal,
-        district: pick(userObj.signupDistrict, userObj.lastDistrict, lastH && lastH.district) || cityVal,
-        region: pick(userObj.signupRegion, userObj.lastRegion, lastH && lastH.region),
-        country: pick(userObj.signupCountry, (lastH && lastH.country) || '', userObj.country)
+        district: pick(userObj.lastDistrict, lastH && lastH.district, userObj.signupDistrict) || cityVal,
+        region: pick(userObj.lastRegion, lastH && lastH.region, userObj.signupRegion),
+        country: pick(userObj.country, (lastH && lastH.country) || '', userObj.signupCountry)
       };
       return userObj;
     };
@@ -4281,11 +4285,12 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
       };
     };
     const baseExpr = (lvl) => ({
-      $ifNull: [nz({ $ifNull: [`$signup${lvl}`, null] }),
-        { $ifNull: [nz({ $ifNull: [`$last${lvl}`, null] }), nz(histExpr(lvl))] }]
+      // Same priority as the display resolver and facets: last → history → signup.
+      $ifNull: [nz({ $ifNull: [`$last${lvl}`, null] }),
+        { $ifNull: [nz(histExpr(lvl)), nz({ $ifNull: [`$signup${lvl}`, null] })] }]
     });
     const resolvedExpr = (lvl) => {
-      if (lvl === 'Country') return { $ifNull: [baseExpr('Country'), nz('$country')] };
+      if (lvl === 'Country') return { $ifNull: [nz('$country'), baseExpr('Country')] };
       if (lvl === 'District') return { $ifNull: [baseExpr('District'), baseExpr('City')] };
       return baseExpr(lvl);
     };
