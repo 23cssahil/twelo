@@ -39,6 +39,7 @@ export default function Login() {
   const [gender, setGender] = useState('');
   const [showRecover, setShowRecover] = useState(false);
   const [recoverCode, setRecoverCode] = useState('');
+  const [guestMode, setGuestMode] = useState(false);
 
   React.useEffect(() => {
     // Detect access_token returned in URL hash from direct Google OAuth redirect
@@ -189,6 +190,23 @@ export default function Login() {
     try {
       setLoading(true);
       setError('');
+
+      // Guest path: same form details, but create a guest account (no Google/email).
+      if (guestMode) {
+        const chosenCountryCode = WORLD_COUNTRIES.find(c => c.name === country)?.code || 'UN';
+        const res = await fetch(`${API_URL}/api/auth/guest`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, age, country, countryCode: chosenCountryCode, gender })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Could not start guest session');
+        if (data.claimCode) localStorage.setItem('guestClaimCode', data.claimCode);
+        login(data.user, data.token);
+        navigate(from);
+        return;
+      }
+
       const res = await fetch(`${API_URL}/api/auth/complete_profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -210,22 +228,11 @@ export default function Login() {
     }
   };
 
-  // Instant anonymous access: create a lightweight guest account (no Google/email).
-  const handleGuestLogin = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const res = await fetch(`${API_URL}/api/auth/guest`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Could not start guest session');
-      if (data.claimCode) localStorage.setItem('guestClaimCode', data.claimCode);
-      login(data.user, data.token);
-      navigate(from);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  // Guest sign-up now uses the same profile form as Google; this just opens it.
+  const startGuestSignup = () => {
+    setError('');
+    setGuestMode(true);
+    setIsNewUser(true);
   };
 
   // Restore a previously-created guest account on this/new device via its claim code.
@@ -312,7 +319,7 @@ export default function Login() {
                 <div style={{ flex: 1, height: '1px', background: '#333' }}></div>
               </div>
               <button
-                onClick={handleGuestLogin}
+                onClick={startGuestSignup}
                 disabled={loading}
                 style={{ width: '280px', padding: '12px 24px', background: 'transparent', color: '#fff', border: '1px solid #444', borderRadius: '24px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
@@ -351,7 +358,16 @@ export default function Login() {
         ) : (
           <form onSubmit={handleCompleteProfile} className="onboarding-form">
             <div className="onboarding-header">
-              <span className="step-badge">Final Step</span>
+              {guestMode ? (
+                <span
+                  onClick={() => { setGuestMode(false); setIsNewUser(false); setName(''); setError(''); }}
+                  style={{ display: 'inline-block', color: 'var(--brand-blue)', fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline', marginBottom: '8px' }}
+                >
+                  ← Back
+                </span>
+              ) : (
+                <span className="step-badge">Final Step</span>
+              )}
               <h2 className="gradient-text" style={{ textAlign: 'center', marginBottom: '8px', fontSize: '1.5rem', fontWeight: '700' }}>
                 Welcome to Twelo
               </h2>

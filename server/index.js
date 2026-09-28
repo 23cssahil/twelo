@@ -1072,10 +1072,16 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
 // recovered on another device with the one-time claim code returned here.
 app.post('/api/auth/guest', authLimiter, async (req, res) => {
   try {
+    const body = req.body || {};
     let uniqueId = generateUniqueId();
     while (await User.findOne({ uniqueId })) uniqueId = generateUniqueId();
 
-    const gender = Math.random() < 0.5 ? 'male' : 'female';
+    // Guests now fill the same sign-up form as Google users, so honor their
+    // chosen name/age/country/gender (with safe defaults if missing).
+    const gender = ['male', 'female'].includes(body.gender) ? body.gender : (Math.random() < 0.5 ? 'male' : 'female');
+    const guestName = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 50) : 'Guest';
+    let guestAge = parseInt(body.age, 10);
+    if (!Number.isFinite(guestAge) || guestAge < 13 || guestAge > 100) guestAge = 18;
     let username = `guest${Math.floor(1000 + Math.random() * 9000)}`;
     while (await User.findOne({ username })) username = `guest${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -1086,13 +1092,21 @@ app.post('/api/auth/guest', authLimiter, async (req, res) => {
     const clientIp = getClientIp(req);
     const geo = await geoFromIp(clientIp);
     if (geo) { finalCountry = geo.country; countryCode = geo.countryCode; }
+    if (typeof body.country === 'string' && body.country.trim()) {
+      finalCountry = body.country.trim().slice(0, 60);
+      if (typeof body.countryCode === 'string' && /^[A-Za-z]{2}$/.test(body.countryCode.trim())) {
+        countryCode = body.countryCode.trim().toUpperCase();
+      } else {
+        countryCode = (geo && geo.country === finalCountry) ? geo.countryCode : 'UN';
+      }
+    }
 
     const claimCode = genGuestClaimCode();
     const guest = new User({
       username,
-      name: 'Guest',
+      name: guestName,
       uniqueId,
-      age: 18,
+      age: guestAge,
       country: finalCountry,
       countryCode,
       gender,
@@ -1118,6 +1132,7 @@ app.post('/api/auth/guest', authLimiter, async (req, res) => {
       user: {
         id: guest._id,
         username: guest.username,
+        name: guest.name,
         uniqueId: guest.uniqueId,
         avatarUrl: guest.avatarUrl,
         country: guest.country,
