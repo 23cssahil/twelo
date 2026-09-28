@@ -9939,7 +9939,7 @@ const handleStoryUpload = async () => {
         }}>
           {/* Header */}
           <style>{`
-            .se-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; background: linear-gradient(180deg, rgba(0,0,0,0.72), rgba(0,0,0,0.35)); position: relative; z-index: 10; }
+            .se-header { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: max(12px, env(safe-area-inset-top)) 14px 12px; background: linear-gradient(180deg, rgba(0,0,0,0.78), rgba(0,0,0,0)); z-index: 12; }
             .se-icon-btn { width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.16); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(8px); }
             .se-icon-btn:active { transform: scale(.93); }
             .se-title-wrap { position: absolute; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
@@ -9948,7 +9948,7 @@ const handleStoryUpload = async () => {
             .se-song-pill { margin-left: auto; display: flex; align-items: center; gap: 7px; max-width: 165px; padding: 8px 14px; border-radius: 22px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.16); color: #fff; font-size: .82rem; font-weight: 600; cursor: pointer; backdrop-filter: blur(8px); transition: background .18s ease, box-shadow .18s ease; }
             .se-song-pill.active { background: linear-gradient(135deg,#00c6ff,#0072ff); border-color: transparent; box-shadow: 0 4px 16px rgba(0,114,255,.45); }
             .se-song-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .se-footer { padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(12,12,16,0.72), rgba(8,8,10,0.96)); backdrop-filter: blur(14px); border-top: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 12px; z-index: 10; }
+            .se-footer { position: absolute; bottom: 0; left: 0; right: 0; padding: 26px 16px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(8,8,10,0) 0%, rgba(8,8,10,0.82) 26%, rgba(8,8,10,0.97) 60%); display: flex; flex-direction: column; gap: 10px; z-index: 12; }
             .se-handle { width: 40px; height: 4px; border-radius: 4px; background: rgba(255,255,255,0.22); margin: 0 auto; }
             .se-label { color: rgba(255,255,255,.6); font-size: .74rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
             .se-seg { display: flex; gap: 6px; background: rgba(255,255,255,0.07); padding: 5px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); }
@@ -10250,7 +10250,7 @@ const handleStoryUpload = async () => {
             {storyFile?.type?.startsWith('video/') ? (
               <video src={storyPreviewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} controls autoPlay loop />
             ) : isCroppingStory ? (
-              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', alignItems: 'center', paddingTop: 70 }}>
                 <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                   <ReactCrop 
                     crop={storyCrop} 
@@ -10271,7 +10271,7 @@ const handleStoryUpload = async () => {
               <>
                 <img src={storyPreviewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Story Preview" />
                 <div style={{ 
-                  position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)', padding: '8px 16px', borderRadius: '30px', 
+                  position: 'absolute', top: 74, left: '50%', transform: 'translateX(-50%)', padding: '8px 16px', borderRadius: '30px', 
                   fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px',
                   background: storyPreviewSafety === 'checking' ? 'rgba(0,0,0,0.7)' : storyPreviewSafety === 'safe' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)',
                   color: 'white', backdropFilter: 'blur(5px)', border: '1px solid rgba(255,255,255,0.2)'
