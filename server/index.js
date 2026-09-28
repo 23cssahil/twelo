@@ -3045,10 +3045,13 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
     // High cap on purpose: this is a per-STORY limit but the response is grouped per
     // user — a handful of heavy posters (admin stories) could otherwise eat the whole
     // page and leave guests seeing only a few story groups.
+    // viewedBy/likedBy are deliberately NOT populated here: this feed can carry hundreds
+    // of stories and expanding every viewer/liker into {username, avatarUrl} ballooned the
+    // JSON to megabytes, which made the global feed slow to open and janky to swipe.
+    // Raw ObjectId arrays serialize as hex strings and the client only needs membership
+    // and counts (story.likedBy.some(u => u === myId) / .length) — both still work.
     let stories = await Story.find(query)
       .populate('user', 'username avatarUrl uniqueId country countryCode')
-      .populate('viewedBy', 'username avatarUrl')
-      .populate('likedBy', 'username avatarUrl')
       .sort({ createdAt: -1 })
       .limit(500)
       .lean();

@@ -332,7 +332,7 @@ const StorySlide = ({
   storyPaused, setStoryPaused, storyPausedRef,
   storyVideoRef, storyAudioRef,
   user, activeTab, fetchStories, API_URL, token,
-  handleStoryLike, setShowShareModal, showShareModal, setShowStoryViewsModal, viewerStoriesLength,
+  handleStoryLike, setShowShareModal, showShareModal, setShowStoryViewsModal, showStoryViewsModal, viewerStoriesLength,
   viewPublicProfile, setActiveTab, setShowCommentsModal,
   handleNextUser, handlePrevUser
 }) => {
@@ -356,6 +356,12 @@ const StorySlide = ({
   // that would toggle the like back off before the optimistic state lands.
   const tapNavTimerRef = React.useRef(null);
   const lastLikeAtRef = React.useRef(0);
+  // 🖼 Image-story timing lives here and paints the progress bar directly through a ref.
+  // The old design kept storyProgress in Dashboard state and bumped it every 100ms —
+  // re-rendering the entire 10k-line Dashboard ten times per second, which is what made
+  // the viewer feel heavy/laggy on Android.
+  const barFillRef = React.useRef(null);
+  const elapsedRef = React.useRef({ id: null, sec: 0 });
   const scheduleNav = (fn) => {
     if (tapNavTimerRef.current) clearTimeout(tapNavTimerRef.current);
     tapNavTimerRef.current = setTimeout(fn, 300);
@@ -429,6 +435,7 @@ const StorySlide = ({
 
   const handleDoubleClick = (e) => {
     e.stopPropagation();
+
     // Cancel the pending single-tap navigation from the first click of this double-tap.
     if (tapNavTimerRef.current) { clearTimeout(tapNavTimerRef.current); tapNavTimerRef.current = null; }
 
@@ -449,6 +456,38 @@ const StorySlide = ({
     }, 900);
   };
 
+  // Drive the image-story timer for the active slide (progress painted via barFillRef,
+  // no React state involved). Hold-pause and the views modal freeze the timer; with the
+  // share sheet open the story loops in the background — same rules as before.
+  React.useEffect(() => {
+    if (!isActiveSlide || !story || story.mediaType === 'video') return;
+    const durationSec = story.song?.duration || 5;
+    if (elapsedRef.current.id !== story._id) elapsedRef.current = { id: story._id, sec: 0 };
+    if (barFillRef.current) barFillRef.current.style.width = Math.min((elapsedRef.current.sec / durationSec) * 100, 100) + '%';
+    let last = Date.now();
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const dt = (now - last) / 1000;
+      last = now;
+      if (storyPausedRef.current || storyPaused || showStoryViewsModal) return;
+      elapsedRef.current.sec += dt;
+      const pct = Math.min((elapsedRef.current.sec / durationSec) * 100, 100);
+      if (barFillRef.current) barFillRef.current.style.width = pct + '%';
+      if (pct >= 100) {
+        if (showShareModal) { elapsedRef.current.sec = 0; return; } // loop behind share sheet
+        clearInterval(interval);
+        const idx = isActiveSlide ? currentStoryIndex : 0;
+        if (idx < group.stories.length - 1) {
+          setCurrentStoryIndex(idx + 1);
+          setStoryProgress(0);
+        } else if (handleNextUser) {
+          handleNextUser();
+        }
+      }
+    }, 50);
+    return () => clearInterval(interval);
+  }, [isActiveSlide, story?._id, story?.mediaType, storyPaused, showShareModal, showStoryViewsModal]);
+
   return (
     <div 
       style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px 10px', boxSizing: 'border-box', touchAction: 'pan-y' }}
@@ -462,21 +501,6 @@ const StorySlide = ({
          width: '100%', maxWidth: '380px', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column',
          borderRadius: '20px', overflow: 'hidden', background: '#000', boxShadow: '0 10px 40px rgba(0,0,0,0.8)'
       }}>
-      <style>{`
-        @keyframes storyHeartPop {
-          0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
-          20% { transform: translate(-50%, -50%) scale(1.12); opacity: 1; }
-          35% { transform: translate(-50%, -50%) scale(0.94); opacity: 1; }
-          50% { transform: translate(-50%, -50%) scale(1.03); opacity: 1; }
-          65% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-          85% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) scale(1.08); opacity: 0; }
-        }
-        @keyframes storyHeartRing {
-          0% { transform: translate(-50%, -50%) scale(0.45); opacity: 0.9; }
-          100% { transform: translate(-50%, -50%) scale(1.55); opacity: 0; }
-        }
-      `}</style>
       {showHeartAnimation && (
         <div style={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
@@ -496,16 +520,19 @@ const StorySlide = ({
           </div>
         </div>
       )}
-      {/* Progress Bars */}
+      {/* Progress Bars — the active fill is updated imperatively (barFillRef) by the
+          story timer / video timeupdate, so ticking progress never re-renders React. */}
       <div style={{ display: 'flex', gap: '5px', padding: '15px 10px 5px', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
         {group.stories.map((s, i) => (
           <div key={s._id} style={{ height: '3px', background: 'rgba(255,255,255,0.3)', flex: 1, borderRadius: '2px', overflow: 'hidden' }}>
-            <div style={{ 
-              height: '100%', 
-              background: '#fff', 
-              width: i < (isActiveSlide ? currentStoryIndex : 0) ? '100%' : i === (isActiveSlide ? currentStoryIndex : 0) ? storyProgress + "%" : '0%',
-              transition: i === (isActiveSlide ? currentStoryIndex : 0) && !storyPaused ? 'width 0.1s linear' : 'none'
-            }}></div>
+            <div 
+              ref={isActiveSlide && i === currentStoryIndex ? barFillRef : null}
+              style={{ 
+                height: '100%', 
+                background: '#fff', 
+                width: i < (isActiveSlide ? currentStoryIndex : 0) ? '100%' : '0%',
+                transition: 'none'
+              }}></div>
           </div>
         ))}
       </div>
@@ -606,7 +633,10 @@ const StorySlide = ({
               }
             }}
             onTimeUpdate={(e) => {
-              if (isActiveSlide) setStoryProgress((e.target.currentTime / e.target.duration) * 100);
+              // Paint straight onto the bar — no setState, no Dashboard re-render per frame.
+              if (isActiveSlide && barFillRef.current && e.target.duration) {
+                barFillRef.current.style.width = ((e.target.currentTime / e.target.duration) * 100) + '%';
+              }
             }}
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
@@ -711,7 +741,7 @@ const StorySlide = ({
             {/* Like Button */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <button 
-                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', transition: 'transform 0.1s active' }}
+                style={{ background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', transition: 'transform 0.1s active' }}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleStoryLike(story._id, groupIdx, (isActiveSlide ? currentStoryIndex : 0));
@@ -731,7 +761,7 @@ const StorySlide = ({
             {/* Comment Button */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <button 
-                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
+                style={{ background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
                 onClick={(e) => {
                   e.stopPropagation();
                   setStoryPaused(true);
@@ -748,7 +778,7 @@ const StorySlide = ({
             {/* Share Button */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <button 
-                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
+                style={{ background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', width: '46px', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowShareModal(true);
@@ -2737,40 +2767,9 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    let interval;
-    const viewerStories = profileStoryGroups ? profileStoryGroups : (activeTab === 'everyone-stories' ? everyoneStories : groupedStories);
-    if (storyViewerActive && viewerStories[currentStoryUserIndex] && !showStoryViewsModal) {
-      const currentStory = viewerStories[currentStoryUserIndex].stories[currentStoryIndex];
-      if (currentStory && currentStory.mediaType === 'image') {
-        interval = setInterval(() => {
-          if (storyPausedRef.current || storyPaused) return; // Don't advance while held
-          setStoryProgress(prev => {
-            if (prev >= 100) {
-              if (showShareModal) {
-                return 0; // Loop the current story in background
-              }
-              clearInterval(interval);
-              // Auto advance
-              if (currentStoryIndex < viewerStories[currentStoryUserIndex].stories.length - 1) {
-                setCurrentStoryIndex(c => c + 1);
-                return 0;
-              } else {
-                setTimeout(() => {
-                  handleNextUser();
-                }, 0);
-                return 0;
-              }
-            }
-            const totalDurationSec = currentStory.song?.duration || 5;
-            const step = 10 / totalDurationSec;
-            return prev + step;
-          });
-        }, 100);
-      }
-    }
-    return () => clearInterval(interval);
-  }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, showStoryViewsModal, storyPaused, showShareModal]);
+  // NOTE: image-story progress/advance timing now lives inside StorySlide and paints
+  // the bar via a ref — a 100ms setStoryProgress state tick here used to re-render the
+  // whole Dashboard 10×/second and caused the story viewer lag.
 
   useEffect(() => {
     if (storyVideoRef.current) {
@@ -5865,9 +5864,11 @@ const handleStoryUpload = async () => {
                         }}
                       >
                         {story.mediaType === 'video' ? (
-                          <video src={story.mediaUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline />
+                          // Only the first tiles auto-play — a wall of simultaneously decoding
+                          // videos on the global grid was a major source of scroll jank.
+                          <video src={story.mediaUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} {...(groupIdx < 6 ? { autoPlay: true, loop: true } : { preload: 'none' })} muted playsInline />
                         ) : (
-                          <img src={story.mediaUrl} alt="Story" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={story.mediaUrl} alt="Story" loading="lazy" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                         )}
                         
                         <div style={{ position: 'absolute', top: '8px', left: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.4)', padding: '6px 8px', borderRadius: '10px' }}>
@@ -10308,6 +10309,7 @@ const handleStoryUpload = async () => {
                           setShowShareModal={setShowShareModal}
                           showShareModal={showShareModal}
                           setShowStoryViewsModal={setShowStoryViewsModal}
+                          showStoryViewsModal={showStoryViewsModal}
                           viewerStoriesLength={viewerStories.length}
                           viewPublicProfile={viewPublicProfile}
                           setActiveTab={setActiveTab}
@@ -10342,6 +10344,7 @@ const handleStoryUpload = async () => {
                    setShowShareModal={setShowShareModal}
                    showShareModal={showShareModal}
                    setShowStoryViewsModal={setShowStoryViewsModal}
+                   showStoryViewsModal={showStoryViewsModal}
                    viewerStoriesLength={viewerStories.length}
                    viewPublicProfile={viewPublicProfile}
                            setShowCommentsModal={setShowCommentsModal}

@@ -75,5 +75,8 @@ const storySchema = new mongoose.Schema({
 
 // Create index for faster querying by user
 storySchema.index({ user: 1 });
+// Global feed sorts/filters by recency over the whole collection — without this the
+// 500-doc sort was an in-memory blocking sort.
+storySchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Story', storySchema);
