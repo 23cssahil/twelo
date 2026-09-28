@@ -982,12 +982,22 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
 
 
   // Live availability probe used by the sign-up form (auto-suggest + red/green feedback).
+  // Username permanence: a username stays reserved even after its account is deleted
+  // (archive lives in DeletedUser), so identities can never be recycled — like the
+  // big platforms. Every creation/change path checks this, not just the live collection.
+  const isUsernameReserved = async (username) => {
+    if (!username) return false;
+    const live = await User.findOne({ username }).select('_id').lean();
+    if (live) return true;
+    return !!(await DeletedUser.findOne({ username }).select('_id').lean());
+  };
+
   app.get('/api/auth/check_username', async (req, res) => {
     try {
       const raw = String(req.query.username || '').trim().toLowerCase();
       if (!/^[a-z0-9_]{3,20}$/.test(raw)) return res.json({ available: false, reason: 'invalid' });
-      const exists = await User.findOne({ username: raw });
-      res.json({ available: !exists });
+      const taken = await isUsernameReserved(raw);
+      res.json({ available: !taken, reason: taken ? 'taken' : undefined });
     } catch (e) {
       res.json({ available: false, reason: 'error' });
     }
@@ -1015,16 +1025,14 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
     // close the race window); fall back to the old name+random scheme if it's missing.
     let username = typeof req.body.username === 'string' ? req.body.username.trim().toLowerCase() : '';
     if (!/^[a-z0-9_]{3,20}$/.test(username)) username = '';
-    if (username && await User.findOne({ username })) {
+    if (username && await isUsernameReserved(username)) {
       return res.status(409).json({ message: 'That username is already taken. Pick another one.' });
     }
     if (!username) {
       const randomNum = Math.floor(1000 + Math.random() * 9000);
       username = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + randomNum;
-      let userExists = await User.findOne({ username });
-      while (userExists) {
+      while (await isUsernameReserved(username)) {
         username = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + Math.floor(1000 + Math.random() * 9000);
-        userExists = await User.findOne({ username });
       }
     }
 
@@ -1113,12 +1121,12 @@ app.post('/api/auth/guest', authLimiter, async (req, res) => {
     // the random guest#### scheme when nothing usable was sent.
     let username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : '';
     if (!/^[a-z0-9_]{3,20}$/.test(username)) username = '';
-    if (username && await User.findOne({ username })) {
+    if (username && await isUsernameReserved(username)) {
       return res.status(409).json({ message: 'That username is already taken. Pick another one.' });
     }
     if (!username) {
       username = `guest${Math.floor(1000 + Math.random() * 9000)}`;
-      while (await User.findOne({ username })) username = `guest${Math.floor(1000 + Math.random() * 9000)}`;
+      while (await isUsernameReserved(username)) username = `guest${Math.floor(1000 + Math.random() * 9000)}`;
     }
 
     const avatarUrl = generateAvatarUrl(gender);
@@ -1584,6 +1592,10 @@ app.get('/api/users/check-username', authenticateToken, async (req, res) => {
     if (existingUser && existingUser._id.toString() !== req.user.userId) {
       return res.json({ available: false });
     }
+    // Deleted accounts keep their username reserved forever.
+    if (!existingUser && await DeletedUser.findOne({ username: trimmedUsername }).select('_id').lean()) {
+      return res.json({ available: false });
+    }
     res.json({ available: true });
   } catch (error) {
     res.status(500).json({ message: 'Error checking username' });
@@ -1604,6 +1616,10 @@ app.post('/api/users/change_username', authenticateToken, async (req, res) => {
     
     if (existingUser && existingUser._id.toString() !== req.user.userId) {
       return res.status(400).json({ message: 'Username already taken' });
+    }
+    // Usernames of deleted accounts can never be claimed again.
+    if ((!existingUser || existingUser._id.toString() === req.user.userId) && await DeletedUser.findOne({ username: trimmedUsername }).select('_id').lean()) {
+      return res.status(400).json({ message: 'This username belongs to a deleted account and can no longer be used' });
     }
 
     const user = await User.findById(req.user.userId);
