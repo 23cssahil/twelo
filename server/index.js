@@ -4326,6 +4326,28 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
     // SEARCH MODE: always query the FULL database (not the current page) so results are
     // complete and instant. Returns up to 50 matches, no pagination cursor.
     if (query) {
+      // Magic filter tokens (exact match, case-insensitive): @deleted, @guest, @live
+      // (socket-connected right now), @offline (@ofline typo accepted). Location dropdown
+      // filters still narrow these; each returns up to 100 rows.
+      const cmd = String(query).trim().toLowerCase();
+      const onlineIds = Array.from(onlineUsers.keys()).map((id) => { try { return new mongoose.Types.ObjectId(String(id)); } catch (e) { return null; } }).filter(Boolean);
+      const locAnd = locCond.length ? { $and: locCond } : {};
+      if (cmd === '@deleted') {
+        const archives = await DeletedUser.find(locAnd).sort({ deletedAt: -1 }).limit(100);
+        return res.json({ users: archives.map(toMaskedDeleted), nextCursor: null });
+      }
+      if (cmd === '@guest') {
+        const found = await User.find({ isGuest: true, ...locAnd }).select('-password').sort({ createdAt: -1 }).limit(100);
+        return res.json({ users: found.map(toMasked), nextCursor: null });
+      }
+      if (cmd === '@live') {
+        const found = await User.find({ _id: { $in: onlineIds }, ...locAnd }).select('-password').sort({ createdAt: -1 }).limit(100);
+        return res.json({ users: found.map(toMasked), nextCursor: null });
+      }
+      if (cmd === '@offline' || cmd === '@ofline') {
+        const found = await User.find({ _id: { $nin: onlineIds }, ...locAnd }).select('-password').sort({ createdAt: -1 }).limit(100);
+        return res.json({ users: found.map(toMasked), nextCursor: null });
+      }
       const or = [
         { name: { $regex: query, $options: 'i' } },
         { username: { $regex: query, $options: 'i' } },
