@@ -53,6 +53,24 @@ export default function Login() {
     }
   }, []);
 
+  // Pre-select the country from the device IP (guest + Google onboarding share this form).
+  // Server resolves it with the same ip-api geo pipeline used when the account is created,
+  // so the form value matches what gets stored. Never overrides a manual pick.
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/geo`);
+        if (!res.ok) return;
+        const g = await res.json();
+        if (cancelled || !g?.country) return;
+        const match = WORLD_COUNTRIES.find(c => String(c.name).toLowerCase() === String(g.country).toLowerCase());
+        if (match) setCountry(prev => prev || match.name);
+      } catch (_) { /* fail-soft: user can still pick manually */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const verifyAccessToken = async (accessToken) => {
     try {
       setLoading(true);

@@ -1146,6 +1146,26 @@ app.post('/api/auth/guest', authLimiter, async (req, res) => {
   }
 });
 
+// Public IP→country lookup used by the login/onboarding form to pre-select the
+// user's country automatically (same geo source we already stamp accounts with).
+// Small per-IP cache so the free ip-api quota isn't burned by repeated page loads.
+const geoLookupCache = new Map(); // ip -> { at, data }
+app.get('/api/geo', async (req, res) => {
+  try {
+    const ip = getClientIp(req);
+    if (!ip) return res.json({ country: null, countryCode: null });
+    const hit = geoLookupCache.get(ip);
+    if (hit && Date.now() - hit.at < 10 * 60 * 1000) return res.json(hit.data);
+    const geo = await geoFromIp(ip);
+    const data = geo ? { country: geo.country, countryCode: geo.countryCode } : { country: null, countryCode: null };
+    if (geoLookupCache.size > 5000) geoLookupCache.clear();
+    geoLookupCache.set(ip, { at: Date.now(), data });
+    res.json(data);
+  } catch (e) {
+    res.json({ country: null, countryCode: null });
+  }
+});
+
 // Recover an existing guest account on a new device using its one-time claim code.
 app.post('/api/auth/guest/recover', authLimiter, async (req, res) => {
   try {
