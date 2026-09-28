@@ -4002,47 +4002,70 @@ app.get('/api/config/globe', async (req, res) => {
   res.json(globeWithRemaining());
 });
 
+// Resolve each user's country/state/district/city from ALL stored location data, not just
+// the forward-looking signup* fields: older accounts only have last* fields or a
+// locationHistory entry. Priority per level: signup location → last IP location → most
+// recent history entry (history sub-docs use lowercase keys) → profile country (level only).
+// Emits resolvedCountry / resolvedRegion / resolvedDistrict / resolvedCity.
+const resolveUserLocationStages = () => ['Country', 'Region', 'District', 'City'].map((lvl) => {
+  const histKey = lvl.toLowerCase(); // country | region | district | city
+  const historyValue = {
+    $let: {
+      vars: {
+        h: {
+          $let: {
+            vars: { lastH: { $arrayElemAt: [{ $ifNull: ['$locationHistory', []] }, -1] } },
+            in: { $cond: [{ $eq: [{ $type: '$$lastH' }, 'object'] }, '$$lastH', {}] }
+          }
+        }
+      },
+      in: { $ifNull: [`$$h.${histKey}`, null] }
+    }
+  };
+  const add = { $ifNull: [`$signup${lvl}`, null] };
+  const last = { $ifNull: [`$last${lvl}`, null] };
+  let expr;
+  if (lvl === 'Country') {
+    expr = {
+      $ifNull: [add, { $ifNull: [last, { $ifNull: [historyValue, { $ifNull: ['$country', null] }] }] }]
+    };
+  } else {
+    expr = { $ifNull: [add, { $ifNull: [last, historyValue] }] };
+  }
+  return { $addFields: { [`resolved${lvl}`]: expr } };
+});
+
 // Location facets for the User Database filters: countries with user counts, plus the
 // state (region) / district / city options cascaded by the current selection. Options are
-// derived from the signup location (fallback: last IP location) so only places users
-// actually signed up from show up, and grow automatically as new users join.
+// derived from every location a user has on record, so legacy accounts show up too.
 app.get('/api/admin/user-facets', adminAuth, async (req, res) => {
   try {
     const { country, state, district, city } = req.query;
-    const conds = [];
     const rx = (v) => ({ $regex: `^${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' });
-    if (country) conds.push({ $country: rx(country) });
-    if (state) conds.push({ $region: rx(state) });
-    if (district) conds.push({ $district: rx(district) });
-    if (city) conds.push({ $city: rx(city) });
-    const base = conds.length ? [{ $match: { $and: conds } }] : [{ $match: {} }];
-    const level = (field) => [
+    const conds = [];
+    if (country) conds.push({ $resolvedCountry: rx(country) });
+    if (state) conds.push({ $resolvedRegion: rx(state) });
+    if (district) conds.push({ $resolvedDistrict: rx(district) });
+    if (city) conds.push({ $resolvedCity: rx(city) });
+    const base = [
+      { $match: {} },
+      ...resolveUserLocationStages(),
+      ...(conds.length ? [{ $match: { $and: conds } }] : [])
+    ];
+    const level = (field, sortName) => [
       ...base,
-      { $project: { [field]: { $ifNull: [`$${field}`, '$last' + field.charAt(0).toUpperCase() + field.slice(1)] } } },
       { $match: { [field]: { $nin: [null, ''] } } },
       { $group: { _id: `$${field}`, count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
+      { $sort: sortName },
       { $limit: 300 }
     ];
-    // Local $country copy = signupCountry, falling back to the profile country ("Earth" users).
-    const countryPipeline = [
-      { $project: { $country: { $ifNull: ['$signupCountry', '$country'] } } },
-      { $match: { $country: { $nin: [null, ''] } } },
-      { $group: { _id: '$country', count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
-    ];
     const [countryRows, stateRows, districtRows, cityRows] = await Promise.all([
-      User.aggregate(countryPipeline),
-      User.aggregate(level('region')),
-      User.aggregate(level('district')),
-      User.aggregate(level('city'))
+      User.aggregate(level('$resolvedCountry', { _id: 1 })),
+      User.aggregate(level('$resolvedRegion', { count: -1 })),
+      User.aggregate(level('$resolvedDistrict', { count: -1 })),
+      User.aggregate(level('$resolvedCity', { count: -1 }))
     ]);
-    res.json({
-      countries: countryRows,
-      states: stateRows.map(r => ({ _id: r._id, count: r.count })),
-      districts: districtRows,
-      cities: cityRows
-    });
+    res.json({ countries: countryRows, states: stateRows, districts: districtRows, cities: cityRows });
   } catch (err) {
     console.error('User facets error', err);
     res.status(500).json({ message: 'Error fetching user facets' });
@@ -4055,25 +4078,58 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
 
     // Shared mapper: decrypt only to mask in-place, and never expose the internal search key.
+    // Also exposes resolvedLocation (signup → last IP → history fallback) so the admin UI can
+    // show a location for legacy accounts that never had signup* fields filled.
     const toMasked = (u) => {
       const userObj = u.toObject();
       userObj.email = maskEmail(decryptEmail(userObj.email));
       delete userObj.emailHash;
+      const lastH = Array.isArray(userObj.locationHistory) && userObj.locationHistory.length
+        ? userObj.locationHistory[userObj.locationHistory.length - 1]
+        : null;
+      const pick = (signup, last, hist) => signup || last || (hist ? String(hist) : '') || '';
+      userObj.resolvedLocation = {
+        city: pick(userObj.signupCity, userObj.lastCity, lastH && lastH.city),
+        district: pick(userObj.signupDistrict, userObj.lastDistrict, lastH && lastH.district),
+        region: pick(userObj.signupRegion, userObj.lastRegion, lastH && lastH.region),
+        country: pick(userObj.signupCountry, (lastH && lastH.country) || '', userObj.country)
+      };
       return userObj;
     };
 
     // Shared location filter (country / state / district / city) applied in BOTH search and
     // browse mode, so typed queries can be narrowed to the selected country's users.
-    // Mirrors the facets endpoint: signup location first, last IP location as fallback.
+    // Uses the same resolver as the facets endpoint (signup → last IP → locationHistory),
+    // so legacy accounts with only last*/history data match too.
+    const resolvedExpr = (lvl) => {
+      const histKey = lvl.toLowerCase();
+      const historyValue = {
+        $let: {
+          vars: {
+            h: {
+              $let: {
+                vars: { lastH: { $arrayElemAt: [{ $ifNull: ['$locationHistory', []] }, -1] } },
+                in: { $cond: [{ $eq: [{ $type: '$$lastH' }, 'object'] }, '$$lastH', {}] }
+              }
+            }
+          },
+          in: { $ifNull: [`$$h.${histKey}`, null] }
+        }
+      };
+      const add = { $ifNull: [`$signup${lvl}`, null] };
+      const lastLoc = { $ifNull: [`$last${lvl}`, null] };
+      return lvl === 'Country'
+        ? { $ifNull: [add, { $ifNull: [lastLoc, { $ifNull: [historyValue, { $ifNull: ['$country', null] }] }] }] }
+        : { $ifNull: [add, { $ifNull: [lastLoc, historyValue] }] };
+    };
     const locCond = [];
-    const locOr = (signupField, lastField, label) => ({
-      $or: [{ [signupField]: rx(label) }, { [signupField]: null, [lastField]: rx(label) }]
+    const locCondFor = (lvl, value) => locCond.push({
+      $expr: { $regexMatch: { input: { $toString: resolvedExpr(lvl) }, regex: `^${String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, options: 'i' } }
     });
-    const rx = (v) => ({ $regex: `^${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' });
-    if (req.query.country) locCond.push({ $or: [{ signupCountry: rx(req.query.country) }, { signupCountry: null, country: rx(req.query.country) }] });
-    if (req.query.state) locCond.push(locOr('signupRegion', 'lastRegion', req.query.state));
-    if (req.query.district) locCond.push(locOr('signupDistrict', 'lastDistrict', req.query.district));
-    if (req.query.city) locCond.push(locOr('signupCity', 'lastCity', req.query.city));
+    if (req.query.country) locCondFor('Country', req.query.country);
+    if (req.query.state) locCondFor('Region', req.query.state);
+    if (req.query.district) locCondFor('District', req.query.district);
+    if (req.query.city) locCondFor('City', req.query.city);
 
     // SEARCH MODE: always query the FULL database (not the current page) so results are
     // complete and instant. Returns up to 50 matches, no pagination cursor.

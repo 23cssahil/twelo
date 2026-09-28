@@ -2332,7 +2332,7 @@ export default function DeveloperAdmin() {
                             {u.ownedByAdmin ? <span className="dev-chip dev-chip-bot">Bot</span> : null}
                             {u.isGuest ? <span className="dev-chip dev-chip-guest">Guest</span> : null}
                             <span className={`dev-chip ${u.isBlocked ? 'dev-chip-blocked' : 'dev-chip-active'}`}>{u.isBlocked ? 'Blocked' : 'Active'}</span>
-                            {(u.signupCity || u.signupDistrict || u.lastCity) && <span className="dev-chip" title="Where this user signed up / last logged in">📍 {u.signupCity || u.signupDistrict || u.lastCity}</span>}
+                            {(u.resolvedLocation?.city || u.resolvedLocation?.district) && <span className="dev-chip" title={`Location: ${[u.resolvedLocation.city, u.resolvedLocation.district, u.resolvedLocation.region, u.resolvedLocation.country].filter(Boolean).join(', ')}`}>📍 {u.resolvedLocation.city || u.resolvedLocation.district}</span>}
                             <span className="dev-chip dev-chip-coins" title="Coins">{u.coins} coins</span>
                           </div>
                           <span className="dev-user-expand" aria-hidden="true">
@@ -2350,6 +2350,7 @@ export default function DeveloperAdmin() {
                               <DetailItem label="Gender" value={u.gender} />
                               <DetailItem label="Age" value={u.age} />
                               <DetailItem label="Country" value={`${u.country || '—'}${u.countryCode ? ` (${u.countryCode})` : ''}`} />
+                              <DetailItem label="Location" value={u.resolvedLocation ? [u.resolvedLocation.city, u.resolvedLocation.district, u.resolvedLocation.region, u.resolvedLocation.country].filter(Boolean).join(', ') || '—' : '—'} />
                               <DetailItem label="Signup location" value={[u.signupCity, u.signupDistrict, u.signupRegion, u.signupCountry].filter(Boolean).join(', ') || '—'} />
                               <DetailItem label="Last seen at" value={[u.lastCity, u.lastDistrict, u.lastRegion].filter(Boolean).join(', ') || '—'} />
                               <DetailItem label="Private profile" value={u.isPrivate ? 'Yes' : 'No'} />
