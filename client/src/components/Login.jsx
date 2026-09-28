@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useRef, useContext } from 'react';
 import { GoogleLogin, useGoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { AuthContext } from '../App';
@@ -40,6 +40,12 @@ export default function Login() {
   const [showRecover, setShowRecover] = useState(false);
   const [recoverCode, setRecoverCode] = useState('');
   const [guestMode, setGuestMode] = useState(false);
+  // Username on the sign-up form: auto-suggested from the name (background availability
+  // search), freely editable, with instant red/green feedback.
+  const [username, setUsername] = useState('');
+  const [usernameTouched, setUsernameTouched] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState('idle'); // idle | checking | available | taken | invalid
+  const usernameSeqRef = useRef(0);
 
   React.useEffect(() => {
     // Detect access_token returned in URL hash from direct Google OAuth redirect
@@ -204,6 +210,18 @@ export default function Login() {
       setError("Please fill out all fields");
       return;
     }
+    if (!username.trim()) {
+      setError("Please choose a username");
+      return;
+    }
+    if (usernameStatus === 'taken') {
+      setError("That username is already taken — pick another one");
+      return;
+    }
+    if (usernameStatus === 'invalid' || !/^[a-z0-9_]{3,20}$/.test(username)) {
+      setError("Username: 3–20 letters, numbers or underscore only");
+      return;
+    }
     
     try {
       setLoading(true);
@@ -215,7 +233,7 @@ export default function Login() {
         const res = await fetch(`${API_URL}/api/auth/guest`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, age, country, countryCode: chosenCountryCode, gender })
+          body: JSON.stringify({ name, age, country, countryCode: chosenCountryCode, gender, username: slugifyUsername(username) })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Could not start guest session');
@@ -228,7 +246,7 @@ export default function Login() {
       const res = await fetch(`${API_URL}/api/auth/complete_profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email: googleData.email, googleId: googleData.googleId, age, country, gender, referredBy })
+        body: JSON.stringify({ name, email: googleData.email, googleId: googleData.googleId, age, country, gender, referredBy, username: slugifyUsername(username) })
       });
       
       const data = await res.json();
@@ -252,6 +270,52 @@ export default function Login() {
     setGuestMode(true);
     setIsNewUser(true);
   };
+
+  // ── Username helpers ─────────────────────────────────────────────
+  const slugifyUsername = (v) => String(v).toLowerCase().trim().replace(/[^a-z0-9_]+/g, '').slice(0, 20);
+  const probeUsername = async (u) => {
+    try {
+      const r = await fetch(`${API_URL}/api/auth/check_username?username=${encodeURIComponent(u)}`);
+      const d = await r.json();
+      return d.available ? 'available' : (d.reason === 'invalid' ? 'invalid' : 'taken');
+    } catch (_) { return 'idle'; }
+  };
+
+  // Auto-suggest: as the name is typed, derive a username from it and search the
+  // background (name, name2, name3…) until a free one is found. Stops being smart
+  // the moment the user edits the field themselves.
+  React.useEffect(() => {
+    if (usernameTouched) return;
+    const seq = ++usernameSeqRef.current;
+    const base = slugifyUsername(name);
+    if (base.length < 3) { setUsername(''); setUsernameStatus('idle'); return; }
+    setUsernameStatus('checking');
+    (async () => {
+      const candidates = [base];
+      for (let i = 2; i <= 60 && candidates.length < 12; i++) candidates.push((base + i).slice(0, 20));
+      for (const cand of candidates) {
+        const st = await probeUsername(cand);
+        if (seq !== usernameSeqRef.current) return; // a newer name keystroke superseded this run
+        if (st === 'available') { setUsername(cand); setUsernameStatus('available'); return; }
+        if (st === 'invalid') { setUsername(cand); setUsernameStatus('invalid'); return; }
+      }
+      setUsername(base); setUsernameStatus('taken');
+    })();
+  }, [name, usernameTouched]);
+
+  // Manual edits: debounce a single availability probe → red/green hint.
+  React.useEffect(() => {
+    if (!usernameTouched) return;
+    const seq = ++usernameSeqRef.current;
+    if (!username) { setUsernameStatus('idle'); return; }
+    if (!/^[a-z0-9_]{3,20}$/.test(username)) { setUsernameStatus('invalid'); return; }
+    setUsernameStatus('checking');
+    const t = setTimeout(async () => {
+      const st = await probeUsername(username);
+      if (seq === usernameSeqRef.current) setUsernameStatus(st);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [username, usernameTouched]);
 
   // Restore a previously-created guest account on this/new device via its claim code.
   const handleRecoverGuest = async (e) => {
@@ -379,7 +443,7 @@ export default function Login() {
             <div className="onboarding-header">
               {guestMode ? (
                 <span
-                  onClick={() => { setGuestMode(false); setIsNewUser(false); setName(''); setError(''); }}
+                  onClick={() => { setGuestMode(false); setIsNewUser(false); setName(''); setUsername(''); setUsernameTouched(false); setUsernameStatus('idle'); setError(''); }}
                   style={{ display: 'inline-block', color: 'var(--brand-blue)', fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline', marginBottom: '8px' }}
                 >
                   ← Back
@@ -408,6 +472,35 @@ export default function Login() {
                 autoFocus
               />
               <label className="floating-label">Your Full Name</label>
+            </div>
+
+            <div className="form-group floating-group">
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280', pointerEvents: 'none', fontSize: '1rem', zIndex: 1 }}>@</span>
+                <input
+                  id="guestUsername"
+                  name="guestUsername"
+                  type="text"
+                  className="auth-input floating-input"
+                  style={{ paddingLeft: '32px' }}
+                  placeholder=" "
+                  value={username}
+                  onChange={(e) => { setUsernameTouched(true); setUsername(e.target.value.toLowerCase().replace(/\s+/g, '')); }}
+                  required
+                  maxLength={20}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <label className="floating-label" style={{ left: '32px' }}>Username</label>
+              </div>
+              {username && (
+                <div style={{ marginTop: '6px', marginLeft: '4px', fontSize: '0.78rem', fontWeight: 500, color: usernameStatus === 'available' ? '#22c55e' : usernameStatus === 'taken' ? '#ef4444' : usernameStatus === 'invalid' ? '#ef4444' : '#8a8f98' }}>
+                  {usernameStatus === 'available' && <>✓ @{username} is available</>}
+                  {usernameStatus === 'taken' && <>✕ @{username} — account already exists, try another</>}
+                  {usernameStatus === 'invalid' && <>Use 3–20 letters, numbers or underscore</>}
+                  {usernameStatus === 'checking' && <>Checking availability…</>}
+                </div>
+              )}
             </div>
             
             <div style={{ display: 'flex', gap: '16px' }}>

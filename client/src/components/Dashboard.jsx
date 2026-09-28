@@ -7826,8 +7826,15 @@ const handleStoryUpload = async () => {
                         {(profileStats?.avatarUrl || user.avatarUrl) ? <img src={profileStats?.avatarUrl || user.avatarUrl} alt='avatar' /> : user.username.charAt(0).toUpperCase()}
                       </div>
                       {(profileStats?.country || user.country) && (
-                        <div style={{ position: 'absolute', bottom: '0', right: '-4px', fontSize: '1.2rem', background: '#222', borderRadius: '50%', padding: '0', border: '2px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px' }}>
-                          {getFlagEmoji(profileStats?.country || user.country, profileStats?.countryCode || user.countryCode)}
+                        <div style={{ position: 'absolute', bottom: '0', right: '-4px', fontSize: '1.2rem', background: '#222', borderRadius: '50%', padding: '0', border: '2px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', overflow: 'hidden' }}>
+                          {(() => {
+                            // Many Android WebView builds render emoji flags as raw letters ("IN") —
+                            // use the flag image whenever we have a valid country code instead.
+                            const cc = String(profileStats?.countryCode || user.countryCode || '').toUpperCase();
+                            return /^[A-Z]{2}$/.test(cc) && cc !== 'UN'
+                              ? <img src={`https://flagcdn.com/w40/${cc.toLowerCase()}.png`} alt={cc} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                              : getFlagEmoji(profileStats?.country || user.country, cc);
+                          })()}
                         </div>
                       )}
                     </div>

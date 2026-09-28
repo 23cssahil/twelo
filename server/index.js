@@ -977,6 +977,18 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
 });
 
 
+  // Live availability probe used by the sign-up form (auto-suggest + red/green feedback).
+  app.get('/api/auth/check_username', async (req, res) => {
+    try {
+      const raw = String(req.query.username || '').trim().toLowerCase();
+      if (!/^[a-z0-9_]{3,20}$/.test(raw)) return res.json({ available: false, reason: 'invalid' });
+      const exists = await User.findOne({ username: raw });
+      res.json({ available: !exists });
+    } catch (e) {
+      res.json({ available: false, reason: 'error' });
+    }
+  });
+
   app.post('/api/auth/complete_profile', authLimiter, async (req, res) => {
   try {
     const { name, email, googleId, age, country, gender, referredBy } = req.body;
@@ -995,12 +1007,21 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
       idExists = await User.findOne({ uniqueId });
     }
 
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    let username = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + randomNum;
-    let userExists = await User.findOne({ username });
-    while (userExists) {
-      username = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + Math.floor(1000 + Math.random() * 9000);
-      userExists = await User.findOne({ username });
+    // Honor the username the user picked (validated + uniqueness re-checked here to
+    // close the race window); fall back to the old name+random scheme if it's missing.
+    let username = typeof req.body.username === 'string' ? req.body.username.trim().toLowerCase() : '';
+    if (!/^[a-z0-9_]{3,20}$/.test(username)) username = '';
+    if (username && await User.findOne({ username })) {
+      return res.status(409).json({ message: 'That username is already taken. Pick another one.' });
+    }
+    if (!username) {
+      const randomNum = Math.floor(1000 + Math.random() * 9000);
+      username = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + randomNum;
+      let userExists = await User.findOne({ username });
+      while (userExists) {
+        username = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + Math.floor(1000 + Math.random() * 9000);
+        userExists = await User.findOne({ username });
+      }
     }
 
     let avatarUrl = generateAvatarUrl(gender);
@@ -1053,9 +1074,11 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
       user: {
         id: newUser._id,
         username: newUser.username,
+        name: newUser.name,
         uniqueId: newUser.uniqueId,
         avatarUrl: newUser.avatarUrl,
         country: newUser.country,
+        countryCode: newUser.countryCode || 'UN',
         age: newUser.age,
         gender: newUser.gender
       }
@@ -1082,8 +1105,17 @@ app.post('/api/auth/guest', authLimiter, async (req, res) => {
     const guestName = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 50) : 'Guest';
     let guestAge = parseInt(body.age, 10);
     if (!Number.isFinite(guestAge) || guestAge < 13 || guestAge > 100) guestAge = 18;
-    let username = `guest${Math.floor(1000 + Math.random() * 9000)}`;
-    while (await User.findOne({ username })) username = `guest${Math.floor(1000 + Math.random() * 9000)}`;
+    // Use the username chosen on the form (re-validated here); only fall back to
+    // the random guest#### scheme when nothing usable was sent.
+    let username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : '';
+    if (!/^[a-z0-9_]{3,20}$/.test(username)) username = '';
+    if (username && await User.findOne({ username })) {
+      return res.status(409).json({ message: 'That username is already taken. Pick another one.' });
+    }
+    if (!username) {
+      username = `guest${Math.floor(1000 + Math.random() * 9000)}`;
+      while (await User.findOne({ username })) username = `guest${Math.floor(1000 + Math.random() * 9000)}`;
+    }
 
     const avatarUrl = generateAvatarUrl(gender);
 
@@ -1136,6 +1168,7 @@ app.post('/api/auth/guest', authLimiter, async (req, res) => {
         uniqueId: guest.uniqueId,
         avatarUrl: guest.avatarUrl,
         country: guest.country,
+        countryCode: guest.countryCode,
         age: guest.age,
         gender: guest.gender,
         isGuest: true
