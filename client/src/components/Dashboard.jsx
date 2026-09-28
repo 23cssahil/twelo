@@ -9668,43 +9668,42 @@ const handleStoryUpload = async () => {
           }}
           style={{
             position: 'fixed',
-            top: '20px',
+            top: 'max(12px, calc(env(safe-area-inset-top, 0px) + 10px))',
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 99999,
-            background: 'rgba(20, 20, 20, 0.95)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            backdropFilter: 'blur(20px)',
+            background: 'rgba(24, 26, 31, 0.92)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
             color: '#fff',
-            padding: '14px 18px',
-            borderRadius: '18px',
-            boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+            padding: '10px 12px',
+            borderRadius: '14px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            animation: 'msgToastSlide 4s forwards',
-            minWidth: '260px',
-            maxWidth: '340px',
+            gap: '10px',
+            animation: 'msgToastSlide 4s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+            minWidth: '240px',
+            maxWidth: '320px',
             cursor: 'pointer',
           }}>
-          <div style={{ width: '44px', height: '44px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366)', padding: '2px' }}>
-            <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', background: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>
-              {msgToast.sender.avatarUrl
-                ? <img src={msgToast.sender.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : msgToast.sender.username?.charAt(0)?.toUpperCase()}
-            </div>
+          <div style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#2a2d33', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.95rem', fontWeight: 600, color: '#aab0b8' }}>
+            {msgToast.sender.avatarUrl
+              ? <img src={msgToast.sender.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : msgToast.sender.username?.charAt(0)?.toUpperCase()}
           </div>
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', marginBottom: '3px' }}>@{msgToast.sender.username}</div>
-            <div style={{ fontSize: '0.88rem', color: '#ccc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msgToast.messageText}</div>
+          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ffffff', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{msgToast.sender.username}</div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 400, color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>{msgToast.messageText}</div>
           </div>
-          <div style={{ fontSize: '0.7rem', color: '#666', flexShrink: 0 }}>Tap to open</div>
+          <ChevronRight size={16} color="rgba(255,255,255,0.25)" style={{ flexShrink: 0 }} />
           <style>{`
             @keyframes msgToastSlide {
-              0% { top: -80px; opacity: 0; }
-              12% { top: 20px; opacity: 1; }
-              80% { top: 20px; opacity: 1; }
-              100% { top: -80px; opacity: 0; }
+              0% { transform: translateX(-50%) translateY(-160%); opacity: 0; }
+              12% { transform: translateX(-50%) translateY(0); opacity: 1; }
+              82% { transform: translateX(-50%) translateY(0); opacity: 1; }
+              100% { transform: translateX(-50%) translateY(-160%); opacity: 0; }
             }
           `}</style>
         </div>
