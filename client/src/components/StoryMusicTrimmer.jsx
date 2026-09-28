@@ -4,10 +4,22 @@ import { ArrowLeft, Check, Play, Pause } from 'lucide-react';
 // Instagram-style fullscreen music trimmer. Self-contained: owns its preview
 // <audio>, playhead tracking and clip loop. Dashboard only passes settings +
 // callbacks, so the trim screen can never "leak" into the story editor state.
+//
+// Scrub model (matches IG behaviour):
+//  - While the finger drags, the song KEEPS PLAYING and follows the window with
+//    throttled seeks (~every 120ms) — never stop/rewind races.
+//  - The loop guard is suspended during the drag so nothing yanks currentTime.
+//  - On release we snap to the exact chosen start and playback continues.
+//  - The playhead is driven by requestAnimationFrame on a DOM ref, so audio
+//    ticks cause ZERO React re-renders (that was the source of the lag).
 export default function StoryMusicTrimmer({ song, settings, onSettingsChange, onBack, onDone }) {
   const audioRef = useRef(null);
-  const [playing, setPlaying] = useState(true);
-  const [currentTime, setCurrentTime] = useState(settings?.startTime || 0);
+  const playheadRef = useRef(null);
+  const draggingRef = useRef(false);
+  const scrubValRef = useRef(settings?.startTime || 0);
+  const lastSeekAt = useRef(0);
+  const rafRef = useRef(0);
+  const [playing, setPlaying] = useState(false);
 
   const duration = song?.duration || 120;
   const start = settings?.startTime || 0;
@@ -15,7 +27,10 @@ export default function StoryMusicTrimmer({ song, settings, onSettingsChange, on
   const maxStart = Math.max(0, duration - clipLen);
   const winLeft = (start / duration) * 100;
   const winWidth = Math.min(100, (clipLen / duration) * 100);
-  const playPct = (Math.min(Math.max(currentTime, start), start + clipLen) / duration) * 100;
+
+  // Latest settings for stable (subscribe-once) audio listeners.
+  const liveRef = useRef({ start, clipLen, duration });
+  liveRef.current = { start, clipLen, duration };
 
   // Deterministic pseudo-waveform (same song -> same bars, no audio decoding).
   const bars = useMemo(() => {
@@ -30,6 +45,13 @@ export default function StoryMusicTrimmer({ song, settings, onSettingsChange, on
     return out;
   }, [song?.title]);
 
+  const positionPlayhead = (a) => {
+    const ph = playheadRef.current;
+    if (!ph || !a) return;
+    const dur = liveRef.current.duration;
+    ph.style.left = `${Math.min(100, Math.max(0, (a.currentTime / dur) * 100))}%`;
+  };
+
   // Drop OS-level media controls so the clip can't be resumed from the notification shade.
   useEffect(() => {
     if ('mediaSession' in navigator) {
@@ -40,28 +62,75 @@ export default function StoryMusicTrimmer({ song, settings, onSettingsChange, on
     }
   }, []);
 
-  // Seek when the window moves; keep the loop pinned to [start, start+clipLen].
-  useEffect(() => {
-    const a = audioRef.current;
-    if (a && Math.abs(a.currentTime - start) > 0.6) a.currentTime = start;
-  }, [start, clipLen]);
-
+  // Core audio wiring: attached once, reads settings via liveRef.
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
     const onTime = () => {
-      const st = settings?.startTime || 0;
-      const du = settings?.durationLimit || 15;
-      if (a.currentTime >= st + du || a.currentTime < st) { a.currentTime = st; a.play().catch(() => {}); }
-      setCurrentTime(a.currentTime);
+      const { start: st, clipLen: du } = liveRef.current;
+      // Loop the clip — but never fight the user's finger mid-drag.
+      if (!draggingRef.current && (a.currentTime >= st + du || a.currentTime < st)) {
+        a.currentTime = st;
+      }
     };
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
+    const startRaf = () => {
+      if (rafRef.current) return;
+      const loop = () => {
+        positionPlayhead(a);
+        rafRef.current = !a.paused ? requestAnimationFrame(loop) : 0;
+      };
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    const stopRaf = () => { cancelAnimationFrame(rafRef.current); rafRef.current = 0; };
+    const onPlay = () => { setPlaying(true); startRaf(); };
+    const onPause = () => { setPlaying(false); stopRaf(); };
     a.addEventListener('timeupdate', onTime);
     a.addEventListener('play', onPlay);
     a.addEventListener('pause', onPause);
-    return () => { a.removeEventListener('timeupdate', onTime); a.removeEventListener('play', onPlay); a.removeEventListener('pause', onPause); a.pause(); };
-  }, [settings]);
+    positionPlayhead(a);
+    return () => { a.removeEventListener('timeupdate', onTime); a.removeEventListener('play', onPlay); a.removeEventListener('pause', onPause); stopRaf(); a.pause(); };
+  }, []);
+
+  // Global pointer-up ends the scrub: jump exactly to the chosen start and keep playing.
+  useEffect(() => {
+    const endDrag = () => {
+      if (!draggingRef.current) return;
+      draggingRef.current = false;
+      const a = audioRef.current;
+      if (a) {
+        try { a.currentTime = scrubValRef.current; } catch (_) { /* noop */ }
+        if (a.paused) a.play().catch(() => {});
+      }
+    };
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+    return () => { window.removeEventListener('pointerup', endDrag); window.removeEventListener('pointercancel', endDrag); };
+  }, []);
+
+  // Scrub: update window instantly (React), seek audio at most ~8x/sec so the
+  // user HEARS the song continuously while sliding.
+  const handleScrub = (val) => {
+    onSettingsChange({ startTime: val });
+    scrubValRef.current = val;
+    const a = audioRef.current;
+    if (!a) return;
+    const now = performance.now();
+    if (!draggingRef.current || now - lastSeekAt.current > 120) {
+      lastSeekAt.current = now;
+      try { a.currentTime = val; } catch (_) { /* noop */ }
+      if (a.paused) a.play().catch(() => {});
+    }
+  };
+
+  const pickDuration = (sec) => {
+    const newStart = Math.min(start, Math.max(0, duration - sec));
+    onSettingsChange({ durationLimit: sec, startTime: newStart });
+    const a = audioRef.current;
+    if (a) {
+      try { a.currentTime = newStart; } catch (_) { /* noop */ }
+      if (a.paused) a.play().catch(() => {});
+    }
+  };
 
   const togglePlay = () => {
     const a = audioRef.current;
@@ -110,7 +179,7 @@ export default function StoryMusicTrimmer({ song, settings, onSettingsChange, on
         .sm-window { position: absolute; top: 0; bottom: 0; border-left: 2.5px solid #fff; border-right: 2.5px solid #fff; background: rgba(255,255,255,.07); pointer-events: none; }
         .sm-handle { position: absolute; top: 50%; transform: translateY(-50%); width: 14px; height: 30px; border-radius: 7px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.55); pointer-events: none; }
         .sm-handle.l { left: -8px; } .sm-handle.r { right: -8px; }
-        .sm-playhead { position: absolute; top: 2px; bottom: 2px; width: 2px; background: #fff; box-shadow: 0 0 8px rgba(255,255,255,.9); pointer-events: none; transition: left .1s linear; }
+        .sm-playhead { position: absolute; top: 2px; bottom: 2px; width: 2px; background: #fff; box-shadow: 0 0 8px rgba(255,255,255,.9); pointer-events: none; }
         .sm-seek { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; margin: 0; -webkit-appearance: none; appearance: none; }
         .sm-ctrls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
         .sm-play-btn { width: 46px; height: 46px; border-radius: 50%; border: none; background: linear-gradient(135deg,#00c6ff,#0072ff); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 16px rgba(0,114,255,.5); flex-shrink: 0; }
@@ -162,7 +231,7 @@ export default function StoryMusicTrimmer({ song, settings, onSettingsChange, on
             <div className="sm-handle l" />
             <div className="sm-handle r" />
           </div>
-          <div className="sm-playhead" style={{ left: `${playPct}%` }} />
+          <div className="sm-playhead" ref={playheadRef} style={{ left: `${winLeft}%` }} />
           {/* Transparent drag/seek layer (accessible range input). */}
           <input
             className="sm-seek"
@@ -171,7 +240,8 @@ export default function StoryMusicTrimmer({ song, settings, onSettingsChange, on
             max={maxStart}
             step={0.1}
             value={start}
-            onChange={(e) => onSettingsChange({ startTime: parseFloat(e.target.value) })}
+            onPointerDown={() => { draggingRef.current = true; }}
+            onChange={(e) => handleScrub(parseFloat(e.target.value))}
             aria-label="Song start position"
           />
         </div>
@@ -186,7 +256,7 @@ export default function StoryMusicTrimmer({ song, settings, onSettingsChange, on
                 key={sec}
                 type="button"
                 className={`sm-dur-btn ${clipLen === sec ? 'active' : ''}`}
-                onClick={() => onSettingsChange({ durationLimit: sec, startTime: Math.min(start, Math.max(0, duration - sec)) })}
+                onClick={() => pickDuration(sec)}
               >
                 {sec}s
               </button>
