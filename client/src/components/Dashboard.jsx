@@ -6971,8 +6971,7 @@ const handleStoryUpload = async () => {
                   .tw-ring-inner img { width: 100%; height: 100%; object-fit: cover; }
                   .tw-count { position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: linear-gradient(135deg,#00c6ff,#0072ff); color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid #050505; box-shadow: 0 2px 8px rgba(0,114,255,.5); pointer-events: none; }
                   .tw-add-badge { position: absolute; bottom: -2px; right: -2px; background: var(--brand-blue,#0072ff); border-radius: 50%; padding: 2px; display: flex; align-items: center; justify-content: center; border: 2px solid #050505; box-shadow: 0 2px 8px rgba(0,114,255,.55); cursor: pointer; }
-                  .tw-name { font-size: .74rem; color: #eaeaea; max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-                  .tw-views { font-size: .62rem; color: #8fb8ff; display: flex; align-items: center; gap: 3px; margin-top: -3px; }
+                  .tw-name { font-size: .74rem; color: var(--chat-header-text, #eaeaea); max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                   .tw-story-skel { width: 68px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
                   .tw-skel-ring { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(90deg,#111 25%,#1e1e1e 37%,#111 63%); background-size: 400% 100%; animation: tw-shimmer 1.4s ease infinite; }
                   .tw-skel-line { width: 44px; height: 8px; border-radius: 4px; background: linear-gradient(90deg,#111 25%,#1e1e1e 37%,#111 63%); background-size: 400% 100%; animation: tw-shimmer 1.4s ease infinite; }
@@ -7008,7 +7007,6 @@ const handleStoryUpload = async () => {
                           {hasStory && a.total > 1 && <div className="tw-count">{a.total}</div>}
                         </div>
                         <span className="tw-name">{storyUploading ? 'Posting…' : 'Your Story'}</span>
-                        {hasStory && <span className="tw-views"><Eye size={11} /> {a.totalViews}</span>}
                       </div>
                     );
                   })()}
