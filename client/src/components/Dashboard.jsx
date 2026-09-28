@@ -6127,7 +6127,10 @@ const handleStoryUpload = async () => {
       case 'anonymousChat':
         return (
           <div className="chat-container">
-            <div className="chat-area" style={{ position: 'relative', zIndex: 40 }}>
+            {/* Inline zIndex was 40 here, which sank the fixed mobile overlay below the
+                sticky app header (z 50) and hid the partner name bar — friend chat (see
+                case 'messages') only sets position, letting the CSS z-index 60 apply. */}
+            <div className="chat-area" style={{ position: 'relative' }}>
               <div className="chat-room-header">
                 <div className="chat-header-info" style={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1, gap: '10px' }}>
                   <button
