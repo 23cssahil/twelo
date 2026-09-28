@@ -115,17 +115,17 @@ export default function GuestUpsell() {
 
   return (
     <>
-      {/* Floating banner (sits above the mobile bottom-nav) */}
-      <div style={{ position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: '84px', zIndex: 9998, width: 'min(92%, 460px)', background: 'rgba(20,20,20,0.96)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px', padding: '12px 14px', boxShadow: '0 12px 32px rgba(0,0,0,0.5)', color: '#fff', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div style={{ fontSize: '22px' }}>👻</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>You're browsing as a guest</div>
-          <div style={{ fontSize: '0.78rem', color: '#a8a8a8' }}>Sign up to keep friends, chats & coins — takes a tap.</div>
-          {claimCode && <div style={{ fontSize: '0.74rem', color: '#fbbf24', marginTop: '2px' }}>⚠ Save your recovery code — without it your guest account can't be restored.</div>}
+      {/* Floating banner (sits above the mobile bottom-nav). Stacked layout: all text
+          on top, actions in a full-width row below — reads like a premium card, not a toast. */}
+      <div style={{ position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: '84px', zIndex: 9998, width: 'min(92%, 460px)', boxSizing: 'border-box', background: 'rgba(20,20,20,0.96)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px', padding: '14px 16px', boxShadow: '0 12px 32px rgba(0,0,0,0.5)', color: '#fff' }}>
+        <button onClick={() => setDismissed(true)} aria-label="Dismiss" style={{ position: 'absolute', top: '10px', right: '12px', background: 'transparent', color: '#888', border: 'none', fontSize: '20px', cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
+        <div style={{ fontWeight: 700, fontSize: '0.95rem', paddingRight: '18px' }}>👻 You're browsing as a guest</div>
+        <div style={{ fontSize: '0.8rem', color: '#a8a8a8', marginTop: '3px' }}>Sign up to keep friends, chats & coins — takes a tap.</div>
+        {claimCode && <div style={{ fontSize: '0.76rem', color: '#fbbf24', marginTop: '6px' }}>⚠ Save your recovery code — without it your guest account can't be restored.</div>}
+        <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+          <button onClick={() => setModal('signup')} style={{ flex: 1, background: 'var(--brand-blue, #0072ff)', color: '#fff', border: 'none', borderRadius: '12px', padding: '10px 14px', fontWeight: 700, fontSize: '0.86rem', cursor: 'pointer' }}>Sign up</button>
+          {claimCode && <button onClick={() => { setMsg(''); setModal('code'); }} style={{ flex: 1, background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', borderRadius: '12px', padding: '10px 14px', fontWeight: 600, fontSize: '0.86rem', cursor: 'pointer' }}>Recovery Code</button>}
         </div>
-        <button onClick={() => setModal('signup')} style={{ background: 'linear-gradient(135deg,#00c6ff,#0072ff)', color: '#fff', border: 'none', borderRadius: '20px', padding: '8px 14px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>Sign up</button>
-        {claimCode && <button onClick={() => { setMsg(''); setModal('code'); }} style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', borderRadius: '20px', padding: '8px 12px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>Code</button>}
-        <button onClick={() => setDismissed(true)} aria-label="Dismiss" style={{ background: 'transparent', color: '#888', border: 'none', fontSize: '20px', cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
       </div>
 
       {/* Modal */}
