@@ -6668,19 +6668,6 @@ const handleStoryUpload = async () => {
                   </div>
                 </div>
               </div>
-              
-              {/* Earn Coins Section migrated to Profile */}
-              <div className="earn-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '15px', padding: '20px', marginTop: '20px', width: '100%' }}>
-                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#FFD700' }}>Invite Friends & Earn</h3>
-                <p style={{ margin: '0 0 15px 0', color: '#aaa', fontSize: '0.9rem' }}>Share your unique link. You earn 20 coins for every friend who signs up!</p>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <input type="text" readOnly value={`${window.location.origin}/login?ref=${user?.id}`} style={{ flex: 1, padding: '10px', background: 'rgba(0,0,0,0.5)', border: '1px solid #333', borderRadius: '8px', color: '#fff' }} />
-                  <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/login?ref=${user?.id}`); alert('Link Copied!'); }} style={{ padding: '10px 20px', background: 'var(--insta-gradient)', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>
-                    Copy
-                  </button>
-                </div>
-              </div>
-
             </div>
           );
         }
