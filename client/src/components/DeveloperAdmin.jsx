@@ -23,6 +23,27 @@ import AdminStoryCreator from './AdminStoryCreator';
 import AdminStoryManager from './AdminStoryManager';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 
+// ── Broadcast Studio config (drawer in the Overview tab) ──
+const BC_TYPES = [
+  { id: 'info', label: 'Information', emoji: 'ℹ️', accent: '#3b82f6' },
+  { id: 'warning', label: 'Warning', emoji: '⚠️', accent: '#f59e0b' },
+  { id: 'success', label: 'Success', emoji: '✅', accent: '#22c55e' },
+  { id: 'urgent', label: 'Urgent', emoji: '🚨', accent: '#ef4444' },
+];
+const BC_AUDIENCES = [
+  { id: 'all', label: 'Everyone', emoji: '🌍' },
+  { id: 'online', label: 'Online now', emoji: '⚡' },
+  { id: 'guests', label: 'Guests', emoji: '👻' },
+  { id: 'registered', label: 'Registered', emoji: '🆕' },
+];
+const BC_TEMPLATES = [
+  { id: 'maintenance', label: '🛠️ Maintenance', type: 'warning', topic: 'SYSTEM MAINTENANCE', body: 'We are performing scheduled maintenance today between 2–4 AM IST.\nTwelo may be briefly unavailable during this window.\n\nSorry for the inconvenience.' },
+  { id: 'feature', label: '🚀 New Feature', type: 'success', topic: 'NEW FEATURE UPDATE', body: 'A brand new feature has just landed on Twelo!\nUpdate the app and try it out — your feedback matters.' },
+  { id: 'coins', label: '🪙 Coin Bonus', type: 'success', topic: 'COIN GIVEAWAY', body: 'Free coins are live for a limited time!\nOpen the Earn section and claim your bonus before it ends.' },
+  { id: 'safety', label: '🛡️ Safety Alert', type: 'urgent', topic: 'URGENT SAFETY NOTICE', body: 'We have detected a wave of fake support accounts.\nTwelo staff will NEVER ask for your password or recovery code.\nReport any suspicious DMs instantly.' },
+  { id: 'greeting', label: '🎉 Greeting', type: 'info', topic: 'SEASON GREETINGS', body: 'Warm wishes from all of us at Twelo!\nThank you for being part of our community.' },
+];
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -290,6 +311,8 @@ export default function DeveloperAdmin() {
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastTopic, setBroadcastTopic] = useState('');
   const [broadcastType, setBroadcastType] = useState('info');
+  const [broadcastAudience, setBroadcastAudience] = useState('all');
+  const [broadcastSending, setBroadcastSending] = useState(false);
   const [autoFooter, setAutoFooter] = useState(true);
   const [showBlockedOnly, setShowBlockedOnly] = useState(false);
   const [showAdminStoryUI, setShowAdminStoryUI] = useState(false);
@@ -968,6 +991,8 @@ export default function DeveloperAdmin() {
       alert("Topic and message are required.");
       return;
     }
+    const audienceLabel = (BC_AUDIENCES.find(a => a.id === broadcastAudience) || {}).label || broadcastAudience;
+    if (!window.confirm(`Send this broadcast to "${audienceLabel}" right now?`)) return;
 
     const typeIcons = {
       info: 'ℹ️',
@@ -983,18 +1008,23 @@ export default function DeveloperAdmin() {
       finalMessage += `\n\nThank you,\nTwelo Administration`;
     }
 
+    setBroadcastSending(true);
     try {
-      await fetch(`${API_URL}/api/admin/broadcast`, {
+      const res = await fetch(`${API_URL}/api/admin/broadcast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
-        body: JSON.stringify({ message: finalMessage, alertType: broadcastType })
+        body: JSON.stringify({ message: finalMessage, alertType: broadcastType, audience: broadcastAudience })
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Server error');
       setBroadcastMessage('');
       setBroadcastTopic('');
       setShowBroadcastModal(false);
-      alert("Broadcast sent successfully!");
+      alert(`Broadcast delivered to ${data.sentCount ?? 0} ${audienceLabel.toLowerCase()} ✅`);
     } catch (err) {
-      alert("Error sending broadcast");
+      alert("Error sending broadcast: " + err.message);
+    } finally {
+      setBroadcastSending(false);
     }
   };
 
@@ -2903,73 +2933,114 @@ export default function DeveloperAdmin() {
       )}
 
       {/* Active Random Chat Modal removed — the intercept chat now lives in the right pane of the Live Random page. */}
-      {/* Broadcast Hub Modal */}
+      {/* Broadcast Studio — right-side full-height drawer (replaces the old centered modal) */}
       {showBroadcastModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ background: '#111', border: '1px solid #333', padding: '30px', borderRadius: '15px', width: '90%', maxWidth: '500px', boxShadow: '0 15px 35px rgba(0,0,0,0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}><Send size={24} color="#f59e0b" /> Broadcast Hub</h2>
-              <button onClick={() => setShowBroadcastModal(false)} style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer' }}><X size={24} /></button>
+        <div className="bc-overlay" onClick={() => setShowBroadcastModal(false)}>
+          <div className="bc-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="bc-head">
+              <div>
+                <h2 className="bc-title"><Send size={20} color="#4f9cff" /> Broadcast Studio</h2>
+                <div className="bc-sub">Craft and send an in-app notification to a targeted audience</div>
+              </div>
+              <button className="bc-close" onClick={() => setShowBroadcastModal(false)} title="Close"><X size={18} /></button>
             </div>
-            
-            <form onSubmit={handleBroadcast}>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: '#ccc' }}>Alert Type</label>
-                <select 
-                  value={broadcastType} 
-                  onChange={(e) => setBroadcastType(e.target.value)}
-                  className="dev-input"
-                  style={{ width: '100%' }}
-                >
-                  <option value="info">ℹ️ Information</option>
-                  <option value="warning">⚠️ Warning</option>
-                  <option value="success">✅ Success</option>
-                  <option value="urgent">🚨 Urgent</option>
-                </select>
+
+            <div className="bc-body">
+              <div>
+                <div className="bc-label">Quick Templates</div>
+                <div className="bc-templates">
+                  {BC_TEMPLATES.map((tpl) => (
+                    <button key={tpl.id} type="button" className="bc-tpl" onClick={() => {
+                      setBroadcastType(tpl.type);
+                      setBroadcastTopic(tpl.topic);
+                      setBroadcastMessage(tpl.body);
+                    }}>{tpl.label}</button>
+                  ))}
+                </div>
               </div>
 
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: '#ccc' }}>Topic / Subject</label>
-                <input 
-                  type="text" 
-                  value={broadcastTopic} 
-                  onChange={(e) => setBroadcastTopic(e.target.value)}
-                  placeholder="e.g. SYSTEM MAINTENANCE"
-                  className="dev-input"
-                  style={{ width: '100%' }}
-                  required
-                />
+              <div>
+                <div className="bc-label">Alert Type</div>
+                <div className="bc-types">
+                  {BC_TYPES.map((t) => (
+                    <button key={t.id} type="button" onClick={() => setBroadcastType(t.id)}
+                      className={`bc-opt${broadcastType === t.id ? ` on-${t.id}` : ''}`}>
+                      <span className="bc-emoji">{t.emoji}</span>{t.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: '#ccc' }}>Message Body</label>
-                <textarea 
-                  value={broadcastMessage} 
-                  onChange={(e) => setBroadcastMessage(e.target.value)}
-                  placeholder="Enter multi-line message here..."
-                  className="dev-input"
-                  style={{ width: '100%', minHeight: '120px', resize: 'vertical', fontFamily: 'inherit' }}
-                  required
-                />
+              <div>
+                <div className="bc-label">Audience</div>
+                <div className="bc-auds">
+                  {BC_AUDIENCES.map((a) => (
+                    <button key={a.id} type="button" onClick={() => setBroadcastAudience(a.id)}
+                      className={`bc-opt${broadcastAudience === a.id ? ' on-neutral' : ''}`}>
+                      <span className="bc-emoji">{a.emoji}</span>{a.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input 
-                  type="checkbox" 
-                  id="autoFooter"
-                  checked={autoFooter}
-                  onChange={(e) => setAutoFooter(e.target.checked)}
-                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                />
-                <label htmlFor="autoFooter" style={{ color: '#ccc', cursor: 'pointer', fontSize: '0.9rem' }}>
-                  Add Professional Footer ("Thank you, Twelo Administration")
-                </label>
-              </div>
+              <form onSubmit={handleBroadcast} style={{ display: 'contents' }}>
+                <div>
+                  <div className="bc-label">
+                    <span>Topic / Subject</span>
+                    <span className="bc-count">{broadcastTopic.length}/60</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={broadcastTopic}
+                    onChange={(e) => setBroadcastTopic(e.target.value)}
+                    placeholder="e.g. SYSTEM MAINTENANCE"
+                    className="bc-input"
+                    maxLength={60}
+                    required
+                  />
+                </div>
 
-              <button type="submit" className="dev-btn-primary" style={{ width: '100%', background: '#f59e0b', color: '#000', padding: '12px', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
-                <Send size={20} /> Send Global Broadcast
-              </button>
-            </form>
+                <div style={{ marginTop: 20 }}>
+                  <div className="bc-label">
+                    <span>Message Body</span>
+                    <span className="bc-count">{broadcastMessage.length}/500</span>
+                  </div>
+                  <textarea
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    placeholder="Enter multi-line message here…"
+                    className="bc-textarea"
+                    maxLength={500}
+                    required
+                  />
+                  <div className="bc-hint">Line breaks are preserved exactly as typed.</div>
+                </div>
+
+                <div style={{ marginTop: 20 }}>
+                  <div className="bc-label">How users will see it</div>
+                  <div className="bc-preview-card" style={{ '--bc-accent': (BC_TYPES.find(t => t.id === broadcastType) || BC_TYPES[0]).accent }}>
+                    <span className="bc-preview-icon">{{ info: 'ℹ️', warning: '⚠️', success: '✅', urgent: '🚨' }[broadcastType] || '📢'}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="bc-preview-title">{(broadcastTopic || 'YOUR TOPIC HERE').toUpperCase()}</div>
+                      <div className="bc-preview-body">{broadcastMessage || 'Message body preview appears here…'}</div>
+                      {autoFooter && <div className="bc-preview-foot">Thank you,<br />Twelo Administration</div>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bc-footer-row" style={{ marginTop: 20 }}>
+                  <input type="checkbox" id="autoFooter" checked={autoFooter} onChange={(e) => setAutoFooter(e.target.checked)} />
+                  <label htmlFor="autoFooter" style={{ cursor: 'pointer' }}>Add professional footer ("Thank you, Twelo Administration")</label>
+                </div>
+
+                <div className="bc-foot">
+                  <button type="button" className="bc-clear" onClick={() => { setBroadcastTopic(''); setBroadcastMessage(''); }}>Clear</button>
+                  <button type="submit" className="bc-send" disabled={broadcastSending}>
+                    {broadcastSending ? 'Sending…' : <><Send size={17} /> Send Broadcast</>}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

@@ -4519,17 +4519,37 @@ app.post('/api/admin/block', adminAuth, async (req, res) => {
 
 app.post('/api/admin/broadcast', adminAuth, async (req, res) => {
   try {
-    const { message, alertType } = req.body;
-    
-    // Save to all users' notifications
-    const newNotif = { type: 'system_alert', message, alertType: alertType || 'info', read: false, createdAt: new Date() };
-    await User.updateMany({}, { $push: { notifications: newNotif } });
+    const { message, alertType, audience } = req.body;
 
-    // Emit to online users
-    io.emit('new_notification');
-    io.emit('system_alert_toast', { message, type: 'broadcast', alertType: alertType || 'info' });
-    
-    res.json({ success: true });
+    // Audience targeting: everyone (default), currently-online sockets only, guests only,
+    // or registered (non-guest) users. The notification is persisted for the target set, so
+    // even users who are offline right now find it in their bell when they return.
+    const toOid = (id) => { try { return new mongoose.Types.ObjectId(String(id)); } catch (e) { return null; } };
+    const onlineIds = Array.from(onlineUsers.keys()).map(toOid).filter(Boolean);
+    let filter = {};
+    if (audience === 'guests') filter = { isGuest: true };
+    else if (audience === 'registered') filter = { isGuest: false };
+    else if (audience === 'online') filter = { _id: { $in: onlineIds } };
+
+    const newNotif = { type: 'system_alert', message, alertType: alertType || 'info', read: false, createdAt: new Date() };
+    const r = await User.updateMany(filter, { $push: { notifications: newNotif } });
+
+    // Realtime toast: global emit only for a truly global broadcast; otherwise target just
+    // the connected sockets inside the audience, so guests-only never pings registered users.
+    const toast = { message, type: 'broadcast', alertType: alertType || 'info' };
+    if (!audience || audience === 'all') {
+      io.emit('new_notification');
+      io.emit('system_alert_toast', toast);
+    } else {
+      const toastFilter = audience === 'online' ? filter : { ...filter, _id: { $in: onlineIds } };
+      const recipients = await User.find(toastFilter).select('_id').lean();
+      recipients.forEach((u) => {
+        const sid = onlineUsers.get(String(u._id));
+        if (sid) { io.to(sid).emit('new_notification'); io.to(sid).emit('system_alert_toast', toast); }
+      });
+    }
+
+    res.json({ success: true, sentCount: r.modifiedCount });
   } catch (error) {
     res.status(500).json({ message: 'Error sending broadcast' });
   }
