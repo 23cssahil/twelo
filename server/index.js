@@ -4004,36 +4004,41 @@ app.get('/api/config/globe', async (req, res) => {
 
 // Resolve each user's country/state/district/city from ALL stored location data, not just
 // the forward-looking signup* fields: older accounts only have last* fields or a
-// locationHistory entry. Priority per level: signup location → last IP location → most
-// recent history entry (history sub-docs use lowercase keys) → profile country (level only).
-// Emits resolvedCountry / resolvedRegion / resolvedDistrict / resolvedCity.
-const resolveUserLocationStages = () => ['Country', 'Region', 'District', 'City'].map((lvl) => {
-  const histKey = lvl.toLowerCase(); // country | region | district | city
-  const historyValue = {
-    $let: {
-      vars: {
-        h: {
-          $let: {
-            vars: { lastH: { $arrayElemAt: [{ $ifNull: ['$locationHistory', []] }, -1] } },
-            in: { $cond: [{ $eq: [{ $type: '$$lastH' }, 'object'] }, '$$lastH', {}] }
+// locationHistory entry. Priority per level: signup → last IP → most recent history entry
+// (history sub-docs use lowercase keys) → profile country (country level only).
+// ip-api often leaves district empty, so district additionally falls back to the resolved
+// city. Emits resolvedCountry / resolvedRegion / resolvedCity / resolvedDistrict (in that
+// order — District is computed last so it can reference resolvedCity).
+const resolveUserLocationStages = () => {
+  // Treat empty strings as "no value" so the fallback chain keeps going.
+  const nz = (expr) => ({ $cond: [{ $or: [{ $eq: [expr, null] }, { $eq: [expr, ''] }] }, null, expr] });
+  const hist = (lvl) => {
+    const histKey = lvl.toLowerCase();
+    return {
+      $let: {
+        vars: {
+          h: {
+            $let: {
+              vars: { lastH: { $arrayElemAt: [{ $ifNull: ['$locationHistory', []] }, -1] } },
+              in: { $cond: [{ $eq: [{ $type: '$$lastH' }, 'object'] }, '$$lastH', {}] }
+            }
           }
-        }
-      },
-      in: { $ifNull: [`$$h.${histKey}`, null] }
-    }
-  };
-  const add = { $ifNull: [`$signup${lvl}`, null] };
-  const last = { $ifNull: [`$last${lvl}`, null] };
-  let expr;
-  if (lvl === 'Country') {
-    expr = {
-      $ifNull: [add, { $ifNull: [last, { $ifNull: [historyValue, { $ifNull: ['$country', null] }] }] }]
+        },
+        in: { $ifNull: [`$$h.${histKey}`, null] }
+      }
     };
-  } else {
-    expr = { $ifNull: [add, { $ifNull: [last, historyValue] }] };
-  }
-  return { $addFields: { [`resolved${lvl}`]: expr } };
-});
+  };
+  const base = (lvl) => ({
+    $ifNull: [nz({ $ifNull: [`$signup${lvl}`, null] }),
+      { $ifNull: [nz({ $ifNull: [`$last${lvl}`, null] }), nz(hist(lvl))] }]
+  });
+  return [
+    { $addFields: { resolvedCountry: { $ifNull: [base('Country'), nz('$country')] } } },
+    { $addFields: { resolvedRegion: base('Region') } },
+    { $addFields: { resolvedCity: base('City') } },
+    { $addFields: { resolvedDistrict: { $ifNull: [base('District'), '$resolvedCity'] } } }
+  ];
+};
 
 // Location facets for the User Database filters: countries with user counts, plus the
 // state (region) / district / city options cascaded by the current selection. Options are
@@ -4091,9 +4096,10 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
         ? userObj.locationHistory[userObj.locationHistory.length - 1]
         : null;
       const pick = (signup, last, hist) => signup || last || (hist ? String(hist) : '') || '';
+      const cityVal = pick(userObj.signupCity, userObj.lastCity, lastH && lastH.city);
       userObj.resolvedLocation = {
-        city: pick(userObj.signupCity, userObj.lastCity, lastH && lastH.city),
-        district: pick(userObj.signupDistrict, userObj.lastDistrict, lastH && lastH.district),
+        city: cityVal,
+        district: pick(userObj.signupDistrict, userObj.lastDistrict, lastH && lastH.district) || cityVal,
         region: pick(userObj.signupRegion, userObj.lastRegion, lastH && lastH.region),
         country: pick(userObj.signupCountry, (lastH && lastH.country) || '', userObj.country)
       };
@@ -4102,11 +4108,13 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
 
     // Shared location filter (country / state / district / city) applied in BOTH search and
     // browse mode, so typed queries can be narrowed to the selected country's users.
-    // Uses the same resolver as the facets endpoint (signup → last IP → locationHistory),
-    // so legacy accounts with only last*/history data match too.
-    const resolvedExpr = (lvl) => {
+    // Uses the same resolver as the facets endpoint (signup → last IP → locationHistory,
+    // country also falls back to profile country, district also falls back to city), so
+    // legacy accounts with only last*/history data match too.
+    const nz = (expr) => ({ $cond: [{ $or: [{ $eq: [expr, null] }, { $eq: [expr, ''] }] }, null, expr] });
+    const histExpr = (lvl) => {
       const histKey = lvl.toLowerCase();
-      const historyValue = {
+      return {
         $let: {
           vars: {
             h: {
@@ -4119,11 +4127,15 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
           in: { $ifNull: [`$$h.${histKey}`, null] }
         }
       };
-      const add = { $ifNull: [`$signup${lvl}`, null] };
-      const lastLoc = { $ifNull: [`$last${lvl}`, null] };
-      return lvl === 'Country'
-        ? { $ifNull: [add, { $ifNull: [lastLoc, { $ifNull: [historyValue, { $ifNull: ['$country', null] }] }] }] }
-        : { $ifNull: [add, { $ifNull: [lastLoc, historyValue] }] };
+    };
+    const baseExpr = (lvl) => ({
+      $ifNull: [nz({ $ifNull: [`$signup${lvl}`, null] }),
+        { $ifNull: [nz({ $ifNull: [`$last${lvl}`, null] }), nz(histExpr(lvl))] }]
+    });
+    const resolvedExpr = (lvl) => {
+      if (lvl === 'Country') return { $ifNull: [baseExpr('Country'), nz('$country')] };
+      if (lvl === 'District') return { $ifNull: [baseExpr('District'), baseExpr('City')] };
+      return baseExpr(lvl);
     };
     const locCond = [];
     const locCondFor = (lvl, value) => locCond.push({
