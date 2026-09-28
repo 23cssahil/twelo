@@ -6547,7 +6547,7 @@ const handleStoryUpload = async () => {
                         padding: '6px 14px', borderRadius: '18px', fontSize: '0.82rem', fontWeight: 700,
                         cursor: 'pointer', transition: 'all 0.15s ease',
                         border: active ? '1px solid transparent' : '1px solid var(--border-color, #333)',
-                        background: active ? 'var(--insta-gradient, linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%))' : 'transparent',
+                        background: active ? 'var(--insta-gradient, linear-gradient(135deg, #00c6ff 0%, #0072ff 100%))' : 'transparent',
                         color: active ? '#fff' : 'var(--text-secondary)',
                       }}
                     >
