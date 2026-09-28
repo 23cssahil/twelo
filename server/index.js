@@ -2893,7 +2893,7 @@ app.post('/api/stories', authenticateToken, async (req, res) => {
     // Parse song if it's sent as stringified JSON
     const parsedSong = typeof song === 'string' ? JSON.parse(song) : (song || null);
 
-    const creator = await User.findById(req.user.userId).select('isPrivate').lean();
+    const creator = await User.findById(req.user.userId).select('isPrivate followers').lean();
 
     const newStory = new Story({
       user: req.user.userId,
@@ -2901,6 +2901,9 @@ app.post('/api/stories', authenticateToken, async (req, res) => {
       mediaType: mediaType || 'image',
       visibility: visibility || 'everyone',
       allowedUsers: allowedUsers || [],
+      // Freeze the audience for 'followers' stories at upload time — users who follow
+      // the poster afterwards should not see this story (checked in GET /api/stories).
+      followerSnapshot: visibility === 'followers' ? (creator?.followers || []) : [],
       songUrl: songUrl || parsedSong?.audioUrl || null,
       song: parsedSong,
       isPrivate: creator?.isPrivate || false
@@ -2940,7 +2943,10 @@ app.get('/api/stories', authenticateToken, async (req, res) => {
       createdAt: { $gt: twentyFourHoursAgo },
       $or: [
         { user: currentUserId }, // Self
-        { user: { $in: followingIds }, visibility: 'followers' }, // Followers only
+        // Followers only — must have been a follower when the story was posted
+        { visibility: 'followers', followerSnapshot: currentUserId },
+        // Legacy stories (created before follower snapshots existed): old live-graph behaviour
+        { visibility: 'followers', followerSnapshot: { $exists: false }, user: { $in: followingIds } },
         { visibility: 'custom', allowedUsers: currentUserId } // Close friends
       ]
     })

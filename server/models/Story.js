@@ -28,6 +28,13 @@ const storySchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  // Snapshot of the poster's followers at the moment a 'followers'-visibility story
+  // was created. Visibility is evaluated against this list (not the live follower
+  // graph), so people who follow later do NOT see older followers-only stories.
+  followerSnapshot: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   viewedBy: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
