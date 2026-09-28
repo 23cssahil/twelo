@@ -16,6 +16,17 @@ export default function GuestUpsell() {
   const [modal, setModal] = useState(null); // 'signup' | 'code' | null
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // First guest session after sign-up: show the recovery code immediately so it is
+  // never missed (banner can be dismissed, and guests lose accounts without the code).
+  // Declared above the early-return below to keep hook order stable.
+  React.useEffect(() => {
+    if (user?.isGuest && localStorage.getItem('guestClaimCode') && !localStorage.getItem('guestCodeSeen')) {
+      localStorage.setItem('guestCodeSeen', '1');
+      setModal('code');
+    }
+  }, [user?.isGuest]);
 
   if (!user || !user.isGuest || dismissed) return null;
 
@@ -65,7 +76,42 @@ export default function GuestUpsell() {
     }
   };
 
-  const copyCode = () => { if (claimCode && navigator.clipboard) navigator.clipboard.writeText(claimCode); };
+  const copyCode = () => {
+    if (!claimCode || !navigator.clipboard) return;
+    navigator.clipboard.writeText(claimCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  // Save the code as a small .txt file so the guest keeps it even after uninstalling
+  // the app (localStorage/claim code is wiped with the install).
+  const downloadCode = () => {
+    if (!claimCode) return;
+    const lines = [
+      'TWEO GUEST ACCOUNT RECOVERY CODE',
+      '================================',
+      '',
+      `Username : @${user.username || 'guest'}`,
+      `Code     : ${claimCode}`,
+      `Saved on : ${new Date().toLocaleString()}`,
+      '',
+      'How to use: on the Twelo login screen tap "Have a guest recovery code?"',
+      'and enter this code to restore the account on any device.',
+      '',
+      'WARNING: without this code the guest account and all its chats,',
+      'friends and coins cannot be recovered if you log out or change phone.',
+    ].join('\n');
+    const blob = new Blob([lines], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `twelo-recovery-code-${user.username || 'guest'}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  };
 
   return (
     <>
@@ -75,8 +121,10 @@ export default function GuestUpsell() {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>You're browsing as a guest</div>
           <div style={{ fontSize: '0.78rem', color: '#a8a8a8' }}>Sign up to keep friends, chats & coins — takes a tap.</div>
+          {claimCode && <div style={{ fontSize: '0.74rem', color: '#fbbf24', marginTop: '2px' }}>⚠ Save your recovery code — without it your guest account can't be restored.</div>}
         </div>
         <button onClick={() => setModal('signup')} style={{ background: 'linear-gradient(135deg,#00c6ff,#0072ff)', color: '#fff', border: 'none', borderRadius: '20px', padding: '8px 14px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>Sign up</button>
+        {claimCode && <button onClick={() => { setMsg(''); setModal('code'); }} style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', borderRadius: '20px', padding: '8px 12px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>Code</button>}
         <button onClick={() => setDismissed(true)} aria-label="Dismiss" style={{ background: 'transparent', color: '#888', border: 'none', fontSize: '20px', cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
       </div>
 
@@ -110,9 +158,15 @@ export default function GuestUpsell() {
             {modal === 'code' && (
               <div style={{ textAlign: 'center' }}>
                 <h3 style={{ margin: '0 0 6px', fontSize: '1.3rem' }}>Your recovery code</h3>
-                <p style={{ color: '#a8a8a8', fontSize: '0.88rem', marginTop: 0, marginBottom: '16px' }}>Save this somewhere safe. It restores your guest account on any device — and you can still upgrade to Google later.</p>
+                <p style={{ color: '#a8a8a8', fontSize: '0.88rem', marginTop: 0, marginBottom: '10px' }}>This code is the <span style={{ color: '#fff', fontWeight: 600 }}>only way</span> to restore your guest account (@{user.username || 'guest'}) on any device — you can still upgrade to Google later.</p>
+                <div style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5', borderRadius: '12px', padding: '10px 12px', fontSize: '0.82rem', marginBottom: '14px' }}>⚠ If you lose this code, your account, chats, friends & coins are gone forever.</div>
                 <div style={{ background: '#0d0d0d', border: '1px dashed #444', borderRadius: '12px', padding: '14px', fontSize: '1.15rem', letterSpacing: '2px', fontWeight: 700, marginBottom: '12px', wordBreak: 'break-all' }}>{claimCode || 'No code available'}</div>
-                {claimCode && <button onClick={copyCode} style={{ background: '#262626', color: '#fff', border: '1px solid #444', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>Copy code</button>}
+                {claimCode && (
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                    <button onClick={copyCode} style={{ background: copied ? 'rgba(34,197,94,0.15)' : '#262626', color: copied ? '#22c55e' : '#fff', border: `1px solid ${copied ? 'rgba(34,197,94,0.4)' : '#444'}`, borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', transition: 'all 0.2s' }}>{copied ? '✓ Copied' : 'Copy code'}</button>
+                    <button onClick={downloadCode} style={{ background: 'rgba(0,114,255,0.12)', color: '#4da3ff', border: '1px solid rgba(0,114,255,0.35)', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>⬇ Download (.txt)</button>
+                  </div>
+                )}
                 <div style={{ marginTop: '16px' }}><button onClick={() => { setMsg(''); setModal('signup'); }} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline' }}>Back to Sign up</button></div>
               </div>
             )}

@@ -244,7 +244,7 @@ export default function Login() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Could not start guest session');
-        if (data.claimCode) localStorage.setItem('guestClaimCode', data.claimCode);
+        if (data.claimCode) { localStorage.setItem('guestClaimCode', data.claimCode); localStorage.removeItem('guestCodeSeen'); }
         login(data.user, data.token);
         navigate(from);
         return;
@@ -339,6 +339,7 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Invalid recovery code');
       localStorage.setItem('guestClaimCode', recoverCode.trim().toUpperCase());
+      localStorage.removeItem('guestCodeSeen');
       login(data.user, data.token);
       navigate(from);
     } catch (err) {

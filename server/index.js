@@ -3036,15 +3036,18 @@ app.get('/api/stories/everyone', authenticateToken, async (req, res) => {
       query.createdAt = { $lt: new Date(cursor) };
     }
 
+    // High cap on purpose: this is a per-STORY limit but the response is grouped per
+    // user — a handful of heavy posters (admin stories) could otherwise eat the whole
+    // page and leave guests seeing only a few story groups.
     let stories = await Story.find(query)
       .populate('user', 'username avatarUrl uniqueId country countryCode')
       .populate('viewedBy', 'username avatarUrl')
       .populate('likedBy', 'username avatarUrl')
       .sort({ createdAt: -1 })
-      .limit(50)
+      .limit(500)
       .lean();
 
-    const hasMore = stories.length === 50;
+    const hasMore = stories.length === 500;
     const nextCursor = stories.length > 0 ? stories[stories.length - 1].createdAt : null;
 
     // Reverse to chronological order for grouping
