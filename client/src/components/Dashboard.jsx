@@ -6990,13 +6990,13 @@ const handleStoryUpload = async () => {
                 zIndex: 20
               }}>
                 <h2 style={{ margin: 0 }}>Chats</h2>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <div style={{ background: 'var(--chat-user-bg, rgba(255,255,255,0.06))', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--chat-border, rgba(255,255,255,0.08))' }} onClick={() => setActiveTab('search')}>
-                    <SearchIcon size={18} color="var(--chat-header-text, #ffffff)" />
-                  </div>
-                  <div style={{ background: 'var(--chat-user-bg, rgba(255,255,255,0.06))', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--chat-border, rgba(255,255,255,0.08))' }} onClick={() => setActiveTab('search')}>
-                    <Edit size={18} color="var(--chat-header-text, #ffffff)" />
-                  </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" className="header-icon-btn" aria-label="Search people" onClick={() => setActiveTab('search')}>
+                    <SearchIcon size={18} />
+                  </button>
+                  <button type="button" className="header-icon-btn" aria-label="New chat" onClick={() => setActiveTab('search')}>
+                    <Edit size={18} />
+                  </button>
                 </div>
               </div>
               
@@ -7121,27 +7121,28 @@ const handleStoryUpload = async () => {
                       <div className="user-names">
                         <span className="user-username">@{chatUser.username}</span>
                         {typingUsers[chatUser._id] ? (
-                          <span style={{ fontSize: '0.78rem', color: '#00e5ff', fontStyle: 'italic', fontWeight: '700', letterSpacing: '0.2px' }}>
-                            typing...
+                          <span style={{ fontSize: '0.78rem', color: 'var(--brand-blue, #0072ff)', fontWeight: 600 }}>
+                            typing…
                           </span>
                         ) : (
-                          <span style={{ fontSize: '0.78rem', color: isOnline ? '#00e676' : 'var(--chat-user-subtext, #94a3b8)', fontWeight: isOnline ? '600' : 'normal' }}>
+                          <span style={{ fontSize: '0.78rem', color: isOnline ? '#34d399' : 'var(--chat-user-subtext, #94a3b8)', fontWeight: isOnline ? 500 : 'normal' }}>
                             {isOnline ? 'Online' : 'Offline'}
                           </span>
                         )}
                       </div>
                       {unreadCount > 0 && (
-                        <div style={{ 
-                          marginLeft: 'auto', 
-                          background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)', 
-                          color: '#ffffff', 
-                          borderRadius: '12px', 
-                          padding: '3px 8px', 
-                          fontSize: '0.75rem', 
-                          fontWeight: '800',
-                          boxShadow: '0 4px 12px rgba(0, 114, 255, 0.4)'
+                        <div style={{
+                          marginLeft: 'auto',
+                          background: 'var(--brand-blue, #0072ff)',
+                          color: '#ffffff',
+                          borderRadius: '10px',
+                          padding: '2px 7px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          minWidth: '20px',
+                          textAlign: 'center'
                         }}>
-                          {unreadCount}
+                          {unreadCount > 99 ? '99+' : unreadCount}
                         </div>
                       )}
                       {isOnline && unreadCount === 0 && <div className="chat-user-status" />}
