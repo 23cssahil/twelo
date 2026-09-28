@@ -6976,20 +6976,21 @@ const handleStoryUpload = async () => {
                   .story-bar-container.tw-storybar { display: flex; gap: 16px; padding: 16px 14px; overflow-x: auto; border-bottom: 1px solid var(--border-color); scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
                   .story-bar-container.tw-storybar::-webkit-scrollbar { display: none; }
                   .tw-story { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; flex-shrink: 0; outline: none; -webkit-tap-highlight-color: transparent; }
-                  .tw-ring { width: 60px; height: 60px; border-radius: 50%; padding: 2.5px; display: flex; align-items: center; justify-content: center; transition: transform .18s ease; }
+                  .tw-ring-wrap { position: relative; }
+                  .tw-ring { width: 68px; height: 68px; border-radius: 50%; padding: 3px; display: flex; align-items: center; justify-content: center; transition: transform .18s ease; }
                   .tw-story:hover .tw-ring, .tw-story:focus-visible .tw-ring { transform: scale(1.07); }
                   .tw-story:active .tw-ring { transform: scale(.95); }
                   .tw-ring-inner { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2.5px solid #050505; background: var(--insta-gradient, linear-gradient(135deg,#00c6ff,#0072ff)); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; }
                   .tw-ring-inner img { width: 100%; height: 100%; object-fit: cover; }
-                  .tw-count { position: absolute; top: -2px; right: 3px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: linear-gradient(135deg,#00c6ff,#0072ff); color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid #050505; box-shadow: 0 2px 8px rgba(0,114,255,.5); pointer-events: none; }
-                  .tw-add-badge { position: absolute; bottom: 20px; right: 1px; background: var(--brand-blue,#0072ff); border-radius: 50%; padding: 2px; display: flex; align-items: center; justify-content: center; border: 2px solid #050505; box-shadow: 0 2px 8px rgba(0,114,255,.55); cursor: pointer; }
-                  .tw-name { font-size: .72rem; color: #eaeaea; max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                  .tw-count { position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: linear-gradient(135deg,#00c6ff,#0072ff); color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid #050505; box-shadow: 0 2px 8px rgba(0,114,255,.5); pointer-events: none; }
+                  .tw-add-badge { position: absolute; bottom: -2px; right: -2px; background: var(--brand-blue,#0072ff); border-radius: 50%; padding: 2px; display: flex; align-items: center; justify-content: center; border: 2px solid #050505; box-shadow: 0 2px 8px rgba(0,114,255,.55); cursor: pointer; }
+                  .tw-name { font-size: .74rem; color: #eaeaea; max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                   .tw-views { font-size: .62rem; color: #8fb8ff; display: flex; align-items: center; gap: 3px; margin-top: -3px; }
-                  .tw-story-skel { width: 60px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-                  .tw-skel-ring { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(90deg,#111 25%,#1e1e1e 37%,#111 63%); background-size: 400% 100%; animation: tw-shimmer 1.4s ease infinite; }
+                  .tw-story-skel { width: 68px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+                  .tw-skel-ring { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(90deg,#111 25%,#1e1e1e 37%,#111 63%); background-size: 400% 100%; animation: tw-shimmer 1.4s ease infinite; }
                   .tw-skel-line { width: 44px; height: 8px; border-radius: 4px; background: linear-gradient(90deg,#111 25%,#1e1e1e 37%,#111 63%); background-size: 400% 100%; animation: tw-shimmer 1.4s ease infinite; }
                   @keyframes tw-shimmer { 0% { background-position: 100% 0 } 100% { background-position: 0 0 } }
-                  .tw-storybar-arrow { position: absolute; top: 46px; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); background: rgba(10,10,10,.72); color: #fff; display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 5; backdrop-filter: blur(4px); }
+                  .tw-storybar-arrow { position: absolute; top: 52px; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); background: rgba(10,10,10,.72); color: #fff; display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 5; backdrop-filter: blur(4px); }
                   .tw-storybar-arrow:hover { background: rgba(0,114,255,.85); }
                   .tw-storybar-arrow-l { left: 2px; } .tw-storybar-arrow-r { right: 2px; }
                   @media (min-width: 900px) { .tw-storybar-arrow { display: flex; } }
@@ -7008,15 +7009,17 @@ const handleStoryUpload = async () => {
                     return (
                       <div className="tw-story" role="button" tabIndex={0} aria-label="Your story" onClick={activate}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } }}>
-                        <div className="tw-ring" style={{ background: a ? storyRingBg(a) : 'transparent' }}>
-                          <div className="tw-ring-inner" style={{ border: hasStory ? '2.5px solid #050505' : '2px solid #333' }}>
-                            {storyUploading ? <Loader2 className="rotating" size={24} color="#fff" /> : (user.avatarUrl ? <img src={user.avatarUrl} alt="me" /> : (user.username || '?').charAt(0).toUpperCase())}
+                        <div className="tw-ring-wrap">
+                          <div className="tw-ring" style={{ background: a ? storyRingBg(a) : 'transparent' }}>
+                            <div className="tw-ring-inner" style={{ border: hasStory ? '2.5px solid #050505' : '2px solid #333' }}>
+                              {storyUploading ? <Loader2 className="rotating" size={24} color="#fff" /> : (user.avatarUrl ? <img src={user.avatarUrl} alt="me" /> : (user.username || '?').charAt(0).toUpperCase())}
+                            </div>
                           </div>
+                          <div className="tw-add-badge" title="Add to your story" onClick={(e) => { e.stopPropagation(); openStoryCamera('user', 'story'); }}>
+                            <PlusCircle size={14} color="#fff" />
+                          </div>
+                          {hasStory && a.total > 1 && <div className="tw-count">{a.total}</div>}
                         </div>
-                        <div className="tw-add-badge" title="Add to your story" onClick={(e) => { e.stopPropagation(); openStoryCamera('user', 'story'); }}>
-                          <PlusCircle size={14} color="#fff" />
-                        </div>
-                        {hasStory && a.total > 1 && <div className="tw-count">{a.total}</div>}
                         <span className="tw-name">{storyUploading ? 'Posting…' : 'Your Story'}</span>
                         {hasStory && <span className="tw-views"><Eye size={11} /> {a.totalViews}</span>}
                       </div>
@@ -7039,12 +7042,14 @@ const handleStoryUpload = async () => {
                       <div key={group.user._id} className="tw-story" role="button" tabIndex={0} aria-label={`${uname}'s story`}
                         onClick={() => openStoryByUserId(group.user._id)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openStoryByUserId(group.user._id); } }}>
-                        <div className="tw-ring" style={{ background: storyRingBg(a) }}>
-                          <div className="tw-ring-inner">
-                            {group.user.avatarUrl ? <img src={group.user.avatarUrl} alt="avatar" /> : uname.charAt(0).toUpperCase()}
+                        <div className="tw-ring-wrap">
+                          <div className="tw-ring" style={{ background: storyRingBg(a) }}>
+                            <div className="tw-ring-inner">
+                              {group.user.avatarUrl ? <img src={group.user.avatarUrl} alt="avatar" /> : uname.charAt(0).toUpperCase()}
+                            </div>
                           </div>
+                          {a.total > 1 && <div className="tw-count">{a.total}</div>}
                         </div>
-                        {a.total > 1 && <div className="tw-count">{a.total}</div>}
                         <span className="tw-name">{uname.length > 8 ? uname.substring(0, 8) + '…' : uname}</span>
                       </div>
                     );
@@ -7072,12 +7077,13 @@ const handleStoryUpload = async () => {
                     >
                       <div 
                         className="user-avatar-small" 
-                        style={{ background: ringBackground, padding: hasRing ? '2.5px' : '0', borderRadius: '50%', cursor: chatUserStoryGroup ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent' }}
+                        style={{ width: '58px', height: '58px', minWidth: '58px', background: ringBackground, padding: hasRing ? '3px' : '0', borderRadius: '50%', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
                         onClick={(e) => {
-                          if (chatUserStoryGroup) {
-                            e.stopPropagation();
-                            openStoryByUserId(chatUser._id);
-                          }
+                          // Tap the avatar: open their story if they have one, otherwise open
+                          // their profile so the profile picture is viewable. Row body opens chat.
+                          e.stopPropagation();
+                          if (chatUserStoryGroup) openStoryByUserId(chatUser._id);
+                          else viewPublicProfile(chatUser._id);
                         }}
                       >
                         <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: hasRing ? '2px solid #050505' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)' }}>
@@ -7173,7 +7179,7 @@ const handleStoryUpload = async () => {
                             aria-label={hasRing ? `View ${activeChatUser.username}'s story` : 'View profile'}
                             onClick={activate}
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } }}
-                            style={{ background: storyRingBg(analyzeStoryGroup(grp)), padding: hasRing ? '2.5px' : '0', borderRadius: '50%', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                            style={{ width: '54px', height: '54px', minWidth: '54px', background: storyRingBg(analyzeStoryGroup(grp)), padding: hasRing ? '3px' : '0', borderRadius: '50%', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
                           >
                             <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: hasRing ? '2px solid #050505' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--insta-gradient)' }}>
                               {activeChatUser.avatarUrl ? <img src={activeChatUser.avatarUrl} alt='avatar' style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : activeChatUser.username.charAt(0).toUpperCase()}
