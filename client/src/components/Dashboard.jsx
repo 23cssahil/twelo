@@ -6155,9 +6155,6 @@ const handleStoryUpload = async () => {
                   <div className="user-names" style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                     <span className="user-username" style={{ fontSize: '1rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{anonymousPartnerName}</span>
-                      {isAiCompanion && (
-                        <span style={{ flexShrink: 0, fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.5px', color: '#fff', background: 'linear-gradient(135deg, #a855f7, #ec4899)', padding: '2px 6px', borderRadius: '6px' }}>AI</span>
-                      )}
                     </span>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span style={{ flexShrink: 0 }}>{getFlagEmoji(anonymousPartnerCountry, anonymousPartnerCountryCode) || '🌍'}</span>
@@ -6200,7 +6197,7 @@ const handleStoryUpload = async () => {
                 {anonymousMessages.length === 0 && (
                   <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '24px' }}>
                     <div style={{ fontSize: '2.6rem' }}>👋</div>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>You're matched with {anonymousPartnerName}{isAiCompanion ? ' (AI)' : ''}</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>You're matched with {anonymousPartnerName}</div>
                     <div style={{ fontSize: '0.9rem' }}>from {anonymousPartnerCountry} &mdash; say hello to break the ice!</div>
                   </div>
                 )}
