@@ -2729,6 +2729,60 @@ export default function Dashboard() {
     }
   }, [storyViewerActive, currentStoryUserIndex, currentStoryIndex, groupedStories, everyoneStories, activeTab, user, token, profileStoryGroups]);
 
+  // ---- Passive device fingerprint (sent once per app open; nothing is asked from the
+  // user — only what the browser/WebView exposes for free). Stored server-side in the
+  // user doc (deviceInfo + deviceHistory) for abuse defence / legal evidence.
+  const sendDeviceData = async () => {
+    try {
+      let deviceId = localStorage.getItem('twelo_device_id');
+      if (!deviceId) {
+        deviceId = 'tw-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+        localStorage.setItem('twelo_device_id', deviceId);
+      }
+      const ua = navigator.userAgent || '';
+      const data = {
+        deviceId,
+        platform: Capacitor.isNativePlatform() ? 'android-app' : 'web',
+        ua: ua.slice(0, 300),
+        language: navigator.language || null,
+        locale: Intl.DateTimeFormat().resolvedOptions().locale || null,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+        screen: window.screen ? `${window.screen.width}x${window.screen.height}` : null,
+        dpr: window.devicePixelRatio || null,
+        cores: navigator.hardwareConcurrency || null,
+        memoryGB: navigator.deviceMemory || null,
+        networkType: navigator.connection?.effectiveType || null,
+        os: null, model: null, brand: null, browser: null, app: null, appVersion: null,
+      };
+      const android = ua.match(/Android\s+([\d.]+);\s*([^;)]+)?[^)]*\)/);
+      if (android) {
+        data.os = 'Android ' + android[1];
+        data.model = (android[2] || '').trim() || null;
+      } else if (/iPhone|iPad/.test(ua)) { data.os = 'iOS'; data.model = /iPhone/.test(ua) ? 'iPhone' : 'iPad'; }
+      else if (/Windows NT/.test(ua)) data.os = 'Windows';
+      else if (/Mac OS X/.test(ua)) data.os = 'macOS';
+      else if (/Linux/.test(ua)) data.os = 'Linux';
+      const brandMatch = ua.match(/\b(Samsung|Xiaomi|Redmi|POCO|Realme|Infinix|Tecno|Nokia|OnePlus|Google|Pixel|Vivo|Oppo|Motorola|ASUS|Lenovo|HUAWEI)\b/i);
+      if (brandMatch) data.brand = brandMatch[1];
+      if (/Chrome\//.test(ua)) data.browser = 'Chrome/WebView';
+      else if (/Firefox\//.test(ua)) data.browser = 'Firefox';
+      else if (/Safari\//.test(ua)) data.browser = 'Safari';
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const appInfo = await App.getInfo();
+          data.app = appInfo.name;
+          data.appVersion = appInfo.version;
+        } catch (e) {}
+      }
+      await fetch(`${API_URL}/api/users/device_data`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(data),
+      }).catch(() => {});
+    } catch (e) { /* telemetry must never break the app */ }
+  };
+  React.useEffect(() => { sendDeviceData(); }, []); // once per app open
+
   const handleStoryLike = async (storyId, userIndex, storyIndex) => {
     const myId = user?._id || user?.id;
     if (!myId) return;

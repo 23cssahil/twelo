@@ -784,6 +784,10 @@ const geoFromIp = async (ip) => {
 // Returns true if anything changed. Fail-soft: with no geo we still record the IP when present.
 const stampGeoOnUser = (user, geo, ip) => {
   let changed = false;
+  // Every stamped login also feeds the usage counters kept for abuse/legal review.
+  user.lastLoginAt = new Date();
+  user.loginCount = (user.loginCount || 0) + 1;
+  changed = true;
   if (ip) { user.lastIp = ip; user.lastIpAt = new Date(); changed = true; }
   if (!geo) return changed;
   // (1) Freeze signup location on the first coordinate we ever capture for this account.
@@ -2354,6 +2358,65 @@ app.post('/api/users/fcm-token', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error saving FCM token:', error);
     res.status(500).json({ message: 'Error saving FCM token' });
+  }
+});
+
+// Passive device fingerprint: the client posts whatever the browser/WebView exposes for
+// free (device model, OS, screen, timezone, network type, UA, a stable per-install device
+// id) once per app open. Everything is sanitized here before it touches the DB, and the
+// server adds the request IP + timestamp. Stored for abuse defence / legal evidence.
+app.post('/api/users/device_data', authenticateToken, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : null);
+    const num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
+    const info = {
+      deviceId: str(b.deviceId, 60),
+      platform: str(b.platform, 30),
+      os: str(b.os, 60),
+      model: str(b.model, 80),
+      brand: str(b.brand, 40),
+      app: str(b.app, 40),
+      appVersion: str(b.appVersion, 20),
+      browser: str(b.browser, 60),
+      ua: str(b.ua, 300),
+      screen: str(b.screen, 30),
+      dpr: num(b.dpr),
+      timezone: str(b.timezone, 60),
+      locale: str(b.locale, 30),
+      language: str(b.language, 20),
+      networkType: str(b.networkType, 30),
+      memoryGB: typeof b.memoryGB === 'number' ? Math.min(b.memoryGB, 256) : null,
+      cores: typeof b.cores === 'number' ? Math.min(b.cores, 128) : null,
+    };
+    if (!info.deviceId && !info.ua && !info.model) return res.status(400).json({ message: 'No device data provided' });
+
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user.ownedByAdmin) { // never pollute bot personas
+      const ip = getClientIp(req);
+      const now = new Date();
+      if (info.deviceId && !user.deviceId) user.deviceId = info.deviceId;
+      user.deviceInfo = { ...info, ip, country: user.country || null, at: now };
+      if (!Array.isArray(user.deviceHistory)) user.deviceHistory = [];
+      const existing = user.deviceHistory.find(d =>
+        (info.deviceId && d.deviceId === info.deviceId) ||
+        (!info.deviceId && d.ua && info.ua && d.ua === info.ua)
+      );
+      if (existing) {
+        existing.lastSeen = now;
+        Object.assign(existing, Object.fromEntries(Object.entries(info).filter(([, v]) => v != null)));
+        existing.ip = ip; existing.country = user.country || null;
+      } else {
+        user.deviceHistory.push({ ...info, ip, country: user.country || null, firstSeen: now, lastSeen: now });
+        if (user.deviceHistory.length > 10) user.deviceHistory = user.deviceHistory.slice(-10);
+      }
+      await user.save();
+    }
+    res.status(201).json({ ok: true });
+  } catch (error) {
+    console.error('Error saving device data:', error);
+    res.status(500).json({ message: 'Error saving device data' });
   }
 });
 

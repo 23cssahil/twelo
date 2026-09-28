@@ -148,6 +148,39 @@ const UserSchema = new mongoose.Schema({
     country: String,
     at: Date,
   }],
+  // ---- Device & usage fingerprint (collected passively on app open — no permissions,
+  // nothing asked from the user). Kept for abuse defence and legal evidence. ----
+  // Stable client-generated id (localStorage uuid) that survives logout/reinstall on the
+  // same phone, so the same device can be linked across accounts.
+  deviceId: { type: String, default: null },
+  // Latest device snapshot (sanitized server-side before storing).
+  deviceInfo: { type: Object, default: null },
+  // One record per distinct device ever used by this account (newest last, capped at 10).
+  deviceHistory: [{
+    deviceId: String,
+    platform: String,   // android-app / web
+    os: String,         // e.g. Android 13
+    model: String,      // e.g. SM-A125F
+    brand: String,
+    app: String,
+    appVersion: String,
+    browser: String,
+    ua: String,
+    screen: String,
+    dpr: Number,
+    timezone: String,
+    locale: String,
+    language: String,
+    networkType: String,
+    memoryGB: Number,
+    cores: Number,
+    ip: String,
+    country: String,
+    firstSeen: Date,
+    lastSeen: Date,
+  }],
+  lastLoginAt: { type: Date, default: null },
+  loginCount: { type: Number, default: 0 },
 }, { timestamps: true });
 
 // ========== INDEXES FOR PERFORMANCE ==========
