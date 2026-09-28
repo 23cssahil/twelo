@@ -1123,14 +1123,16 @@ app.post('/api/auth/guest', authLimiter, async (req, res) => {
     let countryCode = 'UN';
     const clientIp = getClientIp(req);
     const geo = await geoFromIp(clientIp);
-    if (geo) { finalCountry = geo.country; countryCode = geo.countryCode; }
-    if (typeof body.country === 'string' && body.country.trim()) {
+    // IP-derived country is authoritative (anti-fake-country): the client-sent
+    // country is only a fallback for when geolocation fails (e.g. VPN/private IP).
+    if (geo) {
+      finalCountry = geo.country;
+      countryCode = geo.countryCode;
+    } else if (typeof body.country === 'string' && body.country.trim()) {
       finalCountry = body.country.trim().slice(0, 60);
-      if (typeof body.countryCode === 'string' && /^[A-Za-z]{2}$/.test(body.countryCode.trim())) {
-        countryCode = body.countryCode.trim().toUpperCase();
-      } else {
-        countryCode = (geo && geo.country === finalCountry) ? geo.countryCode : 'UN';
-      }
+      countryCode = (typeof body.countryCode === 'string' && /^[A-Za-z]{2}$/.test(body.countryCode.trim()))
+        ? body.countryCode.trim().toUpperCase()
+        : 'UN';
     }
 
     const claimCode = genGuestClaimCode();

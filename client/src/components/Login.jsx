@@ -1,4 +1,5 @@
 import React, { useState, useRef, useContext } from 'react';
+import { Lock } from 'lucide-react';
 import { GoogleLogin, useGoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { AuthContext } from '../App';
@@ -46,6 +47,9 @@ export default function Login() {
   const [usernameTouched, setUsernameTouched] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState('idle'); // idle | checking | available | taken | invalid
   const usernameSeqRef = useRef(0);
+  // Country auto-detected from the device IP is locked (anti-fake-country); manual
+  // picking only stays available as a fallback when geolocation fails entirely.
+  const [countryLocked, setCountryLocked] = useState(false);
 
   React.useEffect(() => {
     // Detect access_token returned in URL hash from direct Google OAuth redirect
@@ -71,7 +75,10 @@ export default function Login() {
         const g = await res.json();
         if (cancelled || !g?.country) return;
         const match = WORLD_COUNTRIES.find(c => String(c.name).toLowerCase() === String(g.country).toLowerCase());
-        if (match) setCountry(prev => prev || match.name);
+        if (match) {
+          setCountry(prev => prev || match.name);
+          setCountryLocked(true);
+        }
       } catch (_) { /* fail-soft: user can still pick manually */ }
     })();
     return () => { cancelled = true; };
@@ -523,8 +530,9 @@ export default function Login() {
               <div className="form-group floating-group" style={{ flex: 2, position: 'relative' }}>
                 <div 
                   className="auth-input floating-input"
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '12px 15px', color: country ? '#fff' : 'transparent' }}
-                  onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: countryLocked ? 'default' : 'pointer', padding: '12px 15px', color: country ? '#fff' : 'transparent' }}
+                  onClick={() => { if (!countryLocked) setShowCountryDropdown(!showCountryDropdown); }}
+                  title={countryLocked ? 'Auto-detected from your connection — cannot be changed' : undefined}
                 >
                   {country ? (
                     <>
@@ -534,11 +542,17 @@ export default function Login() {
                         style={{ borderRadius: '2px' }}
                       />
                       {country}
+                      {countryLocked && <Lock size={13} color="#6b7280" style={{ marginLeft: 'auto', flexShrink: 0 }} />}
                     </>
                   ) : (
                     " "
                   )}
                 </div>
+                {countryLocked && country && (
+                  <div style={{ marginTop: '5px', marginLeft: '4px', fontSize: '0.72rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    Auto-detected from your connection
+                  </div>
+                )}
                 {showCountryDropdown && (
                   <div style={{ 
                     position: 'absolute', top: '100%', left: 0, right: 0, 
