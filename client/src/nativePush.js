@@ -52,6 +52,16 @@ function _sendToken(value) {
   });
 }
 
+// Deterministic positive int per URL so every message of the SAME chat reuses the same
+// notification id — Android then replaces the old one instead of stacking 3 separate
+// notifications for 3 rapid messages (mirrors the server's FCM collapseKey).
+function _idForUrl(url) {
+  let h = 0;
+  const s = String(url);
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return (h % 2000000000) || 1;
+}
+
 // Create the high-importance channel so background/killed pushes are shown by the
 // system in the notification shade with a heads-up + vibration.
 async function _ensureChannel() {
@@ -91,13 +101,16 @@ function _ensureWired() {
   // surface it ourselves in the shade (matches what the user expects from other apps).
   PushNotifications.addListener('pushNotificationReceived', (notification) => {
     try {
+      const url = (notification.data && notification.data.url) || '/';
       LocalNotifications.schedule({
         notifications: [{
-          id: Math.floor(Date.now() % 1000000000),
+          id: _idForUrl(url),
           title: notification.title || 'Twelo',
           body: notification.body || '',
           channel: CHANNEL_ID,
-          extra: { url: (notification.data && notification.data.url) || '/' }
+          smallIcon: 'ic_stat_twelo',
+          iconColor: '#4f46e5',
+          extra: { url }
         }]
       }).catch(() => {});
     } catch (e) {}

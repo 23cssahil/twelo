@@ -27,7 +27,8 @@ function _idb(mode, value) {
       const db = openReq.result;
       const tx = db.transaction('auth', mode);
       const store = tx.objectStore('auth');
-      const req = mode === 'readwrite' ? store.put(value, 'session') : store.get('session');
+      // value === null in readwrite mode => delete the cached session (logout).
+      const req = mode === 'readwrite' ? (value === null ? store.delete('session') : store.put(value, 'session')) : store.get('session');
       req.onsuccess = () => { resolve(req.result); db.close(); };
       req.onerror = () => { reject(req.error); db.close(); };
     };
@@ -146,6 +147,14 @@ self.addEventListener('message', function(e) {
   }
   if (e.data && e.data.type === 'PUSH_AUTH' && e.data.token) {
     e.waitUntil(_idb('readwrite', { token: e.data.token, apiBase: e.data.apiBase || '' }).catch(() => {}));
+  }
+  // Logout: drop the cached reply session and close any lingering notifications so a
+  // logged-out device stops acting on (and replying to) pushes.
+  if (e.data && e.data.type === 'CLEAR_PUSH_AUTH') {
+    e.waitUntil(Promise.all([
+      _idb('readwrite', null).catch(() => {}),
+      self.registration.getNotifications().then(ns => ns.forEach(n => n.close())).catch(() => {})
+    ]));
   }
 });
 

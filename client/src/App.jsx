@@ -4,6 +4,7 @@ import io from 'socket.io-client';
 import { Capacitor } from '@capacitor/core';
 import { AdMob } from '@capacitor-community/admob';
 import { App as CapacitorApp } from '@capacitor/app';
+import { clearNativePushToken, PENDING_PUSH_URL_KEY } from './nativePush';
 
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
@@ -121,6 +122,21 @@ export default function App() {
   };
 
   const logout = () => {
+    // Revoke every push channel for this session BEFORE the token is gone, otherwise
+    // the server keeps the FCM token / browser keeps the subscription and the logged-
+    // out user still gets message notifications on this device.
+    const t = localStorage.getItem('token');
+    if (t) clearNativePushToken(API_URL, t).catch(() => {});
+    try { localStorage.removeItem(PENDING_PUSH_URL_KEY); } catch (e) {}
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(async reg => {
+        try {
+          const sub = await reg.pushManager.getSubscription();
+          if (sub) await sub.unsubscribe(); // stops web push for this browser/device
+        } catch (e) {}
+        if (reg.active) reg.active.postMessage({ type: 'CLEAR_PUSH_AUTH' }); // drop cached reply session + close leftovers
+      }).catch(() => {});
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);

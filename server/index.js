@@ -86,7 +86,19 @@ async function sendToUserDevices(userDoc, { title, body, url = '/' } = {}) {
         token: userDoc.fcmToken,
         notification: { title: t, body: b },
         data: { url: String(url) },
-        android: { notification: { channelId: 'twelo_default' } }
+        android: {
+          // Collapse per conversation: 3 rapid messages REPLACE the same notification
+          // instead of stacking 3 separate ones in the shade (same collapseKey = replace).
+          collapseKey: String(url || 'twelo'),
+          notification: {
+            channelId: 'twelo_default',
+            // Our brand silhouette (Tr bubble) tinted with the premium blue instead of
+            // the OS default grey. Android forbids a full-colour status icon, so the
+            // tint is the closest legal match to the logo.
+            icon: 'ic_stat_twelo',
+            color: '#4f46e5'
+          }
+        }
       });
     } catch (e) {
       const code = e && e.code;
