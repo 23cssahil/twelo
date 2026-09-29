@@ -3,7 +3,7 @@ import { AuthContext } from '../App';
 import { useNavigate, Link } from 'react-router-dom';
 import io from 'socket.io-client';
 import Peer from 'simple-peer';
-import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck, Phone, Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Menu, LayoutDashboard, ChevronDown, ChevronUp, Map as MapIcon } from 'lucide-react';
+import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Trash2, Filter, RefreshCcw, Flag, X, CheckCircle, BarChart2, Activity, Radio, UserPlus, UserCheck, Phone, Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Menu, LayoutDashboard, ChevronDown, ChevronUp, Map as MapIcon, Bell } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './DeveloperAdmin.css';
@@ -338,6 +338,11 @@ export default function DeveloperAdmin() {
       .slice(0, 10);
   }, [geoData]);
   const [liveUsers, setLiveUsers] = useState(null);           // { totals, users }
+  // Push Diagnostics panel: live FCM/web-push health + audit of recent sends.
+  const [pushDiag, setPushDiag] = useState(null);
+  const [pushDiagLoading, setPushDiagLoading] = useState(false);
+  const [pushUserQuery, setPushUserQuery] = useState('');
+  const [pushTestResult, setPushTestResult] = useState(null);
   // Page-based pagination for the Live Users roster (newest sign-ins on top, older pages fade away below).
   const [livePage, setLivePage] = useState(0);                 // 0-based current page
   const LIVE_PAGE_SIZE = 10;
@@ -730,6 +735,34 @@ export default function DeveloperAdmin() {
     }
   };
 
+  // Push Diagnostics: pull server-side FCM/web-push health + the recent send audit,
+  // optionally scoped to one username. Lets us see WHY a phone got no notification
+  // (server not configured / user has no token / socket looked reachable) without
+  // tailing Render logs.
+  const fetchPushDiag = async () => {
+    setPushDiagLoading(true);
+    try {
+      const q = pushUserQuery.trim() ? `?username=${encodeURIComponent(pushUserQuery.trim().replace(/^@/, ''))}` : '';
+      const res = await fetch(`${API_URL}/api/admin/push-diagnostics${q}`, { headers: { 'x-admin-pass': password } });
+      if (res.ok) { setPushDiag(await res.json()); setPushTestResult(null); }
+    } catch (err) { console.error(err); } finally { setPushDiagLoading(false); }
+  };
+  const runPushTest = async () => {
+    const u = pushUserQuery.trim().replace(/^@/, '');
+    if (!u) { setPushTestResult({ error: 'Enter a username first' }); return; }
+    setPushTestResult({ sending: true });
+    try {
+      const res = await fetch(`${API_URL}/api/admin/test_push`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': password },
+        body: JSON.stringify({ username: u })
+      });
+      const data = await res.json().catch(() => ({}));
+      setPushTestResult(res.ok ? data : { error: data.message || 'Test failed' });
+      fetchPushDiag();
+    } catch (e) { setPushTestResult({ error: e.message }); }
+  };
+
   // Fetch the IP-derived location clusters for the world-map panel.
   const fetchGeo = async () => {
     setGeoLoading(true);
@@ -791,6 +824,12 @@ export default function DeveloperAdmin() {
       return () => clearInterval(id);
     }
   }, [isAuthenticated, activeTab, analyticsView]);
+
+  // Auto-load the push health board when the Push Diagnostics tab is opened.
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'push') fetchPushDiag();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, activeTab]);
 
   // Build the shared query string for /api/admin/users (search text + location filters).
   const buildUsersQuery = ({ q = '', cursor = null } = {}) => {
@@ -1666,6 +1705,7 @@ export default function DeveloperAdmin() {
     { key: 'live-random', label: 'Live Random', icon: Radio, badge: botRequests.length + liveQueue.length, run: openLiveRandomPage },
     { key: 'analytics', label: 'Analytics & Growth', icon: BarChart2 },
     { key: 'map', label: 'User Map', icon: MapIcon },
+    { key: 'push', label: 'Push Diagnostics', icon: Bell, run: fetchPushDiag },
   ];
 
   return (
@@ -2030,6 +2070,83 @@ export default function DeveloperAdmin() {
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ── PUSH DIAGNOSTICS: server FCM/web-push health + recent send audit ── */}
+            {activeTab === 'push' && (
+              <div className="dev-main">
+                <h3 className="dev-section-title">Push Diagnostics</h3>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px' }}>
+                  <input
+                    value={pushUserQuery}
+                    onChange={e => setPushUserQuery(e.target.value)}
+                    placeholder="username (optional)"
+                    style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #333', background: '#0d0d0f', color: '#fff', minWidth: '220px' }}
+                  />
+                  <button className="dev-btn" onClick={fetchPushDiag} disabled={pushDiagLoading}>{pushDiagLoading ? 'Loading…' : 'Refresh'}</button>
+                  <button className="dev-btn dev-btn-primary" onClick={runPushTest}>Send test push</button>
+                </div>
+
+                {pushDiag && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '18px' }}>
+                    <div style={{ background: '#141418', border: '1px solid #26262c', borderRadius: '10px', padding: '14px' }}>
+                      <div style={{ fontSize: '0.78rem', color: '#8a8a95', marginBottom: '6px' }}>SERVER CONFIG</div>
+                      <div style={{ fontSize: '0.9rem' }}>FCM (native APK): <b style={{ color: pushDiag.fcmConfigured ? '#22c55e' : '#ef4444' }}>{pushDiag.fcmConfigured ? 'configured' : 'MISSING — set FIREBASE_SERVICE_ACCOUNT'}</b></div>
+                      <div style={{ fontSize: '0.9rem' }}>Web push (PWA): <b style={{ color: pushDiag.webPushConfigured ? '#22c55e' : '#f59e0b' }}>{pushDiag.webPushConfigured ? 'configured' : 'off'}</b></div>
+                    </div>
+                    <div style={{ background: '#141418', border: '1px solid #26262c', borderRadius: '10px', padding: '14px' }}>
+                      <div style={{ fontSize: '0.78rem', color: '#8a8a95', marginBottom: '6px' }}>LOOKED-UP USER {pushDiag.user ? `(@${pushDiag.user.username})` : ''}</div>
+                      {pushDiag.user ? (
+                        <>
+                          <div style={{ fontSize: '0.9rem' }}>FCM token: <b style={{ color: pushDiag.user.hasFcmToken ? '#22c55e' : '#ef4444' }}>{pushDiag.user.hasFcmToken ? `yes (…${pushDiag.user.tokenTail})` : 'NONE — app never registered'}</b></div>
+                          <div style={{ fontSize: '0.9rem' }}>Web subscriptions: {pushDiag.user.webSubs}</div>
+                          <div style={{ fontSize: '0.9rem' }}>Currently reachable in-app: {pushDiag.user.reachable ? 'yes (push will be skipped)' : 'no (push will send)'}</div>
+                        </>
+                      ) : <div style={{ fontSize: '0.9rem', color: '#8a8a95' }}>Enter a username above and Refresh to inspect one device.</div>}
+                    </div>
+                    <div style={{ background: '#141418', border: '1px solid #26262c', borderRadius: '10px', padding: '14px' }}>
+                      <div style={{ fontSize: '0.78rem', color: '#8a8a95', marginBottom: '6px' }}>CONNECTED SOCKETS ({(pushDiag.connectedUsers || []).length})</div>
+                      {(pushDiag.connectedUsers || []).length === 0 ? <div style={{ fontSize: '0.9rem', color: '#8a8a95' }}>None right now.</div> :
+                        (pushDiag.connectedUsers || []).slice(0, 8).map(c => (
+                          <div key={c.uid} style={{ fontSize: '0.8rem', color: '#c9c9d2', marginBottom: '3px' }}>
+                            {c.native ? '📱' : '💻'} {String(c.uid).slice(-8)} · {c.transport}{c.hidden ? ' · hidden' : ''}
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                )}
+
+                {pushTestResult && (
+                  <div style={{ background: pushTestResult.error ? '#2a1416' : '#12231a', border: `1px solid ${pushTestResult.error ? '#7f1d1d' : '#1c4a34'}`, borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', fontSize: '0.88rem', color: '#e8e8ee' }}>
+                    {pushTestResult.sending ? 'Sending…' : pushTestResult.error ? `❌ ${pushTestResult.error}` : (
+                      <>
+                        ✅ {pushTestResult.message}<br />
+                        <span style={{ color: '#9ca3af' }}>FCM configured: {String(pushTestResult.fcmConfigured)} · token: {pushTestResult.fcmToken}</span><br />
+                        <span style={{ color: pushTestResult.fcmSendResult && String(pushTestResult.fcmSendResult).startsWith('ERROR') ? '#f87171' : '#86efac' }}>FCM send result: {pushTestResult.fcmSendResult}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {pushDiag && (
+                  <div style={{ background: '#141418', border: '1px solid #26262c', borderRadius: '10px', padding: '14px' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#8a8a95', marginBottom: '8px' }}>RECENT PUSH EVENTS (newest first)</div>
+                    {(!pushDiag.recentPushEvents || pushDiag.recentPushEvents.length === 0) ? <div style={{ fontSize: '0.9rem', color: '#8a8a95' }}>No push activity recorded since the last server start yet. Send a test or have someone message the user.</div> :
+                      pushDiag.recentPushEvents.map((ev, i) => (
+                        <div key={i} style={{ fontSize: '0.82rem', color: '#d4d4dc', padding: '4px 0', borderBottom: i < pushDiag.recentPushEvents.length - 1 ? '1px solid #202026' : 'none' }}>
+                          <span style={{ color: '#6b7280', marginRight: '8px' }}>{(ev.at || '').slice(11, 19)}</span>
+                          <b style={{ color: ev.evt.includes('error') ? '#f87171' : ev.evt.includes('sent') ? '#4ade80' : '#fbbf24' }}>{ev.evt}</b>
+                          {ev.user ? ` → @${ev.user}` : ''}{ev.code ? ` [${ev.code}]` : ''}{ev.title ? ` “${ev.title}”` : ''}{ev.msg ? ` — ${ev.msg}` : ''}
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
+                <p style={{ color: '#8a8a95', fontSize: '0.82rem', marginTop: '14px' }}>
+                  Tip: if <b>FCM send result</b> shows a message id but the phone shows nothing, the app build is older than v6.2 (data-only pushes need the custom native service) or the OS channel is muted. If <b>SERVER CONFIG → FCM</b> is MISSING, set FIREBASE_SERVICE_ACCOUNT on Render and redeploy.
+                </p>
               </div>
             )}
 

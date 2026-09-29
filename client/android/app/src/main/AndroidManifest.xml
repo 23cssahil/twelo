@@ -47,6 +47,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- System-rendered FCM notifications (closed/background app) set their tap
+                 intent to this action; without a matching filter the tap would be a no-op
+                 and the app would never open. -->
+            <intent-filter>
+                <action android:name="com.twelo.app.NOTIFICATION" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
 
         <provider

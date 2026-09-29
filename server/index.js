@@ -75,6 +75,18 @@ try {
 
 // Deliver an offline notification to every device channel a user has registered:
 // FCM for the packaged native app and/or web-push for PWA browser clients.
+// Ring buffer of the last push decisions (successes AND failures) so the admin
+// /api/admin/push-diagnostics endpoint can show exactly why a notification did
+// or did not reach a device — without this, FCM failures are only visible in
+// Render logs which nobody can check while debugging a phone.
+const pushAuditLog = [];
+function auditPush(evt) {
+  try {
+    pushAuditLog.push({ at: new Date().toISOString(), ...evt });
+    if (pushAuditLog.length > 40) pushAuditLog.shift();
+    console.log('[push-audit]', JSON.stringify(evt));
+  } catch (e) {}
+}
 async function sendToUserDevices(userDoc, { title, body, url = '/', avatar = '', sender = '' } = {}) {
   if (!userDoc) return;
   const t = title || 'Twelo';
@@ -82,26 +94,43 @@ async function sendToUserDevices(userDoc, { title, body, url = '/', avatar = '',
   // 1) Native app via FCM (works even when VAPID/web-push is disabled).
   if (adminMessaging && userDoc.fcmToken) {
     try {
-      // DATA-only message: the app's own TweloMessagingService renders it natively
-      // (Instagram-style: sender photo large icon, one per chat, inline reply). A
-      // 'notification' payload would be rendered by the OS with a plain grey icon.
+      // HYBRID message: a 'notification' payload PLUS our 'data'. This is the key to
+      // reliable closed-app delivery. Many OEM ROMs (Xiaomi/Huawei/Oppo) and killed apps
+      // do NOT wake on data-only messages, so the previous pure-data switch silently
+      // stopped notifications from ever reaching the shade — FCM lets the SYSTEM render
+      // the 'notification' portion itself (guaranteed delivery) even when our process is
+      // dead. When the app IS in the foreground FCM suppresses the system copy and calls
+      // our TweloMessagingService, which renders the rich Instagram-style card from the
+      // 'data' fields — so there is never a duplicate.
       await adminMessaging.send({
         token: userDoc.fcmToken,
+        notification: { title: String(t), body: String(b) },
         data: { title: String(t), body: String(b), url: String(url), avatar: String(avatar || ''), sender: String(sender || '') },
         android: {
           priority: 'high',
           collapseKey: String(url || 'twelo'),
-          ttl: 86400000 // 24h: don't wake users with week-old messages
+          ttl: 86400000, // 24h: don't wake users with week-old messages
+          notification: {
+            channelId: 'twelo_default',
+            icon: 'ic_stat_twelo',
+            color: '#4f46e5',
+            defaultSound: true,
+            clickAction: 'com.twelo.app.NOTIFICATION'
+          }
         }
       });
+      auditPush({ evt: 'fcm-sent', user: userDoc.username || String(userDoc._id), title: String(t), url: String(url) });
     } catch (e) {
       const code = e && e.code;
+      auditPush({ evt: 'fcm-error', user: userDoc.username || String(userDoc._id), code: String(code || ''), msg: String(e && e.message || e).slice(0, 160) });
       if (code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token') {
         User.updateOne({ _id: userDoc._id }, { $unset: { fcmToken: 1 } }).catch(() => {});
       } else {
         console.log('[fcm] send error:', e && e.message);
       }
     }
+  } else if (!adminMessaging && userDoc.fcmToken) {
+    auditPush({ evt: 'fcm-skipped-no-server-config', user: userDoc.username || String(userDoc._id), msg: 'FIREBASE_SERVICE_ACCOUNT missing/invalid — adminMessaging is null, cannot send' });
   }
   // 2) PWA via web-push.
   if (!pushEnabled) return;
@@ -601,12 +630,22 @@ const VISIBLE_STALE_MS = 60 * 1000;
 // True when the user's live socket cannot actually show an in-app toast right now.
 function receiverReachable(receiverId) {
   const uid = String(receiverId);
-  if (!onlineUsers.get(uid)) return false;
+  const sid = onlineUsers.get(uid);
+  if (!sid) return false;
   if (hiddenUsers.has(uid)) return false;
-  const socket = io.sockets.sockets.get(onlineUsers.get(uid));
-  if (socket && socket.data && socket.data.nativeSocket) {
-    const ts = lastVisibleAt.get(uid) || 0;
-    if (Date.now() - ts > VISIBLE_STALE_MS) return false;
+  const socket = io.sockets.sockets.get(sid);
+  if (socket) {
+    // A native client stuck on long-polling (never upgraded to websocket) has a flaky
+    // connection that dies the moment the app is backgrounded, so in-app delivery
+    // can't be trusted — send the FCM push as well.
+    if (socket.transport && socket.transport.name && socket.transport.name !== 'websocket') return false;
+    if (socket.data && socket.data.nativeSocket) {
+      const ts = lastVisibleAt.get(uid) || 0;
+      // No visibility stamp at all = an older APK build that never reports it; the
+      // socket lingering 'online' is then meaningless for a backgrounded app, so
+      // treat it as unreachable (push) instead of silently swallowing notifications.
+      if (!ts || Date.now() - ts > VISIBLE_STALE_MS) return false;
+    }
   }
   return true;
 }
@@ -4608,16 +4647,71 @@ app.post('/api/admin/test_push', adminAuth, async (req, res) => {
     if (!user) return res.status(404).json({ message: `User @${username} not found` });
     const subCount = (user.pushSubscriptions || []).length;
     if (!user.fcmToken && !subCount) return res.status(400).json({ message: `@${username} has no push channels at all — app never registered (FCM permission not granted / old build) and no browser subscription. Open the app or site and allow notifications, then retry.` });
-    await sendToUserDevices(user, { title: 'Twelo test', body: 'If this appeared, notifications are working ✅', url: '/' });
+    // Direct FCM send so the ADMIN sees the real Firebase outcome (message id or the
+    // exact error code) instead of sendToUserDevices' swallowed fire-and-forget.
+    let fcmResult = 'skipped (no fcmToken on user)';
+    if (adminMessaging && user.fcmToken) {
+      try {
+        fcmResult = await adminMessaging.send({
+          token: user.fcmToken,
+          notification: { title: 'Twelo test', body: 'If this appeared, notifications are working \u2705' },
+          data: { title: 'Twelo test', body: 'If this appeared, notifications are working \u2705', url: '/', avatar: '', sender: '' },
+          android: { priority: 'high', collapseKey: 'twelo-test', ttl: 86400000, notification: { channelId: 'twelo_default', icon: 'ic_stat_twelo', color: '#4f46e5', defaultSound: true } }
+        });
+        auditPush({ evt: 'fcm-test-sent', user: username, msg: String(fcmResult) });
+      } catch (e) {
+        auditPush({ evt: 'fcm-test-error', user: username, code: String(e && e.code || ''), msg: String(e && e.message || e).slice(0, 200) });
+        fcmResult = 'ERROR: ' + String(e && e.code || '') + ' ' + String(e && e.message || e).slice(0, 200);
+      }
+    }
+    // Web push channels (best-effort, same as normal sends).
+    if (pushEnabled && subCount) {
+      sendToUserDevices(user, { title: 'Twelo test', body: 'If this appeared, notifications are working \u2705', url: '/' }).catch(() => {});
+    }
     res.json({
-      message: `Test push sent to @${username}`,
+      message: `Test push attempted for @${username}`,
       fcmConfigured: !!adminMessaging,
-      fcmToken: user.fcmToken ? `yes (…${String(user.fcmToken).slice(-12)})` : 'NO — app did not register',
+      fcmToken: user.fcmToken ? `yes (\u2026${String(user.fcmToken).slice(-12)})` : 'NO \u2014 app did not register',
+      fcmSendResult: fcmResult,
       webPushConfigured: pushEnabled,
       webSubscriptions: subCount
     });
   } catch (e) {
     console.error('test_push error:', e);
+    res.status(500).json({ message: e.message });
+  }
+});
+
+// Push health board for debugging delivery complaints straight from the terminal:
+//   server config flags, who is connected right now (transport/visibility/hidden),
+//   and the last push decisions with their outcomes.
+app.get('/api/admin/push-diagnostics', adminAuth, async (req, res) => {
+  try {
+    const connected = [];
+    for (const [uid, sid] of onlineUsers.entries()) {
+      const s = io.sockets.sockets.get(sid);
+      connected.push({
+        uid,
+        transport: s && s.transport ? s.transport.name : 'gone',
+        native: !!(s && s.data && s.data.nativeSocket),
+        hidden: hiddenUsers.has(uid),
+        lastVisibleAt: lastVisibleAt.get(uid) || null
+      });
+    }
+    const username = (req.query.username || '').toString().trim().replace(/^@/, '');
+    let user = null;
+    if (username) {
+      const u = await User.findOne({ username }).select('_id username fcmToken pushSubscriptions').lean();
+      if (u) user = { _id: u._id, hasFcmToken: !!u.fcmToken, tokenTail: u.fcmToken ? String(u.fcmToken).slice(-12) : null, webSubs: (u.pushSubscriptions || []).length, reachable: receiverReachable(u._id) };
+    }
+    res.json({
+      fcmConfigured: !!adminMessaging,
+      webPushConfigured: pushEnabled,
+      connectedUsers: connected,
+      user,
+      recentPushEvents: pushAuditLog.slice(-25).reverse()
+    });
+  } catch (e) {
     res.status(500).json({ message: e.message });
   }
 });
