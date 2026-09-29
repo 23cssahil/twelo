@@ -2362,6 +2362,13 @@ app.post('/api/users/subscribe', authenticateToken, async (req, res) => {
   }
 });
 
+// Public (no auth): the browser needs this to subscribe for web push. Served from the
+// SAME env var the sender uses, so client and server can never drift apart the way a
+// hardcoded key in the bundle could.
+app.get('/api/push/vapid_public_key', (req, res) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || null });
+});
+
 // Store the FCM device token reported by the packaged native (Capacitor) app so the
 // server can deliver closed-app push to it. Empty/omitted token clears it (e.g. logout).
 app.post('/api/users/fcm-token', authenticateToken, async (req, res) => {

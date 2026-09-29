@@ -4,6 +4,7 @@ import StoryMusicTrimmer from './StoryMusicTrimmer';
 import ShayariStudio from "./ShayariStudio";
 import AdBanner from "./AdBanner";
 import { initNativePush, isNativeApp, enableNativePush, disableNativePush, getNativePushStatus, openNativeAppSettings, PENDING_PUSH_URL_KEY } from '../nativePush';
+import { getVapidPublicKey, urlBase64ToUint8Array } from '../utils/pushKeys';
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect, Suspense } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import CommentsModal from './CommentsModal';
@@ -166,15 +167,7 @@ async function subscribeWebPush(API_URL, token) {
     const registration = await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
-      const vapidPublicKey = 'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA';
-      const convertedVapidKey = (base64String => {
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-        return outputArray;
-      })(vapidPublicKey);
+      const convertedVapidKey = urlBase64ToUint8Array(await getVapidPublicKey(API_URL));
       subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: convertedVapidKey });
     }
     const res = await fetch(`${API_URL}/api/users/subscribe`, {
@@ -2184,15 +2177,7 @@ export default function Dashboard() {
           const registration = await navigator.serviceWorker.ready;
           let subscription = await registration.pushManager.getSubscription();
           if (!subscription) {
-            const vapidPublicKey = 'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA';
-            const convertedVapidKey = (base64String => {
-              const padding = '='.repeat((4 - base64String.length % 4) % 4);
-              const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-              const rawData = window.atob(base64);
-              const outputArray = new Uint8Array(rawData.length);
-              for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-              return outputArray;
-            })(vapidPublicKey);
+            const convertedVapidKey = urlBase64ToUint8Array(await getVapidPublicKey(API_URL));
             subscription = await registration.pushManager.subscribe({
               userVisibleOnly: true,
               applicationServerKey: convertedVapidKey

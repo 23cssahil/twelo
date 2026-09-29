@@ -7,6 +7,7 @@ import { Users, Search, Ban, Send, Lock, Globe, MessageSquare, AlertTriangle, Tr
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './DeveloperAdmin.css';
+import { getVapidPublicKey, urlBase64ToUint8Array } from '../utils/pushKeys';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -463,15 +464,7 @@ export default function DeveloperAdmin() {
           
           let subscription = await registration.pushManager.getSubscription();
           if (!subscription) {
-            const vapidPublicKey = 'BKZ4Be1x-eWdYF_3Rh5ATnXYspYye1t7XY0KeiGkNbPxY5QnF_Bwc7PUkrF69G5-SuyVQvd6myaSYv6m4WC5AxA';
-            const convertedVapidKey = (base64String => {
-              const padding = '='.repeat((4 - base64String.length % 4) % 4);
-              const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-              const rawData = window.atob(base64);
-              const outputArray = new Uint8Array(rawData.length);
-              for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-              return outputArray;
-            })(vapidPublicKey);
+            const convertedVapidKey = urlBase64ToUint8Array(await getVapidPublicKey(API_URL));
 
             subscription = await registration.pushManager.subscribe({
               userVisibleOnly: true,
