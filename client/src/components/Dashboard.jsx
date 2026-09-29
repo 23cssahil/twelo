@@ -4934,29 +4934,38 @@ const handleStoryUpload = async () => {
     }
   };
 
+  // Fresh, self-contained entry into the report modal. Resets every piece of report
+  // state so a previous submission (which left isSubmittingReport stuck true) can never
+  // disable the button or block closing on the NEXT user you report.
+  const openReportModal = (target) => {
+    setReportTarget(target);
+    setReportReason('Spam / Scams');
+    setReportSuccess(false);
+    setIsSubmittingReport(false);
+    setShowReportModal(true);
+  };
+
+  const closeReportModal = () => {
+    setShowReportModal(false);
+    setReportTarget(null);
+    setReportSuccess(false);
+    setIsSubmittingReport(false);
+    setReportReason('Spam / Scams');
+  };
+
   const handleReportSubmit = async () => {
-    if (!reportTarget) return;
+    if (!reportTarget || isSubmittingReport) return;
     setIsSubmittingReport(true);
-    
+
     // If reporting an AI companion, simulate success without sending to backend
     if (reportTarget.id && reportTarget.id.toString().startsWith('ai-companion-')) {
       setTimeout(() => {
         setIsSubmittingReport(false);
         setReportSuccess(true);
-        setTimeout(() => {
-          setShowReportModal(false);
-          setReportTarget(null);
-          setReportSuccess(false);
-          setReportReason(''); // reset reason
-        }, 2000);
+        setTimeout(closeReportModal, 1600);
       }, 500);
       return;
     }
-    
-    // Capture exactly what is on the screen right now
-    const chatContextData = reportTarget.isAnonymous ? anonymousMessages : messages;
-    // Format to a readable string or keep as JSON. Let's just stringify a simplified version
-    const simplifiedContext = chatContextData.map(m => `[${new Date(m.createdAt || Date.now()).toLocaleTimeString()}] ${m.sender === user.id ? 'Me' : reportTarget.username}: ${m.message || '(Media)'}`).join('\n');
 
     try {
       const res = await fetch(`${API_URL}/api/reports/create`, {
@@ -4969,16 +4978,13 @@ const handleStoryUpload = async () => {
           reportedUserId: reportTarget.id,
           reportedUsername: reportTarget.username,
           reason: reportReason
-          // chatContext is now auto-fetched server-side from encrypted DB messages
+          // chatContext is auto-fetched server-side from encrypted DB messages
         })
       });
       if (res.ok) {
+        setIsSubmittingReport(false);
         setReportSuccess(true);
-        setTimeout(() => {
-          setShowReportModal(false);
-          setReportTarget(null);
-          setReportSuccess(false);
-        }, 2000);
+        setTimeout(closeReportModal, 1600);
       } else {
         console.error("Failed to submit report");
         setIsSubmittingReport(false);
@@ -6334,10 +6340,7 @@ const handleStoryUpload = async () => {
                   </button>
                   <button
                     className="action-icon-btn"
-                    onClick={() => {
-                      setReportTarget({ id: anonymousPartnerId, username: 'Anonymous User', isAnonymous: true });
-                      setShowReportModal(true);
-                    }}
+                    onClick={() => openReportModal({ id: anonymousPartnerId, username: 'Anonymous User', isAnonymous: true })}
                     title="Report User"
                     style={{ color: '#ff4b4b', display: 'flex', alignItems: 'center', padding: '8px' }}
                   >
@@ -7603,8 +7606,7 @@ const handleStoryUpload = async () => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setShowChatSettingsMenu(false);
-                                setReportTarget({ id: activeChatUser._id, username: activeChatUser.username, isAnonymous: false });
-                                setShowReportModal(true);
+                                openReportModal({ id: activeChatUser._id, username: activeChatUser.username, isAnonymous: false });
                               }}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: '10px',
@@ -9581,48 +9583,99 @@ const handleStoryUpload = async () => {
       )}
 
       {showReportModal && (
-        <div className="modal-overlay" onClick={() => !isSubmittingReport && !reportSuccess && setShowReportModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Report {reportTarget?.username}</h2>
-              <button className="icon-btn" onClick={() => !isSubmittingReport && !reportSuccess && setShowReportModal(false)}><X size={24} /></button>
+        <div
+          onClick={() => !isSubmittingReport && closeReportModal()}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 12000, display: 'flex',
+            alignItems: 'center', justifyContent: 'center', padding: '20px',
+            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)'
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: '420px', boxSizing: 'border-box',
+              background: 'var(--panel-bg)', color: 'var(--text-primary)',
+              border: '1px solid var(--border-color)', borderRadius: '20px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.45)', overflow: 'hidden',
+              animation: 'tweloModalIn 0.18s ease-out'
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '18px 20px', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,75,75,0.14)', color: '#ff4b4b' }}>
+                <Flag size={20} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '1.05rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Report @{reportTarget?.username}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Tell us what's wrong</div>
+              </div>
+              <button
+                onClick={() => !isSubmittingReport && closeReportModal()}
+                aria-label="Close"
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={22} />
+              </button>
             </div>
+
             {reportSuccess ? (
-              <div style={{ padding: '30px 0', textAlign: 'center' }}>
-                <Check size={48} color="#10b981" style={{ marginBottom: '15px' }} />
-                <h3 style={{ color: '#10b981' }}>Report Submitted</h3>
-                <p style={{ color: '#a8a8a8', marginTop: '10px' }}>Our team will review this chat shortly.</p>
+              <div style={{ padding: '36px 24px', textAlign: 'center' }}>
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16,185,129,0.14)' }}>
+                  <Check size={34} color="#10b981" />
+                </div>
+                <h3 style={{ margin: 0, color: '#10b981', fontSize: '1.15rem', fontWeight: 700 }}>Report Submitted</h3>
+                <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '0.9rem', lineHeight: 1.5 }}>Our team will review this shortly. Thanks for keeping Twelo safe.</p>
               </div>
             ) : (
-              <div style={{ padding: '20px 0' }}>
-                <p style={{ color: '#a8a8a8', marginBottom: '15px', fontSize: '0.9rem' }}>
-                  Please select a reason for reporting. A snapshot of your current chat will be securely sent to our admin team for review.
+              <div style={{ padding: '18px 20px 20px' }}>
+                <p style={{ color: 'var(--text-secondary)', margin: '0 0 14px', fontSize: '0.86rem', lineHeight: 1.5 }}>
+                  Pick a reason. A snapshot of this conversation is shared securely with our moderators.
                 </p>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {['Sexual Harassment', 'Spam / Scams', 'Abuse / Insult', 'Other Inappropriate Behavior'].map(reason => (
-                    <label key={reason} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1a1a1a', padding: '12px', borderRadius: '8px', cursor: 'pointer', border: reportReason === reason ? '1px solid var(--brand-blue)' : '1px solid #333' }}>
-                      <input 
-                        type="radio" 
-                        name="reportReason" 
-                        value={reason} 
-                        checked={reportReason === reason} 
-                        onChange={() => setReportReason(reason)}
-                        style={{ accentColor: 'var(--brand-blue)', width: '18px', height: '18px' }}
-                      />
-                      <span style={{ color: '#fff' }}>{reason}</span>
-                    </label>
-                  ))}
+                  {['Sexual Harassment', 'Spam / Scams', 'Abuse / Insult', 'Other Inappropriate Behavior'].map(reason => {
+                    const selected = reportReason === reason;
+                    return (
+                      <label
+                        key={reason}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 14px', borderRadius: '12px',
+                          cursor: 'pointer', fontSize: '0.95rem', transition: 'all 0.15s ease',
+                          background: selected ? 'rgba(0,149,246,0.12)' : 'rgba(128,128,128,0.08)',
+                          border: `1px solid ${selected ? 'var(--brand-blue)' : 'var(--border-color)'}`,
+                          color: 'var(--text-primary)', fontWeight: selected ? 600 : 400
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="reportReason"
+                          value={reason}
+                          checked={selected}
+                          onChange={() => setReportReason(reason)}
+                          style={{ accentColor: 'var(--brand-blue)', width: '18px', height: '18px', margin: 0, flexShrink: 0 }}
+                        />
+                        <span>{reason}</span>
+                      </label>
+                    );
+                  })}
                 </div>
-                
-                <button 
-                  onClick={handleReportSubmit} 
-                  disabled={isSubmittingReport}
-                  className="btn-primary" 
-                  style={{ width: '100%', marginTop: '20px', background: '#ff4b4b', color: 'white' }}
-                >
-                  {isSubmittingReport ? <Loader2 className="spin" size={20} /> : 'Submit Report'}
-                </button>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                  <button
+                    onClick={() => !isSubmittingReport && closeReportModal()}
+                    style={{ flex: '0 0 auto', padding: '12px 18px', borderRadius: '12px', cursor: 'pointer', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.92rem', fontWeight: 600 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleReportSubmit}
+                    disabled={isSubmittingReport}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', borderRadius: '12px', border: 'none', background: isSubmittingReport ? '#e0453f' : '#ff4b4b', color: '#fff', fontSize: '0.98rem', fontWeight: 700, cursor: isSubmittingReport ? 'default' : 'pointer', opacity: isSubmittingReport ? 0.85 : 1 }}
+                  >
+                    {isSubmittingReport ? <><Loader2 className="rotating" size={18} /> Submitting…</> : 'Submit Report'}
+                  </button>
+                </div>
               </div>
             )}
           </div>
