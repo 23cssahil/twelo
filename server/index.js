@@ -104,7 +104,10 @@ async function sendToUserDevices(userDoc, { title, body, url = '/', avatar = '',
       // 'data' fields — so there is never a duplicate.
       await adminMessaging.send({
         token: userDoc.fcmToken,
-        notification: { title: String(t), body: String(b) },
+        // Mirror the Instagram look on the SYSTEM-rendered copy too (background/killed):
+        // sender's username as the title and their photo as the large notification image,
+        // so it no longer reads as a generic 'New message from X' system alert.
+        notification: { title: String(sender || t), body: String(b) },
         data: { title: String(t), body: String(b), url: String(url), avatar: String(avatar || ''), sender: String(sender || '') },
         android: {
           priority: 'high',
@@ -115,7 +118,9 @@ async function sendToUserDevices(userDoc, { title, body, url = '/', avatar = '',
             icon: 'ic_stat_twelo',
             color: '#4f46e5',
             defaultSound: true,
-            clickAction: 'com.twelo.app.NOTIFICATION'
+            clickAction: 'com.twelo.app.NOTIFICATION',
+            // Public https avatar renders as the notification photo (Instagram-style).
+            ...(String(avatar || '').startsWith('http') ? { image: String(avatar) } : {})
           }
         }
       });
