@@ -4276,7 +4276,9 @@ export default function Dashboard() {
         setConnectionsPage({
           title: type.charAt(0).toUpperCase() + type.slice(1),
           users: data.users || [],
-          returnTab: activeTab === 'publicProfile' ? 'publicProfile' : 'profile',
+          // Switching lists via the inline tabs re-enters this function while already
+          // on 'connections' — keep the ORIGINAL entry page so Back still lands right.
+          returnTab: activeTab === 'connections' ? (connectionsPage.returnTab || 'profile') : (activeTab === 'publicProfile' ? 'publicProfile' : 'profile'),
           userId,
           total: data.total || 0
         });
@@ -5992,23 +5994,26 @@ const handleStoryUpload = async () => {
       case 'everyone-stories': {
           return (
             <div className="everyone-stories-container" style={{ padding: '0 15px 15px 15px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
-              <div style={{ position: 'sticky', top: 0, zIndex: 20, background: '#000', padding: '15px 0 10px 0', margin: '0 -15px 20px -15px' }}>
-                <h2 style={{ textAlign: 'center', margin: 0, fontSize: '1.8rem', color: '#fff' }}>Global Stories</h2>
+              <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'var(--panel-bg)', padding: '15px 0 12px 0', margin: '0 -15px 18px -15px', borderBottom: '1px solid var(--border-color)', textAlign: 'center' }}>
+                <h2 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--text-primary)', fontWeight: 700 }}>Global Stories</h2>
+                {everyoneStories.length > 0 && (
+                  <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    {everyoneStories.reduce((n, g) => n + (g.stories?.length || 0), 0)} stories from {everyoneStories.length} creators
+                  </p>
+                )}
               </div>
               {everyoneStories.length === 0 ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' }}>
                     {[...Array(6)].map((_, i) => (
-                      <div key={i} style={{ position: 'relative', paddingBottom: '150%', borderRadius: '15px', overflow: 'hidden', background: 'rgba(255,255,255,0.05)', animation: 'pulse 1.5s infinite ease-in-out' }}>
-                        <div style={{ position: 'absolute', top: '8px', left: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.4)', padding: '6px 8px', borderRadius: '10px' }}>
-                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
+                      <div key={i} style={{ position: 'relative', paddingBottom: '150%', borderRadius: '16px', overflow: 'hidden', background: 'rgba(128,128,128,0.15)', animation: 'pulse 1.5s infinite ease-in-out' }}>
+                        <div style={{ position: 'absolute', top: '8px', left: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, padding: '6px 8px', borderRadius: '10px' }}>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(128,128,128,0.3)', flexShrink: 0 }} />
                           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '6px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <div style={{ width: '60%', height: '10px', borderRadius: '4px', background: 'rgba(255,255,255,0.2)' }}></div>
-                              <div style={{ width: '16px', height: '10px', borderRadius: '2px', background: 'rgba(255,255,255,0.1)' }}></div>
+                              <div style={{ width: '60%', height: '10px', borderRadius: '4px', background: 'rgba(128,128,128,0.3)' }}></div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <div style={{ width: '40%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)' }}></div>
-                              <div style={{ width: '30%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)' }}></div>
+                              <div style={{ width: '40%', height: '8px', borderRadius: '4px', background: 'rgba(128,128,128,0.2)' }}></div>
                             </div>
                           </div>
                         </div>
@@ -6034,10 +6039,12 @@ const handleStoryUpload = async () => {
                         style={{ 
                           position: 'relative', 
                           paddingBottom: '150%', 
-                          borderRadius: '15px', 
+                          borderRadius: '16px', 
                           overflow: 'hidden',
                           cursor: 'pointer',
-                          background: '#111'
+                          background: 'var(--panel-hover, #111)',
+                          border: '1px solid var(--border-color)',
+                          boxShadow: '0 4px 14px rgba(0,0,0,0.18)'
                         }}
                         onClick={() => {
                           setCurrentStoryUserIndex(groupIdx);
@@ -6053,8 +6060,8 @@ const handleStoryUpload = async () => {
                           <img src={story.mediaUrl} alt="Story" loading="lazy" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                         )}
                         
-                        <div style={{ position: 'absolute', top: '8px', left: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, background: 'rgba(0,0,0,0.4)', padding: '6px 8px', borderRadius: '10px' }}>
-                          <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', gap: '8px', zIndex: 5, padding: '10px 10px 26px 10px', borderRadius: '16px 16px 0 0', background: 'linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.28) 55%, transparent 100%)' }}>
+                          <img src={story.user?.avatarUrl || 'https://via.placeholder.com/30'} alt="avatar" style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1.5px solid rgba(255,255,255,0.85)' }} />
                           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
@@ -6076,7 +6083,7 @@ const handleStoryUpload = async () => {
                     )})}
                   </div>
                   {hasMoreEveryoneStories && (
-                    <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                    <div style={{ textAlign: 'center', marginTop: '22px' }}>
                       <button 
                         className="btn btn-outline" 
                         onClick={() => {
@@ -6084,12 +6091,12 @@ const handleStoryUpload = async () => {
                         }}
                         disabled={isLoadingEveryoneStories}
                         style={{
-                          background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', 
-                          width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                          cursor: 'pointer', color: '#fff', animation: 'bounce 2s infinite'
+                          background: 'var(--panel-bg)', border: '1px solid var(--border-color)', borderRadius: '999px',
+                          padding: '11px 24px', display: 'inline-flex', alignItems: 'center', gap: '8px',
+                          cursor: 'pointer', color: 'var(--text-primary)', fontSize: '0.92rem', fontWeight: 600
                         }}
                       >
-                        <ChevronDown size={28} />
+                        {isLoadingEveryoneStories ? 'Loading...' : 'Load more stories'} <ChevronDown size={17} />
                       </button>
                     </div>
                   )}
@@ -6835,27 +6842,56 @@ const handleStoryUpload = async () => {
       case 'connections': {
         // Search is handled server-side (covers ALL connections, not just the loaded page)
         const visibleConnections = connectionsPage.users;
+        // Inline tab switching (Followers <-> Following): previously the only way to
+        // change list was backing out to the profile and tapping the other stat.
+        const connType = connectionsPage.title.toLowerCase();
+        const connTabs = connType === 'mutual' ? ['mutual', 'followers', 'following'] : ['followers', 'following'];
+        const switchConnectionsType = (type) => {
+          if (type === connType) return;
+          handleConnectionsClick(type, connectionsPage.userId);
+        };
         return (
-          <div style={{ height: '100%', width: '100%', boxSizing: 'border-box', background: '#0b0b0d', color: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
-            {/* Sticky Header + Search */}
-            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#0b0b0d', padding: '20px 20px 0 20px' }}>
+          <div style={{ height: '100%', width: '100%', boxSizing: 'border-box', background: 'var(--panel-bg)', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column' }}>
+            {/* Sticky Header + Tabs + Search */}
+            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--panel-bg)', padding: '20px 20px 0 20px', borderBottom: '1px solid var(--border-color)' }}>
               <div style={{ maxWidth: '720px', margin: '0 auto' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
                   <button
                     aria-label="Back to profile"
                     onClick={() => setActiveTab(connectionsPage.returnTab)}
-                    style={{ width: '42px', height: '42px', display: 'grid', placeItems: 'center', color: '#fff', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', cursor: 'pointer' }}
+                    style={{ width: '42px', height: '42px', display: 'grid', placeItems: 'center', color: 'var(--text-primary)', background: 'rgba(128,128,128,0.12)', border: '1px solid var(--border-color)', borderRadius: '50%', cursor: 'pointer' }}
                   >
                     <ArrowLeft size={21} />
                   </button>
-                  <div>
-                    <h1 style={{ margin: 0, fontSize: '1.45rem', lineHeight: 1.2 }}>{connectionsPage.title}</h1>
-                    <p style={{ margin: '4px 0 0', color: '#a8a8a8', fontSize: '0.9rem' }}>{connectionsPage.total} {connectionsPage.title.toLowerCase()}</p>
+                  <div style={{ minWidth: 0 }}>
+                    <h1 style={{ margin: 0, fontSize: '1.35rem', lineHeight: 1.2, fontWeight: 700 }}>{connectionsPage.title}</h1>
+                    <p style={{ margin: '3px 0 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>{connectionsPage.total} {connType}</p>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '18px' }}>
-                  <SearchIcon size={20} color="#a8a8a8" />
+                {/* List switcher pills */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+                  {connTabs.map(t => {
+                    const active = t === connType;
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => switchConnectionsType(t)}
+                        style={{
+                          padding: '7px 16px', borderRadius: '999px', fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer',
+                          border: active ? '1px solid transparent' : '1px solid var(--border-color)',
+                          background: active ? 'var(--brand-blue)' : 'transparent',
+                          color: active ? '#fff' : 'var(--text-secondary)'
+                        }}
+                      >
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 14px', borderRadius: '14px', background: 'rgba(128,128,128,0.12)', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
+                  <SearchIcon size={20} color="var(--text-secondary)" />
                   <input
                     id="sidebarSearch"
                     name="sidebarSearch"
@@ -6863,39 +6899,42 @@ const handleStoryUpload = async () => {
                     type="search"
                     value={connectionsSearch}
                     onChange={(event) => setConnectionsSearch(event.target.value)}
-                    placeholder={`Search your ${connectionsPage.title.toLowerCase()}...`}
-                    style={{ width: '100%', padding: '15px 0', outline: 'none', border: 'none', background: 'transparent', color: '#fff', fontSize: '1rem' }}
+                    placeholder={`Search your ${connType}...`}
+                    style={{ width: '100%', padding: '14px 0', outline: 'none', border: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: '1rem' }}
                   />
-                  {connectionsSearch && <button onClick={() => setConnectionsSearch('')} aria-label="Clear search" style={{ color: '#a8a8a8', background: 'transparent', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={19} /></button>}
+                  {connectionsSearch && <button onClick={() => setConnectionsSearch('')} aria-label="Clear search" style={{ color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={19} /></button>}
                 </div>
               </div>
             </div>
 
-            {/* Scrollable List */}
+            {/* Scrollable List - same row style as the chats page (.user-card + 50px avatar circle) */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 100px 20px' }} onScroll={handleConnectionsScroll}>
               <div style={{ maxWidth: '720px', margin: '0 auto' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
-                  {visibleConnections.map(connection => (
-                    <button
-                      key={connection._id}
-                      onClick={() => viewPublicProfile(connection._id)}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '13px', padding: '12px', textAlign: 'left', color: '#f5f5f5', background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '15px', cursor: 'pointer' }}
-                    >
-                      <div className="user-avatar-small" style={{ width: '48px', height: '48px', flexShrink: 0 }}>
+                {visibleConnections.map(connection => (
+                  <div
+                    key={connection._id}
+                    className="user-card"
+                    onClick={() => viewPublicProfile(connection._id)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="user-card-info">
+                      <div className="user-avatar-small">
                         {connection.avatarUrl ? <img src={connection.avatarUrl} alt="avatar" /> : (connection.username || '?').charAt(0).toUpperCase()}
                       </div>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '650' }}>@{connection.username}</div>
+                        <div className="user-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 650, color: 'var(--text-primary)' }}>@{connection.username}</div>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>View profile</div>
                       </div>
-                    </button>
-                  ))}
-                </div>
+                    </div>
+                    <ChevronRight size={18} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                  </div>
+                ))}
                 {connectionsLoading && (
-                  <div style={{ textAlign: 'center', padding: '18px', color: '#a8a8a8', fontSize: '0.9rem' }}>Loading more...</div>
+                  <div style={{ textAlign: 'center', padding: '18px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Loading more...</div>
                 )}
                 {visibleConnections.length === 0 && !connectionsLoading && (
-                  <div style={{ padding: '52px 20px', textAlign: 'center', color: '#a8a8a8' }}>
-                    {connectionsSearch ? `No ${connectionsPage.title.toLowerCase()} match your search.` : `No ${connectionsPage.title.toLowerCase()} yet.`}
+                  <div style={{ padding: '52px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    {connectionsSearch ? `No ${connType} match your search.` : `No ${connType} yet.`}
                   </div>
                 )}
               </div>
@@ -7160,7 +7199,7 @@ const handleStoryUpload = async () => {
                           fetchUserGlobalStories(publicProfileData._id, 1, false);
                           setActiveTab('user-global-stories');
                         }}
-                        style={{ marginTop: '10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '10px', fontSize: '0.9rem' }}
+                        style={{ marginTop: '10px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '10px', fontSize: '0.9rem', fontWeight: 600 }}
                       >
                         See More
                       </button>
@@ -8198,7 +8237,7 @@ const handleStoryUpload = async () => {
                           fetchUserGlobalStories(user.id || user._id, 1, false);
                           setActiveTab('user-global-stories');
                         }}
-                        style={{ marginTop: '10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '10px', fontSize: '0.9rem' }}
+                        style={{ marginTop: '10px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--brand-blue)', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '10px', fontSize: '0.9rem', fontWeight: 600 }}
                       >
                         See More
                       </button>
@@ -8238,15 +8277,15 @@ const handleStoryUpload = async () => {
       case 'user-global-stories':
         return (
           <div className="search-container">
-            <div className="search-header" style={{ padding: '20px', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div className="search-header" style={{ padding: '18px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '15px' }}>
               <button 
                 onClick={() => setActiveTab(userGlobalStoriesUserId === (user.id || user._id) ? 'profile' : 'publicProfile')}
-                style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
               >
                 <ChevronLeft size={24} />
               </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', background: 'var(--insta-gradient)' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '50%', overflow: 'hidden', background: 'var(--insta-gradient)', flexShrink: 0 }}>
                   {userGlobalStoriesUserInfo?.avatarUrl ? (
                     <img src={userGlobalStoriesUserInfo.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
@@ -8256,8 +8295,10 @@ const handleStoryUpload = async () => {
                   )}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Global Stories</div>
-                  <div style={{ fontSize: '0.8rem', color: '#aaa' }}>@{userGlobalStoriesUserInfo?.username}</div>
+                  <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>Global Stories</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    @{userGlobalStoriesUserInfo?.username}{userGlobalStories.length > 0 ? ` · ${groupStoriesByDay(userGlobalStories).length} days · ${userGlobalStories.length} stories` : ''}
+                  </div>
                 </div>
               </div>
             </div>
@@ -8280,16 +8321,16 @@ const handleStoryUpload = async () => {
                       setStoryViewerActive(true);
                       window.history.pushState({ overlayOpen: true }, '');
                     }}
-                    style={{ aspectRatio: '9/16', borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', background: '#222', position: 'relative' }}
+                    style={{ aspectRatio: '9/16', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', background: 'var(--panel-hover, #222)', position: 'relative', border: '1px solid var(--border-color)', boxShadow: '0 3px 10px rgba(0,0,0,0.15)' }}
                   >
                     {firstStory.mediaType === 'video' ? (
-                      <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay loop muted playsInline />
+                      <video src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loop muted playsInline />
                     ) : (
-                      <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" />
+                      <img src={firstStory.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="global story" loading="lazy" />
                     )}
-                    <div style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '6px' }}>
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 5, background: 'linear-gradient(0deg, rgba(0,0,0,0.6), transparent)', padding: '16px 10px 8px 10px', borderRadius: '0 0 14px 14px' }}>
                       <span style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{group.date}</span>
-                      <span style={{ color: '#fff', fontSize: '0.75rem', flexShrink: 0 }}>{group.stories.length}</span>
+                      <span style={{ color: '#fff', fontSize: '0.72rem', flexShrink: 0, background: 'rgba(255,255,255,0.18)', padding: '2px 8px', borderRadius: '999px' }}>{group.stories.length}</span>
                     </div>
                   </div>
                 )})}
@@ -8297,15 +8338,15 @@ const handleStoryUpload = async () => {
                 {userGlobalStoriesLoading && [...Array(userGlobalStories.length === 0 ? 12 : 3)].map((_, i) => (
                   <div key={`skel-${i}`} style={{ 
                     aspectRatio: '9/16', 
-                    borderRadius: '10px', 
-                    background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%)', 
+                    borderRadius: '14px', 
+                    background: 'linear-gradient(135deg, rgba(128,128,128,0.10) 0%, rgba(128,128,128,0.22) 50%, rgba(128,128,128,0.10) 100%)', 
                     backgroundSize: '200% 200%',
                     animation: 'shimmer 2s infinite linear',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}>
-                    <ImageIcon size={28} color="rgba(255,255,255,0.15)" />
+                    <ImageIcon size={28} color="rgba(128,128,128,0.4)" />
                   </div>
                 ))}
               </div>
@@ -8315,7 +8356,7 @@ const handleStoryUpload = async () => {
               )}
               
               {!hasMoreUserGlobalStories && userGlobalStories.length > 0 && (
-                <div style={{ textAlign: 'center', padding: '20px 0', color: '#666', fontSize: '0.9rem' }}>
+                <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                   No more stories
                 </div>
               )}
