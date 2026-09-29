@@ -80,10 +80,13 @@ self.addEventListener('push', function(e) {
         const options = {
           body: newBody,
           icon: payload.icon || '/icon-192.png',
-          badge: '/badge.png',
+          badge: '/icon-192.png',
           tag: notificationTag,
-          vibrate: [200, 100, 200, 100, 200, 100, 200],
-          requireInteraction: true,
+          vibrate: [200, 100, 200],
+          // NOTE: no requireInteraction here on purpose. Chrome 2025+ runs an on-device
+          // ML spam filter over every web notification, and persistent/pinned ones are
+          // exactly the aggressive pattern it downgrades. A normal auto-dismissing
+          // heads-up (which still stays in the shade) is both app-like and low-risk.
           renotify: true,
           data: {
             url: payload.url || '/'
