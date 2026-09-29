@@ -3,7 +3,7 @@ import StoryMusicModal from "./StoryMusicModal";
 import StoryMusicTrimmer from './StoryMusicTrimmer';
 import ShayariStudio from "./ShayariStudio";
 import AdBanner from "./AdBanner";
-import { initNativePush, isNativeApp, enableNativePush, disableNativePush, getNativePushStatus } from '../nativePush';
+import { initNativePush, isNativeApp, enableNativePush, disableNativePush, getNativePushStatus, openNativeAppSettings } from '../nativePush';
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect, Suspense } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import CommentsModal from './CommentsModal';
@@ -1552,6 +1552,11 @@ export default function Dashboard() {
   const [pushNotifEnabled, setPushNotifEnabled] = useState(false);
   const pushNotifEnabledRef = useRef(pushNotifEnabled);
   useEffect(() => { pushNotifEnabledRef.current = pushNotifEnabled; }, [pushNotifEnabled]);
+  // Native app only: a gentle in-app prompt to (re)request the OS notification
+  // permission. Android lets the system dialog appear only once or twice; after that it
+  // silently auto-denies, so users who dismissed it early never get a token and push
+  // stays dead. This soft prompt re-surfaces the ask (and a settings link) on launch.
+  const [showPushNag, setShowPushNag] = useState(false);
   const [notifPopEnabled, setNotifPopEnabled] = useState(() => localStorage.getItem('notifPop') !== 'false');
   const [notifSoundEnabled, setNotifSoundEnabled] = useState(() => localStorage.getItem('notifSound') !== 'false');
   const notifPopEnabledRef = useRef(notifPopEnabled);
@@ -2068,7 +2073,19 @@ export default function Dashboard() {
           const perm = await getNativePushStatus();
           let pref = null;
           try { pref = localStorage.getItem('twelo_native_push'); } catch (e) {}
-          setPushNotifEnabled(perm === 'granted' && pref !== 'false');
+          const granted = perm === 'granted';
+          setPushNotifEnabled(granted && pref !== 'false');
+          // Decide whether to (re)show the soft prompt. Skip when: already granted, the
+          // user explicitly toggled push off in-app, or we nagged within the last 3 days.
+          try {
+            if (!granted && pref !== 'false') {
+              const lastNag = parseInt(localStorage.getItem('twelo_push_nag_at') || '0', 10);
+              const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+              if (!lastNag || (Date.now() - lastNag) > THREE_DAYS) setShowPushNag(true);
+            } else {
+              setShowPushNag(false);
+            }
+          } catch (e) {}
           return;
         }
         if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -2204,6 +2221,29 @@ export default function Dashboard() {
         showToastMsg('Error toggling notifications.', 'error');
       }
     }
+  };
+
+  // Soft-prompt "Allow" button (native only). Requests the OS permission; if Android has
+  // already permanently denied it (dialog no longer shows), falls back to opening the
+  // app's notification settings so the user can toggle it on manually.
+  const handlePushNagAllow = async () => {
+    try { localStorage.setItem('twelo_push_nag_at', String(Date.now())); } catch (e) {}
+    const result = await enableNativePush(API_URL, token);
+    if (result === 'granted') {
+      setPushNotifEnabled(true);
+      setShowPushNag(false);
+      showToastMsg('Notifications enabled — you\'ll now get message & activity alerts.', 'success');
+      return;
+    }
+    // Not granted: permission is blocked at the OS level, so route to Settings.
+    await openNativeAppSettings();
+    showToastMsg('Enable notifications in Settings, then reopen Twelo.', 'info');
+    setShowPushNag(false);
+  };
+
+  const handlePushNagDismiss = () => {
+    try { localStorage.setItem('twelo_push_nag_at', String(Date.now())); } catch (e) {}
+    setShowPushNag(false);
   };
 
   const handleUsernameChange = (e) => {
@@ -9500,6 +9540,31 @@ const handleStoryUpload = async () => {
       )}
 
       {/* Logout Confirmation Modal */}
+      {/* Native push permission soft-prompt (Android app only) */}
+      {showPushNag && (
+        <div className="modal-overlay" style={{ zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-content" style={{ padding: '26px 22px', maxWidth: '340px', width: '90%', textAlign: 'center', background: 'linear-gradient(145deg, #1e1e1e, #111)', border: '1px solid #333', borderRadius: '16px', boxShadow: '0 12px 34px rgba(0,0,0,0.6)' }}>
+            <div style={{ width: 64, height: 64, margin: '0 auto 16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', background: 'linear-gradient(135deg, #833ab4, #fd1d1d 50%, #fcb045)' }}>🔔</div>
+            <h2 style={{ fontSize: '1.25rem', marginBottom: '8px', color: '#fff', fontWeight: 'bold' }}>Never miss a message</h2>
+            <p style={{ color: '#a8a8a8', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '22px' }}>
+              Turn on notifications to get new chats, likes and follows even when Twelo is closed.
+            </p>
+            <button
+              onClick={handlePushNagAllow}
+              className="premium-btn primary"
+              style={{ width: '100%', padding: '13px', fontSize: '1.02rem', background: 'var(--insta-gradient)', border: 'none', color: '#fff', borderRadius: '12px', cursor: 'pointer', marginBottom: '10px' }}
+            >
+              Allow notifications
+            </button>
+            <button
+              onClick={handlePushNagDismiss}
+              style={{ width: '100%', padding: '10px', fontSize: '0.9rem', background: 'transparent', border: 'none', color: '#888', cursor: 'pointer' }}
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
       {showLogoutConfirm && (
         <div className="settings-drawer-overlay" style={{ zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="settings-drawer" style={{ height: 'auto', maxHeight: '50%', borderRadius: '15px', width: '90%', maxWidth: '350px', padding: '24px', textAlign: 'center' }}>

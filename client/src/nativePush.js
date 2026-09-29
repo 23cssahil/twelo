@@ -15,6 +15,7 @@
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { App } from '@capacitor/app';
 
 // Must match the channelId the backend sends (sendToUserDevices -> android.notification.channelId).
 const CHANNEL_ID = 'twelo_default';
@@ -159,6 +160,14 @@ export async function getNativePushStatus() {
   } catch (e) {
     return 'unknown';
   }
+}
+
+// Open the OS app-settings page. Used as the fallback when the notification permission
+// has been permanently denied (Android stops showing the system dialog after repeated
+// denials), so the only way to re-enable push is to toggle it manually in Settings.
+export async function openNativeAppSettings() {
+  if (!isNativeApp()) return;
+  try { await App.openSettings(); } catch (e) { console.warn('openNativeAppSettings failed:', e && e.message); }
 }
 
 // Clear the stored token on logout so the server stops pushing to this device/user.

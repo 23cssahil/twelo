@@ -20,3 +20,7 @@ old_dash.*
 server/git
 server/fix-likes.js
 server/fix_likes.js
+
+# Firebase service-account private keys - NEVER commit
+*firebase-adminsdk*.json
+*-firebase-adminsdk-*

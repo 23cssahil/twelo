@@ -4517,6 +4517,22 @@ app.post('/api/admin/block', adminAuth, async (req, res) => {
   }
 });
 
+app.post('/api/admin/test_push', adminAuth, async (req, res) => {
+  try {
+    const username = (req.body && req.body.username || '').trim().replace(/^@/, '');
+    if (!username) return res.status(400).json({ message: 'username required' });
+    if (!adminMessaging) return res.status(503).json({ message: 'FCM not initialized — set FIREBASE_SERVICE_ACCOUNT env (valid single-line JSON) and redeploy.' });
+    const user = await User.findOne({ username }).select('_id username fcmToken pushSubscriptions ownedByAdmin').lean();
+    if (!user) return res.status(404).json({ message: `User @${username} not found` });
+    if (!user.fcmToken) return res.status(400).json({ message: `@${username} has no FCM token — the app never registered (notification permission not granted, or an old build). Open the app, allow notifications, then retry.` });
+    await sendToUserDevices(user, { title: 'Twelo test', body: 'If this appeared, native push is working ✅', url: '/' });
+    res.json({ message: `Test push sent to @${username}`, tokenTail: String(user.fcmToken).slice(-12) });
+  } catch (e) {
+    console.error('test_push error:', e);
+    res.status(500).json({ message: e.message });
+  }
+});
+
 app.post('/api/admin/broadcast', adminAuth, async (req, res) => {
   try {
     const { message, alertType, audience } = req.body;
