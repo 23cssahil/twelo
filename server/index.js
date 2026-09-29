@@ -104,9 +104,11 @@ async function sendToUserDevices(userDoc, { title, body, url = '/', avatar = '',
       // 'data' fields — so there is never a duplicate.
       await adminMessaging.send({
         token: userDoc.fcmToken,
-        // Mirror the Instagram look on the SYSTEM-rendered copy too (background/killed):
-        // sender's username as the title and their photo as the large notification image,
-        // so it no longer reads as a generic 'New message from X' system alert.
+        // SYSTEM-rendered copy (background/killed): sender username as title, message as body.
+        // No 'image' field — android.notification.image renders as BigPictureStyle (large
+        // rectangular banner) which looks out-of-place; the sender name as title is enough.
+        // The avatar URL is still passed via 'data' so TweloMessagingService can render a
+        // proper circular large-icon when the app is in the foreground.
         notification: { title: String(sender || t), body: String(b) },
         data: { title: String(t), body: String(b), url: String(url), avatar: String(avatar || ''), sender: String(sender || '') },
         android: {
@@ -118,9 +120,7 @@ async function sendToUserDevices(userDoc, { title, body, url = '/', avatar = '',
             icon: 'ic_stat_twelo',
             color: '#4f46e5',
             defaultSound: true,
-            clickAction: 'com.twelo.app.NOTIFICATION',
-            // Public https avatar renders as the notification photo (Instagram-style).
-            ...(String(avatar || '').startsWith('http') ? { image: String(avatar) } : {})
+            clickAction: 'com.twelo.app.NOTIFICATION'
           }
         }
       });
