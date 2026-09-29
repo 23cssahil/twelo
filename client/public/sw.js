@@ -77,21 +77,23 @@ self.addEventListener('push', function(e) {
   );
 });
 
-// When user clicks the notification, open/focus the app
+// When user clicks the notification, open/focus the app and hand it the target URL
+// (e.g. "/?chat=<id>") so it can deep-link straight into the conversation.
 self.addEventListener('notificationclick', function(e) {
   e.notification.close();
   const targetUrl = e.notification.data?.url || '/';
   
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
-      // Try to focus an existing window
+      // Try to focus an existing window and tell it where to go
       for (let i = 0; i < clientList.length; i++) {
         let client = clientList[i];
         if ('focus' in client) {
+          client.postMessage({ type: 'PUSH_NAVIGATE', url: targetUrl });
           return client.focus();
         }
       }
-      // No window open — open one
+      // No window open — open one straight at the target
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }

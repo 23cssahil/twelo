@@ -4521,12 +4521,19 @@ app.post('/api/admin/test_push', adminAuth, async (req, res) => {
   try {
     const username = (req.body && req.body.username || '').trim().replace(/^@/, '');
     if (!username) return res.status(400).json({ message: 'username required' });
-    if (!adminMessaging) return res.status(503).json({ message: 'FCM not initialized — set FIREBASE_SERVICE_ACCOUNT env (valid single-line JSON) and redeploy.' });
+    if (!adminMessaging && !pushEnabled) return res.status(503).json({ message: 'Neither FCM (FIREBASE_SERVICE_ACCOUNT) nor web-push (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY) is configured on the server — set the env vars and redeploy.' });
     const user = await User.findOne({ username }).select('_id username fcmToken pushSubscriptions ownedByAdmin').lean();
     if (!user) return res.status(404).json({ message: `User @${username} not found` });
-    if (!user.fcmToken) return res.status(400).json({ message: `@${username} has no FCM token — the app never registered (notification permission not granted, or an old build). Open the app, allow notifications, then retry.` });
-    await sendToUserDevices(user, { title: 'Twelo test', body: 'If this appeared, native push is working ✅', url: '/' });
-    res.json({ message: `Test push sent to @${username}`, tokenTail: String(user.fcmToken).slice(-12) });
+    const subCount = (user.pushSubscriptions || []).length;
+    if (!user.fcmToken && !subCount) return res.status(400).json({ message: `@${username} has no push channels at all — app never registered (FCM permission not granted / old build) and no browser subscription. Open the app or site and allow notifications, then retry.` });
+    await sendToUserDevices(user, { title: 'Twelo test', body: 'If this appeared, notifications are working ✅', url: '/' });
+    res.json({
+      message: `Test push sent to @${username}`,
+      fcmConfigured: !!adminMessaging,
+      fcmToken: user.fcmToken ? `yes (…${String(user.fcmToken).slice(-12)})` : 'NO — app did not register',
+      webPushConfigured: pushEnabled,
+      webSubscriptions: subCount
+    });
   } catch (e) {
     console.error('test_push error:', e);
     res.status(500).json({ message: e.message });
@@ -5693,10 +5700,13 @@ io.on('connection', (socket) => {
                          (senderDoc.following || []).some(id => String(id) === rid);
         const hasAnyChannel = (receiverDoc.pushSubscriptions && receiverDoc.pushSubscriptions.length > 0) || receiverDoc.fcmToken;
         if (isMutual && hasAnyChannel) {
+          // Body shows the actual message text (truncated). Messages are only encrypted
+          // at rest (server decrypts for delivery anyway), so this leaks nothing extra.
           sendToUserDevices(receiverDoc, {
             title: `New message from ${senderDoc.username}`,
-            // Do not leak (potentially encrypted) message content into the push payload.
-            body: messageType === 'text' ? 'You have a new message' : `Sent a ${messageType}`,
+            body: messageType === 'text'
+              ? (String(messageText || '').trim().slice(0, 90) || 'You have a new message')
+              : `Sent a ${messageType}`,
             url: `/?chat=${senderId}`
           }).catch(e => console.error('offline push failed:', e.message));
         }

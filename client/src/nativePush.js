@@ -19,6 +19,10 @@ import { App } from '@capacitor/app';
 
 // Must match the channelId the backend sends (sendToUserDevices -> android.notification.channelId).
 const CHANNEL_ID = 'twelo_default';
+// Pending push-navigation URL (e.g. "/?chat=<id>"). Stored so a cold start (app killed,
+// user taps the notification) can still navigate once the Dashboard mounts; the Dashboard
+// consumes and clears it.
+export const PENDING_PUSH_URL_KEY = 'twelo_pending_push_url';
 let wired = false;
 let channelReady = false;
 // Latest API_URL / token so the (once-attached) FCM listeners always authenticate with
@@ -92,11 +96,30 @@ function _ensureWired() {
           id: Math.floor(Date.now() % 1000000000),
           title: notification.title || 'Twelo',
           body: notification.body || '',
-          channel: CHANNEL_ID
+          channel: CHANNEL_ID,
+          extra: { url: (notification.data && notification.data.url) || '/' }
         }]
       }).catch(() => {});
     } catch (e) {}
   });
+  // Notification tapped while the app process was alive (backgrounded or foreground).
+  // Capacitor replays the last opened action to a late-registered listener too, which
+  // covers the cold-start case (app killed -> tap -> launch -> listener attaches).
+  PushNotifications.addListener('pushNotificationOpened', (action) => {
+    const url = (action.notification && action.notification.data && action.notification.data.url) || '/';
+    _navigateTo(url);
+  });
+  // Tap on the locally-re-surfaced foreground notification.
+  LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+    const url = (action.notification && action.notification.extra && action.notification.extra.url) || '/';
+    _navigateTo(url);
+  });
+}
+
+// Persist the target URL (survives a cold start) and nudge the UI if it is mounted.
+function _navigateTo(url) {
+  try { localStorage.setItem(PENDING_PUSH_URL_KEY, String(url)); } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('twelo-push-navigate', { detail: { url } })); } catch (e) {}
 }
 
 // Register the device for push and sync its token to the backend. Safe to call on

@@ -3,7 +3,7 @@ import StoryMusicModal from "./StoryMusicModal";
 import StoryMusicTrimmer from './StoryMusicTrimmer';
 import ShayariStudio from "./ShayariStudio";
 import AdBanner from "./AdBanner";
-import { initNativePush, isNativeApp, enableNativePush, disableNativePush, getNativePushStatus, openNativeAppSettings } from '../nativePush';
+import { initNativePush, isNativeApp, enableNativePush, disableNativePush, getNativePushStatus, openNativeAppSettings, PENDING_PUSH_URL_KEY } from '../nativePush';
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback, useLayoutEffect, Suspense } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import CommentsModal from './CommentsModal';
@@ -5251,6 +5251,51 @@ const handleStoryUpload = async () => {
     }
     window.history.pushState({ view: 'chat' }, '', '');
   };
+
+  // Notification deep-link: tapping a message notification (FCM or web push) lands the
+  // user straight in that conversation. The target arrives through three paths:
+  //  (a) ?chat=<id> URL param  — web-push click when the app was not already open,
+  //  (b) 'twelo-push-navigate' — native tap while the JS process is alive,
+  //  (c) PENDING_PUSH_URL_KEY  — native cold start (stored by nativePush before boot).
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    const openChatById = (chatId) => {
+      if (!chatId || String(chatId) === String(user?.id)) return;
+      fetch(`${API_URL}/api/users/public_profile/${chatId}`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => (r.ok ? r.json() : null))
+        .then(pu => {
+          if (cancelled || !pu || pu.locked || pu.isDeleted) return;
+          startChatWithUser({ ...pu, _id: String(pu._id || chatId) });
+        })
+        .catch(() => {});
+    };
+    const consume = () => {
+      let stored = null;
+      try { stored = localStorage.getItem(PENDING_PUSH_URL_KEY); if (stored) localStorage.removeItem(PENDING_PUSH_URL_KEY); } catch (e) {}
+      const m = `${window.location.search || ''}`.match(/[?&]chat=([^&]+)/) || (stored ? `${stored}`.match(/chat=([^&]+)/) : null);
+      if (m) {
+        openChatById(decodeURIComponent(m[1]));
+        try { window.history.replaceState({}, '', window.location.pathname); } catch (e) {}
+      }
+    };
+    // Small delay so the socket/login effects settle before the chat opens.
+    const t = setTimeout(consume, 800);
+    window.addEventListener('twelo-push-navigate', consume);
+    // Web push: an already-open tab gets the target posted by the service worker on click.
+    const onSwMsg = (ev) => {
+      if (ev.data && ev.data.type === 'PUSH_NAVIGATE' && ev.data.url) {
+        try { localStorage.setItem(PENDING_PUSH_URL_KEY, String(ev.data.url)); } catch (e) {}
+        consume();
+      }
+    };
+    if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', onSwMsg);
+    return () => {
+      cancelled = true; clearTimeout(t);
+      window.removeEventListener('twelo-push-navigate', consume);
+      if ('serviceWorker' in navigator) navigator.serviceWorker.removeEventListener('message', onSwMsg);
+    };
+  }, [token]);
 
   // --- WebRTC System with Camera permission error handling ---
 
