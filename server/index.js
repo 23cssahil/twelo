@@ -127,7 +127,9 @@ async function pushToOfflineUser(userDoc, { title, body, url = '/' } = {}) {
     if (!userDoc || userDoc.ownedByAdmin) return;
     if (!pushEnabled && !adminMessaging) return;
     const uid = String(userDoc._id || userDoc.id || '');
-    if (!uid || onlineUsers.get(uid)) return; // online -> in-app toast shows it
+    // Online AND visibly focused -> the in-app toast covers it. Online-but-hidden or
+    // fully offline -> send the push.
+    if (!uid || (onlineUsers.get(uid) && !hiddenUsers.has(uid))) return;
     await sendToUserDevices(userDoc, { title, body, url });
   } catch (e) {
     console.error('[push notify] failed:', e.message);
@@ -572,6 +574,11 @@ io.use((socket, next) => {
 });
 
 const onlineUsers = new Map();
+// Users whose connected socket reported document.hidden (tab/PWA in background).
+// They still count as "reachable in-app", but the screen is not visible, so message
+// pushes must still go out — otherwise an open-but-hidden tab silently swallows
+// every notification (the top complaint from web users).
+const hiddenUsers = new Set();
 const activeSessions = new Map(); // socket.id -> { userId, startTime, messagesSent, matchesMade }
 
 const { createAdapter } = require('@socket.io/redis-adapter');
@@ -2370,6 +2377,40 @@ app.post('/api/users/subscribe', authenticateToken, async (req, res) => {
 // hardcoded key in the bundle could.
 app.get('/api/push/vapid_public_key', (req, res) => {
   res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || null });
+});
+
+// Inline reply from a web-push notification: the service worker posts here with the
+// session token it cached from the app. Mirrors the core of socket send_message
+// (block guard + encrypt + save + live emit) so the sender's chat stays in sync.
+app.post('/api/push/reply', authenticateToken, async (req, res) => {
+  try {
+    const to = String((req.body && req.body.to) || '').trim();
+    const text = String((req.body && req.body.text) || '').trim().slice(0, 2000);
+    const senderId = req.user.userId;
+    if (!to || !text || to === String(senderId)) return res.status(400).json({ message: 'invalid reply' });
+    const docs = await User.find({ _id: { $in: [senderId, to] } })
+      .select('_id blockedUsers username avatarUrl').lean();
+    const senderDoc = docs.find(d => String(d._id) === String(senderId));
+    const receiverDoc = docs.find(d => String(d._id) === String(to));
+    if (!senderDoc || !receiverDoc) return res.status(404).json({ message: 'user not found' });
+    const blocked = (senderDoc.blockedUsers || []).some(id => String(id) === to) ||
+                    (receiverDoc.blockedUsers || []).some(id => String(id) === String(senderId));
+    if (blocked) return res.status(403).json({ message: 'cannot message this user' });
+    const message = new Message({ sender: senderId, receiver: to, message: encryptMsg(text), messageType: 'text' });
+    await message.save();
+    const receiverSocketId = onlineUsers.get(to);
+    const payload = {
+      _id: message._id.toString(), sender: String(senderId), receiver: to,
+      message: text, messageType: 'text', fileUrl: null, isViewOnce: false,
+      isDelivered: !!receiverSocketId, isViewed: false, reactions: [], createdAt: message.createdAt,
+      senderUsername: senderDoc.username, senderAvatarUrl: senderDoc.avatarUrl
+    };
+    if (receiverSocketId) io.to(receiverSocketId).emit('receive_message', payload);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('push reply error:', e);
+    res.status(500).json({ message: 'reply failed' });
+  }
 });
 
 // Store the FCM device token reported by the packaged native (Capacitor) app so the
@@ -5593,6 +5634,13 @@ io.on('connection', (socket) => {
   socket.on('join_story_room', (storyId) => {
     socket.join(`story_${storyId}`);
   });
+
+  // Client reports tab/app visibility (called on connect + every visibilitychange).
+  socket.on('user_visibility', (data) => {
+    const uid = String(socket.data.userId || '');
+    if (!uid) return;
+    if (data && data.hidden) hiddenUsers.add(uid); else hiddenUsers.delete(uid);
+  });
   
   socket.on('leave_story_room', (storyId) => {
     socket.leave(`story_${storyId}`);
@@ -5704,7 +5752,8 @@ io.on('connection', (socket) => {
 
       // Offline push (mutual followers only, receiver not online). Runs off the hot path
       // as fire-and-forget so the socket handler returns immediately after the emits above.
-      if (senderDoc && receiverDoc && !receiverSocketId && !receiverDoc.ownedByAdmin) {
+      const receiverHidden = hiddenUsers.has(String(receiverId));
+      if (senderDoc && receiverDoc && (!receiverSocketId || receiverHidden) && !receiverDoc.ownedByAdmin) {
         const rid = String(receiverId);
         const isMutual = (senderDoc.followers || []).some(id => String(id) === rid) &&
                          (senderDoc.following || []).some(id => String(id) === rid);
@@ -6572,6 +6621,11 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     adminBusySockets.delete(socket.id);
+    // Visibility flag must die with the socket, or a reconnected visible tab would
+    // keep getting duplicate pushes.
+    for (const [uid, sid] of onlineUsers.entries()) {
+      if (sid === socket.id) { hiddenUsers.delete(uid); break; }
+    }
     // Remove from in-memory fallback queue
     _fallbackQueue = _fallbackQueue.filter(u => u.socketId !== socket.id);
     // Remove from the admin live board if this was a waiting user

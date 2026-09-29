@@ -16,6 +16,24 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
 
+// --- Tiny IndexedDB store for the session token posted by the app (PUSH_AUTH), so an
+// inline notification reply can call the API even after the worker was terminated. ---
+function _idb(mode, value) {
+  return new Promise((resolve, reject) => {
+    const openReq = indexedDB.open('twelo_push', 1);
+    openReq.onupgradeneeded = () => openReq.result.createObjectStore('auth');
+    openReq.onerror = () => reject(openReq.error);
+    openReq.onsuccess = () => {
+      const db = openReq.result;
+      const tx = db.transaction('auth', mode);
+      const store = tx.objectStore('auth');
+      const req = mode === 'readwrite' ? store.put(value, 'session') : store.get('session');
+      req.onsuccess = () => { resolve(req.result); db.close(); };
+      req.onerror = () => { reject(req.error); db.close(); };
+    };
+  });
+}
+
 self.addEventListener('push', function(e) {
   let payload = { title: 'Notification', body: 'You have a new message', icon: '/icon-192.png' };
   
@@ -71,6 +89,14 @@ self.addEventListener('push', function(e) {
           }
         };
 
+        // Message pushes (url carries ?chat=<id>) get an inline text-reply box so the
+        // user can answer straight from the notification shade.
+        const chatMatch = String(payload.url || '').match(/chat=([^&]+)/);
+        if (chatMatch) {
+          options.data.chatId = chatMatch[1];
+          options.actions = [{ action: 'reply', type: 'text', title: 'Reply', placeholder: 'Type a reply\u2026' }];
+        }
+
         return self.registration.showNotification(payload.title, options);
       });
     })
@@ -80,6 +106,14 @@ self.addEventListener('push', function(e) {
 // When user clicks the notification, open/focus the app and hand it the target URL
 // (e.g. "/?chat=<id>") so it can deep-link straight into the conversation.
 self.addEventListener('notificationclick', function(e) {
+  // Inline reply: send it through the API right here; do NOT open the app.
+  if (e.action === 'reply') {
+    e.notification.close();
+    const text = String(e.reply || '').trim();
+    const chatId = (e.notification.data && e.notification.data.chatId) || '';
+    e.waitUntil(text && chatId ? _sendReply(chatId, text) : Promise.resolve());
+    return;
+  }
   e.notification.close();
   const targetUrl = e.notification.data?.url || '/';
   
@@ -101,7 +135,7 @@ self.addEventListener('notificationclick', function(e) {
   );
 });
 
-// Listen for messages from the app to clear notifications
+// Listen for messages from the app to clear notifications / cache reply credentials
 self.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'CLEAR_NOTIFICATIONS') {
     e.waitUntil(
@@ -110,4 +144,31 @@ self.addEventListener('message', function(e) {
       })
     );
   }
+  if (e.data && e.data.type === 'PUSH_AUTH' && e.data.token) {
+    e.waitUntil(_idb('readwrite', { token: e.data.token, apiBase: e.data.apiBase || '' }).catch(() => {}));
+  }
 });
+
+// POST an inline reply using the cached session token; surface a small confirmation
+// (or a "open the app" hint when the cached session has expired).
+async function _sendReply(chatId, text) {
+  try {
+    const auth = await _idb('readonly');
+    if (!auth || !auth.token) throw new Error('no cached session');
+    const r = await fetch(`${auth.apiBase}/api/push/reply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${auth.token}` },
+      body: JSON.stringify({ to: chatId, text })
+    });
+    if (r.ok) {
+      await self.registration.showNotification('Reply sent', { body: text, icon: '/icon-192.png', tag: 'reply-sent' });
+    } else {
+      await self.registration.showNotification('Reply not sent', {
+        body: r.status === 401 ? 'Your session expired \u2014 open Twelo and reply from the chat.' : 'Could not send your reply \u2014 open Twelo to try again.',
+        icon: '/icon-192.png', tag: 'reply-failed'
+      });
+    }
+  } catch (err) {
+    await self.registration.showNotification('Reply not sent', { body: 'Open Twelo and reply from the chat.', icon: '/icon-192.png', tag: 'reply-failed' });
+  }
+}

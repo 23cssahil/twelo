@@ -1280,6 +1280,27 @@ export default function Dashboard() {
     initNativePush(API_URL, token);
   }, [token, API_URL]);
 
+  // Tell the server whether this tab/app is visible. Without this an open-but-hidden
+  // tab counts as "online" and the server skips the push, so background tabs receive
+  // nothing (the exact "site pe notification nahi aata" complaint).
+  useEffect(() => {
+    if (!socket) return;
+    const sendVis = () => { try { socket.emit('user_visibility', { hidden: document.hidden }); } catch (e) {} };
+    sendVis();
+    socket.on('connect', sendVis);
+    document.addEventListener('visibilitychange', sendVis);
+    return () => { socket.off('connect', sendVis); document.removeEventListener('visibilitychange', sendVis); };
+  }, [socket]);
+
+  // Hand the service worker the session token + API base so a notification's inline
+  // reply can be POSTed straight to /api/push/reply without opening the app first.
+  useEffect(() => {
+    if (!token || isNativeApp() || !('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.ready.then(reg => {
+      if (reg.active) reg.active.postMessage({ type: 'PUSH_AUTH', token, apiBase: API_URL });
+    }).catch(() => {});
+  }, [token]);
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
