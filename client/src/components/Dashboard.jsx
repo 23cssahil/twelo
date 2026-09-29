@@ -2094,6 +2094,16 @@ export default function Dashboard() {
           }
           const enabled = !!subscription && Notification.permission === 'granted';
           setPushNotifEnabled(enabled);
+          // Permission never asked yet ('prompt'): the silent auto-subscribe above can
+          // only work once permission exists, so surface the same soft-prompt the native
+          // app shows. Rate-limited to once per 3 days per device.
+          if (Notification.permission === 'prompt' && token) {
+            try {
+              const lastNag = parseInt(localStorage.getItem('twelo_push_nag_at') || '0', 10);
+              const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+              if (!lastNag || (Date.now() - lastNag) > THREE_DAYS) setShowPushNag(true);
+            } catch (e) {}
+          }
           // Re-sync the live subscription on every app open. Browsers rotate/expire push
           // endpoints over time and a redeploy can prune stale ones server-side; without
           // this the server keeps a dead endpoint and offline message pushes stop working.
@@ -2208,11 +2218,24 @@ export default function Dashboard() {
     }
   };
 
-  // Soft-prompt "Allow" button (native only). Requests the OS permission; if Android has
-  // already permanently denied it (dialog no longer shows), falls back to opening the
-  // app's notification settings so the user can toggle it on manually.
+  // Soft-prompt "Allow" button. Native: requests the OS permission; if Android has
+  // already permanently denied it, falls back to opening app settings. Web/PWA: runs
+  // the browser permission prompt + subscribes the service worker for web push.
   const handlePushNagAllow = async () => {
     try { localStorage.setItem('twelo_push_nag_at', String(Date.now())); } catch (e) {}
+    if (!isNativeApp()) {
+      const r = await subscribeWebPush(API_URL, token);
+      setShowPushNag(false);
+      if (r === 'subscribed') {
+        setPushNotifEnabled(true);
+        showToastMsg('Notifications enabled — you\'ll now get message & activity alerts.', 'success');
+      } else if (r === 'denied') {
+        showToastMsg('Notifications are blocked. Allow them from the browser site settings.', 'error');
+      } else {
+        showToastMsg('Could not enable notifications in this browser.', 'error');
+      }
+      return;
+    }
     const result = await enableNativePush(API_URL, token);
     if (result === 'granted') {
       setPushNotifEnabled(true);

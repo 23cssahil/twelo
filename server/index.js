@@ -106,7 +106,10 @@ async function sendToUserDevices(userDoc, { title, body, url = '/' } = {}) {
     try {
       await webpush.sendNotification(sub, payload);
     } catch (e) {
-      if (e.statusCode === 410 || e.statusCode === 404) {
+      // 410/404 = endpoint gone; 400/401/403 = subscription was created with a stale or
+      // mismatched VAPID key (e.g. before the sender keypair rotated) and can NEVER be
+      // delivered to — drop it so the client's next visit re-subscribes cleanly.
+      if ([400, 401, 403, 404, 410].includes(e.statusCode)) {
         User.updateOne({ _id: userDoc._id }, { $pull: { pushSubscriptions: { endpoint: sub.endpoint } } }).catch(() => {});
       } else {
         console.log('[push notify] send error:', e.message);
