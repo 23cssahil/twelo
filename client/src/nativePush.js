@@ -16,6 +16,7 @@ import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { App } from '@capacitor/app';
+import { Preferences } from '@capacitor/preferences';
 
 // Must match the channelId the backend sends (sendToUserDevices -> android.notification.channelId).
 const CHANNEL_ID = 'twelo_default';
@@ -23,6 +24,8 @@ const CHANNEL_ID = 'twelo_default';
 // user taps the notification) can still navigate once the Dashboard mounts; the Dashboard
 // consumes and clears it.
 export const PENDING_PUSH_URL_KEY = 'twelo_pending_push_url';
+// Intent extra the native TweloMessagingService attaches to the MainActivity tap intent.
+const TWELO_PUSH_URL_EXTRA = 'twelo_push_url';
 let wired = false;
 let channelReady = false;
 // Latest API_URL / token so the (once-attached) FCM listeners always authenticate with
@@ -97,36 +100,21 @@ function _ensureWired() {
   });
   // Token can rotate; keep the server copy fresh.
   PushNotifications.addListener('tokenRefresh', (token) => { _sendToken(token.value); });
-  // Foreground: the system does NOT auto-display a push while the app is open, so we
-  // surface it ourselves in the shade (matches what the user expects from other apps).
-  PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    try {
-      const url = (notification.data && notification.data.url) || '/';
-      LocalNotifications.schedule({
-        notifications: [{
-          id: _idForUrl(url),
-          title: notification.title || 'Twelo',
-          body: notification.body || '',
-          channel: CHANNEL_ID,
-          smallIcon: 'ic_stat_twelo',
-          iconColor: '#4f46e5',
-          extra: { url }
-        }]
-      }).catch(() => {});
-    } catch (e) {}
-  });
-  // Notification tapped while the app process was alive (backgrounded or foreground).
-  // Capacitor replays the last opened action to a late-registered listener too, which
-  // covers the cold-start case (app killed -> tap -> launch -> listener attaches).
-  PushNotifications.addListener('pushNotificationOpened', (action) => {
-    const url = (action.notification && action.notification.data && action.notification.data.url) || '/';
-    _navigateTo(url);
-  });
-  // Tap on the locally-re-surfaced foreground notification.
-  LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
-    const url = (action.notification && action.notification.extra && action.notification.extra.url) || '/';
-    _navigateTo(url);
-  });
+  // Notifications are now rendered by our OWN native service (TweloMessagingService:
+  // sender photo, one per chat, inline reply), so the plugin's message listeners are
+  // no longer fed. Deep-links arrive as MainActivity intent extras instead:
+  //   cold start      -> App.getLaunchIntent()
+  //   app alive/bg    -> App 'receiveAppIntent'
+  try {
+    App.getLaunchIntent().then((intent) => {
+      const url = intent && intent.extras && intent.extras[TWELO_PUSH_URL_EXTRA];
+      if (url) _navigateTo(url);
+    }).catch(() => {});
+    App.addListener('receiveAppIntent', (intent) => {
+      const url = intent && intent.extras && intent.extras[TWELO_PUSH_URL_EXTRA];
+      if (url) _navigateTo(url);
+    });
+  } catch (e) {}
 }
 
 // Persist the target URL (survives a cold start) and nudge the UI if it is mounted.
@@ -141,6 +129,12 @@ export async function initNativePush(API_URL, authToken) {
   if (!isNativeApp() || !authToken) return;
   _API_URL = API_URL;
   _authToken = authToken;
+  // Mirror the session into native storage so the notification's inline Reply
+  // (TweloReplyReceiver) can call /api/push/reply without opening the app.
+  try {
+    await Preferences.set({ key: 'twelo_jwt', value: authToken });
+    await Preferences.set({ key: 'twelo_api_base', value: API_URL });
+  } catch (e) {}
   await _ensureChannel();
   _ensureWired();
   // Honour an explicit opt-out made in the app's notification toggle.
@@ -162,6 +156,10 @@ export async function enableNativePush(API_URL, authToken) {
   if (!isNativeApp()) return 'unsupported';
   _API_URL = API_URL;
   _authToken = authToken;
+  try {
+    await Preferences.set({ key: 'twelo_jwt', value: authToken || '' });
+    await Preferences.set({ key: 'twelo_api_base', value: API_URL });
+  } catch (e) {}
   await _ensureChannel();
   _ensureWired();
   try {
@@ -209,6 +207,9 @@ export async function openNativeAppSettings() {
 // Clear the stored token on logout so the server stops pushing to this device/user.
 export async function clearNativePushToken(API_URL, authToken) {
   if (!isNativeApp() || !authToken) return;
+  // Also wipe the mirrored session so a notification reply cannot be sent from a
+  // logged-out device (TweloReplyReceiver reads exactly these keys natively).
+  try { Preferences.remove({ key: 'twelo_jwt' }); Preferences.remove({ key: 'twelo_api_base' }); } catch (e) {}
   try {
     await fetch(`${API_URL}/api/users/fcm-token`, {
       method: 'POST',

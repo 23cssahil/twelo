@@ -75,29 +75,23 @@ try {
 
 // Deliver an offline notification to every device channel a user has registered:
 // FCM for the packaged native app and/or web-push for PWA browser clients.
-async function sendToUserDevices(userDoc, { title, body, url = '/' } = {}) {
+async function sendToUserDevices(userDoc, { title, body, url = '/', avatar = '', sender = '' } = {}) {
   if (!userDoc) return;
   const t = title || 'Twelo';
   const b = body || '';
   // 1) Native app via FCM (works even when VAPID/web-push is disabled).
   if (adminMessaging && userDoc.fcmToken) {
     try {
+      // DATA-only message: the app's own TweloMessagingService renders it natively
+      // (Instagram-style: sender photo large icon, one per chat, inline reply). A
+      // 'notification' payload would be rendered by the OS with a plain grey icon.
       await adminMessaging.send({
         token: userDoc.fcmToken,
-        notification: { title: t, body: b },
-        data: { url: String(url) },
+        data: { title: String(t), body: String(b), url: String(url), avatar: String(avatar || ''), sender: String(sender || '') },
         android: {
-          // Collapse per conversation: 3 rapid messages REPLACE the same notification
-          // instead of stacking 3 separate ones in the shade (same collapseKey = replace).
+          priority: 'high',
           collapseKey: String(url || 'twelo'),
-          notification: {
-            channelId: 'twelo_default',
-            // Our brand silhouette (Tr bubble) tinted with the premium blue instead of
-            // the OS default grey. Android forbids a full-colour status icon, so the
-            // tint is the closest legal match to the logo.
-            icon: 'ic_stat_twelo',
-            color: '#4f46e5'
-          }
+          ttl: 86400000 // 24h: don't wake users with week-old messages
         }
       });
     } catch (e) {
@@ -134,7 +128,7 @@ async function sendToUserDevices(userDoc, { title, body, url = '/' } = {}) {
 // toast already covers the online case). Accepts an already-loaded user document
 // that includes pushSubscriptions/fcmToken/ownedByAdmin so we avoid a redundant
 // query. No-ops when the user is connected or is an admin bot.
-async function pushToOfflineUser(userDoc, { title, body, url = '/' } = {}) {
+async function pushToOfflineUser(userDoc, { title, body, url = '/', avatar = '', sender = '' } = {}) {
   try {
     if (!userDoc || userDoc.ownedByAdmin) return;
     if (!pushEnabled && !adminMessaging) return;
@@ -142,7 +136,7 @@ async function pushToOfflineUser(userDoc, { title, body, url = '/' } = {}) {
     // Online AND visibly focused -> the in-app toast covers it. Online-but-hidden or
     // fully offline -> send the push.
     if (!uid || (onlineUsers.get(uid) && !hiddenUsers.has(uid))) return;
-    await sendToUserDevices(userDoc, { title, body, url });
+    await sendToUserDevices(userDoc, { title, body, url, avatar, sender });
   } catch (e) {
     console.error('[push notify] failed:', e.message);
   }
@@ -5778,7 +5772,11 @@ io.on('connection', (socket) => {
             body: messageType === 'text'
               ? (String(messageText || '').trim().slice(0, 90) || 'You have a new message')
               : `Sent a ${messageType}`,
-            url: `/?chat=${senderId}`
+            url: `/?chat=${senderId}`,
+            // Native service uses these for the Instagram-style look: sender's photo as
+            // the large icon and their name as the notification title.
+            avatar: senderDoc.avatarUrl || '',
+            sender: senderDoc.username || ''
           }).catch(e => console.error('offline push failed:', e.message));
         }
       }
