@@ -133,9 +133,9 @@ async function pushToOfflineUser(userDoc, { title, body, url = '/', avatar = '',
     if (!userDoc || userDoc.ownedByAdmin) return;
     if (!pushEnabled && !adminMessaging) return;
     const uid = String(userDoc._id || userDoc.id || '');
-    // Online AND visibly focused -> the in-app toast covers it. Online-but-hidden or
-    // fully offline -> send the push.
-    if (!uid || (onlineUsers.get(uid) && !hiddenUsers.has(uid))) return;
+    // Online AND visibly focused -> the in-app toast covers it. Online-but-hidden,
+    // stale-native, or fully offline -> send the push.
+    if (!uid || receiverReachable(uid)) return;
     await sendToUserDevices(userDoc, { title, body, url, avatar, sender });
   } catch (e) {
     console.error('[push notify] failed:', e.message);
@@ -573,6 +573,10 @@ io.use((socket, next) => {
         socket.data.authenticated = true;
       }
     }
+    // Capacitor WebView UAs contain "; wv;" — used to apply the stricter background-
+    // freshness rule only to native app sockets (see lastVisibleAt in the push gate).
+    const ua = (socket.handshake.headers['user-agent'] || '').toLowerCase();
+    socket.data.nativeSocket = ua.includes('; wv;') || ua.includes('twelo');
   } catch (e) {
     // Invalid/expired token -> treated as unauthenticated, connection still allowed.
   }
@@ -585,6 +589,27 @@ const onlineUsers = new Map();
 // pushes must still go out — otherwise an open-but-hidden tab silently swallows
 // every notification (the top complaint from web users).
 const hiddenUsers = new Set();
+// userId -> ms timestamp of the last moment the socket claimed to be VISIBLE.
+// The Android WebView freezes JS timers as soon as the app leaves the foreground,
+// so its socket can linger 'online' (before the heartbeat times out) while nothing
+// can actually be rendered in-app. Treating a stale-visible native socket as
+// reachable was the reason APK pushes stopped when the app was backgrounded or
+// swiped from recents. Web tabs are driven by real visibilitychange events, so the
+// freshness rule is only applied to native sockets (socket.data.nativeSocket).
+const lastVisibleAt = new Map();
+const VISIBLE_STALE_MS = 60 * 1000;
+// True when the user's live socket cannot actually show an in-app toast right now.
+function receiverReachable(receiverId) {
+  const uid = String(receiverId);
+  if (!onlineUsers.get(uid)) return false;
+  if (hiddenUsers.has(uid)) return false;
+  const socket = io.sockets.sockets.get(onlineUsers.get(uid));
+  if (socket && socket.data && socket.data.nativeSocket) {
+    const ts = lastVisibleAt.get(uid) || 0;
+    if (Date.now() - ts > VISIBLE_STALE_MS) return false;
+  }
+  return true;
+}
 const activeSessions = new Map(); // socket.id -> { userId, startTime, messagesSent, matchesMade }
 
 const { createAdapter } = require('@socket.io/redis-adapter');
@@ -5641,11 +5666,12 @@ io.on('connection', (socket) => {
     socket.join(`story_${storyId}`);
   });
 
-  // Client reports tab/app visibility (called on connect + every visibilitychange).
+  // Client reports tab/app visibility (called on connect + every visibilitychange,
+  // plus Capacitor pause/resume/appStateChange on native).
   socket.on('user_visibility', (data) => {
     const uid = String(socket.data.userId || '');
     if (!uid) return;
-    if (data && data.hidden) hiddenUsers.add(uid); else hiddenUsers.delete(uid);
+    if (data && data.hidden) { hiddenUsers.add(uid); } else { hiddenUsers.delete(uid); lastVisibleAt.set(uid, Date.now()); }
   });
   
   socket.on('leave_story_room', (storyId) => {
@@ -5756,10 +5782,10 @@ io.on('connection', (socket) => {
         io.to('admin_room').emit('receive_message', payload);
       }
 
-      // Offline push (mutual followers only, receiver not online). Runs off the hot path
-      // as fire-and-forget so the socket handler returns immediately after the emits above.
-      const receiverHidden = hiddenUsers.has(String(receiverId));
-      if (senderDoc && receiverDoc && (!receiverSocketId || receiverHidden) && !receiverDoc.ownedByAdmin) {
+      // Offline push (mutual followers only, receiver not effectively reachable).
+      // Runs off the hot path as fire-and-forget so the socket handler returns
+      // immediately after the emits above.
+      if (senderDoc && receiverDoc && !receiverReachable(receiverId) && !receiverDoc.ownedByAdmin) {
         const rid = String(receiverId);
         const isMutual = (senderDoc.followers || []).some(id => String(id) === rid) &&
                          (senderDoc.following || []).some(id => String(id) === rid);
@@ -6634,7 +6660,7 @@ io.on('connection', (socket) => {
     // Visibility flag must die with the socket, or a reconnected visible tab would
     // keep getting duplicate pushes.
     for (const [uid, sid] of onlineUsers.entries()) {
-      if (sid === socket.id) { hiddenUsers.delete(uid); break; }
+      if (sid === socket.id) { hiddenUsers.delete(uid); lastVisibleAt.delete(uid); break; }
     }
     // Remove from in-memory fallback queue
     _fallbackQueue = _fallbackQueue.filter(u => u.socketId !== socket.id);

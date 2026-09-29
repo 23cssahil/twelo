@@ -1283,13 +1283,39 @@ export default function Dashboard() {
   // Tell the server whether this tab/app is visible. Without this an open-but-hidden
   // tab counts as "online" and the server skips the push, so background tabs receive
   // nothing (the exact "site pe notification nahi aata" complaint).
+  // On native the WebView freezes JS when the app goes to background, and visibilitychange
+  // is unreliable there — Capacitor's pause/resume/appStateChange events are the reliable
+  // signal, and we must report BEFORE the JS context is frozen (else the socket lingers
+  // "online+visible" and every chat push is skipped — the exact APK complaint).
   useEffect(() => {
     if (!socket) return;
-    const sendVis = () => { try { socket.emit('user_visibility', { hidden: document.hidden }); } catch (e) {} };
+    let nativePaused = false;
+    const sendVis = () => {
+      try { socket.emit('user_visibility', { hidden: nativePaused || document.hidden }); } catch (e) {}
+    };
     sendVis();
     socket.on('connect', sendVis);
     document.addEventListener('visibilitychange', sendVis);
-    return () => { socket.off('connect', sendVis); document.removeEventListener('visibilitychange', sendVis); };
+    // Periodic visibility heartbeat: while visible it keeps the server's freshness
+    // stamp alive (otherwise a long-open foreground app would look 'stale' after 60s
+    // and every message would fire a redundant push). When the WebView is frozen in
+    // the background these timers stop, which is exactly the signal the server wants.
+    const visHeartbeat = setInterval(sendVis, 45000);
+    let stateListener = null;
+    if (isNativeApp()) {
+      App.addListener('appStateChange', ({ isActive }) => {
+        nativePaused = !isActive;
+        sendVis();
+      }).then((l) => { stateListener = l; }).catch(() => {});
+      App.addListener('pause', () => { nativePaused = true; sendVis(); });
+      App.addListener('resume', () => { nativePaused = false; sendVis(); });
+    }
+    return () => {
+      clearInterval(visHeartbeat);
+      socket.off('connect', sendVis);
+      document.removeEventListener('visibilitychange', sendVis);
+      try { stateListener && stateListener.remove(); } catch (e) {}
+    };
   }, [socket]);
 
   // Hand the service worker the session token + API base so a notification's inline
