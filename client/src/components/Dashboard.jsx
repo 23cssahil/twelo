@@ -3563,6 +3563,14 @@ export default function Dashboard() {
       // The socket drops when the app is backgrounded/closed. Any notifications that
       // arrived during that gap never fire a live event, so re-sync the badge on reconnect.
       fetchNotifications();
+      // Re-sync the chat list the instant the socket (re)connects. Messages that landed
+      // while the app was frozen in the background have no live event on resume, so
+      // without this the unread/message only shows up after the next poll cycle or the
+      // receive debounce — the "5-10s late inside the app" complaint.
+      fetchRecentChats();
+      if (activeChatUserRef.current) {
+        fetchMessages(activeChatUserRef.current._id, null);
+      }
       if (isSearchingRandom) {
         console.log('[MATCH] Socket connected/reconnected. Emitting search_random...');
         socket.emit('search_random', { userId: user.id, isBotEligible: false, genderFilter });

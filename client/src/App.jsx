@@ -84,11 +84,15 @@ export default function App() {
   // Handle socket connection
   useEffect(() => {
     if (user && token) {
-      const newSocket = io(API_URL, { 
-        transports: ['polling', 'websocket'],
+      const newSocket = io(API_URL, {
+        // WebSocket first: long-polling only delivers a message on the next poll
+        // cycle, which is what made in-app chat arrive 5-10s late. Falling back to
+        // polling keeps connectivity on networks that block websockets.
+        transports: ['websocket', 'polling'],
+        tryAllTransports: true,
         reconnection: true,
         reconnectionAttempts: 10,
-        reconnectionDelay: 1000,
+        reconnectionDelay: 500,
         auth: { token }
       });
       setSocket(newSocket);
