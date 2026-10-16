@@ -24,3 +24,7 @@ server/fix_likes.js
 # Firebase service-account private keys - NEVER commit
 *firebase-adminsdk*.json
 *-firebase-adminsdk-*
+
+# Web3Task interview assignment - standalone project, its own git repo.
+# Never commit this into the ERP/Twelo history.
+watch-party/
