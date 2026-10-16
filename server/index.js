@@ -5732,13 +5732,17 @@ io.on('connection', (socket) => {
     // Coming online counts as receiving everything that arrived while offline:
     // flip those one-tick messages to two ticks for their senders.
     try {
-      const meDoc = await User.findById(effectiveUserId).select('following').lean();
-      const pending = await Message.distinct('sender', {
-        receiver: effectiveUserId,
-        isDelivered: false,
-        isDeletedForEveryone: { $ne: true },
-        deletedBy: { $ne: effectiveUserId },
-      });
+      // Both reads are independent — fetch them in parallel to shave one round-trip
+      // off every connect (matters most on the mobile resume path).
+      const [meDoc, pending] = await Promise.all([
+        User.findById(effectiveUserId).select('following').lean(),
+        Message.distinct('sender', {
+          receiver: effectiveUserId,
+          isDelivered: false,
+          isDeletedForEveryone: { $ne: true },
+          deletedBy: { $ne: effectiveUserId },
+        }),
+      ]);
       // Cap the work per connection and include followed users so a legacy backlog
       // (messages stored before delivery receipts existed) cannot slow down login.
       const followSet = new Set((meDoc?.following || []).map(id => String(id)));
@@ -5747,7 +5751,11 @@ io.on('connection', (socket) => {
         .filter(id => id === effectiveUserId || followSet.has(id))
         .slice(0, 50);
       const now = new Date();
-      for (const senderId of targets) await markDeliveredAndNotify(senderId, effectiveUserId, now);
+      // Fire the (independent, capped) sender flushes in parallel instead of one-by-one.
+      // Each markDeliveredAndNotify already swallows its own errors, so a slow or failed
+      // sender can't stall the rest — this keeps the register ack fast on flappy mobile
+      // reconnects (the "chats load slow right after opening the app" complaint).
+      await Promise.all(targets.map(senderId => markDeliveredAndNotify(senderId, effectiveUserId, now)));
     } catch (e) {
       console.error('Delivery flush on connect failed:', e.message);
     }

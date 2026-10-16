@@ -113,6 +113,10 @@ MessageSchema.index({ sender: 1, createdAt: -1 });
 // Compound index for finding unviewed messages
 MessageSchema.index({ receiver: 1, isViewed: 1 });
 
+// Delivery-flush-on-connect distinct query filters { receiver, isDelivered: false }.
+// Without this it scans the receiver's whole message set on every socket connect.
+MessageSchema.index({ receiver: 1, isDelivered: 1 });
+
 // Critical index for /api/chats/recent aggregate queries
 // Covers: { sender, deletedBy, createdAt } and { receiver, deletedBy, createdAt }
 MessageSchema.index({ sender: 1, deletedBy: 1, createdAt: -1 });
